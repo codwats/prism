@@ -1,7 +1,7 @@
 <h3 align="center">
 	<img src="https://raw.githubusercontent.com/codwats/prism/refs/heads/main/assets/prismicon.png" width="100" alt="Logo"/><br/>
-	<img src="https://raw.githubusercontent.com/codwats/prism/refs/heads/main/assets/PrismWebLogoSmall.png" width="146" alt="Wordmark"/><br/>
-PRISM
+	<!-- <img src="https://raw.githubusercontent.com/codwats/prism/refs/heads/main/assets/PrismWebLogoSmall.png" width="146" alt="Wordmark"/><br/> -->
+PRISM<br/>
 <i>Personal Reference Index &amp; Sleeve Marking</i>
 </h3>
 Share Magic: The Gathering Commander cards across multiple decks without buying duplicates!
