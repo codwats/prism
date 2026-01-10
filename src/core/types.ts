@@ -164,3 +164,33 @@ export interface ValidationResult {
   isValid: boolean;
   errors: string[];
 }
+
+/**
+ * Types of changes that can occur to a card
+ */
+export type ChangeAction = 'NEW' | 'UPDATE' | 'REMOVE';
+
+/**
+ * Represents a change to a card between two PRISM states
+ */
+export interface CardChange {
+  cardName: string;
+  action: ChangeAction;
+  oldMarkSummary: string; // e.g., "Red, Blue"
+  newMarkSummary: string; // e.g., "Red, Blue, Green"
+  physicalAction: string; // Human-readable instruction
+  oldSlots: MarkSlot[];
+  newSlots: MarkSlot[];
+}
+
+/**
+ * Delta between two PRISM states
+ */
+export interface PrismDelta {
+  changes: CardChange[];
+  summary: {
+    newCards: number;
+    updatedCards: number;
+    removedCards: number;
+  };
+}

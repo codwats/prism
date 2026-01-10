@@ -25,6 +25,9 @@ Thumbs.db
 # Output files (examples - users may want to keep these)
 prism-output.csv
 prism-output.json
+prism-changes.csv
 
 # Testing
 coverage/
+test-*.json
+test-*.csv
