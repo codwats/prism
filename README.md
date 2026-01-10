@@ -1,6 +1,6 @@
 # 🔮 PRISM
 
-**Personal Reliquary Index & Sleeve Marking**
+**Personal Reference Index & Sleeve Marking**
 
 Share Magic: The Gathering Commander cards across multiple decks without buying duplicates!
 
@@ -46,7 +46,7 @@ PRISM analyzes your decklists and generates:
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/mtg-prism.git
+git clone https://github.com/codwats/prism.git
 cd prism
 
 # Install dependencies
