@@ -1,6 +1,8 @@
-# 🔮 PRISM
-
-**Personal Reference Index & Sleeve Marking**
+<h3 align="center">
+	<img src="https://raw.githubusercontent.com/codwats/prism/refs/heads/main/assets/prismicon.png" width="100" alt="Logo"/><br/>
+	<!-- <img src="https://raw.githubusercontent.com/codwats/prism/refs/heads/main/assets/PrismWebLogoSmall.png" width="146" alt="Wordmark"/><br/> -->
+PRISM<br/></h3>
+<h5 align="center">Personal Reference Index &amp; Sleeve Marking</h5>
 
 Share Magic: The Gathering Commander cards across multiple decks without buying duplicates!
 
@@ -46,7 +48,7 @@ PRISM analyzes your decklists and generates:
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/mtg-prism.git
+git clone https://github.com/codwats/prism.git
 cd prism
 
 # Install dependencies
