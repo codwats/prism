@@ -1,7 +1,7 @@
 {
   "name": "mtg-prism",
   "version": "1.0.0",
-  "description": "Personal Resource Inventory & Sleeve Marking - Share MTG Commander cards across decks",
+  "description": "Personal Reference Index & Sleeve Marking - Share MTG Commander cards across decks",
   "main": "dist/index.js",
   "type": "module",
   "bin": {

@@ -1,6 +1,6 @@
 /**
  * PRISM Type Definitions
- * Personal Resource Inventory & Sleeve Marking
+ * Personal Reference Index & Sleeve Marking
  */
 
 /**

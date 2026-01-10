@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * PRISM - Personal Resource Inventory & Sleeve Marking
+ * PRISM - Personal Reference Index & Sleeve Marking
  * CLI Entry Point
  */
 
