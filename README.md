@@ -1,6 +1,6 @@
 # 🔮 PRISM
 
-**Personal Resource Inventory & Sleeve Marking**
+**Personal Reliquary Index & Sleeve Marking**
 
 Share Magic: The Gathering Commander cards across multiple decks without buying duplicates!
 
