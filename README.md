@@ -76,18 +76,37 @@ prism
 npm start
 ```
 
-Follow the interactive prompts:
+PRISM supports two workflows: **creating a new collection** or **loading an existing one**.
 
-1. **How many decks?** Enter 2-10
-2. **For each deck:**
+### Workflow 1: New Collection
+
+1. **Choose:** "Start new collection"
+2. **How many decks?** Enter 1-10
+3. **For each deck:**
    - Enter deck name (e.g., "Spellslinger Izzet")
    - Enter commander name (e.g., "Alania, Divergent Storm")
    - Enter bracket level (1-4)
    - Choose input method:
      - **Paste decklist:** Opens your default editor
      - **Load from file:** Provide file path
-3. **Output paths:** Confirm or change CSV/JSON save locations
-4. **Done!** Your marking instructions are ready
+4. **Output paths:** Confirm or change file locations
+5. **Done!** You get:
+   - `prism-output.csv` - Full reference with all cards
+   - `prism-output.json` - Save this to load later!
+
+### Workflow 2: Load & Edit Existing Collection
+
+1. **Choose:** "Load existing collection"
+2. **Provide path:** to your `prism-output.json` file
+3. **Menu options:**
+   - **Add more decks** - Expand your collection
+   - **Edit existing deck** - Update a deck's list
+   - **Remove a deck** - Delete from collection
+   - **Done** - Regenerate outputs
+4. **Done!** You get:
+   - `prism-output.csv` - Updated full reference
+   - `prism-changes.csv` - **Only what changed!** 🎯
+   - `prism-output.json` - Updated state
 
 ### Using Example Decks
 
@@ -99,6 +118,13 @@ When prompted for decklist input, choose "Load from file" and use:
 - `examples/deck1-spellslinger.txt`
 - `examples/deck2-energy.txt`
 - `examples/deck3-stompy.txt`
+
+**Try this workflow:**
+1. Start new collection with decks 1 & 2
+2. Save the JSON
+3. Run PRISM again, load the JSON
+4. Add deck 3
+5. Check `prism-changes.csv` - only shows what to mark on deck 3!
 
 ---
 
@@ -126,9 +152,9 @@ PRISM accepts standard MTGO/Moxfield/Archidekt export format:
 
 ## Output
 
-### CSV File
+### Full Reference CSV (`prism-output.csv`)
 
-The primary output for marking your sleeves. Contains:
+The complete database for marking your sleeves. Contains:
 
 | Column | Description |
 |--------|-------------|
@@ -149,6 +175,31 @@ The primary output for marking your sleeves. Contains:
 ```csv
 Sol Ring,1,3,"Red, Blue, Green",Red,Spellslinger Izzet,2,Blue,Energy Aggro,3,Green,Mono-G Stompy,1
 ```
+
+### Changes CSV (`prism-changes.csv`)
+
+**Generated only when loading an existing collection.** This file shows ONLY what changed, so you don't have to re-mark hundreds of cards!
+
+| Column | Description |
+|--------|-------------|
+| Card Name | The card's name |
+| Action | NEW, UPDATE, or REMOVE |
+| Old Marks | Previous marking (before change) |
+| New Marks | New marking (after change) |
+| What to Do | Human-readable instruction |
+
+**Example rows:**
+```csv
+Card Name,Action,Old Marks,New Marks,What to Do
+Sol Ring,UPDATE,"Red, Blue","Red, Blue, Green","Add: Green in slot 3"
+New Card,NEW,(none),Green,"Mark new sleeve with: Green"
+Old Card,REMOVE,"Red, Blue",(none),"Card no longer in any deck - remove from collection"
+```
+
+**Why this is useful:**
+- When you add a 4th deck to your collection of 3 decks
+- You only need to mark NEW cards and UPDATE existing cards
+- Don't have to re-mark the 200+ cards that didn't change!
 
 ### JSON File
 

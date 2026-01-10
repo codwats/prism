@@ -98,7 +98,7 @@ export function displayOutputConfirmation(
  */
 export function displayWelcome(): void {
   console.log();
-  console.log(chalk.bold.magenta('🔮 PRISM'), '—', chalk.bold('Personal Resource Inventory & Sleeve Marking'));
+  console.log(chalk.bold.magenta('🔮 PRISM'), '—', chalk.bold('Personal Reference Index & Sleeve Marking'));
   console.log(chalk.dim('   Share cards across Commander decks with confidence!'));
   console.log();
 }

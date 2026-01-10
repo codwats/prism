@@ -15,19 +15,40 @@ import { getCardKey } from '../utils/normalizer.js';
 
 /**
  * Assigns colors to decks based on entry order
+ * Preserves existing color assignments when loading from JSON
  *
  * @param decks - Array of decks
  * @returns Map of deck ID to color
  */
 export function assignColors(decks: Deck[]): Record<string, string> {
   const colorPalette: Record<string, string> = {};
+  const usedColors = new Set<string>();
 
-  decks.forEach((deck, index) => {
-    if (index < COLOR_PALETTE.length) {
-      colorPalette[deck.id] = COLOR_PALETTE[index];
-      deck.assignedColor = COLOR_PALETTE[index];
-    } else {
-      throw new Error(`Too many decks (${decks.length}). Maximum is ${COLOR_PALETTE.length}`);
+  // First pass: preserve existing color assignments
+  decks.forEach(deck => {
+    if (deck.assignedColor) {
+      colorPalette[deck.id] = deck.assignedColor;
+      usedColors.add(deck.assignedColor);
+    }
+  });
+
+  // Second pass: assign colors to new decks
+  let colorIndex = 0;
+  decks.forEach(deck => {
+    if (!deck.assignedColor) {
+      // Find next available color
+      while (colorIndex < COLOR_PALETTE.length && usedColors.has(COLOR_PALETTE[colorIndex])) {
+        colorIndex++;
+      }
+
+      if (colorIndex >= COLOR_PALETTE.length) {
+        throw new Error(`Too many decks (${decks.length}). Maximum is ${COLOR_PALETTE.length}`);
+      }
+
+      colorPalette[deck.id] = COLOR_PALETTE[colorIndex];
+      deck.assignedColor = COLOR_PALETTE[colorIndex];
+      usedColors.add(COLOR_PALETTE[colorIndex]);
+      colorIndex++;
     }
   });
 
