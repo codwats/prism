@@ -13,12 +13,13 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en">
+    <html lang="en" className="dark">
       <head>
         <link rel="icon" type="image/png" href="/favicon.png" />
+        <link href="//cdn.jsdelivr.net/npm/mana-font@latest/css/mana.css" rel="stylesheet" type="text/css" />
         <script src="https://kit.webawesome.com/da021fed1e5141f2.js" crossOrigin="anonymous" async />
       </head>
-      <body className="font-sans antialiased">{children}</body>
+      <body>{children}</body>
     </html>
   )
 }
