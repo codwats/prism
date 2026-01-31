@@ -3,8 +3,8 @@
  * Allows users to reorder decks to control stripe positions
  */
 
-import { Deck } from '../core/types.js';
-import { getCardKey } from './normalizer.js';
+import { Deck } from '../core/types';
+import { getCardKey } from './normalizer';
 
 /**
  * Calculates the number of shared cards between two decks

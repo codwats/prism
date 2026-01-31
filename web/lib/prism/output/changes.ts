@@ -4,7 +4,7 @@
  */
 
 import { stringify } from 'csv-stringify/sync';
-import { PrismDelta } from '../core/types.js';
+import { PrismDelta } from '../core/types';
 
 /**
  * Generates changes CSV content from delta
@@ -37,13 +37,3 @@ export function generateChangesCSV(delta: PrismDelta): string {
   });
 }
 
-/**
- * Writes changes CSV to file
- *
- * @param delta - Delta between old and new states
- * @param filepath - Output file path
- */
-export async function writeChangesCSVFile(delta: PrismDelta, filepath: string): Promise<void> {
-  const csv = generateChangesCSV(delta);
-  await fs.writeFile(filepath, csv, 'utf-8');
-}

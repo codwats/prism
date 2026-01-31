@@ -4,10 +4,6 @@ const nextConfig = {
   images: {
     unoptimized: true, // Required for static export
   },
-  // Disable server components for full static export
-  experimental: {
-    appDir: true,
-  },
 }
 
 module.exports = nextConfig

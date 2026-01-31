@@ -1,8 +1,5 @@
 import type { Metadata } from 'next'
-import { Inter } from 'next/font/google'
 import './globals.css'
-
-const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
   title: 'PRISM - Personal Reference Index & Sleeve Marking',
@@ -20,7 +17,7 @@ export default function RootLayout({
       <head>
         <script src="https://kit.webawesome.com/da021fed1e5141f2.js" crossOrigin="anonymous" async />
       </head>
-      <body className={inter.className}>{children}</body>
+      <body className="font-sans antialiased">{children}</body>
     </html>
   )
 }

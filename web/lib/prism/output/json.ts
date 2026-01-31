@@ -3,7 +3,7 @@
  * Generates JSON file for programmatic use and future re-import
  */
 
-import { ProcessedData, PrismExport } from '../core/types.js';
+import { ProcessedData, PrismExport } from '../core/types';
 
 /**
  * Generates JSON export from processed data
@@ -33,14 +33,3 @@ export function generateJSON(data: ProcessedData): PrismExport {
   };
 }
 
-/**
- * Writes JSON to file
- *
- * @param data - Processed deck data
- * @param filepath - Output file path
- */
-export async function writeJSONFile(data: ProcessedData, filepath: string): Promise<void> {
-  const exportData = generateJSON(data);
-  const json = JSON.stringify(exportData, null, 2);
-  await fs.writeFile(filepath, json, 'utf-8');
-}

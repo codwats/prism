@@ -3,8 +3,8 @@
  * Calculates changes between two PRISM states
  */
 
-import { ProcessedData, PrismDelta, CardChange, ProcessedCard } from './types.js';
-import { getCardKey } from '../utils/normalizer.js';
+import { ProcessedData, PrismDelta, CardChange, ProcessedCard } from './types';
+import { getCardKey } from '../utils/normalizer';
 
 /**
  * Calculates the delta between an old PRISM state and a new one

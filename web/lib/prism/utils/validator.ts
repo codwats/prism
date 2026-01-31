@@ -3,7 +3,7 @@
  * Validates user input for decks
  */
 
-import { DeckInput, ValidationResult } from '../core/types.js';
+import { DeckInput, ValidationResult } from '../core/types';
 
 /**
  * Validates a deck name
