@@ -15,6 +15,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head>
+        <link rel="icon" type="image/png" href="/favicon.png" />
         <script src="https://kit.webawesome.com/da021fed1e5141f2.js" crossOrigin="anonymous" async />
       </head>
       <body className="font-sans antialiased">{children}</body>

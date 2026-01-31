@@ -299,7 +299,7 @@ export default function ProcessPage() {
   }
 
   return (
-    <main className="min-h-screen bg-gradient-to-b from-gray-900 via-purple-900 to-gray-900">
+    <main className="min-h-screen bg-gray-50">
       <div className="container mx-auto px-4 py-8">
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
@@ -308,7 +308,7 @@ export default function ProcessPage() {
               ← Back to Home
             </Link>
             <div className="flex items-center gap-4">
-              <h1 className="text-4xl font-bold text-white">
+              <h1 className="text-3xl font-bold text-gray-900">
                 🔮 {collectionName}
               </h1>
               <button
@@ -352,7 +352,7 @@ export default function ProcessPage() {
 
         {/* Load Menu */}
         {showLoadMenu && (
-          <div className="bg-gray-800/90 backdrop-blur-sm rounded-lg p-6 border border-purple-500/30 mb-6">
+          <div className="bg-white border border-gray-200 rounded-lg p-6 mb-6">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-xl font-bold text-white">Saved Collections</h3>
               <button
@@ -374,7 +374,7 @@ export default function ProcessPage() {
                   >
                     <div className="flex-1">
                       <div className="font-semibold text-white">{collection.name}</div>
-                      <div className="text-sm text-gray-400">
+                      <div className="text-sm text-gray-600">
                         {collection.decks.length} deck{collection.decks.length > 1 ? 's' : ''} •
                         Updated {new Date(collection.updatedAt).toLocaleDateString()}
                       </div>
@@ -419,9 +419,9 @@ export default function ProcessPage() {
         <div className="grid lg:grid-cols-2 gap-8">
           {/* Left Column: Deck Management */}
           <div>
-            <div className="bg-gray-800/50 backdrop-blur-sm rounded-lg p-6 border border-purple-500/30 mb-6">
+            <div className="bg-white border border-gray-200 rounded-lg p-6 mb-6">
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-2xl font-bold text-white">Your Decks ({decks.length}/10)</h2>
+                <h2 className="text-xl font-bold text-gray-900">Your Decks ({decks.length}/10)</h2>
                 {!showAddForm && (
                   <button
                     onClick={() => setShowAddForm(true)}
@@ -435,46 +435,46 @@ export default function ProcessPage() {
 
               {/* Add Deck Form */}
               {showAddForm && (
-                <div className="bg-gray-900/50 rounded-lg p-4 mb-4 border border-purple-500/20">
-                  <h3 className="text-lg font-bold text-white mb-3">Add New Deck</h3>
+                <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-4">
+                  <h3 className="text-base font-bold text-gray-900 mb-3">Add New Deck</h3>
 
                   <div className="space-y-3">
                     <div>
-                      <label className="block text-sm text-gray-300 mb-1">Deck Name</label>
+                      <label className="block text-sm text-gray-700 mb-1">Deck Name</label>
                       <input
                         type="text"
                         value={deckName}
                         onChange={(e) => setDeckName(e.target.value)}
-                        className="w-full bg-gray-800 text-white rounded px-3 py-2 border border-gray-700 focus:border-purple-500 focus:outline-none"
+                        className="w-full bg-white border border-gray-300 rounded px-3 py-2 focus:border-blue-500 focus:outline-none"
                         placeholder="e.g., Spellslinger Izzet"
                       />
                     </div>
 
                     <div>
-                      <label className="block text-sm text-gray-300 mb-1">Commander</label>
+                      <label className="block text-sm text-gray-700 mb-1">Commander</label>
                       <input
                         type="text"
                         value={commander}
                         onChange={(e) => setCommander(e.target.value)}
-                        className="w-full bg-gray-800 text-white rounded px-3 py-2 border border-gray-700 focus:border-purple-500 focus:outline-none"
+                        className="w-full bg-white border border-gray-300 rounded px-3 py-2 focus:border-blue-500 focus:outline-none"
                         placeholder="e.g., Alania, Divergent Storm"
                       />
                     </div>
 
                     <div>
-                      <label className="block text-sm text-gray-300 mb-1">Bracket (1-4)</label>
+                      <label className="block text-sm text-gray-700 mb-1">Bracket (1-4)</label>
                       <input
                         type="number"
                         min="1"
                         max="4"
                         value={bracket}
                         onChange={(e) => setBracket(parseInt(e.target.value))}
-                        className="w-full bg-gray-800 text-white rounded px-3 py-2 border border-gray-700 focus:border-purple-500 focus:outline-none"
+                        className="w-full bg-white border border-gray-300 rounded px-3 py-2 focus:border-blue-500 focus:outline-none"
                       />
                     </div>
 
                     <div>
-                      <label className="block text-sm text-gray-300 mb-2">Input Method</label>
+                      <label className="block text-sm text-gray-700 mb-2">Input Method</label>
                       <div className="flex gap-4">
                         <label className="flex items-center text-white">
                           <input
@@ -499,23 +499,23 @@ export default function ProcessPage() {
 
                     {inputMethod === 'paste' ? (
                       <div>
-                        <label className="block text-sm text-gray-300 mb-1">Decklist</label>
+                        <label className="block text-sm text-gray-700 mb-1">Decklist</label>
                         <textarea
                           value={decklist}
                           onChange={(e) => setDecklist(e.target.value)}
-                          className="w-full bg-gray-800 text-white rounded px-3 py-2 border border-gray-700 focus:border-purple-500 focus:outline-none font-mono text-sm"
+                          className="w-full bg-white border border-gray-300 rounded px-3 py-2 focus:border-blue-500 focus:outline-none font-mono text-sm"
                           rows={8}
                           placeholder="1 Sol Ring&#10;1 Arcane Signet&#10;12 Island&#10;..."
                         />
                       </div>
                     ) : (
                       <div>
-                        <label className="block text-sm text-gray-300 mb-1">Moxfield URL or ID</label>
+                        <label className="block text-sm text-gray-700 mb-1">Moxfield URL or ID</label>
                         <input
                           type="text"
                           value={moxfieldUrl}
                           onChange={(e) => setMoxfieldUrl(e.target.value)}
-                          className="w-full bg-gray-800 text-white rounded px-3 py-2 border border-gray-700 focus:border-purple-500 focus:outline-none"
+                          className="w-full bg-white border border-gray-300 rounded px-3 py-2 focus:border-blue-500 focus:outline-none"
                           placeholder="https://www.moxfield.com/decks/abc123 or abc123"
                         />
                       </div>
@@ -556,15 +556,15 @@ export default function ProcessPage() {
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
                           <div className="flex items-center gap-2 mb-1">
-                            <span className="text-lg font-bold text-white">{deck.name}</span>
+                            <span className="text-base font-bold text-gray-900">{deck.name}</span>
                             {deck.assignedColor && (
                               <span className="text-sm px-2 py-0.5 rounded bg-purple-600/30 text-purple-300">
                                 {deck.assignedColor}
                               </span>
                             )}
                           </div>
-                          <p className="text-sm text-gray-400">Commander: {deck.commander}</p>
-                          <p className="text-sm text-gray-400">
+                          <p className="text-sm text-gray-600">Commander: {deck.commander}</p>
+                          <p className="text-sm text-gray-600">
                             Bracket {deck.bracket} • {deck.cards.reduce((sum, c) => sum + c.quantity, 0)} cards
                           </p>
                         </div>
@@ -584,7 +584,7 @@ export default function ProcessPage() {
                 <button
                   onClick={handleProcess}
                   disabled={isProcessing}
-                  className="w-full mt-4 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-bold py-3 rounded-lg transition-all disabled:opacity-50"
+                  className="w-full mt-4 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg transition-all disabled:opacity-50"
                 >
                   {isProcessing ? 'Processing...' : `Process ${decks.length} Deck${decks.length > 1 ? 's' : ''}`}
                 </button>
@@ -595,38 +595,38 @@ export default function ProcessPage() {
           {/* Right Column: Results */}
           <div>
             {processedData ? (
-              <div className="bg-gray-800/50 backdrop-blur-sm rounded-lg p-6 border border-green-500/30">
-                <h2 className="text-2xl font-bold text-white mb-4">✨ Results</h2>
+              <div className="bg-white border border-gray-200 rounded-lg p-6">
+                <h2 className="text-xl font-bold text-gray-900 mb-4">✨ Results</h2>
 
                 {/* Statistics */}
                 <div className="grid grid-cols-2 gap-4 mb-6">
                   <div className="bg-gray-900/50 rounded-lg p-4">
                     <div className="text-3xl font-bold text-green-400">{processedData.stats.totalUniqueCards}</div>
-                    <div className="text-sm text-gray-400">Unique Cards</div>
+                    <div className="text-sm text-gray-600">Unique Cards</div>
                   </div>
                   <div className="bg-gray-900/50 rounded-lg p-4">
                     <div className="text-3xl font-bold text-blue-400">{processedData.stats.sharedCards}</div>
-                    <div className="text-sm text-gray-400">Shared Cards</div>
+                    <div className="text-sm text-gray-600">Shared Cards</div>
                   </div>
                   <div className="bg-gray-900/50 rounded-lg p-4">
                     <div className="text-3xl font-bold text-purple-400">{processedData.stats.totalCardSlots}</div>
-                    <div className="text-sm text-gray-400">Total Slots</div>
+                    <div className="text-sm text-gray-600">Total Slots</div>
                   </div>
                   <div className="bg-gray-900/50 rounded-lg p-4">
                     <div className="text-3xl font-bold text-pink-400">
                       {processedData.stats.totalCardSlots - processedData.stats.totalUniqueCards}
                     </div>
-                    <div className="text-sm text-gray-400">Cards Saved!</div>
+                    <div className="text-sm text-gray-600">Cards Saved!</div>
                   </div>
                 </div>
 
                 {/* Most Shared */}
                 {processedData.stats.mostSharedCards.length > 0 && (
                   <div className="mb-6">
-                    <h3 className="text-lg font-bold text-white mb-2">Most Shared Cards</h3>
+                    <h3 className="text-base font-bold text-gray-900 mb-2">Most Shared Cards</h3>
                     <div className="space-y-1">
                       {processedData.stats.mostSharedCards.map((card) => (
-                        <div key={card.name} className="text-sm text-gray-300">
+                        <div key={card.name} className="text-sm text-gray-700">
                           <span className="font-semibold">{card.name}</span>
                           <span className="text-gray-500"> — {card.count} decks</span>
                         </div>
@@ -661,7 +661,7 @@ export default function ProcessPage() {
                   )}
                 </div>
 
-                <div className="mt-4 p-4 bg-purple-900/30 rounded-lg border border-purple-500/30">
+                <div className="mt-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
                   <p className="text-sm text-purple-200">
                     💡 <strong>Tip:</strong> Your collection is auto-saved! Close and come back anytime.
                     Export to JSON for backup or sharing.
@@ -669,7 +669,7 @@ export default function ProcessPage() {
                 </div>
               </div>
             ) : (
-              <div className="bg-gray-800/50 backdrop-blur-sm rounded-lg p-6 border border-gray-700">
+              <div className="bg-white border border-gray-200 rounded-lg p-6">
                 <div className="text-center py-12 text-gray-400">
                   <div className="text-6xl mb-4">🎯</div>
                   <p className="text-lg mb-2">No Results Yet</p>
