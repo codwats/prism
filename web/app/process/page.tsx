@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { v4 as uuidv4 } from 'uuid'
 import { parseDecklist } from '@/lib/prism/core/parser'
@@ -10,6 +10,16 @@ import { generateCSV } from '@/lib/prism/output/csv'
 import { generateJSON } from '@/lib/prism/output/json'
 import { generateChangesCSV } from '@/lib/prism/output/changes'
 import { fetchMoxfieldDeck, convertMoxfieldToPrismFormat, extractMoxfieldId, getCommanderName } from '@/lib/moxfield'
+import {
+  getSavedCollections,
+  saveCollection,
+  loadCollection,
+  deleteCollection,
+  autoSaveCollection,
+  importCollectionFromJSON,
+  exportCollectionAsJSON,
+  type SavedCollection
+} from '@/lib/storage'
 import type { Deck, ProcessedData } from '@/lib/prism/core/types'
 
 export default function ProcessPage() {
@@ -19,6 +29,13 @@ export default function ProcessPage() {
   const [showAddForm, setShowAddForm] = useState(false)
   const [isProcessing, setIsProcessing] = useState(false)
 
+  // Collection state
+  const [currentCollectionId, setCurrentCollectionId] = useState<string>(`collection-${Date.now()}`)
+  const [collectionName, setCollectionName] = useState('My Collection')
+  const [savedCollections, setSavedCollections] = useState<SavedCollection[]>([])
+  const [showLoadMenu, setShowLoadMenu] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
   // Form state
   const [deckName, setDeckName] = useState('')
   const [commander, setCommander] = useState('')
@@ -27,6 +44,121 @@ export default function ProcessPage() {
   const [decklist, setDecklist] = useState('')
   const [moxfieldUrl, setMoxfieldUrl] = useState('')
   const [loading, setLoading] = useState(false)
+
+  // Load saved collections on mount
+  useEffect(() => {
+    const collections = getSavedCollections()
+    setSavedCollections(collections)
+
+    // Load most recent collection if exists
+    if (collections.length > 0) {
+      const latest = collections.sort((a, b) =>
+        new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+      )[0]
+
+      if (latest.decks.length > 0) {
+        const shouldLoad = confirm(
+          `Found saved collection "${latest.name}" with ${latest.decks.length} deck(s). Load it?`
+        )
+        if (shouldLoad) {
+          handleLoadCollection(latest)
+        }
+      }
+    }
+  }, [])
+
+  // Auto-save when decks or processedData changes
+  useEffect(() => {
+    if (decks.length > 0) {
+      autoSaveCollection(decks, processedData, currentCollectionId, collectionName)
+    }
+  }, [decks, processedData, currentCollectionId, collectionName])
+
+  const handleLoadCollection = (collection: SavedCollection) => {
+    setDecks(collection.decks)
+    setCollectionName(collection.name)
+    setCurrentCollectionId(collection.id)
+
+    if (collection.processedData) {
+      setOldProcessedData(collection.processedData)
+      setProcessedData(collection.processedData)
+    }
+
+    setShowLoadMenu(false)
+
+    // Refresh saved collections list
+    setSavedCollections(getSavedCollections())
+  }
+
+  const handleDeleteCollection = (id: string) => {
+    if (confirm('Delete this collection?')) {
+      deleteCollection(id)
+      setSavedCollections(getSavedCollections())
+    }
+  }
+
+  const handleImportJSON = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    try {
+      const collection = await importCollectionFromJSON(file)
+
+      // Generate new ID to avoid conflicts
+      collection.id = `imported-${Date.now()}`
+      collection.name = `${collection.name} (Imported)`
+
+      saveCollection(collection)
+      setSavedCollections(getSavedCollections())
+
+      alert(`Imported collection "${collection.name}" with ${collection.decks.length} deck(s)`)
+    } catch (error) {
+      alert(`Import failed: ${error}`)
+    }
+
+    // Reset file input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ''
+    }
+  }
+
+  const handleExportCollection = () => {
+    const collection: SavedCollection = {
+      id: currentCollectionId,
+      name: collectionName,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      decks,
+      processedData: processedData || undefined,
+    }
+
+    exportCollectionAsJSON(collection)
+  }
+
+  const handleNewCollection = () => {
+    if (decks.length > 0) {
+      const shouldSave = confirm('Save current collection before starting new one?')
+      if (shouldSave) {
+        const collection: SavedCollection = {
+          id: currentCollectionId,
+          name: collectionName,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          decks,
+          processedData: processedData || undefined,
+        }
+        saveCollection(collection)
+        setSavedCollections(getSavedCollections())
+      }
+    }
+
+    // Reset to new collection
+    setDecks([])
+    setProcessedData(null)
+    setOldProcessedData(null)
+    setCurrentCollectionId(`collection-${Date.now()}`)
+    setCollectionName('My Collection')
+  }
 
   const handleAddDeck = async () => {
     if (!deckName || !commander) {
@@ -175,14 +307,114 @@ export default function ProcessPage() {
             <Link href="/" className="text-purple-400 hover:text-purple-300 mb-2 inline-block">
               ← Back to Home
             </Link>
-            <h1 className="text-4xl font-bold text-white">
-              🔮 Process Decks
-            </h1>
+            <div className="flex items-center gap-4">
+              <h1 className="text-4xl font-bold text-white">
+                🔮 {collectionName}
+              </h1>
+              <button
+                onClick={() => {
+                  const newName = prompt('Collection name:', collectionName)
+                  if (newName) setCollectionName(newName)
+                }}
+                className="text-sm text-purple-400 hover:text-purple-300"
+              >
+                ✏️ Rename
+              </button>
+            </div>
             <p className="text-gray-400 mt-2">
-              Add your Commander decks and generate marking instructions
+              {decks.length === 0 ? 'Start by adding decks' : `${decks.length} deck${decks.length > 1 ? 's' : ''} • Auto-saved`}
             </p>
           </div>
+
+          {/* Collection Actions */}
+          <div className="flex gap-2">
+            <button
+              onClick={() => setShowLoadMenu(!showLoadMenu)}
+              className="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded-lg transition-colors"
+            >
+              📂 Load
+            </button>
+            <button
+              onClick={handleNewCollection}
+              className="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded-lg transition-colors"
+            >
+              + New
+            </button>
+            <button
+              onClick={handleExportCollection}
+              disabled={decks.length === 0}
+              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors disabled:opacity-50"
+            >
+              💾 Export
+            </button>
+          </div>
         </div>
+
+        {/* Load Menu */}
+        {showLoadMenu && (
+          <div className="bg-gray-800/90 backdrop-blur-sm rounded-lg p-6 border border-purple-500/30 mb-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-bold text-white">Saved Collections</h3>
+              <button
+                onClick={() => setShowLoadMenu(false)}
+                className="text-gray-400 hover:text-white"
+              >
+                ✕
+              </button>
+            </div>
+
+            {savedCollections.length === 0 ? (
+              <p className="text-gray-400 text-center py-4">No saved collections yet</p>
+            ) : (
+              <div className="space-y-2 mb-4">
+                {savedCollections.map((collection) => (
+                  <div
+                    key={collection.id}
+                    className="flex items-center justify-between bg-gray-900/50 rounded-lg p-3 border border-gray-700"
+                  >
+                    <div className="flex-1">
+                      <div className="font-semibold text-white">{collection.name}</div>
+                      <div className="text-sm text-gray-400">
+                        {collection.decks.length} deck{collection.decks.length > 1 ? 's' : ''} •
+                        Updated {new Date(collection.updatedAt).toLocaleDateString()}
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => handleLoadCollection(collection)}
+                        className="bg-purple-600 hover:bg-purple-700 text-white px-3 py-1 rounded transition-colors text-sm"
+                      >
+                        Load
+                      </button>
+                      <button
+                        onClick={() => handleDeleteCollection(collection.id)}
+                        className="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded transition-colors text-sm"
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div className="border-t border-gray-700 pt-4">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".json"
+                onChange={handleImportJSON}
+                className="hidden"
+              />
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                className="w-full bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded-lg transition-colors"
+              >
+                📤 Import JSON File
+              </button>
+            </div>
+          </div>
+        )}
 
         <div className="grid lg:grid-cols-2 gap-8">
           {/* Left Column: Deck Management */}
@@ -431,8 +663,8 @@ export default function ProcessPage() {
 
                 <div className="mt-4 p-4 bg-purple-900/30 rounded-lg border border-purple-500/30">
                   <p className="text-sm text-purple-200">
-                    💡 <strong>Tip:</strong> Save the JSON file! Load it next time to add more decks
-                    and get a "changes only" CSV.
+                    💡 <strong>Tip:</strong> Your collection is auto-saved! Close and come back anytime.
+                    Export to JSON for backup or sharing.
                   </p>
                 </div>
               </div>
