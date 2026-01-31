@@ -89,23 +89,34 @@ export function processDecks(decks: Deck[]): ProcessedData {
     const cardName = firstDeck.cards.find(c => getCardKey(c.name) === cardKey)!.name;
 
     // Build mark slots
+    // IMPORTANT: Each deck has a FIXED global position (deck index + 1)
+    // This allows users to visually scan one stripe position to see all cards for that deck
     const markSlots: MarkSlot[] = [];
     const colors: string[] = [];
 
-    // Get decks in order
-    const orderedDecks = decks.filter(d => deckIds.has(d.id));
+    // Calculate max quantity needed (important for basic lands)
+    let maxQuantity = 1; // Default for singleton cards
 
-    orderedDecks.forEach((deck, index) => {
-      const slot: MarkSlot = {
-        position: index + 1,
-        color: deck.assignedColor,
-        deckName: deck.name,
-        deckId: deck.id,
-        bracket: deck.bracket,
-      };
+    // Iterate through ALL decks in order to maintain fixed positions
+    decks.forEach((deck, deckIndex) => {
+      if (deckIds.has(deck.id)) {
+        // Find this card in the deck to get its quantity
+        const cardInDeck = deck.cards.find(c => getCardKey(c.name) === cardKey);
+        if (cardInDeck && cardInDeck.quantity > maxQuantity) {
+          maxQuantity = cardInDeck.quantity;
+        }
 
-      markSlots.push(slot);
-      colors.push(deck.assignedColor);
+        const slot: MarkSlot = {
+          position: deckIndex + 1, // Global position! Deck 0 = position 1, etc.
+          color: deck.assignedColor,
+          deckName: deck.name,
+          deckId: deck.id,
+          bracket: deck.bracket,
+        };
+
+        markSlots.push(slot);
+        colors.push(deck.assignedColor);
+      }
     });
 
     processedCards.push({
@@ -114,6 +125,7 @@ export function processDecks(decks: Deck[]): ProcessedData {
       deckIds: Array.from(deckIds),
       markSlots,
       markSummary: colors.join(', '),
+      maxQuantity,
     });
   }
 

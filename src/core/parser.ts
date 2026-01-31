@@ -83,8 +83,11 @@ export function parseDecklist(decklist: string): ParseResult {
     }
 
     // Check for duplicate cards (Commander singleton violation)
+    // Exception: Basic lands are allowed as multiples
     const normalizedLower = cardName.toLowerCase();
-    if (seenCards.has(normalizedLower)) {
+    const isBasicLand = ['plains', 'island', 'swamp', 'mountain', 'forest', 'wastes'].includes(normalizedLower);
+
+    if (seenCards.has(normalizedLower) && !isBasicLand) {
       warnings.push({
         line: lineNumber,
         text: line,

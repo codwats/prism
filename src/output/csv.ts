@@ -40,20 +40,22 @@ export function generateCSV(data: ProcessedData): string {
   const rows = data.cards.map(card => {
     const row: (string | number)[] = [
       card.name,
-      1, // Quantity is always 1 for shared system
+      card.maxQuantity, // Max quantity needed (1 for singletons, more for basic lands)
       card.totalDecks,
       card.markSummary,
     ];
 
     // Add mark slot data
-    for (let i = 0; i < maxSlots; i++) {
-      if (i < card.markSlots.length) {
-        const slot = card.markSlots[i];
+    // IMPORTANT: Slots are now positional (deck 0 = position 1, etc.)
+    // A card might skip positions if it's not in all decks
+    for (let position = 1; position <= maxSlots; position++) {
+      const slot = card.markSlots.find(s => s.position === position);
+      if (slot) {
         row.push(slot.color);
         row.push(slot.deckName);
         row.push(slot.bracket);
       } else {
-        // Empty slots
+        // Empty slot (card not in this deck)
         row.push('');
         row.push('');
         row.push('');

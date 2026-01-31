@@ -62,6 +62,7 @@ export interface ProcessedCard {
   deckIds: string[];
   markSlots: MarkSlot[];
   markSummary: string; // e.g., "Red, Blue, Green"
+  maxQuantity: number; // Max quantity needed across all decks (for basic lands)
 }
 
 /**
