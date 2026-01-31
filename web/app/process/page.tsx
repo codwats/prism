@@ -443,41 +443,41 @@ export default function ProcessPage() {
 
                   <div className="space-y-3">
                     <div>
-                      <label className="block text-sm  mb-1">Deck Name</label>
+                      <label className="block mb-1">Deck Name</label>
                       <input
                         type="text"
                         value={deckName}
                         onChange={(e) => setDeckName(e.target.value)}
-                        className="w-full border border-gray-300 rounded px-3 py-2 focus:border-blue-500 focus:outline-none"
+                        className="w-full"
                         placeholder="e.g., Spellslinger Izzet"
                       />
                     </div>
 
                     <div>
-                      <label className="block text-sm  mb-1">Commander</label>
+                      <label className="block mb-1">Commander</label>
                       <input
                         type="text"
                         value={commander}
                         onChange={(e) => setCommander(e.target.value)}
-                        className="w-full border border-gray-300 rounded px-3 py-2 focus:border-blue-500 focus:outline-none"
+                        className="w-full"
                         placeholder="e.g., Alania, Divergent Storm"
                       />
                     </div>
 
                     <div>
-                      <label className="block text-sm  mb-1">Bracket (1-4)</label>
+                      <label className="block mb-1">Bracket (1-4)</label>
                       <input
                         type="number"
                         min="1"
                         max="4"
                         value={bracket}
                         onChange={(e) => setBracket(parseInt(e.target.value))}
-                        className="w-full border border-gray-300 rounded px-3 py-2 focus:border-blue-500 focus:outline-none"
+                        className="w-full"
                       />
                     </div>
 
                     <div>
-                      <label className="block text-sm  mb-2">Input Method</label>
+                      <label className="block text-sm mb-2">Input Method</label>
                       <div className="flex gap-4">
                         <label className="flex items-center ">
                           <input
@@ -502,23 +502,23 @@ export default function ProcessPage() {
 
                     {inputMethod === 'paste' ? (
                       <div>
-                        <label className="block text-sm  mb-1">Decklist</label>
+                        <label className="block mb-1">Decklist</label>
                         <textarea
                           value={decklist}
                           onChange={(e) => setDecklist(e.target.value)}
-                          className="w-full border border-gray-300 rounded px-3 py-2 focus:border-blue-500 focus:outline-none font-mono text-sm"
+                          className="w-full"
                           rows={8}
                           placeholder="1 Sol Ring&#10;1 Arcane Signet&#10;12 Island&#10;..."
                         />
                       </div>
                     ) : (
                       <div>
-                        <label className="block text-sm  mb-1">Moxfield URL or ID</label>
+                        <label className="block mb-1">Moxfield URL or ID</label>
                         <input
                           type="text"
                           value={moxfieldUrl}
                           onChange={(e) => setMoxfieldUrl(e.target.value)}
-                          className="w-full border border-gray-300 rounded px-3 py-2 focus:border-blue-500 focus:outline-none"
+                          className="w-full"
                           placeholder="https://www.moxfield.com/decks/abc123 or abc123"
                         />
                       </div>
