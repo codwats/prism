@@ -10,5 +10,10 @@ declare namespace JSX {
     'wa-checkbox': any;
     'wa-switch': any;
     'wa-dropdown': any;
+    'wa-icon': any;
+    'wa-card': any;
+    'wa-page': any;
+    'wa-combobox': any;
+    'wa-details': any;
   }
 }

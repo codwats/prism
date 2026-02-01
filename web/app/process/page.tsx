@@ -308,11 +308,11 @@ export default function ProcessPage() {
         <div className="flex items-center justify-between mb-8">
           <div>
             <Link href="/" className="hover:opacity-70 mb-2 inline-block">
-              <i className="fa-solid fa-arrow-left"></i> Back to Home
+              <wa-icon name="arrow-left" library="fa"></wa-icon> Back to Home
             </Link>
             <div className="flex items-center gap-4">
               <h1 className="text-3xl font-bold ">
-                <i className="ms ms-loyalty-colorless"></i> {collectionName}
+                <wa-icon name="loyalty-colorless" library="ms"></wa-icon> {collectionName}
               </h1>
               <button
                 onClick={() => {
@@ -321,7 +321,7 @@ export default function ProcessPage() {
                 }}
                 className="text-sm hover:opacity-70"
               >
-                <i className="fa-solid fa-pen"></i> Rename
+                <wa-icon name="pen" library="fa"></wa-icon> Rename
               </button>
             </div>
             <p className=" mt-2">
@@ -335,7 +335,7 @@ export default function ProcessPage() {
               onClick={() => setShowLoadMenu(!showLoadMenu)}
               className="border hover:bg-gray-700  px-4 py-2 rounded-lg transition-colors"
             >
-              <i className="fa-solid fa-folder-open"></i> Load
+              <wa-icon name="folder-open" library="fa"></wa-icon> Load
             </button>
             <button
               onClick={handleNewCollection}
@@ -348,7 +348,7 @@ export default function ProcessPage() {
               disabled={decks.length === 0}
               className="bg-blue-600 hover:bg-blue-700  px-4 py-2 rounded-lg transition-colors disabled:opacity-50"
             >
-              <i className="fa-solid fa-save"></i> Export
+              <wa-icon name="save" library="fa"></wa-icon> Export
             </button>
           </div>
         </div>
@@ -362,7 +362,7 @@ export default function ProcessPage() {
                 onClick={() => setShowLoadMenu(false)}
                 className=" hover:"
               >
-                <i className="fa-solid fa-xmark"></i>
+                <wa-icon name="xmark" library="fa"></wa-icon>
               </button>
             </div>
 
@@ -458,14 +458,16 @@ export default function ProcessPage() {
                       placeholder="e.g., Alania, Divergent Storm"
                     />
 
-                    <wa-input
-                      label="Bracket (1-4)"
-                      type="number"
-                      min="1"
-                      max="4"
-                      value={bracket}
+                    <wa-select
+                      label="Bracket"
+                      value={bracket.toString()}
                       onInput={(e: any) => setBracket(parseInt(e.target.value))}
-                    />
+                    >
+                      <wa-option value="1">Bracket 1 - Precon</wa-option>
+                      <wa-option value="2">Bracket 2 - Casual</wa-option>
+                      <wa-option value="3">Bracket 3 - Optimized</wa-option>
+                      <wa-option value="4">Bracket 4 - cEDH</wa-option>
+                    </wa-select>
 
                     <wa-radio-group
                       label="Input Method"
@@ -546,7 +548,7 @@ export default function ProcessPage() {
                           onClick={() => handleRemoveDeck(deck.id)}
                           className="text-red-400 hover:text-red-300 transition-colors"
                         >
-                          <i className="fa-solid fa-xmark"></i>
+                          <wa-icon name="xmark" library="fa"></wa-icon>
                         </button>
                       </div>
                     </div>

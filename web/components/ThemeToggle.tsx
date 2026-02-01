@@ -28,16 +28,17 @@ export default function ThemeToggle() {
   }
 
   return (
-    <button
+    <wa-button
       onClick={toggleTheme}
-      className="fixed top-4 right-4 p-2 rounded-lg bg-gray-200 dark:bg-gray-800 hover:bg-gray-300 dark:hover:bg-gray-700 transition-colors"
+      className="fixed top-4 right-4"
+      appearance="outlined"
       aria-label="Toggle theme"
     >
-      {isDark ? (
-        <i className="fa-solid fa-sun text-yellow-400 text-xl"></i>
-      ) : (
-        <i className="fa-solid fa-moon text-gray-700 text-xl"></i>
-      )}
-    </button>
+      <wa-icon
+        name={isDark ? 'sun' : 'moon'}
+        library="fa"
+        style={{ fontSize: '1.25rem', color: isDark ? '#fbbf24' : undefined }}
+      ></wa-icon>
+    </wa-button>
   )
 }
