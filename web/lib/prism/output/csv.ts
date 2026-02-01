@@ -4,8 +4,7 @@
  */
 
 import { stringify } from 'csv-stringify/sync';
-import { ProcessedData } from '../core/types.js';
-import { promises as fs } from 'fs';
+import { ProcessedData } from '../core/types';
 
 /**
  * Generates CSV content from processed data
@@ -72,13 +71,4 @@ export function generateCSV(data: ProcessedData): string {
   });
 }
 
-/**
- * Writes CSV to file
- *
- * @param data - Processed deck data
- * @param filepath - Output file path
- */
-export async function writeCSVFile(data: ProcessedData, filepath: string): Promise<void> {
-  const csv = generateCSV(data);
-  await fs.writeFile(filepath, csv, 'utf-8');
-}
+// Browser version - use generateCSV() and trigger download manually

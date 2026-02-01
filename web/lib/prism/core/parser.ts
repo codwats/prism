@@ -3,8 +3,8 @@
  * Parses MTGO/Moxfield/Archidekt format decklists
  */
 
-import { Card, ParseResult, ParseError, ParseWarning } from './types.js';
-import { normalizeCardName } from '../utils/normalizer.js';
+import { Card, ParseResult, ParseError, ParseWarning } from './types';
+import { normalizeCardName } from '../utils/normalizer';
 
 /**
  * Parses a decklist string into structured card data

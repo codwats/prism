@@ -10,8 +10,8 @@ import {
   Statistics,
   MarkSlot,
   COLOR_PALETTE,
-} from './types.js';
-import { getCardKey } from '../utils/normalizer.js';
+} from './types';
+import { getCardKey } from '../utils/normalizer';
 
 /**
  * Assigns colors to decks based on entry order
