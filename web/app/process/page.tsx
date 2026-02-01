@@ -300,10 +300,9 @@ export default function ProcessPage() {
   }
 
   return (
-    <>
+    <wa-page>
       <ThemeToggle />
-      <main className="min-h-screen">
-        <div className="container mx-auto px-4 py-8">
+      <div slot="main" className="container mx-auto px-4 py-8">
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <div>
@@ -314,15 +313,17 @@ export default function ProcessPage() {
               <h1 className="text-3xl font-bold ">
                 <wa-icon name="loyalty-colorless" library="ms"></wa-icon> {collectionName}
               </h1>
-              <button
+              <wa-button
                 onClick={() => {
                   const newName = prompt('Collection name:', collectionName)
                   if (newName) setCollectionName(newName)
                 }}
-                className="text-sm hover:opacity-70"
+                appearance="plain"
+                size="small"
               >
-                <wa-icon name="pen" library="fa"></wa-icon> Rename
-              </button>
+                <wa-icon slot="prefix" name="pen" library="fa"></wa-icon>
+                Rename
+              </wa-button>
             </div>
             <p className=" mt-2">
               {decks.length === 0 ? 'Start by adding decks' : `${decks.length} deck${decks.length > 1 ? 's' : ''} • Auto-saved`}
@@ -331,39 +332,44 @@ export default function ProcessPage() {
 
           {/* Collection Actions */}
           <div className="flex gap-2">
-            <button
+            <wa-button
               onClick={() => setShowLoadMenu(!showLoadMenu)}
-              className="border hover:bg-gray-700  px-4 py-2 rounded-lg transition-colors"
+              appearance="outlined"
             >
-              <wa-icon name="folder-open" library="fa"></wa-icon> Load
-            </button>
-            <button
+              <wa-icon slot="prefix" name="folder-open" library="fa"></wa-icon>
+              Load
+            </wa-button>
+            <wa-button
               onClick={handleNewCollection}
-              className="border hover:bg-gray-700  px-4 py-2 rounded-lg transition-colors"
+              appearance="outlined"
             >
-              + New
-            </button>
-            <button
+              <wa-icon slot="prefix" name="plus" library="fa"></wa-icon>
+              New
+            </wa-button>
+            <wa-button
               onClick={handleExportCollection}
               disabled={decks.length === 0}
-              className="bg-blue-600 hover:bg-blue-700  px-4 py-2 rounded-lg transition-colors disabled:opacity-50"
+              appearance="filled"
+              variant="brand"
             >
-              <wa-icon name="save" library="fa"></wa-icon> Export
-            </button>
+              <wa-icon slot="prefix" name="save" library="fa"></wa-icon>
+              Export
+            </wa-button>
           </div>
         </div>
 
         {/* Load Menu */}
         {showLoadMenu && (
-          <div className="border border rounded-lg p-6 mb-6">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-xl font-bold ">Saved Collections</h3>
-              <button
+          <wa-card className="mb-6">
+            <div slot="header" className="flex items-center justify-between">
+              <strong>Saved Collections</strong>
+              <wa-button
                 onClick={() => setShowLoadMenu(false)}
-                className=" hover:"
+                appearance="plain"
+                size="small"
               >
                 <wa-icon name="xmark" library="fa"></wa-icon>
-              </button>
+              </wa-button>
             </div>
 
             {savedCollections.length === 0 ? (
@@ -383,25 +389,29 @@ export default function ProcessPage() {
                       </div>
                     </div>
                     <div className="flex gap-2">
-                      <button
+                      <wa-button
                         onClick={() => handleLoadCollection(collection)}
-                        className="bg-blue-600 hover:bg-blue-700  px-3 py-1 rounded transition-colors text-sm"
+                        appearance="filled"
+                        variant="brand"
+                        size="small"
                       >
                         Load
-                      </button>
-                      <button
+                      </wa-button>
+                      <wa-button
                         onClick={() => handleDeleteCollection(collection.id)}
-                        className="bg-red-600 hover:bg-red-700  px-3 py-1 rounded transition-colors text-sm"
+                        appearance="filled"
+                        variant="danger"
+                        size="small"
                       >
                         Delete
-                      </button>
+                      </wa-button>
                     </div>
                   </div>
                 ))}
               </div>
             )}
 
-            <div className="border-t border pt-4">
+            <div className="border-t pt-4">
               <input
                 ref={fileInputRef}
                 type="file"
@@ -409,37 +419,43 @@ export default function ProcessPage() {
                 onChange={handleImportJSON}
                 className="hidden"
               />
-              <button
+              <wa-button
                 onClick={() => fileInputRef.current?.click()}
-                className="w-full border hover:bg-gray-700  px-4 py-2 rounded-lg transition-colors"
+                appearance="outlined"
+                style={{ width: '100%' }}
               >
-                📤 Import JSON File
-              </button>
+                <wa-icon slot="prefix" name="upload" library="fa"></wa-icon>
+                Import JSON File
+              </wa-button>
             </div>
-          </div>
+          </wa-card>
         )}
 
         <div className="grid lg:grid-cols-2 gap-8">
           {/* Left Column: Deck Management */}
           <div>
-            <div className="border border rounded-lg p-6 mb-6">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-xl font-bold ">Your Decks ({decks.length}/10)</h2>
+            <wa-card>
+              <div slot="header" className="flex items-center justify-between">
+                <strong>Your Decks ({decks.length}/10)</strong>
                 {!showAddForm && (
-                  <button
+                  <wa-button
                     onClick={() => setShowAddForm(true)}
-                    className="bg-blue-600 hover:bg-blue-700  px-4 py-2 rounded-lg transition-colors"
+                    appearance="filled"
+                    variant="brand"
                     disabled={decks.length >= 10}
                   >
-                    + Add Deck
-                  </button>
+                    <wa-icon slot="prefix" name="plus" library="fa"></wa-icon>
+                    Add Deck
+                  </wa-button>
                 )}
               </div>
 
               {/* Add Deck Form */}
               {showAddForm && (
-                <div className="border rounded-lg p-4 mb-4">
-                  <h3 className="text-base font-bold  mb-3">Add New Deck</h3>
+                <wa-card className="mb-4">
+                  <div slot="header">
+                    <strong>Add New Deck</strong>
+                  </div>
 
                   <div className="space-y-3">
                     <wa-input
@@ -513,7 +529,7 @@ export default function ProcessPage() {
                       </wa-button>
                     </div>
                   </div>
-                </div>
+                </wa-card>
               )}
 
               {/* Deck List */}
@@ -557,22 +573,26 @@ export default function ProcessPage() {
               )}
 
               {decks.length > 0 && (
-                <button
+                <wa-button
                   onClick={handleProcess}
                   disabled={isProcessing}
-                  className="w-full mt-4 bg-blue-600 hover:bg-blue-700  font-bold py-3 rounded-lg transition-all disabled:opacity-50"
+                  appearance="filled"
+                  variant="brand"
+                  style={{ width: '100%', marginTop: '1rem' }}
                 >
                   {isProcessing ? 'Processing...' : `Process ${decks.length} Deck${decks.length > 1 ? 's' : ''}`}
-                </button>
+                </wa-button>
               )}
-            </div>
+            </wa-card>
           </div>
 
           {/* Right Column: Results */}
           <div>
             {processedData ? (
-              <div className="border border rounded-lg p-6">
-                <h2 className="text-xl font-bold  mb-4">✨ Results</h2>
+              <wa-card>
+                <div slot="header">
+                  <strong><wa-icon name="sparkles" library="fa"></wa-icon> Results</strong>
+                </div>
 
                 {/* Statistics */}
                 <div className="grid grid-cols-2 gap-4 mb-6">
@@ -637,26 +657,25 @@ export default function ProcessPage() {
                   )}
                 </div>
 
-                <div className="mt-4 p-4 border rounded p-4">
-                  <p className="text-sm text-purple-200">
-                    💡 <strong>Tip:</strong> Your collection is auto-saved! Close and come back anytime.
+                <div className="mt-4 p-4 border rounded">
+                  <p className="text-sm">
+                    <wa-icon name="lightbulb" library="fa"></wa-icon> <strong>Tip:</strong> Your collection is auto-saved! Close and come back anytime.
                     Export to JSON for backup or sharing.
                   </p>
                 </div>
-              </div>
+              </wa-card>
             ) : (
-              <div className="border border rounded-lg p-6">
-                <div className="text-center py-12 ">
-                  <div className="text-6xl mb-4">🎯</div>
-                  <p className="text-lg mb-2">No Results Yet</p>
+              <wa-card>
+                <div className="text-center py-12">
+                  <wa-icon name="bullseye" library="fa" style={{ fontSize: '4rem' }}></wa-icon>
+                  <p className="text-lg font-bold mb-2">No Results Yet</p>
                   <p className="text-sm">Add decks and click "Process" to generate marking instructions</p>
                 </div>
-              </div>
+              </wa-card>
             )}
           </div>
         </div>
       </div>
-    </main>
-    </>
+    </wa-page>
   )
 }
