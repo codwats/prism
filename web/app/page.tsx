@@ -42,7 +42,7 @@ export default function Home() {
           {/* Features */}
           <div className="grid md:grid-cols-3 gap-6 mb-12">
             <div className="p-5 border rounded">
-              <div className="text-3xl mb-3"><i className="fa-solid fa-file-import"></i></div>
+              <div className="text-3xl mb-3"><i className="fa-solid fa-upload"></i></div>
               <h3 className="text-lg font-bold mb-2">Import Decks</h3>
               <p className="text-sm">
                 Paste decklists or import from Moxfield. Supports MTGO/Archidekt formats.
@@ -50,7 +50,7 @@ export default function Home() {
             </div>
 
             <div className="p-5 border rounded">
-              <div className="text-3xl mb-3"><i className="fa-solid fa-palette"></i></div>
+              <div className="text-3xl mb-3"><i className="fa-solid fa-paint-brush"></i></div>
               <h3 className="text-lg font-bold mb-2">Smart Marking</h3>
               <p className="text-sm">
                 Each deck gets a unique color and fixed position. Fan your cards to instantly find what you need.
@@ -58,7 +58,7 @@ export default function Home() {
             </div>
 
             <div className="p-5 border rounded">
-              <div className="text-3xl mb-3"><i className="fa-solid fa-chart-line"></i></div>
+              <div className="text-3xl mb-3"><i className="fa-solid fa-chart-bar"></i></div>
               <h3 className="text-lg font-bold mb-2">Track Changes</h3>
               <p className="text-sm">
                 Add new decks later? Only mark what changed—no need to re-mark hundreds of cards!

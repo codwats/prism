@@ -438,106 +438,77 @@ export default function ProcessPage() {
 
               {/* Add Deck Form */}
               {showAddForm && (
-                <div className="bg-gray-50 border border rounded-lg p-4 mb-4">
+                <div className="border rounded-lg p-4 mb-4">
                   <h3 className="text-base font-bold  mb-3">Add New Deck</h3>
 
                   <div className="space-y-3">
-                    <div>
-                      <label className="block mb-1">Deck Name</label>
-                      <input
-                        type="text"
-                        value={deckName}
-                        onChange={(e) => setDeckName(e.target.value)}
-                        className="w-full"
-                        placeholder="e.g., Spellslinger Izzet"
-                      />
-                    </div>
+                    <wa-input
+                      label="Deck Name"
+                      type="text"
+                      value={deckName}
+                      onInput={(e: any) => setDeckName(e.target.value)}
+                      placeholder="e.g., Spellslinger Izzet"
+                    />
 
-                    <div>
-                      <label className="block mb-1">Commander</label>
-                      <input
-                        type="text"
-                        value={commander}
-                        onChange={(e) => setCommander(e.target.value)}
-                        className="w-full"
-                        placeholder="e.g., Alania, Divergent Storm"
-                      />
-                    </div>
+                    <wa-input
+                      label="Commander"
+                      type="text"
+                      value={commander}
+                      onInput={(e: any) => setCommander(e.target.value)}
+                      placeholder="e.g., Alania, Divergent Storm"
+                    />
 
-                    <div>
-                      <label className="block mb-1">Bracket (1-4)</label>
-                      <input
-                        type="number"
-                        min="1"
-                        max="4"
-                        value={bracket}
-                        onChange={(e) => setBracket(parseInt(e.target.value))}
-                        className="w-full"
-                      />
-                    </div>
+                    <wa-input
+                      label="Bracket (1-4)"
+                      type="number"
+                      min="1"
+                      max="4"
+                      value={bracket}
+                      onInput={(e: any) => setBracket(parseInt(e.target.value))}
+                    />
 
-                    <div>
-                      <label className="block text-sm mb-2">Input Method</label>
-                      <div className="flex gap-4">
-                        <label className="flex items-center ">
-                          <input
-                            type="radio"
-                            checked={inputMethod === 'paste'}
-                            onChange={() => setInputMethod('paste')}
-                            className="mr-2"
-                          />
-                          Paste Decklist
-                        </label>
-                        <label className="flex items-center ">
-                          <input
-                            type="radio"
-                            checked={inputMethod === 'moxfield'}
-                            onChange={() => setInputMethod('moxfield')}
-                            className="mr-2"
-                          />
-                          Moxfield URL
-                        </label>
-                      </div>
-                    </div>
+                    <wa-radio-group
+                      label="Input Method"
+                      value={inputMethod}
+                      onInput={(e: any) => setInputMethod(e.target.value)}
+                    >
+                      <wa-radio value="paste">Paste Decklist</wa-radio>
+                      <wa-radio value="moxfield">Moxfield URL</wa-radio>
+                    </wa-radio-group>
 
                     {inputMethod === 'paste' ? (
-                      <div>
-                        <label className="block mb-1">Decklist</label>
-                        <textarea
-                          value={decklist}
-                          onChange={(e) => setDecklist(e.target.value)}
-                          className="w-full"
-                          rows={8}
-                          placeholder="1 Sol Ring&#10;1 Arcane Signet&#10;12 Island&#10;..."
-                        />
-                      </div>
+                      <wa-textarea
+                        label="Decklist"
+                        value={decklist}
+                        onInput={(e: any) => setDecklist(e.target.value)}
+                        rows={8}
+                        placeholder="1 Sol Ring&#10;1 Arcane Signet&#10;12 Island&#10;..."
+                      />
                     ) : (
-                      <div>
-                        <label className="block mb-1">Moxfield URL or ID</label>
-                        <input
-                          type="text"
-                          value={moxfieldUrl}
-                          onChange={(e) => setMoxfieldUrl(e.target.value)}
-                          className="w-full"
-                          placeholder="https://www.moxfield.com/decks/abc123 or abc123"
-                        />
-                      </div>
+                      <wa-input
+                        label="Moxfield URL or ID"
+                        type="text"
+                        value={moxfieldUrl}
+                        onInput={(e: any) => setMoxfieldUrl(e.target.value)}
+                        placeholder="https://www.moxfield.com/decks/abc123 or abc123"
+                      />
                     )}
 
                     <div className="flex gap-2 pt-2">
-                      <button
+                      <wa-button
                         onClick={handleAddDeck}
                         disabled={loading}
-                        className="bg-blue-600 hover:bg-blue-700  px-4 py-2 rounded-lg transition-colors disabled:opacity-50"
+                        appearance="filled"
+                        variant="brand"
                       >
                         {loading ? 'Loading...' : 'Add Deck'}
-                      </button>
-                      <button
+                      </wa-button>
+                      <wa-button
                         onClick={() => setShowAddForm(false)}
-                        className="border hover:bg-gray-700  px-4 py-2 rounded-lg transition-colors"
+                        appearance="outlined"
                       >
                         Cancel
-                      </button>
+                      </wa-button>
                     </div>
                   </div>
                 </div>
