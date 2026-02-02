@@ -6,8 +6,8 @@ import ThemeToggle from '@/components/ThemeToggle'
 export default function Home() {
   return (
     <wa-page>
-      <ThemeToggle />
       <div slot="main" className="container mx-auto px-4 py-12 max-w-4xl">
+        <ThemeToggle />
           {/* Hero Section */}
           <div className="text-center mb-12">
             <h1 className="text-5xl font-bold mb-3">

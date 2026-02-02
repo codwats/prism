@@ -15,5 +15,12 @@ declare namespace JSX {
     'wa-page': any;
     'wa-combobox': any;
     'wa-details': any;
+    'wa-spinner': any;
+    'wa-alert': any;
+    'wa-dialog': any;
+    'wa-badge': any;
+    'wa-tooltip': any;
+    'wa-divider': any;
+    'wa-progress-bar': any;
   }
 }
