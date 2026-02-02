@@ -46,6 +46,21 @@ export default function ProcessPage() {
   const [moxfieldUrl, setMoxfieldUrl] = useState('')
   const [loading, setLoading] = useState(false)
 
+  // UI state for alerts and dialogs
+  const [alertMessage, setAlertMessage] = useState('')
+  const [alertVariant, setAlertVariant] = useState<'success' | 'danger' | 'warning'>('success')
+  const [showAlert, setShowAlert] = useState(false)
+  const [showRenameDialog, setShowRenameDialog] = useState(false)
+  const [renameValue, setRenameValue] = useState('')
+
+  // Helper to show alert messages
+  const showMessage = (message: string, variant: 'success' | 'danger' | 'warning' = 'success') => {
+    setAlertMessage(message)
+    setAlertVariant(variant)
+    setShowAlert(true)
+    setTimeout(() => setShowAlert(false), 5000) // Auto-hide after 5 seconds
+  }
+
   // Load saved collections on mount
   useEffect(() => {
     const collections = getSavedCollections()
@@ -112,9 +127,9 @@ export default function ProcessPage() {
       saveCollection(collection)
       setSavedCollections(getSavedCollections())
 
-      alert(`Imported collection "${collection.name}" with ${collection.decks.length} deck(s)`)
+      showMessage(`Imported collection "${collection.name}" with ${collection.decks.length} deck(s)`, 'success')
     } catch (error) {
-      alert(`Import failed: ${error}`)
+      showMessage(`Import failed: ${error}`, 'danger')
     }
 
     // Reset file input
@@ -163,7 +178,7 @@ export default function ProcessPage() {
 
   const handleAddDeck = async () => {
     if (!deckName || !commander) {
-      alert('Please enter deck name and commander')
+      showMessage('Please enter deck name and commander', 'warning')
       return
     }
 
@@ -190,7 +205,7 @@ export default function ProcessPage() {
       }
 
       if (!finalDecklist) {
-        alert('Please enter a decklist or Moxfield URL')
+        showMessage('Please enter a decklist or Moxfield URL', 'warning')
         setLoading(false)
         return
       }
@@ -199,7 +214,7 @@ export default function ProcessPage() {
       const parseResult = parseDecklist(finalDecklist)
 
       if (parseResult.cards.length === 0) {
-        alert('No valid cards found in decklist')
+        showMessage('No valid cards found in decklist', 'danger')
         setLoading(false)
         return
       }
@@ -224,7 +239,7 @@ export default function ProcessPage() {
       setMoxfieldUrl('')
       setShowAddForm(false)
     } catch (error) {
-      alert(`Error: ${error}`)
+      showMessage(String(error), 'danger')
     } finally {
       setLoading(false)
     }
@@ -237,7 +252,7 @@ export default function ProcessPage() {
 
   const handleProcess = () => {
     if (decks.length === 0) {
-      alert('Please add at least one deck')
+      showMessage('Please add at least one deck', 'warning')
       return
     }
 
@@ -253,7 +268,7 @@ export default function ProcessPage() {
       const processed = processDecks(decks)
       setProcessedData(processed)
     } catch (error) {
-      alert(`Processing error: ${error}`)
+      showMessage(`Processing error: ${error}`, 'danger')
     } finally {
       setIsProcessing(false)
     }
@@ -303,6 +318,55 @@ export default function ProcessPage() {
     <wa-page>
       <div slot="main" className="container mx-auto px-4 py-8">
         <ThemeToggle />
+
+        {/* Alert Messages */}
+        {showAlert && (
+          <wa-alert
+            variant={alertVariant}
+            open={showAlert}
+            closable
+            onWaHide={() => setShowAlert(false)}
+            className="mb-4"
+          >
+            <wa-icon slot="icon" name={alertVariant === 'success' ? 'circle-check' : alertVariant === 'danger' ? 'circle-exclamation' : 'triangle-exclamation'} library="fa"></wa-icon>
+            {alertMessage}
+          </wa-alert>
+        )}
+
+        {/* Rename Dialog */}
+        <wa-dialog
+          open={showRenameDialog}
+          onWaAfterHide={() => setShowRenameDialog(false)}
+          label="Rename Collection"
+        >
+          <wa-input
+            label="Collection Name"
+            value={renameValue}
+            onInput={(e: any) => setRenameValue(e.target.value)}
+            autoFocus
+          />
+          <div slot="footer" className="flex justify-end gap-2">
+            <wa-button
+              appearance="outlined"
+              onClick={() => setShowRenameDialog(false)}
+            >
+              Cancel
+            </wa-button>
+            <wa-button
+              appearance="filled"
+              variant="brand"
+              onClick={() => {
+                if (renameValue.trim()) {
+                  setCollectionName(renameValue.trim())
+                  setShowRenameDialog(false)
+                }
+              }}
+            >
+              Rename
+            </wa-button>
+          </div>
+        </wa-dialog>
+
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <div>
@@ -315,8 +379,8 @@ export default function ProcessPage() {
               </h1>
               <wa-button
                 onClick={() => {
-                  const newName = prompt('Collection name:', collectionName)
-                  if (newName) setCollectionName(newName)
+                  setRenameValue(collectionName)
+                  setShowRenameDialog(true)
                 }}
                 appearance="plain"
                 size="small"
@@ -411,7 +475,8 @@ export default function ProcessPage() {
               </div>
             )}
 
-            <div className="border-t pt-4">
+            <wa-divider></wa-divider>
+            <div className="pt-4">
               <input
                 ref={fileInputRef}
                 type="file"
@@ -519,6 +584,7 @@ export default function ProcessPage() {
                         appearance="filled"
                         variant="brand"
                       >
+                        {loading && <wa-spinner slot="prefix"></wa-spinner>}
                         {loading ? 'Loading...' : 'Add Deck'}
                       </wa-button>
                       <wa-button
@@ -550,14 +616,13 @@ export default function ProcessPage() {
                           <div className="flex items-center gap-2 mb-1">
                             <span className="text-base font-bold ">{deck.name}</span>
                             {deck.assignedColor && (
-                              <span className="text-sm px-2 py-0.5 rounded bg-purple-600/30 text-purple-300">
-                                {deck.assignedColor}
-                              </span>
+                              <wa-badge variant="primary">{deck.assignedColor}</wa-badge>
                             )}
+                            <wa-badge variant="neutral">Bracket {deck.bracket}</wa-badge>
                           </div>
                           <p className="text-sm ">Commander: {deck.commander}</p>
                           <p className="text-sm ">
-                            Bracket {deck.bracket} • {deck.cards.reduce((sum, c) => sum + c.quantity, 0)} cards
+                            {deck.cards.reduce((sum, c) => sum + c.quantity, 0)} cards
                           </p>
                         </div>
                         <wa-button
@@ -581,6 +646,7 @@ export default function ProcessPage() {
                   variant="brand"
                   style={{ width: '100%', marginTop: '1rem' }}
                 >
+                  {isProcessing && <wa-spinner slot="prefix"></wa-spinner>}
                   {isProcessing ? 'Processing...' : `Process ${decks.length} Deck${decks.length > 1 ? 's' : ''}`}
                 </wa-button>
               )}
