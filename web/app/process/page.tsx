@@ -301,8 +301,8 @@ export default function ProcessPage() {
 
   return (
     <wa-page>
-      <ThemeToggle />
       <div slot="main" className="container mx-auto px-4 py-8">
+        <ThemeToggle />
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <div>
@@ -560,12 +560,13 @@ export default function ProcessPage() {
                             Bracket {deck.bracket} • {deck.cards.reduce((sum, c) => sum + c.quantity, 0)} cards
                           </p>
                         </div>
-                        <button
+                        <wa-button
                           onClick={() => handleRemoveDeck(deck.id)}
-                          className="text-red-400 hover:text-red-300 transition-colors"
+                          appearance="plain"
+                          size="small"
                         >
                           <wa-icon name="xmark" library="fa"></wa-icon>
-                        </button>
+                        </wa-button>
                       </div>
                     </div>
                   ))}
@@ -633,27 +634,36 @@ export default function ProcessPage() {
 
                 {/* Download Buttons */}
                 <div className="space-y-2">
-                  <button
+                  <wa-button
                     onClick={handleDownloadCSV}
-                    className="w-full bg-green-600 hover:bg-green-700  font-bold py-3 rounded-lg transition-colors"
+                    appearance="filled"
+                    variant="success"
+                    style={{ width: '100%' }}
                   >
-                    📥 Download Full CSV ({processedData.cards.length} cards)
-                  </button>
+                    <wa-icon slot="prefix" name="download" library="fa"></wa-icon>
+                    Download Full CSV ({processedData.cards.length} cards)
+                  </wa-button>
 
-                  <button
+                  <wa-button
                     onClick={handleDownloadJSON}
-                    className="w-full bg-blue-600 hover:bg-blue-700  font-bold py-3 rounded-lg transition-colors"
+                    appearance="filled"
+                    variant="brand"
+                    style={{ width: '100%' }}
                   >
-                    📥 Download JSON (Save for Later)
-                  </button>
+                    <wa-icon slot="prefix" name="download" library="fa"></wa-icon>
+                    Download JSON (Save for Later)
+                  </wa-button>
 
                   {oldProcessedData && (
-                    <button
+                    <wa-button
                       onClick={handleDownloadChanges}
-                      className="w-full bg-yellow-600 hover:bg-yellow-700  font-bold py-3 rounded-lg transition-colors"
+                      appearance="filled"
+                      variant="warning"
+                      style={{ width: '100%' }}
                     >
-                      📥 Download Changes Only
-                    </button>
+                      <wa-icon slot="prefix" name="download" library="fa"></wa-icon>
+                      Download Changes Only
+                    </wa-button>
                   )}
                 </div>
 

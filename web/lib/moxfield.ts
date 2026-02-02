@@ -24,13 +24,25 @@ export interface MoxfieldDeck {
  * @returns Deck data from Moxfield
  */
 export async function fetchMoxfieldDeck(deckId: string): Promise<MoxfieldDeck> {
-  const response = await fetch(`https://api2.moxfield.com/v3/decks/all/${deckId}`);
+  try {
+    const response = await fetch(`https://api.moxfield.com/v2/decks/all/${deckId}`, {
+      mode: 'cors',
+      headers: {
+        'Accept': 'application/json',
+      }
+    });
 
-  if (!response.ok) {
-    throw new Error(`Failed to fetch deck: ${response.statusText}`);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch deck: ${response.status} ${response.statusText}`);
+    }
+
+    return response.json();
+  } catch (error) {
+    if (error instanceof TypeError && error.message.includes('fetch')) {
+      throw new Error('Network error: Unable to reach Moxfield API. Please check your internet connection or try again later.');
+    }
+    throw error;
   }
-
-  return response.json();
 }
 
 /**
