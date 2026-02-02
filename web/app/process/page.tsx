@@ -46,12 +46,10 @@ export default function ProcessPage() {
   const [moxfieldUrl, setMoxfieldUrl] = useState('')
   const [loading, setLoading] = useState(false)
 
-  // UI state for alerts and dialogs
+  // UI state for alerts
   const [alertMessage, setAlertMessage] = useState('')
   const [alertVariant, setAlertVariant] = useState<'success' | 'danger' | 'warning'>('success')
   const [showAlert, setShowAlert] = useState(false)
-  const [showRenameDialog, setShowRenameDialog] = useState(false)
-  const [renameValue, setRenameValue] = useState('')
 
   // Helper to show alert messages
   const showMessage = (message: string, variant: 'success' | 'danger' | 'warning' = 'success') => {
@@ -321,51 +319,20 @@ export default function ProcessPage() {
 
         {/* Alert Messages */}
         {showAlert && (
-          <wa-alert
-            variant={alertVariant}
-            open={showAlert}
-            closable
-            onWaHide={() => setShowAlert(false)}
-            className="mb-4"
-          >
-            <wa-icon slot="icon" name={alertVariant === 'success' ? 'circle-check' : alertVariant === 'danger' ? 'circle-exclamation' : 'triangle-exclamation'} library="fa"></wa-icon>
-            {alertMessage}
-          </wa-alert>
-        )}
-
-        {/* Rename Dialog */}
-        <wa-dialog
-          open={showRenameDialog}
-          onWaAfterHide={() => setShowRenameDialog(false)}
-          label="Rename Collection"
-        >
-          <wa-input
-            label="Collection Name"
-            value={renameValue}
-            onInput={(e: any) => setRenameValue(e.target.value)}
-            autoFocus
-          />
-          <div slot="footer" className="flex justify-end gap-2">
-            <wa-button
-              appearance="outlined"
-              onClick={() => setShowRenameDialog(false)}
-            >
-              Cancel
-            </wa-button>
-            <wa-button
-              appearance="filled"
-              variant="brand"
-              onClick={() => {
-                if (renameValue.trim()) {
-                  setCollectionName(renameValue.trim())
-                  setShowRenameDialog(false)
-                }
-              }}
-            >
-              Rename
+          <div className={`mb-4 p-4 rounded border flex items-center justify-between ${
+            alertVariant === 'success' ? 'bg-green-900/20 border-green-500/50' :
+            alertVariant === 'danger' ? 'bg-red-900/20 border-red-500/50' :
+            'bg-yellow-900/20 border-yellow-500/50'
+          }`}>
+            <div className="flex items-center gap-2">
+              <wa-icon name={alertVariant === 'success' ? 'circle-check' : alertVariant === 'danger' ? 'circle-exclamation' : 'triangle-exclamation'} library="fa"></wa-icon>
+              <span>{alertMessage}</span>
+            </div>
+            <wa-button appearance="plain" size="small" onClick={() => setShowAlert(false)}>
+              <wa-icon name="xmark" library="fa"></wa-icon>
             </wa-button>
           </div>
-        </wa-dialog>
+        )}
 
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
@@ -379,8 +346,10 @@ export default function ProcessPage() {
               </h1>
               <wa-button
                 onClick={() => {
-                  setRenameValue(collectionName)
-                  setShowRenameDialog(true)
+                  const newName = prompt('Collection name:', collectionName)
+                  if (newName && newName.trim()) {
+                    setCollectionName(newName.trim())
+                  }
                 }}
                 appearance="plain"
                 size="small"
