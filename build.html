@@ -5,17 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Build Your PRISM - MTG Deck Sleeve Marking Tool</title>
     <script src="https://kit.webawesome.com/da021fed1e5141f2.js" crossorigin="anonymous"></script>
-    <script type="module">
-      const stored = localStorage.getItem('prism_data');
-      let scheme = 'auto';
-      if (stored) {
-        try {
-          const data = JSON.parse(stored);
-          scheme = data.preferences?.colorScheme || 'auto';
-        } catch (e) {}
-      }
-      const isDark = scheme === 'dark' || (scheme === 'auto' && matchMedia('(prefers-color-scheme: dark)').matches);
-      document.documentElement.classList.toggle('wa-dark', isDark);
+    <script>
+      // Always dark mode
+      document.documentElement.classList.add('wa-dark');
     </script>
     <link rel="stylesheet" href="css/custom.css" />
   </head>
@@ -34,25 +26,6 @@
             <wa-icon slot="start" name="plus"></wa-icon>
             New PRISM
           </wa-button>
-          <wa-dropdown id="color-scheme-dropdown" placement="bottom-end">
-            <wa-button slot="trigger" appearance="plain" variant="neutral" size="medium" title="Toggle color scheme (Press \)">
-              <wa-icon name="sun-bright" variant="regular" class="only-light"></wa-icon>
-              <wa-icon name="moon-stars" variant="regular" class="only-dark"></wa-icon>
-            </wa-button>
-            <wa-dropdown-item data-scheme="light">
-              <wa-icon slot="prefix" name="sun-bright" variant="regular"></wa-icon>
-              Light
-            </wa-dropdown-item>
-            <wa-dropdown-item data-scheme="dark">
-              <wa-icon slot="prefix" name="moon-stars" variant="regular"></wa-icon>
-              Dark
-            </wa-dropdown-item>
-            <wa-divider></wa-divider>
-            <wa-dropdown-item data-scheme="auto">
-              <wa-icon slot="prefix" name="circle-half-stroke" variant="regular"></wa-icon>
-              System
-            </wa-dropdown-item>
-          </wa-dropdown>
         </div>
       </header>
 

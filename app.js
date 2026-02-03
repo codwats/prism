@@ -21,9 +21,7 @@ import {
 import { 
   getCurrentPrism, 
   setCurrentPrism, 
-  savePrism, 
-  getColorScheme, 
-  setColorScheme,
+  savePrism,
   getAllPrisms
 } from './storage.js';
 import { downloadCSV, downloadJSON, openPrintableGuide } from './export.js';
@@ -90,10 +88,7 @@ const elements = {
   newPrismDialog: document.getElementById('new-prism-dialog'),
   btnNewPrism: document.getElementById('btn-new-prism'),
   btnCancelNew: document.getElementById('btn-cancel-new'),
-  btnConfirmNew: document.getElementById('btn-confirm-new'),
-  
-  // Color scheme
-  colorSchemeDropdown: document.getElementById('color-scheme-dropdown')
+  btnConfirmNew: document.getElementById('btn-confirm-new')
 };
 
 // ============================================================================
@@ -110,30 +105,11 @@ function init() {
   }
   
   // Initialize UI
-  initColorScheme();
   initColorSwatches();
   renderAll();
   
   // Set up event listeners
   setupEventListeners();
-}
-
-function initColorScheme() {
-  const scheme = getColorScheme();
-  applyColorScheme(scheme);
-  
-  // Listen for system changes
-  matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
-    if (getColorScheme() === 'auto') {
-      applyColorScheme('auto');
-    }
-  });
-}
-
-function applyColorScheme(scheme) {
-  const isDark = scheme === 'dark' || 
-    (scheme === 'auto' && matchMedia('(prefers-color-scheme: dark)').matches);
-  document.documentElement.classList.toggle('wa-dark', isDark);
 }
 
 function initColorSwatches() {
@@ -217,23 +193,6 @@ function setupEventListeners() {
     elements.newPrismDialog.open = false;
   });
   elements.btnConfirmNew.addEventListener('click', handleNewPrism);
-  
-  // Color scheme
-  elements.colorSchemeDropdown.addEventListener('wa-select', (e) => {
-    const scheme = e.detail.item.dataset.scheme;
-    setColorScheme(scheme);
-    applyColorScheme(scheme);
-  });
-  
-  // Keyboard shortcut for theme toggle
-  document.addEventListener('keydown', (e) => {
-    if (e.key === '\\' && !e.ctrlKey && !e.metaKey && !e.altKey) {
-      const current = getColorScheme();
-      const next = current === 'light' ? 'dark' : current === 'dark' ? 'auto' : 'light';
-      setColorScheme(next);
-      applyColorScheme(next);
-    }
-  });
 }
 
 // ============================================================================
