@@ -1,0 +1,183 @@
+/**
+ * PRISM Custom Styles
+ * Only for things Web Awesome doesn't handle
+ */
+
+/* ============================================================================
+   Color Swatches (for deck color selection)
+   ============================================================================ */
+
+.color-swatch {
+  width: 28px;
+  height: 28px;
+  border-radius: var(--wa-border-radius-s);
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition: transform 0.1s ease, border-color 0.1s ease;
+}
+
+.color-swatch:hover {
+  transform: scale(1.1);
+}
+
+.color-swatch.selected {
+  border-color: var(--wa-color-brand-fill);
+  box-shadow: 0 0 0 2px var(--wa-color-brand-fill-subtle);
+}
+
+/* ============================================================================
+   Deck Color Indicators
+   ============================================================================ */
+
+.deck-color-indicator {
+  width: 24px;
+  height: 24px;
+  border-radius: var(--wa-border-radius-s);
+  border: 1px solid var(--wa-color-neutral-stroke);
+  flex-shrink: 0;
+}
+
+.deck-color-indicator.small {
+  width: 18px;
+  height: 18px;
+}
+
+/* ============================================================================
+   Results Table
+   ============================================================================ */
+
+.results-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--wa-font-size-m);
+}
+
+.results-table th,
+.results-table td {
+  padding: var(--wa-space-s) var(--wa-space-m);
+  text-align: left;
+  border-bottom: 1px solid var(--wa-color-neutral-stroke-subtle);
+}
+
+.results-table th {
+  background: var(--wa-color-surface-2);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.results-table tbody tr:hover {
+  background: var(--wa-color-surface-2);
+}
+
+.results-table .shared-row {
+  background: var(--wa-color-warning-surface-subtle);
+}
+
+.results-table .shared-row:hover {
+  background: var(--wa-color-warning-surface);
+}
+
+.results-table .basic-land {
+  font-style: italic;
+}
+
+.results-table .basic-tag {
+  color: var(--wa-color-neutral-text-subtle);
+  font-size: var(--wa-font-size-s);
+}
+
+/* ============================================================================
+   Stripe Indicators (in results table)
+   ============================================================================ */
+
+.stripe-indicators {
+  display: flex;
+  gap: var(--wa-space-2xs);
+  flex-wrap: wrap;
+}
+
+.stripe-indicator {
+  width: 18px;
+  height: 18px;
+  border-radius: var(--wa-border-radius-s);
+  border: 1px solid var(--wa-color-neutral-stroke);
+}
+
+/* ============================================================================
+   Reorder List Items
+   ============================================================================ */
+
+.reorder-item {
+  padding: var(--wa-space-s) var(--wa-space-m);
+  background: var(--wa-color-surface-2);
+  border-radius: var(--wa-border-radius-m);
+  border: 1px solid var(--wa-color-neutral-stroke-subtle);
+}
+
+/* ============================================================================
+   Dark Mode Overrides
+   ============================================================================ */
+
+.wa-dark .color-swatch {
+  border-color: transparent;
+}
+
+.wa-dark .color-swatch.selected {
+  border-color: var(--wa-color-brand-fill);
+}
+
+/* Ensure white swatches are visible in dark mode */
+.wa-dark .color-swatch[data-color="#FFFFFF"],
+.wa-dark .deck-color-indicator[style*="#FFFFFF"],
+.wa-dark .stripe-indicator[style*="#FFFFFF"] {
+  border-color: var(--wa-color-neutral-stroke);
+}
+
+/* ============================================================================
+   Light/Dark Mode Icons
+   ============================================================================ */
+
+.only-light {
+  display: inline;
+}
+
+.only-dark {
+  display: none;
+}
+
+.wa-dark .only-light {
+  display: none;
+}
+
+.wa-dark .only-dark {
+  display: inline;
+}
+
+/* ============================================================================
+   Deck Cards
+   ============================================================================ */
+
+.deck-card {
+  transition: box-shadow 0.15s ease;
+}
+
+.deck-card:hover {
+  box-shadow: var(--wa-shadow-m);
+}
+
+/* ============================================================================
+   Responsive Adjustments
+   ============================================================================ */
+
+@media (max-width: 600px) {
+  .results-table th,
+  .results-table td {
+    padding: var(--wa-space-xs) var(--wa-space-s);
+    font-size: var(--wa-font-size-s);
+  }
+  
+  .stripe-indicator {
+    width: 14px;
+    height: 14px;
+  }
+}

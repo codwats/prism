@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en" class="wa-cloak">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Build Your PRISM - MTG Deck Sleeve Marking Tool</title>
+    <script src="https://kit.webawesome.com/da021fed1e5141f2.js" crossorigin="anonymous"></script>
+    <script type="module">
+      const stored = localStorage.getItem('prism_data');
+      let scheme = 'auto';
+      if (stored) {
+        try {
+          const data = JSON.parse(stored);
+          scheme = data.preferences?.colorScheme || 'auto';
+        } catch (e) {}
+      }
+      const isDark = scheme === 'dark' || (scheme === 'auto' && matchMedia('(prefers-color-scheme: dark)').matches);
+      document.documentElement.classList.toggle('wa-dark', isDark);
+    </script>
+    <link rel="stylesheet" href="css/custom.css" />
+  </head>
+  <body>
+    <wa-page mobile-breakpoint="920">
+      <!-- Header -->
+      <header slot="header" class="wa-split">
+        <div class="wa-cluster wa-gap-m wa-align-items-center">
+          <a href="index.html" class="wa-cluster wa-gap-xs wa-align-items-center" style="text-decoration: none; color: inherit;">
+            <wa-icon name="gem" variant="regular" style="color: var(--wa-color-brand-fill-loud); font-size: 1.5em"></wa-icon>
+            <span class="wa-heading-m wa-desktop-only">PRISM</span>
+          </a>
+        </div>
+        <div class="wa-cluster wa-gap-xs wa-align-items-center">
+          <wa-button id="btn-new-prism" appearance="outlined" variant="neutral" size="small">
+            <wa-icon slot="start" name="plus"></wa-icon>
+            New PRISM
+          </wa-button>
+          <wa-dropdown id="color-scheme-dropdown" placement="bottom-end">
+            <wa-button slot="trigger" appearance="plain" variant="neutral" size="medium" title="Toggle color scheme (Press \)">
+              <wa-icon name="sun-bright" variant="regular" class="only-light"></wa-icon>
+              <wa-icon name="moon-stars" variant="regular" class="only-dark"></wa-icon>
+            </wa-button>
+            <wa-dropdown-item data-scheme="light">
+              <wa-icon slot="prefix" name="sun-bright" variant="regular"></wa-icon>
+              Light
+            </wa-dropdown-item>
+            <wa-dropdown-item data-scheme="dark">
+              <wa-icon slot="prefix" name="moon-stars" variant="regular"></wa-icon>
+              Dark
+            </wa-dropdown-item>
+            <wa-divider></wa-divider>
+            <wa-dropdown-item data-scheme="auto">
+              <wa-icon slot="prefix" name="circle-half-stroke" variant="regular"></wa-icon>
+              System
+            </wa-dropdown-item>
+          </wa-dropdown>
+        </div>
+      </header>
+
+      <main class="wa-stack wa-gap-xl">
+        <!-- PRISM Name -->
+        <section class="wa-stack wa-gap-s">
+          <div class="wa-split wa-align-items-center">
+            <div class="wa-cluster wa-gap-s wa-align-items-center">
+              <wa-icon name="gem" style="color: var(--wa-color-brand-fill); font-size: 1.5em;"></wa-icon>
+              <wa-input 
+                id="prism-name" 
+                placeholder="My PRISM" 
+                size="large"
+                style="--wa-input-border-width: 0; font-weight: 600;"
+              ></wa-input>
+            </div>
+            <wa-tag id="deck-count-tag" variant="neutral" size="small">0/15 decks</wa-tag>
+          </div>
+        </section>
+
+        <!-- Tab Navigation -->
+        <wa-tab-group id="main-tabs">
+          <wa-tab slot="nav" panel="decks">
+            <wa-icon name="layer-group" style="margin-right: 0.5em;"></wa-icon>
+            Decks
+          </wa-tab>
+          <wa-tab slot="nav" panel="results">
+            <wa-icon name="table" style="margin-right: 0.5em;"></wa-icon>
+            Results
+          </wa-tab>
+          <wa-tab slot="nav" panel="export">
+            <wa-icon name="download" style="margin-right: 0.5em;"></wa-icon>
+            Export
+          </wa-tab>
+
+          <!-- Decks Panel -->
+          <wa-tab-panel name="decks">
+            <div class="wa-stack wa-gap-xl">
+              <!-- Existing Decks List -->
+              <section id="decks-list" class="wa-stack wa-gap-m">
+                <!-- Deck cards will be inserted here -->
+              </section>
+
+              <!-- Add Deck Form -->
+              <wa-card id="add-deck-card">
+                <div slot="header" class="wa-cluster wa-gap-s wa-align-items-center">
+                  <wa-icon name="plus-circle" style="color: var(--wa-color-brand-fill);"></wa-icon>
+                  <span class="wa-heading-m">Add a Deck</span>
+                </div>
+
+                <form id="deck-form" class="wa-stack wa-gap-l">
+                  <div class="wa-grid wa-gap-m" style="--min-column-size: 200px;">
+                    <wa-input 
+                      id="deck-name" 
+                      label="Deck Name" 
+                      placeholder="e.g., Izzet Spellslinger" 
+                      required
+                    ></wa-input>
+                    
+                    <wa-input 
+                      id="deck-commander" 
+                      label="Commander" 
+                      placeholder="e.g., Alania, Divergent Storm" 
+                      required
+                    ></wa-input>
+                  </div>
+
+                  <wa-radio-group
+                    id="deck-bracket"
+                    label="Bracket (Power Level)"
+                    orientation="horizontal"
+                    value="2"
+                  >
+                    <wa-radio appearance="button" value="1">1</wa-radio>
+                    <wa-radio appearance="button" value="2">2</wa-radio>
+                    <wa-radio appearance="button" value="3">3</wa-radio>
+                    <wa-radio appearance="button" value="4">4</wa-radio>
+                  </wa-radio-group>
+
+                  <div class="wa-stack wa-gap-xs">
+                    <label class="wa-caption-m">Marker Color</label>
+                    <div class="wa-cluster wa-gap-s wa-align-items-center">
+                      <div id="color-swatches" class="wa-cluster wa-gap-xs">
+                        <!-- Color swatches will be inserted here -->
+                      </div>
+                      <input type="color" id="deck-color" value="#FF0000" style="width: 40px; height: 32px; border: none; border-radius: var(--wa-border-radius-m); cursor: pointer;" />
+                    </div>
+                    <div id="color-warning" class="wa-caption-s" style="color: var(--wa-color-warning-text); display: none;">
+                      <wa-icon name="triangle-exclamation" style="font-size: 0.9em;"></wa-icon>
+                      <span></span>
+                    </div>
+                  </div>
+
+                  <wa-textarea
+                    id="deck-list"
+                    label="Decklist"
+                    placeholder="1 Sol Ring&#10;1 Arcane Signet&#10;1 Command Tower&#10;12 Island&#10;..."
+                    rows="8"
+                    required
+                  ></wa-textarea>
+
+                  <div id="parse-errors" class="wa-stack wa-gap-xs" style="display: none;">
+                    <!-- Parse errors will be shown here -->
+                  </div>
+
+                  <div class="wa-cluster wa-gap-s">
+                    <wa-button type="submit" variant="brand">
+                      <wa-icon slot="start" name="plus"></wa-icon>
+                      Add Deck
+                    </wa-button>
+                    <wa-button type="button" id="btn-reset-form" variant="neutral" appearance="outlined">
+                      Reset
+                    </wa-button>
+                  </div>
+                </form>
+              </wa-card>
+            </div>
+          </wa-tab-panel>
+
+          <!-- Results Panel -->
+          <wa-tab-panel name="results">
+            <div class="wa-stack wa-gap-l">
+              <!-- Stats Summary -->
+              <div id="results-stats" class="wa-grid wa-gap-m" style="--min-column-size: 150px;">
+                <wa-card appearance="filled">
+                  <div class="wa-stack wa-gap-2xs wa-align-items-center">
+                    <span class="wa-heading-3xl" id="stat-total">0</span>
+                    <span class="wa-caption-m">Unique Cards</span>
+                  </div>
+                </wa-card>
+                <wa-card appearance="filled">
+                  <div class="wa-stack wa-gap-2xs wa-align-items-center">
+                    <span class="wa-heading-3xl" id="stat-shared">0</span>
+                    <span class="wa-caption-m">Shared Cards</span>
+                  </div>
+                </wa-card>
+                <wa-card appearance="filled">
+                  <div class="wa-stack wa-gap-2xs wa-align-items-center">
+                    <span class="wa-heading-3xl" id="stat-unique">0</span>
+                    <span class="wa-caption-m">Unique to One Deck</span>
+                  </div>
+                </wa-card>
+              </div>
+
+              <!-- Filter -->
+              <div class="wa-cluster wa-gap-m wa-align-items-center">
+                <wa-radio-group id="results-filter" orientation="horizontal" value="all">
+                  <wa-radio appearance="button" value="all">All Cards</wa-radio>
+                  <wa-radio appearance="button" value="shared">Shared Only</wa-radio>
+                  <wa-radio appearance="button" value="unique">Unique Only</wa-radio>
+                </wa-radio-group>
+                <wa-input id="results-search" placeholder="Search cards..." size="small" style="max-width: 200px;">
+                  <wa-icon slot="start" name="search"></wa-icon>
+                </wa-input>
+              </div>
+
+              <!-- Results Table -->
+              <div id="results-table-container" style="overflow-x: auto;">
+                <table id="results-table" class="results-table">
+                  <thead>
+                    <tr>
+                      <th>Card Name</th>
+                      <th>Copies</th>
+                      <th>Decks</th>
+                      <th>Stripes</th>
+                    </tr>
+                  </thead>
+                  <tbody id="results-tbody">
+                    <!-- Results will be inserted here -->
+                  </tbody>
+                </table>
+              </div>
+
+              <div id="no-results" class="wa-stack wa-gap-m wa-align-items-center" style="padding: var(--wa-space-2xl); display: none;">
+                <wa-icon name="inbox" style="font-size: 3rem; color: var(--wa-color-neutral-text-subtle);"></wa-icon>
+                <p style="color: var(--wa-color-neutral-text-subtle);">Add some decks to see your card analysis here.</p>
+                <wa-button variant="brand" id="btn-go-to-decks">
+                  <wa-icon slot="start" name="plus"></wa-icon>
+                  Add Your First Deck
+                </wa-button>
+              </div>
+            </div>
+          </wa-tab-panel>
+
+          <!-- Export Panel -->
+          <wa-tab-panel name="export">
+            <div class="wa-stack wa-gap-xl">
+              <!-- Deck Legend -->
+              <wa-card>
+                <div slot="header" class="wa-heading-m">Deck Legend</div>
+                <div id="deck-legend" class="wa-cluster wa-gap-m">
+                  <!-- Deck legend items will be inserted here -->
+                </div>
+                <div id="no-decks-legend" style="color: var(--wa-color-neutral-text-subtle);">
+                  No decks added yet.
+                </div>
+              </wa-card>
+
+              <!-- Reorder Stripes -->
+              <wa-card>
+                <div slot="header" class="wa-cluster wa-gap-s wa-align-items-center">
+                  <wa-icon name="arrows-up-down" style="color: var(--wa-color-brand-fill);"></wa-icon>
+                  <span class="wa-heading-m">Reorder Stripe Positions</span>
+                </div>
+                <p class="wa-caption-m" style="margin-bottom: var(--wa-space-m);">
+                  Drag decks to change their stripe positions. Position 1 is at the top of the sleeve edge.
+                </p>
+                <div id="stripe-reorder-list" class="wa-stack wa-gap-xs">
+                  <!-- Reorder items will be inserted here -->
+                </div>
+              </wa-card>
+
+              <!-- Export Options -->
+              <wa-card>
+                <div slot="header" class="wa-heading-m">Export Options</div>
+                <div class="wa-cluster wa-gap-m">
+                  <wa-button id="btn-export-csv" variant="neutral">
+                    <wa-icon slot="start" name="file-csv"></wa-icon>
+                    Download CSV
+                  </wa-button>
+                  <wa-button id="btn-export-json" variant="neutral">
+                    <wa-icon slot="start" name="file-code"></wa-icon>
+                    Download JSON
+                  </wa-button>
+                  <wa-button id="btn-print-guide" variant="neutral">
+                    <wa-icon slot="start" name="print"></wa-icon>
+                    Printable Guide
+                  </wa-button>
+                </div>
+              </wa-card>
+            </div>
+          </wa-tab-panel>
+        </wa-tab-group>
+      </main>
+    </wa-page>
+
+    <!-- Delete Confirmation Dialog -->
+    <wa-dialog id="delete-dialog" label="Delete Deck">
+      <p>Are you sure you want to delete <strong id="delete-deck-name"></strong>?</p>
+      <p style="color: var(--wa-color-neutral-text-subtle);">This action cannot be undone.</p>
+      <div slot="footer" class="wa-cluster wa-gap-s">
+        <wa-button id="btn-cancel-delete" variant="neutral" appearance="outlined">Cancel</wa-button>
+        <wa-button id="btn-confirm-delete" variant="danger">Delete</wa-button>
+      </div>
+    </wa-dialog>
+
+    <!-- New PRISM Confirmation Dialog -->
+    <wa-dialog id="new-prism-dialog" label="Create New PRISM">
+      <p>This will create a new empty PRISM. Your current PRISM will be saved and can be accessed later.</p>
+      <div slot="footer" class="wa-cluster wa-gap-s">
+        <wa-button id="btn-cancel-new" variant="neutral" appearance="outlined">Cancel</wa-button>
+        <wa-button id="btn-confirm-new" variant="brand">Create New</wa-button>
+      </div>
+    </wa-dialog>
+
+    <script type="module" src="js/app.js"></script>
+  </body>
+</html>

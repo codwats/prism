@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en" class="wa-cloak">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>PRISM - MTG Deck Sleeve Marking Tool</title>
+    <meta name="description" content="Share MTG Commander cards across multiple decks without buying duplicates. PRISM helps you mark sleeves so one card can live in many decks." />
+    <script src="https://kit.webawesome.com/da021fed1e5141f2.js" crossorigin="anonymous"></script>
+    <script type="module">
+      // Set initial color scheme before page renders to prevent flash
+      const stored = localStorage.getItem('prism_data');
+      let scheme = 'auto';
+      if (stored) {
+        try {
+          const data = JSON.parse(stored);
+          scheme = data.preferences?.colorScheme || 'auto';
+        } catch (e) {}
+      }
+      const isDark = scheme === 'dark' || (scheme === 'auto' && matchMedia('(prefers-color-scheme: dark)').matches);
+      document.documentElement.classList.toggle('wa-dark', isDark);
+    </script>
+    <link rel="stylesheet" href="css/custom.css" />
+  </head>
+  <body>
+    <wa-page mobile-breakpoint="920">
+      <!-- Header -->
+      <header slot="header" class="wa-split">
+        <div class="wa-cluster wa-gap-m wa-align-items-center">
+          <a href="index.html" class="wa-cluster wa-gap-xs wa-align-items-center" style="text-decoration: none; color: inherit;">
+            <wa-icon name="gem" variant="regular" style="color: var(--wa-color-brand-fill-loud); font-size: 1.5em"></wa-icon>
+            <span class="wa-heading-m wa-desktop-only">PRISM</span>
+          </a>
+          <nav class="wa-cluster wa-gap-m wa-desktop-only">
+            <a href="#features">Features</a>
+            <a href="#faq">FAQ</a>
+          </nav>
+        </div>
+        <div class="wa-cluster wa-gap-xs wa-align-items-center">
+          <wa-button href="build.html" variant="brand" size="small">
+            <wa-icon slot="start" name="plus"></wa-icon>
+            New PRISM
+          </wa-button>
+          <!-- Color scheme selector -->
+          <wa-dropdown id="color-scheme-dropdown" placement="bottom-end">
+            <wa-button slot="trigger" appearance="plain" variant="neutral" size="medium" title="Toggle color scheme">
+              <wa-icon name="sun-bright" variant="regular" class="only-light"></wa-icon>
+              <wa-icon name="moon-stars" variant="regular" class="only-dark"></wa-icon>
+            </wa-button>
+            <wa-dropdown-item data-scheme="light">
+              <wa-icon slot="prefix" name="sun-bright" variant="regular"></wa-icon>
+              Light
+            </wa-dropdown-item>
+            <wa-dropdown-item data-scheme="dark">
+              <wa-icon slot="prefix" name="moon-stars" variant="regular"></wa-icon>
+              Dark
+            </wa-dropdown-item>
+            <wa-divider></wa-divider>
+            <wa-dropdown-item data-scheme="auto">
+              <wa-icon slot="prefix" name="circle-half-stroke" variant="regular"></wa-icon>
+              System
+            </wa-dropdown-item>
+          </wa-dropdown>
+        </div>
+      </header>
+
+      <main>
+        <!-- Hero Section -->
+        <section class="wa-stack wa-gap-m wa-align-items-center" style="padding-block: var(--wa-space-3xl);">
+          <div class="wa-heading-4xl" style="text-align: center;">🔮 PRISM</div>
+          <div class="wa-heading-l" style="text-align: center;">Personal Reference Index &amp; Sleeve Marking</div>
+          <p class="wa-caption-l" style="text-align: center; max-width: 600px;">
+            Share MTG Commander cards across multiple decks without buying duplicates. 
+            Mark your sleeves once, swap cards in seconds.
+          </p>
+          <div class="wa-cluster wa-gap-s" style="margin-top: var(--wa-space-l);">
+            <wa-button href="build.html" variant="brand" size="large">
+              <wa-icon slot="start" name="wand-magic-sparkles"></wa-icon>
+              Create Your PRISM
+            </wa-button>
+            <wa-button href="#how-it-works" appearance="outlined" size="large">
+              Learn More
+              <wa-icon slot="end" name="arrow-down"></wa-icon>
+            </wa-button>
+          </div>
+        </section>
+
+        <wa-divider style="--spacing: var(--wa-space-2xl);"></wa-divider>
+
+        <!-- How It Works -->
+        <section id="how-it-works" class="wa-stack wa-gap-xl" style="max-width: 900px; margin: 0 auto;">
+          <h2 class="wa-heading-2xl" style="text-align: center;">How It Works</h2>
+          
+          <div class="wa-grid wa-gap-xl" style="--min-column-size: 250px;">
+            <div class="wa-stack wa-gap-s wa-align-items-center" style="text-align: center;">
+              <div style="font-size: 3rem;">1️⃣</div>
+              <h3 class="wa-heading-m">Import Your Decks</h3>
+              <p>Paste your decklists (up to 15 decks). Each deck gets a unique color and stripe position.</p>
+            </div>
+            <div class="wa-stack wa-gap-s wa-align-items-center" style="text-align: center;">
+              <div style="font-size: 3rem;">2️⃣</div>
+              <h3 class="wa-heading-m">See Shared Cards</h3>
+              <p>PRISM finds cards that appear in multiple decks. One Sol Ring can serve 10 decks!</p>
+            </div>
+            <div class="wa-stack wa-gap-s wa-align-items-center" style="text-align: center;">
+              <div style="font-size: 3rem;">3️⃣</div>
+              <h3 class="wa-heading-m">Mark Your Sleeves</h3>
+              <p>Export a guide showing exactly where to mark each sleeve. Fan cards to find any deck instantly.</p>
+            </div>
+          </div>
+        </section>
+
+        <wa-divider style="--spacing: var(--wa-space-2xl);"></wa-divider>
+
+        <!-- Features -->
+        <section id="features" class="wa-stack wa-gap-xl">
+          <h2 class="wa-heading-2xl" style="text-align: center;">Features</h2>
+          
+          <div class="wa-grid wa-gap-l" style="--min-column-size: 280px;">
+            <wa-card>
+              <div slot="header" class="wa-cluster wa-gap-s wa-align-items-center">
+                <wa-icon name="file-import" style="font-size: 1.25em; color: var(--wa-color-brand-fill);"></wa-icon>
+                <span class="wa-heading-m">Import Decks</span>
+              </div>
+              <p>Paste decklists in standard MTGO/Moxfield format. PRISM handles parsing, deduplication, and organization automatically.</p>
+            </wa-card>
+            
+            <wa-card>
+              <div slot="header" class="wa-cluster wa-gap-s wa-align-items-center">
+                <wa-icon name="paintbrush" style="font-size: 1.25em; color: var(--wa-color-brand-fill);"></wa-icon>
+                <span class="wa-heading-m">Smart Marking</span>
+              </div>
+              <p>Each deck gets a unique color and fixed position. Fan your cards and look at one stripe to find a specific deck's cards.</p>
+            </wa-card>
+            
+            <wa-card>
+              <div slot="header" class="wa-cluster wa-gap-s wa-align-items-center">
+                <wa-icon name="arrows-rotate" style="font-size: 1.25em; color: var(--wa-color-brand-fill);"></wa-icon>
+                <span class="wa-heading-m">Track Changes</span>
+              </div>
+              <p>Add new decks later? PRISM shows what changed so you only mark new cards—no need to re-mark hundreds of sleeves!</p>
+            </wa-card>
+            
+            <wa-card>
+              <div slot="header" class="wa-cluster wa-gap-s wa-align-items-center">
+                <wa-icon name="download" style="font-size: 1.25em; color: var(--wa-color-brand-fill);"></wa-icon>
+                <span class="wa-heading-m">Export Anywhere</span>
+              </div>
+              <p>Download your marking guide as CSV or JSON. Print it, share it, or import into other tools.</p>
+            </wa-card>
+            
+            <wa-card>
+              <div slot="header" class="wa-cluster wa-gap-s wa-align-items-center">
+                <wa-icon name="floppy-disk" style="font-size: 1.25em; color: var(--wa-color-brand-fill);"></wa-icon>
+                <span class="wa-heading-m">Auto-Save</span>
+              </div>
+              <p>Your PRISMs are saved locally in your browser. Come back anytime to update or export.</p>
+            </wa-card>
+            
+            <wa-card>
+              <div slot="header" class="wa-cluster wa-gap-s wa-align-items-center">
+                <wa-icon name="layer-group" style="font-size: 1.25em; color: var(--wa-color-brand-fill);"></wa-icon>
+                <span class="wa-heading-m">Up to 15 Decks</span>
+              </div>
+              <p>Each PRISM supports up to 15 decks with unique stripe positions. For larger collections, create multiple PRISMs.</p>
+            </wa-card>
+          </div>
+        </section>
+
+        <wa-divider style="--spacing: var(--wa-space-2xl);"></wa-divider>
+
+        <!-- CTA Section -->
+        <section class="wa-stack wa-align-items-center wa-gap-l" style="padding-block: var(--wa-space-2xl);">
+          <h2 class="wa-heading-3xl" style="text-align: center;">
+            Ready to unleash your collection?
+          </h2>
+          <p style="text-align: center; max-width: 500px;">
+            Stop buying duplicate staples. Start sharing cards across decks with confidence.
+          </p>
+          <wa-button href="build.html" variant="brand" size="large">
+            <wa-icon slot="start" name="wand-magic-sparkles"></wa-icon>
+            Create Your PRISM
+          </wa-button>
+        </section>
+
+        <wa-divider style="--spacing: var(--wa-space-2xl);"></wa-divider>
+
+        <!-- FAQ Section -->
+        <section id="faq" class="wa-stack wa-gap-l" style="max-width: 800px; margin: 0 auto;">
+          <h2 class="wa-heading-2xl" style="text-align: center;">Frequently Asked Questions</h2>
+          
+          <wa-details>
+            <span slot="summary" class="wa-heading-m">What about basic lands?</span>
+            <p>Basic lands don't follow the singleton rule, so PRISM handles them specially. It tracks the maximum quantity you need across all decks. If Deck A needs 12 Islands and Deck B needs 5, you need 12 Islands total—all marked for both decks.</p>
+          </wa-details>
+          
+          <wa-details>
+            <span slot="summary" class="wa-heading-m">What markers should I use?</span>
+            <p>Paint pens work great on most sleeves! Look for fine-tip acrylic paint pens in a variety of colors. PRISM defaults to basic colors (Red, Blue, Green, Yellow, etc.) that match standard paint pen sets.</p>
+          </wa-details>
+          
+          <wa-details>
+            <span slot="summary" class="wa-heading-m">What about all my extra cards now?</span>
+            <p>Sell them! Once you've marked your sleeves, you only need ONE copy of each card. Your duplicates become trade fodder or cash. Many players recoup the cost of their marking supplies (and then some) by selling extras.</p>
+          </wa-details>
+          
+          <wa-details>
+            <span slot="summary" class="wa-heading-m">I have 45 commander decks. Can I still use PRISM?</span>
+            <p>Each PRISM supports up to 15 decks. For larger collections, create multiple PRISMs! You might organize by color identity, power level, or use different sleeve colors for each PRISM group.</p>
+          </wa-details>
+          
+          <wa-details>
+            <span slot="summary" class="wa-heading-m">Where is my data stored?</span>
+            <p>All your PRISM data is stored locally in your browser's localStorage. Nothing is sent to any server. You can export your data as JSON anytime for backup or to transfer between devices.</p>
+          </wa-details>
+          
+          <wa-details>
+            <span slot="summary" class="wa-heading-m">Can I reorder the stripe positions?</span>
+            <p>Yes! After adding your decks, you can drag-and-drop to reorder stripe positions. This is helpful if you want to group decks by color identity or put your most-played decks in easy-to-see positions.</p>
+          </wa-details>
+        </section>
+
+        <!-- Footer -->
+        <footer style="margin-top: var(--wa-space-4xl); padding-block: var(--wa-space-xl); border-top: 1px solid var(--wa-color-neutral-stroke-subtle);">
+          <div class="wa-split">
+            <div class="wa-cluster wa-gap-s wa-align-items-center">
+              <wa-icon name="gem" variant="regular" style="color: var(--wa-color-brand-fill);"></wa-icon>
+              <span>PRISM</span>
+              <span style="color: var(--wa-color-neutral-text-subtle);">•</span>
+              <span style="color: var(--wa-color-neutral-text-subtle);">Made for Commander players</span>
+            </div>
+            <div class="wa-cluster wa-gap-m" style="color: var(--wa-color-neutral-text-subtle);">
+              <a href="https://github.com" target="_blank" rel="noopener">
+                <wa-icon name="github" family="brands"></wa-icon>
+              </a>
+            </div>
+          </div>
+        </footer>
+      </main>
+    </wa-page>
+
+    <script type="module">
+      import { getColorScheme, setColorScheme } from './js/storage.js';
+
+      // Color scheme handling
+      function applyColorScheme(scheme) {
+        const isDark = scheme === 'dark' || 
+          (scheme === 'auto' && matchMedia('(prefers-color-scheme: dark)').matches);
+        document.documentElement.classList.toggle('wa-dark', isDark);
+      }
+
+      // Initialize color scheme
+      applyColorScheme(getColorScheme());
+
+      // Listen for system preference changes
+      matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+        if (getColorScheme() === 'auto') {
+          applyColorScheme('auto');
+        }
+      });
+
+      // Color scheme dropdown
+      const dropdown = document.getElementById('color-scheme-dropdown');
+      dropdown.addEventListener('wa-select', (e) => {
+        const scheme = e.detail.item.dataset.scheme;
+        setColorScheme(scheme);
+        applyColorScheme(scheme);
+      });
+
+      // Keyboard shortcut for theme toggle
+      document.addEventListener('keydown', (e) => {
+        if (e.key === '\\' && !e.ctrlKey && !e.metaKey && !e.altKey) {
+          const current = getColorScheme();
+          const next = current === 'light' ? 'dark' : current === 'dark' ? 'auto' : 'light';
+          setColorScheme(next);
+          applyColorScheme(next);
+        }
+      });
+    </script>
+  </body>
+</html>

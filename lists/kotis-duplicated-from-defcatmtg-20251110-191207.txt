@@ -1,0 +1,86 @@
+1 Aether Tunnel
+1 Alpha Authority
+1 Ana Sanctuary
+1 Aqueous Form
+1 Arbor Elf
+1 Arcane Denial
+1 Arcane Signet
+1 Birds of Paradise
+1 Blackblade Reforged
+1 Blood Pet
+1 Blossoming Defense
+1 Breeding Pool
+1 Bushwhack
+1 Canopy Cover
+1 Cloak of Mists
+1 Cold-Eyed Selkie
+1 Colossification
+1 Combat Research
+1 Command Tower
+1 Conclave Sledge-Captain
+1 Cultivate
+1 Dragonfire Blade
+1 Eidolon of Blossoms
+1 Elves of Deep Shadow
+1 Elvish Mystic
+1 Enchantress's Presence
+1 Exotic Orchard
+1 Fanatic of the Harrowing
+1 Favor of the Overbeing
+1 Felix Five-Boots
+1 Fellwar Stone
+1 Fertile Ground
+1 Flooded Grove
+11 Forest
+1 Fyndhorn Elves
+1 Gemstone Mine
+1 Giant Growth
+1 Gift of the Viper
+1 Gloomlake Verge
+1 Harrow
+1 Hinterland Harbor
+1 Hydra's Growth
+1 Indomitable Might
+4 Island
+1 Kodama's Reach
+1 Llanowar Elves
+1 Llanowar Wastes
+1 Morphic Pool
+1 Mosswort Bridge
+1 Negate
+1 Nissa's Pilgrimage
+1 Ohran Frostfang
+1 Overgrown Tomb
+1 Phyrexian Arena
+1 Pongify
+1 Predatory Hunger
+1 Propaganda
+1 Putrefy
+1 Raised by Giants
+1 Rancor
+1 Raucous Audience
+1 Return of the Wildspeaker
+1 Rogue's Passage
+1 Season of Growth
+1 Setessan Champion
+1 Shielding Plax
+1 Sol Ring
+1 Stargaze
+1 Strong Back
+4 Swamp
+1 Swiftfoot Boots
+1 Talisman of Dominance
+1 Talisman of Resilience
+1 The Thirteenth Doctor
+1 Tyvar, the Pummeler
+1 Tyvar's Stand
+1 Underground River
+1 Undergrowth Stadium
+1 Utopia Sprawl
+1 Wastewood Verge
+1 Watery Grave
+1 Willowrush Verge
+1 Yavimaya Coast
+
+
+1 Kotis, the Fangkeeper
