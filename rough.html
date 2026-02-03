@@ -12,9 +12,8 @@
       document.documentElement.classList.toggle('wa-dark', isDark);
     </script>
   </head>
-  <ha1>
     <wa-page mobile-breakpoint="920" class="wa-dark">
-<header slot="header" class="wa-split">
+<header slot="header" class="wa-split ">
         <div class="wa-cluster">
           <wa-icon name="gem" variant="regular" style="color: var(--wa-color-brand-fill-loud); font-size: 1.5em"></wa-icon>
           <span id="brand-name" class="wa-heading-m wa-desktop-only">PRISM</span>
@@ -59,65 +58,93 @@
 </wa-dropdown>
         </div>
       </header>
-      <main class="wa-body-l">
-<div class="wa-stack wa-gap-l wa-align-items-center">
+      <main class="">
+<div class="wa-stack wa-gap-xs wa-align-items-center">
   <div class="wa-heading-4xl">🔮PRISM</div>
-  <div class="wa-heading-l">
+  <div class="wa-heading-l wa-gap-3xs">
    Personal Reference Index &amp; Sleeve Marking  </div>
   <div class="wa-caption-s">
       
 Share MTG Commander cards across multiple decks without buying duplicates</div>
 
 </div>
-<div class="wa-grid" style="--min-column-size: 200px;">
-        <wa-card>
-          <div slot="media" class="wa-frame">
-            <img src="https://images.unsplash.com/photo-1635254859323-65b78408dcca?q=20" alt="" />
-          </div>
-          <div class="wa-grid wa-gap-3xs">
-            <span class="wa-heading-m">Long-eared Owl</span>
-            <span class="wa-caption-xs" lang="la"><em>Asio otus</em></span>
-          </div>
+
+<wa-divider style="--spacing: 2rem;"></wa-divider>
+<div class="wa-grid wa-gap-2xl" style="--min-column-size: 200px;">
+        <wa-card class="card-header">
+  <h2 slot="header">          <wa-icon name="file-import"  style=" font-size: 1em"></wa-icon>
+Import Decks</h2>
+ Paste decklists or import from Moxfield. Supports MTGO/Archidekt formats.
         </wa-card>
-        <wa-card>
-          <div slot="media" class="wa-frame">
-            <img src="https://images.unsplash.com/photo-1661350356618-f5915c7b6a3c?q=20" alt="" />
-          </div>
-          <div class="wa-grid wa-gap-3xs">
-            <span class="wa-heading-m">Northen Hawk Owl</span>
-            <span class="wa-caption-xs" lang="la"><em>Surnia ulula</em></span>
-          </div>
+        <wa-card class="card-header">
+  <h2 slot="header">          <wa-icon name="paintbrush"  style=" font-size: 1em"></wa-icon>
+
+Smart Marking
+</h2>
+Each deck gets a unique color and fixed position. Fan your cards to instantly find what you need.
         </wa-card>
-        <wa-card>
-          <div slot="media" class="wa-frame">
-            <img src="https://images.unsplash.com/photo-1660307777355-f08bced145d3?q=20" alt="" />
-          </div>
-          <div class="wa-grid wa-gap-3xs">
-            <span class="wa-heading-m">Golden Eagle</span>
-            <span class="wa-caption-xs" lang="la"><em>Aquila chrysaetos</em></span>
-          </div>
+        <wa-card class="card-header">
+  <h2 slot="header">          <wa-icon name="chart-line"  style=" font-size: 1em"></wa-icon>
+Track Changes</h2>
+Add new decks later? Only mark what changed—no need to re-mark hundreds of cards!
         </wa-card>
 </div>
-<div class="wa-stack">
+
+<div class="wa-stack wa-align-items-center wa-gap-xl" style="margin-block: var(--wa-space-4xl);">
+  <h2 class="wa-heading-4xl" style="text-align: center">
+    Unleash your collection: <br />Create your PRISM Today!
+    </h2>
+  <div class="wa-cluster wa-gap-xs">
+    <wa-button>Get Started</wa-button>
+    <wa-button appearance="plain">Find out more <wa-icon slot="end" name="arrow-right"></wa-icon></wa-button>
+  </div>
+</div>
+<wa-divider style="--spacing: 2rem;"></wa-divider>
+<div class="wa-stack" style="--max-column-size: 300px;">
   <h2>Frequently Asked Questions</h2>
   <wa-details appearance="plain">
-    <h3 slot="summary" class="wa-heading-l" style="margin: 0">Is Zion actually real, or just another Matrix?</h3>
-    Ah, the question that keeps redpills up at night. Sure, we escaped the first Matrix, but who’s to say Zion isn’t
-    just another layer of the simulation?
-  </wa-details>
+    <h3 slot="summary" class="wa-heading-l" style="margin: 0">What about basic lands?</h3>
+   Use different set, or art style to differentiate. I am already in my pajamas. You win again, gravity. And even though I'm surrounded by robots and monsters and old people, I've never felt more at home.  </wa-details>
   <wa-divider></wa-divider>
   <wa-details appearance="plain">
-    <h3 slot="summary" class="wa-heading-l" style="margin: 0">Why do the Agents always wear suits?</h3>
-    Because nothing says "unstoppable digital enforcer" like a generic business professional aesthetic. Also,
-    intimidation. You ever try fighting someone in sunglasses and a tie? It’s terrifying.
-  </wa-details>
+    <h3 slot="summary" class="wa-heading-l" style="margin: 0">What about all my extra cards now?</h3>
+   Hooray! I’m a teenage heartthrob again! On margin! Zoidey wanna buy on margin! I'm a gigantic brain. It’s like a party in my mouth and everyone’s throwing up. On margin! Zoidey wanna buy on margin! We’ll soon stage an attack on technology worthy of being chronicled in an anthem by Rush! Valentine's Day is coming? Oh crap, I forgot to get a girlfriend again.  </wa-details>
   <wa-divider></wa-divider>
   <wa-details appearance="plain">
-    <h3 slot="summary" class="wa-heading-l" style="margin: 0">Can I go back into the Matrix once I’m out?</h3>
-    Technically, yes—via hacking in. Emotionally? That depends on how well you handle the knowledge that nothing around
-    you is real.
+    <h3 slot="summary" class="wa-heading-l" style="margin: 0">I have 45 commander decks, can I still PRISM</h3>
+    sure with different sleeves or something
   </wa-details>
 </div>
+<!--- okay so this part will be on a different page entirely i think it's just here for proof of concept so i dont need to make another html page as an example--->
+<wa-divider></wa-divider>
+
+<div class="wa-stack">
+  <label>Deck Name<input type="name" placeholder="e.g., Izzet Spellslinger" /></label>
+        
+  <label>Commander<input type="name" placeholder="e.g., Alania, Divergent Storm" /></label>
+      <wa-radio-group
+  label="What Bracket is this deck?"
+  hint="Select an option that makes you proud."
+  orientation="horizontal"
+  name="a"
+  value="2"
+>
+  <wa-radio appearance="button" value="1">Bracket 1</wa-radio>
+  <wa-radio appearance="button" value="2">Bracket 2</wa-radio>
+  <wa-radio appearance="button" value="3">Bracket 3</wa-radio>  
+          <wa-radio appearance="button" value="5">Bracket 4</wa-radio>
+  <wa-radio appearance="button" value="5">Bracket 5</wa-radio>
+</wa-radio-group>
+   <label>Choose a Paint/Marker Colour <input type="color" value="#f36944" /></label>
+    <label>DeckList <textarea placeholder="1 Sol Ring, etc"></textarea></label>
+    <wa-input type="url" label="URL" placeholder="https://moxfield.com/" required></wa-input>
+  <br />
+  <wa-button type="submit" variant="brand">Submit</wa-button>
+  <wa-button type="reset" variant="neutral">Reset</wa-button></div>
+
+<script>
+  document.querySelector('.indeterminate').indeterminate = true;
+</script>
         </main>
     </wa-page>
     </body>
