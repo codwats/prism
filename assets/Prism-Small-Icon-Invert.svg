@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="r3" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 8.68 23.41">
+  <defs>
+    <style>
+      .cls-1 {
+        fill: #449e4a;
+      }
+
+      .cls-2 {
+        fill: #5e488f;
+      }
+
+      .cls-3 {
+        fill: #cb4c3d;
+      }
+
+      .cls-4 {
+        fill: #d7aa28;
+      }
+
+      .cls-5 {
+        fill: #fff;
+      }
+
+      .cls-6 {
+        fill: #2d90c6;
+      }
+    </style>
+  </defs>
+  <path class="cls-5" d="M0,0v19.41s4.34,4,4.34,4l4.34-4V0S0,0,0,0ZM7.95,19.1l-3.61,3.32-3.61-3.32V.74h7.21v18.36Z"/>
+  <polygon class="cls-5" points="4.34 3.52 2.21 1.57 6.47 1.57 4.34 3.52"/>
+  <polygon class="cls-5" points="1.57 2.1 3.93 4.27 3.93 20.84 1.57 18.67 1.57 2.1"/>
+  <g>
+    <polygon class="cls-4" points="7.02 2.45 4.93 4.37 4.93 5.79 7.02 3.87 7.02 2.45"/>
+    <polygon class="cls-6" points="7.02 5.06 4.93 6.98 4.93 8.4 7.02 6.48 7.02 5.06"/>
+    <polygon class="cls-2" points="7.02 7.68 4.93 9.59 4.93 11.01 7.02 9.1 7.02 7.68"/>
+    <polygon class="cls-3" points="7.02 10.29 4.93 12.21 4.93 13.63 7.02 11.71 7.02 10.29"/>
+    <polygon class="cls-1" points="7.02 12.9 4.93 14.82 4.93 16.24 7.02 14.32 7.02 12.9"/>
+  </g>
+</svg>
