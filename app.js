@@ -32,70 +32,83 @@ import { downloadCSV, downloadJSON, openPrintableGuide } from './export.js';
 
 let currentPrism = null;
 let deckToDelete = null;
-
-// ============================================================================
-// DOM References
-// ============================================================================
-
-const elements = {
-  // PRISM name
-  prismName: document.getElementById('prism-name'),
-  deckCountTag: document.getElementById('deck-count-tag'),
-  
-  // Tabs
-  mainTabs: document.getElementById('main-tabs'),
-  
-  // Deck form
-  deckForm: document.getElementById('deck-form'),
-  deckName: document.getElementById('deck-name'),
-  deckCommander: document.getElementById('deck-commander'),
-  deckBracket: document.getElementById('deck-bracket'),
-  deckColor: document.getElementById('deck-color'),
-  deckList: document.getElementById('deck-list'),
-  colorSwatches: document.getElementById('color-swatches'),
-  colorWarning: document.getElementById('color-warning'),
-  parseErrors: document.getElementById('parse-errors'),
-  btnResetForm: document.getElementById('btn-reset-form'),
-  
-  // Decks list
-  decksList: document.getElementById('decks-list'),
-  
-  // Results
-  resultsStats: document.getElementById('results-stats'),
-  statTotal: document.getElementById('stat-total'),
-  statShared: document.getElementById('stat-shared'),
-  statUnique: document.getElementById('stat-unique'),
-  resultsFilter: document.getElementById('results-filter'),
-  resultsSearch: document.getElementById('results-search'),
-  resultsTbody: document.getElementById('results-tbody'),
-  noResults: document.getElementById('no-results'),
-  btnGoToDecks: document.getElementById('btn-go-to-decks'),
-  
-  // Export
-  deckLegend: document.getElementById('deck-legend'),
-  noDecksLegend: document.getElementById('no-decks-legend'),
-  stripeReorderList: document.getElementById('stripe-reorder-list'),
-  btnExportCSV: document.getElementById('btn-export-csv'),
-  btnExportJSON: document.getElementById('btn-export-json'),
-  btnPrintGuide: document.getElementById('btn-print-guide'),
-  
-  // Dialogs
-  deleteDialog: document.getElementById('delete-dialog'),
-  deleteDeckName: document.getElementById('delete-deck-name'),
-  btnCancelDelete: document.getElementById('btn-cancel-delete'),
-  btnConfirmDelete: document.getElementById('btn-confirm-delete'),
-  
-  newPrismDialog: document.getElementById('new-prism-dialog'),
-  btnNewPrism: document.getElementById('btn-new-prism'),
-  btnCancelNew: document.getElementById('btn-cancel-new'),
-  btnConfirmNew: document.getElementById('btn-confirm-new')
-};
+let elements = null;
 
 // ============================================================================
 // Initialization
 // ============================================================================
 
-function init() {
+function getElements() {
+  return {
+    // PRISM name
+    prismName: document.getElementById('prism-name'),
+    deckCountTag: document.getElementById('deck-count-tag'),
+    
+    // Tabs
+    mainTabs: document.getElementById('main-tabs'),
+    
+    // Deck form
+    deckForm: document.getElementById('deck-form'),
+    deckName: document.getElementById('deck-name'),
+    deckCommander: document.getElementById('deck-commander'),
+    deckBracket: document.getElementById('deck-bracket'),
+    deckColor: document.getElementById('deck-color'),
+    deckList: document.getElementById('deck-list'),
+    colorSwatches: document.getElementById('color-swatches'),
+    colorWarning: document.getElementById('color-warning'),
+    parseErrors: document.getElementById('parse-errors'),
+    btnResetForm: document.getElementById('btn-reset-form'),
+    
+    // Decks list
+    decksList: document.getElementById('decks-list'),
+    
+    // Results
+    resultsStats: document.getElementById('results-stats'),
+    statTotal: document.getElementById('stat-total'),
+    statShared: document.getElementById('stat-shared'),
+    statUnique: document.getElementById('stat-unique'),
+    resultsFilter: document.getElementById('results-filter'),
+    resultsSearch: document.getElementById('results-search'),
+    resultsTbody: document.getElementById('results-tbody'),
+    noResults: document.getElementById('no-results'),
+    btnGoToDecks: document.getElementById('btn-go-to-decks'),
+    
+    // Export
+    deckLegend: document.getElementById('deck-legend'),
+    noDecksLegend: document.getElementById('no-decks-legend'),
+    stripeReorderList: document.getElementById('stripe-reorder-list'),
+    btnExportCSV: document.getElementById('btn-export-csv'),
+    btnExportJSON: document.getElementById('btn-export-json'),
+    btnPrintGuide: document.getElementById('btn-print-guide'),
+    
+    // Dialogs
+    deleteDialog: document.getElementById('delete-dialog'),
+    deleteDeckName: document.getElementById('delete-deck-name'),
+    btnCancelDelete: document.getElementById('btn-cancel-delete'),
+    btnConfirmDelete: document.getElementById('btn-confirm-delete'),
+    
+    newPrismDialog: document.getElementById('new-prism-dialog'),
+    btnNewPrism: document.getElementById('btn-new-prism'),
+    btnCancelNew: document.getElementById('btn-cancel-new'),
+    btnConfirmNew: document.getElementById('btn-confirm-new')
+  };
+}
+
+async function init() {
+  console.log('PRISM: Initializing...');
+  
+  // Wait a tick for Web Awesome components to upgrade
+  await new Promise(resolve => setTimeout(resolve, 100));
+  
+  // Get element references
+  elements = getElements();
+  
+  // Verify critical elements exist
+  if (!elements.deckForm) {
+    console.error('PRISM: Could not find deck form element');
+    return;
+  }
+  
   // Load or create PRISM
   currentPrism = getCurrentPrism();
   if (!currentPrism) {
@@ -110,9 +123,13 @@ function init() {
   
   // Set up event listeners
   setupEventListeners();
+  
+  console.log('PRISM: Initialization complete');
 }
 
 function initColorSwatches() {
+  if (!elements.colorSwatches) return;
+  
   elements.colorSwatches.innerHTML = '';
   
   DEFAULT_COLORS.forEach(color => {
@@ -153,46 +170,88 @@ function updateColorSwatchSelection() {
 
 function setupEventListeners() {
   // PRISM name change
-  elements.prismName.addEventListener('input', handlePrismNameChange);
+  if (elements.prismName) {
+    elements.prismName.addEventListener('wa-input', handlePrismNameChange);
+    elements.prismName.addEventListener('input', handlePrismNameChange);
+  }
   
-  // Deck form submission
-  elements.deckForm.addEventListener('submit', handleDeckSubmit);
-  elements.btnResetForm.addEventListener('click', resetDeckForm);
+  // Deck form submission - use both submit event and button click as fallback
+  if (elements.deckForm) {
+    elements.deckForm.addEventListener('submit', handleDeckSubmit);
+    
+    // Also add click handler to the submit button as backup
+    const submitBtn = elements.deckForm.querySelector('wa-button[type="submit"]');
+    if (submitBtn) {
+      submitBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        handleDeckSubmit(e);
+      });
+    }
+  }
+  
+  if (elements.btnResetForm) {
+    elements.btnResetForm.addEventListener('click', resetDeckForm);
+  }
   
   // Color picker change
-  elements.deckColor.addEventListener('input', () => {
-    updateColorSwatchSelection();
-    checkColorWarning();
-  });
+  if (elements.deckColor) {
+    elements.deckColor.addEventListener('input', () => {
+      updateColorSwatchSelection();
+      checkColorWarning();
+    });
+  }
   
   // Results filter
-  elements.resultsFilter.addEventListener('wa-change', renderResults);
-  elements.resultsSearch.addEventListener('input', renderResults);
+  if (elements.resultsFilter) {
+    elements.resultsFilter.addEventListener('wa-change', renderResults);
+  }
+  if (elements.resultsSearch) {
+    elements.resultsSearch.addEventListener('wa-input', renderResults);
+    elements.resultsSearch.addEventListener('input', renderResults);
+  }
   
   // Navigation button
-  elements.btnGoToDecks.addEventListener('click', () => {
-    elements.mainTabs.active = 'decks';
-  });
+  if (elements.btnGoToDecks) {
+    elements.btnGoToDecks.addEventListener('click', () => {
+      elements.mainTabs.active = 'decks';
+    });
+  }
   
   // Export buttons
-  elements.btnExportCSV.addEventListener('click', () => downloadCSV(currentPrism));
-  elements.btnExportJSON.addEventListener('click', () => downloadJSON(currentPrism));
-  elements.btnPrintGuide.addEventListener('click', () => openPrintableGuide(currentPrism));
+  if (elements.btnExportCSV) {
+    elements.btnExportCSV.addEventListener('click', () => downloadCSV(currentPrism));
+  }
+  if (elements.btnExportJSON) {
+    elements.btnExportJSON.addEventListener('click', () => downloadJSON(currentPrism));
+  }
+  if (elements.btnPrintGuide) {
+    elements.btnPrintGuide.addEventListener('click', () => openPrintableGuide(currentPrism));
+  }
   
   // Delete dialog
-  elements.btnCancelDelete.addEventListener('click', () => {
-    elements.deleteDialog.open = false;
-  });
-  elements.btnConfirmDelete.addEventListener('click', handleDeleteConfirm);
+  if (elements.btnCancelDelete) {
+    elements.btnCancelDelete.addEventListener('click', () => {
+      elements.deleteDialog.open = false;
+    });
+  }
+  if (elements.btnConfirmDelete) {
+    elements.btnConfirmDelete.addEventListener('click', handleDeleteConfirm);
+  }
   
   // New PRISM dialog
-  elements.btnNewPrism.addEventListener('click', () => {
-    elements.newPrismDialog.open = true;
-  });
-  elements.btnCancelNew.addEventListener('click', () => {
-    elements.newPrismDialog.open = false;
-  });
-  elements.btnConfirmNew.addEventListener('click', handleNewPrism);
+  if (elements.btnNewPrism) {
+    elements.btnNewPrism.addEventListener('click', () => {
+      elements.newPrismDialog.open = true;
+    });
+  }
+  if (elements.btnCancelNew) {
+    elements.btnCancelNew.addEventListener('click', () => {
+      elements.newPrismDialog.open = false;
+    });
+  }
+  if (elements.btnConfirmNew) {
+    elements.btnConfirmNew.addEventListener('click', handleNewPrism);
+  }
 }
 
 // ============================================================================
@@ -200,13 +259,19 @@ function setupEventListeners() {
 // ============================================================================
 
 function handlePrismNameChange(e) {
-  currentPrism.name = e.target.value || 'Untitled PRISM';
+  const value = e.target.value || 'Untitled PRISM';
+  currentPrism.name = value;
   currentPrism.updatedAt = new Date().toISOString();
   savePrism(currentPrism);
 }
 
 function handleDeckSubmit(e) {
-  e.preventDefault();
+  if (e) {
+    e.preventDefault();
+    e.stopPropagation();
+  }
+  
+  console.log('PRISM: Form submitted');
   
   // Check deck limit
   if (currentPrism.decks.length >= 15) {
@@ -214,15 +279,34 @@ function handleDeckSubmit(e) {
     return;
   }
   
-  const name = elements.deckName.value.trim();
-  const commander = elements.deckCommander.value.trim();
-  const bracket = elements.deckBracket.value;
-  const color = elements.deckColor.value;
-  const decklistText = elements.deckList.value;
+  // Get form values
+  const name = (elements.deckName.value || '').trim();
+  const commander = (elements.deckCommander.value || '').trim();
+  const bracket = elements.deckBracket.value || '2';
+  const color = elements.deckColor.value || '#FF0000';
+  const decklistText = elements.deckList.value || '';
+  
+  console.log('PRISM: Form values:', { name, commander, bracket, color, decklistLength: decklistText.length });
+  
+  // Basic validation
+  if (!name) {
+    showError('Please enter a deck name.');
+    return;
+  }
+  if (!commander) {
+    showError('Please enter a commander name.');
+    return;
+  }
+  if (!decklistText.trim()) {
+    showError('Please paste a decklist.');
+    return;
+  }
   
   // Parse decklist
   const parseResult = parseDecklist(decklistText, commander);
   const validation = validateDecklist(parseResult);
+  
+  console.log('PRISM: Parse result:', { cards: parseResult.cards.length, errors: parseResult.errors.length });
   
   // Show parse errors if any
   if (parseResult.errors.length > 0) {
@@ -259,6 +343,8 @@ function handleDeckSubmit(e) {
   // Add to PRISM
   currentPrism = addDeckToPrism(currentPrism, deck);
   savePrism(currentPrism);
+  
+  console.log('PRISM: Deck added:', deck.name);
   
   // Reset form and re-render
   resetDeckForm();
@@ -340,20 +426,26 @@ function renderAll() {
 }
 
 function renderPrismHeader() {
-  elements.prismName.value = currentPrism.name;
-  elements.deckCountTag.textContent = `${currentPrism.decks.length}/15 decks`;
-  
-  // Update tag variant based on count
-  if (currentPrism.decks.length >= 15) {
-    elements.deckCountTag.variant = 'warning';
-  } else if (currentPrism.decks.length >= 10) {
-    elements.deckCountTag.variant = 'neutral';
-  } else {
-    elements.deckCountTag.variant = 'success';
+  if (elements.prismName) {
+    elements.prismName.value = currentPrism.name;
+  }
+  if (elements.deckCountTag) {
+    elements.deckCountTag.textContent = `${currentPrism.decks.length}/15 decks`;
+    
+    // Update tag variant based on count
+    if (currentPrism.decks.length >= 15) {
+      elements.deckCountTag.variant = 'warning';
+    } else if (currentPrism.decks.length >= 10) {
+      elements.deckCountTag.variant = 'neutral';
+    } else {
+      elements.deckCountTag.variant = 'success';
+    }
   }
 }
 
 function renderDecksList() {
+  if (!elements.decksList) return;
+  
   const sortedDecks = [...currentPrism.decks].sort((a, b) => a.stripePosition - b.stripePosition);
   
   if (sortedDecks.length === 0) {
@@ -409,27 +501,31 @@ function renderResults() {
   const overlap = calculateOverlap(currentPrism);
   
   // Update stats
-  elements.statTotal.textContent = overlap.totalUniqueCards;
-  elements.statShared.textContent = overlap.sharedCardCount;
-  elements.statUnique.textContent = overlap.uniqueCardCount;
+  if (elements.statTotal) elements.statTotal.textContent = overlap.totalUniqueCards;
+  if (elements.statShared) elements.statShared.textContent = overlap.sharedCardCount;
+  if (elements.statUnique) elements.statUnique.textContent = overlap.uniqueCardCount;
   
   // Show/hide based on deck count
   if (currentPrism.decks.length === 0) {
-    elements.resultsStats.style.display = 'none';
-    elements.noResults.style.display = 'flex';
-    document.getElementById('results-table-container').style.display = 'none';
-    document.querySelector('[id="results-filter"]').parentElement.style.display = 'none';
+    if (elements.resultsStats) elements.resultsStats.style.display = 'none';
+    if (elements.noResults) elements.noResults.style.display = 'flex';
+    const tableContainer = document.getElementById('results-table-container');
+    if (tableContainer) tableContainer.style.display = 'none';
+    const filterParent = elements.resultsFilter?.parentElement;
+    if (filterParent) filterParent.style.display = 'none';
     return;
   }
   
-  elements.resultsStats.style.display = '';
-  elements.noResults.style.display = 'none';
-  document.getElementById('results-table-container').style.display = '';
-  document.querySelector('[id="results-filter"]').parentElement.style.display = '';
+  if (elements.resultsStats) elements.resultsStats.style.display = '';
+  if (elements.noResults) elements.noResults.style.display = 'none';
+  const tableContainer = document.getElementById('results-table-container');
+  if (tableContainer) tableContainer.style.display = '';
+  const filterParent = elements.resultsFilter?.parentElement;
+  if (filterParent) filterParent.style.display = '';
   
   // Apply filters
-  const filter = elements.resultsFilter.value;
-  const search = elements.resultsSearch.value.toLowerCase().trim();
+  const filter = elements.resultsFilter?.value || 'all';
+  const search = (elements.resultsSearch?.value || '').toLowerCase().trim();
   
   let filteredCards = processedCards;
   
@@ -446,6 +542,8 @@ function renderResults() {
   }
   
   // Render table
+  if (!elements.resultsTbody) return;
+  
   elements.resultsTbody.innerHTML = filteredCards.map(card => {
     const stripeIndicators = card.stripes.map(s => `
       <div 
@@ -484,65 +582,71 @@ function renderExport() {
   
   // Deck legend
   if (sortedDecks.length === 0) {
-    elements.deckLegend.style.display = 'none';
-    elements.noDecksLegend.style.display = '';
-    elements.stripeReorderList.innerHTML = `
-      <p style="color: var(--wa-color-neutral-text-subtle);">Add decks to reorder stripe positions.</p>
-    `;
+    if (elements.deckLegend) elements.deckLegend.style.display = 'none';
+    if (elements.noDecksLegend) elements.noDecksLegend.style.display = '';
+    if (elements.stripeReorderList) {
+      elements.stripeReorderList.innerHTML = `
+        <p style="color: var(--wa-color-neutral-text-subtle);">Add decks to reorder stripe positions.</p>
+      `;
+    }
     return;
   }
   
-  elements.deckLegend.style.display = '';
-  elements.noDecksLegend.style.display = 'none';
+  if (elements.deckLegend) elements.deckLegend.style.display = '';
+  if (elements.noDecksLegend) elements.noDecksLegend.style.display = 'none';
   
-  elements.deckLegend.innerHTML = sortedDecks.map(deck => `
-    <div class="wa-cluster wa-gap-xs wa-align-items-center">
-      <div class="deck-color-indicator small" style="background-color: ${deck.color};"></div>
-      <span><strong>Slot ${deck.stripePosition}:</strong> ${escapeHtml(deck.name)}</span>
-    </div>
-  `).join('');
-  
-  // Stripe reorder list
-  elements.stripeReorderList.innerHTML = sortedDecks.map((deck, index) => `
-    <div class="reorder-item wa-split wa-align-items-center" data-deck-id="${deck.id}">
-      <div class="wa-cluster wa-gap-s wa-align-items-center">
-        <div class="deck-color-indicator" style="background-color: ${deck.color};"></div>
+  if (elements.deckLegend) {
+    elements.deckLegend.innerHTML = sortedDecks.map(deck => `
+      <div class="wa-cluster wa-gap-xs wa-align-items-center">
+        <div class="deck-color-indicator small" style="background-color: ${deck.color};"></div>
         <span><strong>Slot ${deck.stripePosition}:</strong> ${escapeHtml(deck.name)}</span>
       </div>
-      <div class="wa-cluster wa-gap-2xs">
-        <wa-button 
-          appearance="plain" 
-          variant="neutral" 
-          size="small"
-          class="btn-move-up"
-          data-deck-id="${deck.id}"
-          ${index === 0 ? 'disabled' : ''}
-          title="Move up"
-        >
-          <wa-icon name="chevron-up"></wa-icon>
-        </wa-button>
-        <wa-button 
-          appearance="plain" 
-          variant="neutral" 
-          size="small"
-          class="btn-move-down"
-          data-deck-id="${deck.id}"
-          ${index === sortedDecks.length - 1 ? 'disabled' : ''}
-          title="Move down"
-        >
-          <wa-icon name="chevron-down"></wa-icon>
-        </wa-button>
-      </div>
-    </div>
-  `).join('');
+    `).join('');
+  }
   
-  // Add reorder listeners
-  elements.stripeReorderList.querySelectorAll('.btn-move-up').forEach(btn => {
-    btn.addEventListener('click', () => handleStripeReorder(btn.dataset.deckId, 'up'));
-  });
-  elements.stripeReorderList.querySelectorAll('.btn-move-down').forEach(btn => {
-    btn.addEventListener('click', () => handleStripeReorder(btn.dataset.deckId, 'down'));
-  });
+  // Stripe reorder list
+  if (elements.stripeReorderList) {
+    elements.stripeReorderList.innerHTML = sortedDecks.map((deck, index) => `
+      <div class="reorder-item wa-split wa-align-items-center" data-deck-id="${deck.id}">
+        <div class="wa-cluster wa-gap-s wa-align-items-center">
+          <div class="deck-color-indicator" style="background-color: ${deck.color};"></div>
+          <span><strong>Slot ${deck.stripePosition}:</strong> ${escapeHtml(deck.name)}</span>
+        </div>
+        <div class="wa-cluster wa-gap-2xs">
+          <wa-button 
+            appearance="plain" 
+            variant="neutral" 
+            size="small"
+            class="btn-move-up"
+            data-deck-id="${deck.id}"
+            ${index === 0 ? 'disabled' : ''}
+            title="Move up"
+          >
+            <wa-icon name="chevron-up"></wa-icon>
+          </wa-button>
+          <wa-button 
+            appearance="plain" 
+            variant="neutral" 
+            size="small"
+            class="btn-move-down"
+            data-deck-id="${deck.id}"
+            ${index === sortedDecks.length - 1 ? 'disabled' : ''}
+            title="Move down"
+          >
+            <wa-icon name="chevron-down"></wa-icon>
+          </wa-button>
+        </div>
+      </div>
+    `).join('');
+    
+    // Add reorder listeners
+    elements.stripeReorderList.querySelectorAll('.btn-move-up').forEach(btn => {
+      btn.addEventListener('click', () => handleStripeReorder(btn.dataset.deckId, 'up'));
+    });
+    elements.stripeReorderList.querySelectorAll('.btn-move-down').forEach(btn => {
+      btn.addEventListener('click', () => handleStripeReorder(btn.dataset.deckId, 'down'));
+    });
+  }
 }
 
 // ============================================================================
@@ -550,12 +654,20 @@ function renderExport() {
 // ============================================================================
 
 function resetDeckForm() {
-  elements.deckForm.reset();
-  elements.deckBracket.value = '2';
+  // Reset form element
+  if (elements.deckForm) {
+    elements.deckForm.reset();
+  }
+  
+  // Reset individual fields (Web Awesome components may need this)
+  if (elements.deckName) elements.deckName.value = '';
+  if (elements.deckCommander) elements.deckCommander.value = '';
+  if (elements.deckBracket) elements.deckBracket.value = '2';
+  if (elements.deckList) elements.deckList.value = '';
   
   // Set next available color
   const nextColor = getNextColor(currentPrism);
-  elements.deckColor.value = nextColor;
+  if (elements.deckColor) elements.deckColor.value = nextColor;
   updateColorSwatchSelection();
   
   hideParseErrors();
@@ -563,7 +675,9 @@ function resetDeckForm() {
 }
 
 function checkColorWarning() {
-  const color = elements.deckColor.value;
+  const color = elements.deckColor?.value;
+  if (!color) return;
+  
   const existingDeck = isColorUsed(currentPrism, color);
   
   if (existingDeck) {
@@ -574,15 +688,20 @@ function checkColorWarning() {
 }
 
 function showColorWarning(message) {
-  elements.colorWarning.querySelector('span').textContent = message;
+  if (!elements.colorWarning) return;
+  const span = elements.colorWarning.querySelector('span');
+  if (span) span.textContent = message;
   elements.colorWarning.style.display = 'flex';
 }
 
 function hideColorWarning() {
-  elements.colorWarning.style.display = 'none';
+  if (elements.colorWarning) {
+    elements.colorWarning.style.display = 'none';
+  }
 }
 
 function showParseErrors(errors) {
+  if (!elements.parseErrors) return;
   elements.parseErrors.style.display = '';
   elements.parseErrors.innerHTML = `
     <wa-callout variant="warning">
@@ -596,8 +715,10 @@ function showParseErrors(errors) {
 }
 
 function hideParseErrors() {
-  elements.parseErrors.style.display = 'none';
-  elements.parseErrors.innerHTML = '';
+  if (elements.parseErrors) {
+    elements.parseErrors.style.display = 'none';
+    elements.parseErrors.innerHTML = '';
+  }
 }
 
 // ============================================================================
@@ -605,13 +726,12 @@ function hideParseErrors() {
 // ============================================================================
 
 function showError(message) {
-  // For now, use alert. Could replace with toast component later.
+  console.error('PRISM Error:', message);
   alert(message);
 }
 
 function showSuccess(message) {
-  // Could implement toast notifications here
-  console.log('Success:', message);
+  console.log('PRISM Success:', message);
 }
 
 // ============================================================================
@@ -628,4 +748,9 @@ function escapeHtml(text) {
 // Initialize
 // ============================================================================
 
-document.addEventListener('DOMContentLoaded', init);
+// Wait for DOM and then initialize
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', init);
+} else {
+  init();
+}
