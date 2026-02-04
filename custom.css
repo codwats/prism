@@ -155,9 +155,59 @@
     padding: var(--wa-space-xs) var(--wa-space-s);
     font-size: var(--wa-font-size-s);
   }
-  
+
   .stripe-indicator {
     width: 14px;
     height: 14px;
   }
+}
+
+/* ============================================================================
+   Toast Animations
+   ============================================================================ */
+
+@keyframes slideInUp {
+  from {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes slideOutDown {
+  from {
+    transform: translateY(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+}
+
+/* ============================================================================
+   Sortable Table Headers
+   ============================================================================ */
+
+.results-table th.sortable {
+  cursor: pointer;
+  user-select: none;
+  transition: background-color 0.15s ease;
+}
+
+.results-table th.sortable:hover {
+  background: var(--wa-color-surface-3);
+}
+
+.results-table th .sort-icon {
+  margin-left: var(--wa-space-2xs);
+  opacity: 0.4;
+  font-size: 0.85em;
+}
+
+.results-table th.sorted .sort-icon {
+  opacity: 1;
 }

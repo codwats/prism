@@ -3,28 +3,35 @@
  * Handles card deduplication and stripe assignment across multiple decks
  */
 
-import { normalizeCardName } from './parser.js';
+import { normalizeCardName } from "./parser.js";
 
 /**
  * Default color palette - paint pen colors
  * 15 distinct colors for maximum deck support
  */
 export const DEFAULT_COLORS = [
-  '#FF0000', // Red
-  '#0000FF', // Blue
-  '#008000', // Green
-  '#FFFF00', // Yellow
-  '#FFA500', // Orange
-  '#800080', // Purple
-  '#FFC0CB', // Pink
-  '#00FFFF', // Cyan
-  '#FFFFFF', // White
-  '#A52A2A', // Brown
-  '#000000', // Black
-  '#C0C0C0', // Silver
-  '#FFD700', // Gold
-  '#00FF00', // Lime
-  '#FF00FF', // Magenta
+	"#ecc933", // Yellow
+	"#558CC1", // Blue
+	"#6B5597", // Purple
+	"#C73D2B", // Red
+	"#70AF63", // Green
+	"#EEEEEE", // White
+	"#7A5E68", // Brown
+	"#3C5890", // Navy
+	"#C76B61", // Salmon
+	"#A3C569", // Light-Green
+	"#D69F5D", // Gold
+	"#5A9FD7", // Light-Blue
+	"#F5F4CF", // Cream
+	"#AC638C", // Maroon
+	"#CFD964", // Lime
+	"#746BA9", // Grape
+	"#D388B2", // Pink
+	"#D4BC2E", // Dark Yellow
+	"#569899", // Teal
+	"#ECCAD7", // Pale-Pink
+	"#CCA427", // Straw
+	"#C2CCD2", // Silver
 ];
 
 /**
@@ -33,24 +40,31 @@ export const DEFAULT_COLORS = [
  * @returns {string} Human-readable color name
  */
 export function getColorName(hex) {
-  const colorNames = {
-    '#FF0000': 'Red',
-    '#0000FF': 'Blue',
-    '#008000': 'Green',
-    '#FFFF00': 'Yellow',
-    '#FFA500': 'Orange',
-    '#800080': 'Purple',
-    '#FFC0CB': 'Pink',
-    '#00FFFF': 'Cyan',
-    '#FFFFFF': 'White',
-    '#A52A2A': 'Brown',
-    '#000000': 'Black',
-    '#C0C0C0': 'Silver',
-    '#FFD700': 'Gold',
-    '#00FF00': 'Lime',
-    '#FF00FF': 'Magenta',
-  };
-  return colorNames[hex.toUpperCase()] || hex;
+	const colorNames = {
+		"#ecc933": "Yellow",
+		"#558CC1": "Blue",
+		"#6B5597": "Purple",
+		"#C73D2B": "Red",
+		"#70AF63": "Green",
+		"#EEEEEE": "White",
+		"#7A5E68": "Brown",
+		"#3C5890": "Navy",
+		"#C76B61": "Salmon",
+		"#A3C569": "Light-Green",
+		"#D69F5D": "Gold",
+		"#5A9FD7": "Light-Blue",
+		"#F5F4CF": "Cream",
+		"#AC638C": "Maroon",
+		"#CFD964": "Lime",
+		"#746BA9": "Grape",
+		"#D388B2": "Pink",
+		"#D4BC2E": "Dark Yellow",
+		"#569899": "Teal",
+		"#ECCAD7": "Pale-Pink",
+		"#CCA427": "Straw",
+		"#C2CCD2": "Silver",
+	};
+	return colorNames[hex.toUpperCase()] || hex;
 }
 
 /**
@@ -58,11 +72,11 @@ export function getColorName(hex) {
  * @returns {string} A UUID string
  */
 export function generateId() {
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-    const r = Math.random() * 16 | 0;
-    const v = c === 'x' ? r : (r & 0x3 | 0x8);
-    return v.toString(16);
-  });
+	return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, function (c) {
+		const r = (Math.random() * 16) | 0;
+		const v = c === "x" ? r : (r & 0x3) | 0x8;
+		return v.toString(16);
+	});
 }
 
 /**
@@ -70,19 +84,26 @@ export function generateId() {
  * @param {Object} params - Deck parameters
  * @returns {Object} A new deck object
  */
-export function createDeck({ name, commander, bracket, color, stripePosition, cards }) {
-  const now = new Date().toISOString();
-  return {
-    id: generateId(),
-    name,
-    commander,
-    bracket: parseInt(bracket, 10),
-    color: color.toUpperCase(),
-    stripePosition,
-    cards,
-    createdAt: now,
-    updatedAt: now
-  };
+export function createDeck({
+	name,
+	commander,
+	bracket,
+	color,
+	stripePosition,
+	cards,
+}) {
+	const now = new Date().toISOString();
+	return {
+		id: generateId(),
+		name,
+		commander,
+		bracket: parseInt(bracket, 10),
+		color: color.toUpperCase(),
+		stripePosition,
+		cards,
+		createdAt: now,
+		updatedAt: now,
+	};
 }
 
 /**
@@ -90,15 +111,15 @@ export function createDeck({ name, commander, bracket, color, stripePosition, ca
  * @param {string} name - Optional name for the PRISM
  * @returns {Object} A new PRISM object
  */
-export function createPrism(name = '') {
-  const now = new Date().toISOString();
-  return {
-    id: generateId(),
-    name: name || `PRISM ${new Date().toLocaleDateString()}`,
-    decks: [],
-    createdAt: now,
-    updatedAt: now
-  };
+export function createPrism(name = "") {
+	const now = new Date().toISOString();
+	return {
+		id: generateId(),
+		name: name || `PRISM ${new Date().toLocaleDateString()}`,
+		decks: [],
+		createdAt: now,
+		updatedAt: now,
+	};
 }
 
 /**
@@ -107,74 +128,74 @@ export function createPrism(name = '') {
  * @returns {Array} Array of ProcessedCard objects sorted by deck count (descending) then name
  */
 export function processCards(prism) {
-  const { decks } = prism;
-  
-  if (!decks || decks.length === 0) {
-    return [];
-  }
-  
-  // Build a map of normalized card name -> card data
-  const cardMap = new Map();
-  
-  for (const deck of decks) {
-    for (const card of deck.cards) {
-      const normalizedName = normalizeCardName(card.name);
-      
-      if (!cardMap.has(normalizedName)) {
-        cardMap.set(normalizedName, {
-          name: card.name, // Keep original display name from first occurrence
-          isBasicLand: card.isBasicLand,
-          quantities: new Map(), // deckId -> quantity
-          stripes: []
-        });
-      }
-      
-      const cardData = cardMap.get(normalizedName);
-      
-      // Track quantity per deck (for basics)
-      cardData.quantities.set(deck.id, card.quantity);
-      
-      // Add stripe information
-      cardData.stripes.push({
-        position: deck.stripePosition,
-        color: deck.color,
-        deckName: deck.name,
-        deckId: deck.id,
-        bracket: deck.bracket,
-        quantity: card.quantity
-      });
-    }
-  }
-  
-  // Convert map to array of ProcessedCard objects
-  const processedCards = [];
-  
-  for (const [normalizedName, cardData] of cardMap) {
-    // Calculate total quantity needed (max across decks for basics, 1 for others)
-    let totalQuantity = 1;
-    if (cardData.isBasicLand) {
-      totalQuantity = Math.max(...cardData.quantities.values());
-    }
-    
-    processedCards.push({
-      name: cardData.name,
-      normalizedName,
-      isBasicLand: cardData.isBasicLand,
-      totalQuantity,
-      deckCount: cardData.stripes.length,
-      stripes: cardData.stripes.sort((a, b) => a.position - b.position)
-    });
-  }
-  
-  // Sort: most decks first, then alphabetically
-  processedCards.sort((a, b) => {
-    if (b.deckCount !== a.deckCount) {
-      return b.deckCount - a.deckCount;
-    }
-    return a.name.localeCompare(b.name);
-  });
-  
-  return processedCards;
+	const { decks } = prism;
+
+	if (!decks || decks.length === 0) {
+		return [];
+	}
+
+	// Build a map of normalized card name -> card data
+	const cardMap = new Map();
+
+	for (const deck of decks) {
+		for (const card of deck.cards) {
+			const normalizedName = normalizeCardName(card.name);
+
+			if (!cardMap.has(normalizedName)) {
+				cardMap.set(normalizedName, {
+					name: card.name, // Keep original display name from first occurrence
+					isBasicLand: card.isBasicLand,
+					quantities: new Map(), // deckId -> quantity
+					stripes: [],
+				});
+			}
+
+			const cardData = cardMap.get(normalizedName);
+
+			// Track quantity per deck (for basics)
+			cardData.quantities.set(deck.id, card.quantity);
+
+			// Add stripe information
+			cardData.stripes.push({
+				position: deck.stripePosition,
+				color: deck.color,
+				deckName: deck.name,
+				deckId: deck.id,
+				bracket: deck.bracket,
+				quantity: card.quantity,
+			});
+		}
+	}
+
+	// Convert map to array of ProcessedCard objects
+	const processedCards = [];
+
+	for (const [normalizedName, cardData] of cardMap) {
+		// Calculate total quantity needed (max across decks for basics, 1 for others)
+		let totalQuantity = 1;
+		if (cardData.isBasicLand) {
+			totalQuantity = Math.max(...cardData.quantities.values());
+		}
+
+		processedCards.push({
+			name: cardData.name,
+			normalizedName,
+			isBasicLand: cardData.isBasicLand,
+			totalQuantity,
+			deckCount: cardData.stripes.length,
+			stripes: cardData.stripes.sort((a, b) => a.position - b.position),
+		});
+	}
+
+	// Sort: most decks first, then alphabetically
+	processedCards.sort((a, b) => {
+		if (b.deckCount !== a.deckCount) {
+			return b.deckCount - a.deckCount;
+		}
+		return a.name.localeCompare(b.name);
+	});
+
+	return processedCards;
 }
 
 /**
@@ -183,43 +204,47 @@ export function processCards(prism) {
  * @returns {Object} Overlap statistics
  */
 export function calculateOverlap(prism) {
-  const processedCards = processCards(prism);
-  
-  const totalUniqueCards = processedCards.length;
-  const sharedCards = processedCards.filter(c => c.deckCount > 1);
-  const uniqueToOneDeck = processedCards.filter(c => c.deckCount === 1);
-  
-  // Calculate pairwise overlap between decks
-  const pairwiseOverlap = [];
-  const decks = prism.decks;
-  
-  for (let i = 0; i < decks.length; i++) {
-    for (let j = i + 1; j < decks.length; j++) {
-      const deck1Cards = new Set(decks[i].cards.map(c => normalizeCardName(c.name)));
-      const deck2Cards = new Set(decks[j].cards.map(c => normalizeCardName(c.name)));
-      
-      let overlap = 0;
-      for (const card of deck1Cards) {
-        if (deck2Cards.has(card)) overlap++;
-      }
-      
-      pairwiseOverlap.push({
-        deck1: decks[i].name,
-        deck2: decks[j].name,
-        overlapCount: overlap
-      });
-    }
-  }
-  
-  return {
-    totalUniqueCards,
-    sharedCardCount: sharedCards.length,
-    uniqueCardCount: uniqueToOneDeck.length,
-    sharedCards,
-    pairwiseOverlap,
-    // Cards shared by most decks
-    mostShared: sharedCards.slice(0, 10)
-  };
+	const processedCards = processCards(prism);
+
+	const totalUniqueCards = processedCards.length;
+	const sharedCards = processedCards.filter((c) => c.deckCount > 1);
+	const uniqueToOneDeck = processedCards.filter((c) => c.deckCount === 1);
+
+	// Calculate pairwise overlap between decks
+	const pairwiseOverlap = [];
+	const decks = prism.decks;
+
+	for (let i = 0; i < decks.length; i++) {
+		for (let j = i + 1; j < decks.length; j++) {
+			const deck1Cards = new Set(
+				decks[i].cards.map((c) => normalizeCardName(c.name)),
+			);
+			const deck2Cards = new Set(
+				decks[j].cards.map((c) => normalizeCardName(c.name)),
+			);
+
+			let overlap = 0;
+			for (const card of deck1Cards) {
+				if (deck2Cards.has(card)) overlap++;
+			}
+
+			pairwiseOverlap.push({
+				deck1: decks[i].name,
+				deck2: decks[j].name,
+				overlapCount: overlap,
+			});
+		}
+	}
+
+	return {
+		totalUniqueCards,
+		sharedCardCount: sharedCards.length,
+		uniqueCardCount: uniqueToOneDeck.length,
+		sharedCards,
+		pairwiseOverlap,
+		// Cards shared by most decks
+		mostShared: sharedCards.slice(0, 10),
+	};
 }
 
 /**
@@ -228,20 +253,20 @@ export function calculateOverlap(prism) {
  * @returns {number} The next available position (1-15)
  */
 export function getNextStripePosition(prism) {
-  if (!prism.decks || prism.decks.length === 0) {
-    return 1;
-  }
-  
-  const usedPositions = new Set(prism.decks.map(d => d.stripePosition));
-  
-  for (let i = 1; i <= 15; i++) {
-    if (!usedPositions.has(i)) {
-      return i;
-    }
-  }
-  
-  // All positions used (shouldn't happen with 15 limit)
-  return prism.decks.length + 1;
+	if (!prism.decks || prism.decks.length === 0) {
+		return 1;
+	}
+
+	const usedPositions = new Set(prism.decks.map((d) => d.stripePosition));
+
+	for (let i = 1; i <= 15; i++) {
+		if (!usedPositions.has(i)) {
+			return i;
+		}
+	}
+
+	// All positions used (shouldn't happen with 15 limit)
+	return prism.decks.length + 1;
 }
 
 /**
@@ -250,20 +275,20 @@ export function getNextStripePosition(prism) {
  * @returns {string} The next available hex color
  */
 export function getNextColor(prism) {
-  if (!prism.decks || prism.decks.length === 0) {
-    return DEFAULT_COLORS[0];
-  }
-  
-  const usedColors = new Set(prism.decks.map(d => d.color.toUpperCase()));
-  
-  for (const color of DEFAULT_COLORS) {
-    if (!usedColors.has(color.toUpperCase())) {
-      return color;
-    }
-  }
-  
-  // All default colors used, return first one (user should pick different)
-  return DEFAULT_COLORS[0];
+	if (!prism.decks || prism.decks.length === 0) {
+		return DEFAULT_COLORS[0];
+	}
+
+	const usedColors = new Set(prism.decks.map((d) => d.color.toUpperCase()));
+
+	for (const color of DEFAULT_COLORS) {
+		if (!usedColors.has(color.toUpperCase())) {
+			return color;
+		}
+	}
+
+	// All default colors used, return first one (user should pick different)
+	return DEFAULT_COLORS[0];
 }
 
 /**
@@ -274,16 +299,16 @@ export function getNextColor(prism) {
  * @returns {Object|null} The deck using this color, or null if available
  */
 export function isColorUsed(prism, color, excludeDeckId = null) {
-  const normalizedColor = color.toUpperCase();
-  
-  for (const deck of prism.decks) {
-    if (excludeDeckId && deck.id === excludeDeckId) continue;
-    if (deck.color.toUpperCase() === normalizedColor) {
-      return deck;
-    }
-  }
-  
-  return null;
+	const normalizedColor = color.toUpperCase();
+
+	for (const deck of prism.decks) {
+		if (excludeDeckId && deck.id === excludeDeckId) continue;
+		if (deck.color.toUpperCase() === normalizedColor) {
+			return deck;
+		}
+	}
+
+	return null;
 }
 
 /**
@@ -293,24 +318,26 @@ export function isColorUsed(prism, color, excludeDeckId = null) {
  * @returns {Object} Updated PRISM with new stripe positions
  */
 export function reorderStripes(prism, newOrder) {
-  const deckMap = new Map(prism.decks.map(d => [d.id, d]));
-  
-  const updatedDecks = newOrder.map((deckId, index) => {
-    const deck = deckMap.get(deckId);
-    if (!deck) return null;
-    
-    return {
-      ...deck,
-      stripePosition: index + 1,
-      updatedAt: new Date().toISOString()
-    };
-  }).filter(Boolean);
-  
-  return {
-    ...prism,
-    decks: updatedDecks,
-    updatedAt: new Date().toISOString()
-  };
+	const deckMap = new Map(prism.decks.map((d) => [d.id, d]));
+
+	const updatedDecks = newOrder
+		.map((deckId, index) => {
+			const deck = deckMap.get(deckId);
+			if (!deck) return null;
+
+			return {
+				...deck,
+				stripePosition: index + 1,
+				updatedAt: new Date().toISOString(),
+			};
+		})
+		.filter(Boolean);
+
+	return {
+		...prism,
+		decks: updatedDecks,
+		updatedAt: new Date().toISOString(),
+	};
 }
 
 /**
@@ -320,11 +347,11 @@ export function reorderStripes(prism, newOrder) {
  * @returns {Object} Updated PRISM
  */
 export function addDeckToPrism(prism, deck) {
-  return {
-    ...prism,
-    decks: [...prism.decks, deck],
-    updatedAt: new Date().toISOString()
-  };
+	return {
+		...prism,
+		decks: [...prism.decks, deck],
+		updatedAt: new Date().toISOString(),
+	};
 }
 
 /**
@@ -334,31 +361,31 @@ export function addDeckToPrism(prism, deck) {
  * @returns {Object} Updated PRISM
  */
 export function removeDeckFromPrism(prism, deckId) {
-  return {
-    ...prism,
-    decks: prism.decks.filter(d => d.id !== deckId),
-    updatedAt: new Date().toISOString()
-  };
+	return {
+		...prism,
+		decks: prism.decks.filter((d) => d.id !== deckId),
+		updatedAt: new Date().toISOString(),
+	};
 }
 
 /**
  * Update a deck in a PRISM
- * @param {Object} prism - The PRISM object  
+ * @param {Object} prism - The PRISM object
  * @param {string} deckId - The ID of the deck to update
  * @param {Object} updates - The fields to update
  * @returns {Object} Updated PRISM
  */
 export function updateDeckInPrism(prism, deckId, updates) {
-  return {
-    ...prism,
-    decks: prism.decks.map(d => {
-      if (d.id !== deckId) return d;
-      return {
-        ...d,
-        ...updates,
-        updatedAt: new Date().toISOString()
-      };
-    }),
-    updatedAt: new Date().toISOString()
-  };
+	return {
+		...prism,
+		decks: prism.decks.map((d) => {
+			if (d.id !== deckId) return d;
+			return {
+				...d,
+				...updates,
+				updatedAt: new Date().toISOString(),
+			};
+		}),
+		updatedAt: new Date().toISOString(),
+	};
 }

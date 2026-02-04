@@ -32,7 +32,9 @@ import { downloadCSV, downloadJSON, openPrintableGuide } from './export.js';
 
 let currentPrism = null;
 let deckToDelete = null;
+let deckToEdit = null;
 let elements = null;
+let sortState = { column: 'deckCount', direction: 'desc' }; // Default: most shared first
 
 // ============================================================================
 // Initialization
@@ -54,6 +56,9 @@ function getElements() {
     deckBracket: document.getElementById('deck-bracket'),
     deckColor: document.getElementById('deck-color'),
     deckList: document.getElementById('deck-list'),
+    deckFileInput: document.getElementById('deck-file-input'),
+    btnUploadFile: document.getElementById('btn-upload-file'),
+    fileNameDisplay: document.getElementById('file-name-display'),
     colorSwatches: document.getElementById('color-swatches'),
     colorWarning: document.getElementById('color-warning'),
     parseErrors: document.getElementById('parse-errors'),
@@ -61,6 +66,7 @@ function getElements() {
     
     // Decks list
     decksList: document.getElementById('decks-list'),
+    reorderCard: document.getElementById('reorder-card'),
     
     // Results
     resultsStats: document.getElementById('results-stats'),
@@ -80,6 +86,9 @@ function getElements() {
     btnExportCSV: document.getElementById('btn-export-csv'),
     btnExportJSON: document.getElementById('btn-export-json'),
     btnPrintGuide: document.getElementById('btn-print-guide'),
+    btnImportJson: document.getElementById('btn-import-json'),
+    prismJsonInput: document.getElementById('prism-json-input'),
+    importStatus: document.getElementById('import-status'),
     
     // Dialogs
     deleteDialog: document.getElementById('delete-dialog'),
@@ -90,7 +99,20 @@ function getElements() {
     newPrismDialog: document.getElementById('new-prism-dialog'),
     btnNewPrism: document.getElementById('btn-new-prism'),
     btnCancelNew: document.getElementById('btn-cancel-new'),
-    btnConfirmNew: document.getElementById('btn-confirm-new')
+    btnConfirmNew: document.getElementById('btn-confirm-new'),
+
+    // Edit dialog
+    editDialog: document.getElementById('edit-dialog'),
+    editDeckForm: document.getElementById('edit-deck-form'),
+    editDeckId: document.getElementById('edit-deck-id'),
+    editDeckName: document.getElementById('edit-deck-name'),
+    editDeckCommander: document.getElementById('edit-deck-commander'),
+    editDeckBracket: document.getElementById('edit-deck-bracket'),
+    editDeckColor: document.getElementById('edit-deck-color'),
+    editDeckList: document.getElementById('edit-deck-list'),
+    editParseErrors: document.getElementById('edit-parse-errors'),
+    btnCancelEdit: document.getElementById('btn-cancel-edit'),
+    btnConfirmEdit: document.getElementById('btn-confirm-edit')
   };
 }
 
@@ -200,13 +222,32 @@ function setupEventListeners() {
       checkColorWarning();
     });
   }
+
+  // File upload
+  if (elements.btnUploadFile) {
+    elements.btnUploadFile.addEventListener('click', () => {
+      elements.deckFileInput?.click();
+    });
+  }
+  if (elements.deckFileInput) {
+    elements.deckFileInput.addEventListener('change', handleFileUpload);
+  }
+
+  // JSON import
+  if (elements.btnImportJson) {
+    elements.btnImportJson.addEventListener('click', () => {
+      elements.prismJsonInput?.click();
+    });
+  }
+  if (elements.prismJsonInput) {
+    elements.prismJsonInput.addEventListener('change', handleJsonImport);
+  }
   
-  // Results filter
+  // Results filter - use 'change' event for wa-radio-group
   if (elements.resultsFilter) {
-    elements.resultsFilter.addEventListener('wa-change', renderResults);
+    elements.resultsFilter.addEventListener('change', renderResults);
   }
   if (elements.resultsSearch) {
-    elements.resultsSearch.addEventListener('wa-input', renderResults);
     elements.resultsSearch.addEventListener('input', renderResults);
   }
   
@@ -252,6 +293,16 @@ function setupEventListeners() {
   if (elements.btnConfirmNew) {
     elements.btnConfirmNew.addEventListener('click', handleNewPrism);
   }
+
+  // Edit dialog
+  if (elements.btnCancelEdit) {
+    elements.btnCancelEdit.addEventListener('click', () => {
+      elements.editDialog.open = false;
+    });
+  }
+  if (elements.btnConfirmEdit) {
+    elements.btnConfirmEdit.addEventListener('click', handleEditConfirm);
+  }
 }
 
 // ============================================================================
@@ -270,22 +321,36 @@ function handleDeckSubmit(e) {
     e.preventDefault();
     e.stopPropagation();
   }
-  
+
   console.log('PRISM: Form submitted');
-  
+
   // Check deck limit
   if (currentPrism.decks.length >= 15) {
     showError('Maximum 15 decks per PRISM reached.');
     return;
   }
-  
-  // Get form values
-  const name = (elements.deckName.value || '').trim();
-  const commander = (elements.deckCommander.value || '').trim();
-  const bracket = elements.deckBracket.value || '2';
-  const color = elements.deckColor.value || '#FF0000';
-  const decklistText = elements.deckList.value || '';
-  
+
+  // Get form values - for web components, try multiple ways to get the value
+  const getInputValue = (element) => {
+    if (!element) return '';
+    // Try .value first (standard), then check for internal input
+    if (element.value !== undefined && element.value !== null) {
+      return String(element.value).trim();
+    }
+    // Fallback: try to find internal input in shadow DOM
+    const shadowInput = element.shadowRoot?.querySelector('input, textarea');
+    if (shadowInput) {
+      return String(shadowInput.value || '').trim();
+    }
+    return '';
+  };
+
+  const name = getInputValue(elements.deckName);
+  const commander = getInputValue(elements.deckCommander);
+  const bracket = elements.deckBracket?.value || '2';
+  const color = elements.deckColor?.value || '#FF0000';
+  const decklistText = getInputValue(elements.deckList);
+
   console.log('PRISM: Form values:', { name, commander, bracket, color, decklistLength: decklistText.length });
   
   // Basic validation
@@ -357,10 +422,120 @@ function handleDeckSubmit(e) {
 function handleDeleteClick(deckId) {
   const deck = currentPrism.decks.find(d => d.id === deckId);
   if (!deck) return;
-  
+
   deckToDelete = deckId;
   elements.deleteDeckName.textContent = deck.name;
   elements.deleteDialog.open = true;
+}
+
+function handleEditClick(deckId) {
+  const deck = currentPrism.decks.find(d => d.id === deckId);
+  if (!deck) return;
+
+  deckToEdit = deckId;
+
+  // Populate form with deck data
+  if (elements.editDeckId) elements.editDeckId.value = deck.id;
+  if (elements.editDeckName) elements.editDeckName.value = deck.name;
+  if (elements.editDeckCommander) elements.editDeckCommander.value = deck.commander;
+  if (elements.editDeckBracket) elements.editDeckBracket.value = String(deck.bracket);
+  if (elements.editDeckColor) elements.editDeckColor.value = deck.color;
+
+  // Convert cards back to decklist text
+  if (elements.editDeckList) {
+    const decklistText = deck.cards
+      .map(card => `${card.quantity} ${card.name}`)
+      .join('\n');
+    elements.editDeckList.value = decklistText;
+  }
+
+  // Hide any previous parse errors
+  if (elements.editParseErrors) {
+    elements.editParseErrors.style.display = 'none';
+    elements.editParseErrors.innerHTML = '';
+  }
+
+  elements.editDialog.open = true;
+}
+
+function handleEditConfirm() {
+  if (!deckToEdit) return;
+
+  const deck = currentPrism.decks.find(d => d.id === deckToEdit);
+  if (!deck) return;
+
+  // Get form values
+  const name = (elements.editDeckName?.value || '').trim();
+  const commander = (elements.editDeckCommander?.value || '').trim();
+  const bracket = elements.editDeckBracket?.value || '2';
+  const color = elements.editDeckColor?.value || deck.color;
+  const decklistText = elements.editDeckList?.value || '';
+
+  // Basic validation
+  if (!name) {
+    showError('Please enter a deck name.');
+    return;
+  }
+  if (!commander) {
+    showError('Please enter a commander name.');
+    return;
+  }
+  if (!decklistText.trim()) {
+    showError('Please paste a decklist.');
+    return;
+  }
+
+  // Check for duplicate deck name (excluding current deck)
+  const existingDeck = currentPrism.decks.find(
+    d => d.id !== deckToEdit && d.name.toLowerCase() === name.toLowerCase()
+  );
+  if (existingDeck) {
+    showError(`A deck named "${name}" already exists.`);
+    return;
+  }
+
+  // Parse decklist
+  const parseResult = parseDecklist(decklistText, commander);
+  const validation = validateDecklist(parseResult);
+
+  // Show parse errors if any
+  if (parseResult.errors.length > 0 && elements.editParseErrors) {
+    elements.editParseErrors.style.display = '';
+    elements.editParseErrors.innerHTML = `
+      <wa-callout variant="warning">
+        <strong>Some lines couldn't be parsed:</strong>
+        <ul style="margin: 0.5em 0 0 1.5em; padding: 0;">
+          ${parseResult.errors.slice(0, 5).map(e => `<li>Line ${e.lineNumber}: ${escapeHtml(e.content)}</li>`).join('')}
+          ${parseResult.errors.length > 5 ? `<li>...and ${parseResult.errors.length - 5} more</li>` : ''}
+        </ul>
+      </wa-callout>
+    `;
+  }
+
+  // Check if valid
+  if (!validation.isValid) {
+    showError(validation.messages.join(' '));
+    return;
+  }
+
+  // Update deck
+  deck.name = name;
+  deck.commander = commander;
+  deck.bracket = parseInt(bracket, 10);
+  deck.color = color;
+  deck.cards = parseResult.cards;
+  deck.updatedAt = new Date().toISOString();
+
+  // Update PRISM timestamp
+  currentPrism.updatedAt = new Date().toISOString();
+
+  // Save and close
+  savePrism(currentPrism);
+  deckToEdit = null;
+  elements.editDialog.open = false;
+
+  renderAll();
+  showSuccess(`Updated "${name}" with ${parseResult.uniqueCards} cards.`);
 }
 
 function handleDeleteConfirm() {
@@ -390,6 +565,125 @@ function handleNewPrism() {
   resetDeckForm();
   initColorSwatches();
   renderAll();
+}
+
+function handleFileUpload(e) {
+  const file = e.target.files?.[0];
+  if (!file) return;
+
+  // Show file name
+  if (elements.fileNameDisplay) {
+    elements.fileNameDisplay.textContent = file.name;
+  }
+
+  // Read file content
+  const reader = new FileReader();
+  reader.onload = (event) => {
+    const content = event.target.result;
+    if (elements.deckList) {
+      elements.deckList.value = content;
+    }
+
+    // Try to extract deck name from filename
+    if (elements.deckName && !elements.deckName.value) {
+      const nameWithoutExt = file.name.replace(/\.(txt|dec|dek|mwDeck)$/i, '');
+      elements.deckName.value = nameWithoutExt;
+    }
+
+    showSuccess(`Loaded ${file.name}`);
+  };
+
+  reader.onerror = () => {
+    showError('Failed to read file. Please try again.');
+  };
+
+  reader.readAsText(file);
+}
+
+function handleJsonImport(e) {
+  const file = e.target.files?.[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = (event) => {
+    try {
+      const jsonData = JSON.parse(event.target.result);
+
+      // Validate the JSON structure
+      let prismData = null;
+
+      // Handle both export formats:
+      // 1. Direct PRISM object with decks array
+      // 2. Export format with { prism: { decks: [...] } }
+      if (jsonData.prism && jsonData.prism.decks) {
+        prismData = jsonData.prism;
+      } else if (jsonData.decks && Array.isArray(jsonData.decks)) {
+        prismData = jsonData;
+      } else {
+        throw new Error('Invalid PRISM JSON format. Expected decks array.');
+      }
+
+      // Validate decks
+      if (!prismData.decks || prismData.decks.length === 0) {
+        throw new Error('No decks found in the imported file.');
+      }
+
+      // Create new PRISM from imported data
+      const newPrism = createPrism(prismData.name || 'Imported PRISM');
+      newPrism.id = prismData.id || newPrism.id;
+      newPrism.createdAt = prismData.createdAt || newPrism.createdAt;
+      newPrism.updatedAt = new Date().toISOString();
+
+      // Import each deck
+      for (const deck of prismData.decks) {
+        // Handle both full deck objects and export format (which may have cardCount instead of cards)
+        const deckCards = deck.cards || [];
+
+        const newDeck = createDeck({
+          id: deck.id,
+          name: deck.name,
+          commander: deck.commander,
+          bracket: deck.bracket,
+          color: deck.color,
+          stripePosition: deck.stripePosition,
+          cards: deckCards,
+          createdAt: deck.createdAt,
+          updatedAt: deck.updatedAt
+        });
+
+        newPrism.decks.push(newDeck);
+      }
+
+      // Save and switch to imported PRISM
+      savePrism(newPrism);
+      setCurrentPrism(newPrism.id);
+      currentPrism = newPrism;
+
+      // Update UI
+      initColorSwatches();
+      renderAll();
+
+      // Update status
+      if (elements.importStatus) {
+        elements.importStatus.textContent = `Imported: ${file.name}`;
+      }
+
+      showSuccess(`Imported "${newPrism.name}" with ${newPrism.decks.length} decks.`);
+
+    } catch (err) {
+      console.error('JSON import error:', err);
+      showError(err.message || 'Failed to parse JSON file. Please check the format.');
+    }
+  };
+
+  reader.onerror = () => {
+    showError('Failed to read file. Please try again.');
+  };
+
+  reader.readAsText(file);
+
+  // Reset file input so same file can be selected again
+  e.target.value = '';
 }
 
 function handleStripeReorder(deckId, direction) {
@@ -475,9 +769,19 @@ function renderDecksList() {
           </div>
         </div>
         <div class="wa-cluster wa-gap-xs">
-          <wa-button 
-            appearance="plain" 
-            variant="neutral" 
+          <wa-button
+            appearance="plain"
+            variant="neutral"
+            size="small"
+            class="btn-edit-deck"
+            data-deck-id="${deck.id}"
+            title="Edit deck"
+          >
+            <wa-icon name="pen-to-square"></wa-icon>
+          </wa-button>
+          <wa-button
+            appearance="plain"
+            variant="neutral"
             size="small"
             class="btn-delete-deck"
             data-deck-id="${deck.id}"
@@ -489,7 +793,12 @@ function renderDecksList() {
       </div>
     </wa-card>
   `).join('');
-  
+
+  // Add edit button listeners
+  elements.decksList.querySelectorAll('.btn-edit-deck').forEach(btn => {
+    btn.addEventListener('click', () => handleEditClick(btn.dataset.deckId));
+  });
+
   // Add delete button listeners
   elements.decksList.querySelectorAll('.btn-delete-deck').forEach(btn => {
     btn.addEventListener('click', () => handleDeleteClick(btn.dataset.deckId));
@@ -499,12 +808,12 @@ function renderDecksList() {
 function renderResults() {
   const processedCards = processCards(currentPrism);
   const overlap = calculateOverlap(currentPrism);
-  
+
   // Update stats
   if (elements.statTotal) elements.statTotal.textContent = overlap.totalUniqueCards;
   if (elements.statShared) elements.statShared.textContent = overlap.sharedCardCount;
   if (elements.statUnique) elements.statUnique.textContent = overlap.uniqueCardCount;
-  
+
   // Show/hide based on deck count
   if (currentPrism.decks.length === 0) {
     if (elements.resultsStats) elements.resultsStats.style.display = 'none';
@@ -515,47 +824,53 @@ function renderResults() {
     if (filterParent) filterParent.style.display = 'none';
     return;
   }
-  
+
   if (elements.resultsStats) elements.resultsStats.style.display = '';
   if (elements.noResults) elements.noResults.style.display = 'none';
   const tableContainer = document.getElementById('results-table-container');
   if (tableContainer) tableContainer.style.display = '';
   const filterParent = elements.resultsFilter?.parentElement;
   if (filterParent) filterParent.style.display = '';
-  
+
   // Apply filters
   const filter = elements.resultsFilter?.value || 'all';
   const search = (elements.resultsSearch?.value || '').toLowerCase().trim();
-  
-  let filteredCards = processedCards;
-  
+
+  let filteredCards = [...processedCards];
+
   if (filter === 'shared') {
     filteredCards = filteredCards.filter(c => c.deckCount > 1);
   } else if (filter === 'unique') {
     filteredCards = filteredCards.filter(c => c.deckCount === 1);
   }
-  
+
   if (search) {
-    filteredCards = filteredCards.filter(c => 
+    filteredCards = filteredCards.filter(c =>
       c.name.toLowerCase().includes(search)
     );
   }
-  
-  // Render table
+
+  // Apply sorting
+  filteredCards = sortCards(filteredCards, sortState.column, sortState.direction);
+
+  // Render table header with sort indicators
+  renderResultsHeader();
+
+  // Render table body
   if (!elements.resultsTbody) return;
-  
+
   elements.resultsTbody.innerHTML = filteredCards.map(card => {
     const stripeIndicators = card.stripes.map(s => `
-      <div 
-        class="stripe-indicator" 
-        style="background-color: ${s.color};" 
+      <div
+        class="stripe-indicator"
+        style="background-color: ${s.color};"
         title="Slot ${s.position}: ${escapeHtml(s.deckName)}"
       ></div>
     `).join('');
-    
+
     const rowClass = card.deckCount > 1 ? 'shared-row' : '';
     const nameClass = card.isBasicLand ? 'basic-land' : '';
-    
+
     return `
       <tr class="${rowClass}">
         <td class="${nameClass}">${escapeHtml(card.name)}${card.isBasicLand ? ' <span class="basic-tag">(Basic)</span>' : ''}</td>
@@ -565,7 +880,7 @@ function renderResults() {
       </tr>
     `;
   }).join('');
-  
+
   if (filteredCards.length === 0 && processedCards.length > 0) {
     elements.resultsTbody.innerHTML = `
       <tr>
@@ -577,21 +892,98 @@ function renderResults() {
   }
 }
 
+function sortCards(cards, column, direction) {
+  return cards.sort((a, b) => {
+    let comparison = 0;
+
+    switch (column) {
+      case 'name':
+        comparison = a.name.localeCompare(b.name);
+        break;
+      case 'copies':
+        comparison = a.totalQuantity - b.totalQuantity;
+        break;
+      case 'deckCount':
+        comparison = a.deckCount - b.deckCount;
+        // Secondary sort by name for same deck count
+        if (comparison === 0) {
+          comparison = a.name.localeCompare(b.name);
+        }
+        break;
+      default:
+        comparison = 0;
+    }
+
+    return direction === 'desc' ? -comparison : comparison;
+  });
+}
+
+function renderResultsHeader() {
+  const thead = document.querySelector('#results-table thead');
+  if (!thead) return;
+
+  const getSortIcon = (column) => {
+    if (sortState.column !== column) return 'sort';
+    return sortState.direction === 'asc' ? 'sort-up' : 'sort-down';
+  };
+
+  const getSortedClass = (column) => {
+    return sortState.column === column ? 'sorted' : '';
+  };
+
+  thead.innerHTML = `
+    <tr>
+      <th class="sortable ${getSortedClass('name')}" data-sort="name">
+        Card Name
+        <wa-icon name="${getSortIcon('name')}" class="sort-icon"></wa-icon>
+      </th>
+      <th class="sortable ${getSortedClass('copies')}" data-sort="copies">
+        Copies
+        <wa-icon name="${getSortIcon('copies')}" class="sort-icon"></wa-icon>
+      </th>
+      <th class="sortable ${getSortedClass('deckCount')}" data-sort="deckCount">
+        Decks
+        <wa-icon name="${getSortIcon('deckCount')}" class="sort-icon"></wa-icon>
+      </th>
+      <th>Stripes</th>
+    </tr>
+  `;
+
+  // Add click handlers for sortable columns
+  thead.querySelectorAll('th.sortable').forEach(th => {
+    th.addEventListener('click', () => {
+      const column = th.dataset.sort;
+      if (sortState.column === column) {
+        // Toggle direction
+        sortState.direction = sortState.direction === 'asc' ? 'desc' : 'asc';
+      } else {
+        // New column, default to desc for deckCount, asc for name
+        sortState.column = column;
+        sortState.direction = column === 'name' ? 'asc' : 'desc';
+      }
+      renderResults();
+    });
+  });
+}
+
 function renderExport() {
   const sortedDecks = [...currentPrism.decks].sort((a, b) => a.stripePosition - b.stripePosition);
-  
+
+  // Show/hide reorder card based on deck count (needs 2+ decks to reorder)
+  if (elements.reorderCard) {
+    elements.reorderCard.style.display = sortedDecks.length >= 2 ? '' : 'none';
+  }
+
   // Deck legend
   if (sortedDecks.length === 0) {
     if (elements.deckLegend) elements.deckLegend.style.display = 'none';
     if (elements.noDecksLegend) elements.noDecksLegend.style.display = '';
     if (elements.stripeReorderList) {
-      elements.stripeReorderList.innerHTML = `
-        <p style="color: var(--wa-color-neutral-text-subtle);">Add decks to reorder stripe positions.</p>
-      `;
+      elements.stripeReorderList.innerHTML = '';
     }
     return;
   }
-  
+
   if (elements.deckLegend) elements.deckLegend.style.display = '';
   if (elements.noDecksLegend) elements.noDecksLegend.style.display = 'none';
   
@@ -658,18 +1050,20 @@ function resetDeckForm() {
   if (elements.deckForm) {
     elements.deckForm.reset();
   }
-  
+
   // Reset individual fields (Web Awesome components may need this)
   if (elements.deckName) elements.deckName.value = '';
   if (elements.deckCommander) elements.deckCommander.value = '';
   if (elements.deckBracket) elements.deckBracket.value = '2';
   if (elements.deckList) elements.deckList.value = '';
-  
+  if (elements.fileNameDisplay) elements.fileNameDisplay.textContent = '';
+  if (elements.deckFileInput) elements.deckFileInput.value = '';
+
   // Set next available color
   const nextColor = getNextColor(currentPrism);
   if (elements.deckColor) elements.deckColor.value = nextColor;
   updateColorSwatchSelection();
-  
+
   hideParseErrors();
   hideColorWarning();
 }
@@ -727,11 +1121,45 @@ function hideParseErrors() {
 
 function showError(message) {
   console.error('PRISM Error:', message);
-  alert(message);
+  showToast(message, 'danger', 'circle-exclamation');
 }
 
 function showSuccess(message) {
   console.log('PRISM Success:', message);
+  showToast(message, 'success', 'check-circle');
+}
+
+function showToast(message, variant = 'neutral', icon = 'info-circle') {
+  // Create toast element using Web Awesome's wa-callout as toast
+  const toast = document.createElement('wa-callout');
+  toast.variant = variant;
+  toast.closable = true;
+  toast.duration = 5000;
+  toast.innerHTML = `
+    <wa-icon slot="icon" name="${icon}"></wa-icon>
+    ${message}
+  `;
+
+  // Style it as a floating toast
+  toast.style.cssText = `
+    position: fixed;
+    bottom: var(--wa-space-xl);
+    right: var(--wa-space-xl);
+    max-width: 400px;
+    z-index: 9999;
+    animation: slideInUp 0.3s ease;
+  `;
+
+  document.body.appendChild(toast);
+
+  // Auto-remove after duration
+  setTimeout(() => {
+    toast.style.animation = 'slideOutDown 0.3s ease';
+    setTimeout(() => toast.remove(), 300);
+  }, 5000);
+
+  // Remove on close
+  toast.addEventListener('wa-hide', () => toast.remove());
 }
 
 // ============================================================================
