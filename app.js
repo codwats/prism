@@ -33,6 +33,7 @@ import { downloadCSV, downloadJSON, openPrintableGuide } from './export.js';
 let currentPrism = null;
 let deckToDelete = null;
 let elements = null;
+let sortState = { column: 'deckCount', direction: 'desc' }; // Default: most shared first
 
 // ============================================================================
 // Initialization
@@ -54,6 +55,11 @@ function getElements() {
     deckBracket: document.getElementById('deck-bracket'),
     deckColor: document.getElementById('deck-color'),
     deckList: document.getElementById('deck-list'),
+    deckFileInput: document.getElementById('deck-file-input'),
+    btnUploadFile: document.getElementById('btn-upload-file'),
+    fileNameDisplay: document.getElementById('file-name-display'),
+    moxfieldUrl: document.getElementById('moxfield-url'),
+    btnImportMoxfield: document.getElementById('btn-import-moxfield'),
     colorSwatches: document.getElementById('color-swatches'),
     colorWarning: document.getElementById('color-warning'),
     parseErrors: document.getElementById('parse-errors'),
@@ -199,6 +205,21 @@ function setupEventListeners() {
       updateColorSwatchSelection();
       checkColorWarning();
     });
+  }
+
+  // File upload
+  if (elements.btnUploadFile) {
+    elements.btnUploadFile.addEventListener('click', () => {
+      elements.deckFileInput?.click();
+    });
+  }
+  if (elements.deckFileInput) {
+    elements.deckFileInput.addEventListener('change', handleFileUpload);
+  }
+
+  // Moxfield import
+  if (elements.btnImportMoxfield) {
+    elements.btnImportMoxfield.addEventListener('click', handleMoxfieldImport);
   }
   
   // Results filter
@@ -392,6 +413,130 @@ function handleNewPrism() {
   renderAll();
 }
 
+function handleFileUpload(e) {
+  const file = e.target.files?.[0];
+  if (!file) return;
+
+  // Show file name
+  if (elements.fileNameDisplay) {
+    elements.fileNameDisplay.textContent = file.name;
+  }
+
+  // Read file content
+  const reader = new FileReader();
+  reader.onload = (event) => {
+    const content = event.target.result;
+    if (elements.deckList) {
+      elements.deckList.value = content;
+    }
+
+    // Try to extract deck name from filename
+    if (elements.deckName && !elements.deckName.value) {
+      const nameWithoutExt = file.name.replace(/\.(txt|dec|dek|mwDeck)$/i, '');
+      elements.deckName.value = nameWithoutExt;
+    }
+
+    showSuccess(`Loaded ${file.name}`);
+  };
+
+  reader.onerror = () => {
+    showError('Failed to read file. Please try again.');
+  };
+
+  reader.readAsText(file);
+}
+
+async function handleMoxfieldImport() {
+  const url = elements.moxfieldUrl?.value?.trim();
+
+  if (!url) {
+    showError('Please enter a Moxfield deck URL.');
+    return;
+  }
+
+  // Validate URL format
+  if (!url.includes('moxfield.com/decks/')) {
+    showError('Please enter a valid Moxfield deck URL (e.g., https://moxfield.com/decks/...)');
+    return;
+  }
+
+  // Extract deck ID from URL
+  const deckIdMatch = url.match(/moxfield\.com\/decks\/([^/?#]+)/);
+  if (!deckIdMatch) {
+    showError('Could not extract deck ID from URL. Please check the URL format.');
+    return;
+  }
+
+  const deckId = deckIdMatch[1];
+
+  // Show loading state
+  if (elements.btnImportMoxfield) {
+    elements.btnImportMoxfield.disabled = true;
+    elements.btnImportMoxfield.innerHTML = `
+      <wa-icon slot="start" name="spinner" class="fa-spin"></wa-icon>
+      Importing...
+    `;
+  }
+
+  try {
+    // Fetch deck data from Moxfield API
+    const response = await fetch(`https://api2.moxfield.com/v2/decks/all/${deckId}`);
+
+    if (!response.ok) {
+      if (response.status === 404) {
+        throw new Error('Deck not found. Make sure the deck is public.');
+      }
+      throw new Error(`Failed to fetch deck: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+
+    // Extract deck name and commander
+    if (elements.deckName && !elements.deckName.value) {
+      elements.deckName.value = data.name || '';
+    }
+
+    // Get commander(s)
+    const commanders = Object.values(data.commanders || {});
+    if (commanders.length > 0 && elements.deckCommander && !elements.deckCommander.value) {
+      elements.deckCommander.value = commanders[0]?.card?.name || '';
+    }
+
+    // Build decklist from mainboard
+    const decklistLines = [];
+
+    // Add commanders first
+    for (const card of commanders) {
+      decklistLines.push(`1 ${card.card.name}`);
+    }
+
+    // Add mainboard cards
+    const mainboard = Object.values(data.mainboard || {});
+    for (const card of mainboard) {
+      decklistLines.push(`${card.quantity} ${card.card.name}`);
+    }
+
+    if (elements.deckList) {
+      elements.deckList.value = decklistLines.join('\n');
+    }
+
+    showSuccess(`Imported "${data.name}" from Moxfield (${decklistLines.length} cards)`);
+
+  } catch (err) {
+    console.error('Moxfield import error:', err);
+    showError(err.message || 'Failed to import from Moxfield. The deck may be private or the URL is invalid.');
+  } finally {
+    // Reset button state
+    if (elements.btnImportMoxfield) {
+      elements.btnImportMoxfield.disabled = false;
+      elements.btnImportMoxfield.innerHTML = `
+        <wa-icon slot="start" name="cloud-arrow-down"></wa-icon>
+        Import from Moxfield
+      `;
+    }
+  }
+}
+
 function handleStripeReorder(deckId, direction) {
   const currentIndex = currentPrism.decks.findIndex(d => d.id === deckId);
   if (currentIndex === -1) return;
@@ -499,12 +644,12 @@ function renderDecksList() {
 function renderResults() {
   const processedCards = processCards(currentPrism);
   const overlap = calculateOverlap(currentPrism);
-  
+
   // Update stats
   if (elements.statTotal) elements.statTotal.textContent = overlap.totalUniqueCards;
   if (elements.statShared) elements.statShared.textContent = overlap.sharedCardCount;
   if (elements.statUnique) elements.statUnique.textContent = overlap.uniqueCardCount;
-  
+
   // Show/hide based on deck count
   if (currentPrism.decks.length === 0) {
     if (elements.resultsStats) elements.resultsStats.style.display = 'none';
@@ -515,47 +660,53 @@ function renderResults() {
     if (filterParent) filterParent.style.display = 'none';
     return;
   }
-  
+
   if (elements.resultsStats) elements.resultsStats.style.display = '';
   if (elements.noResults) elements.noResults.style.display = 'none';
   const tableContainer = document.getElementById('results-table-container');
   if (tableContainer) tableContainer.style.display = '';
   const filterParent = elements.resultsFilter?.parentElement;
   if (filterParent) filterParent.style.display = '';
-  
+
   // Apply filters
   const filter = elements.resultsFilter?.value || 'all';
   const search = (elements.resultsSearch?.value || '').toLowerCase().trim();
-  
-  let filteredCards = processedCards;
-  
+
+  let filteredCards = [...processedCards];
+
   if (filter === 'shared') {
     filteredCards = filteredCards.filter(c => c.deckCount > 1);
   } else if (filter === 'unique') {
     filteredCards = filteredCards.filter(c => c.deckCount === 1);
   }
-  
+
   if (search) {
-    filteredCards = filteredCards.filter(c => 
+    filteredCards = filteredCards.filter(c =>
       c.name.toLowerCase().includes(search)
     );
   }
-  
-  // Render table
+
+  // Apply sorting
+  filteredCards = sortCards(filteredCards, sortState.column, sortState.direction);
+
+  // Render table header with sort indicators
+  renderResultsHeader();
+
+  // Render table body
   if (!elements.resultsTbody) return;
-  
+
   elements.resultsTbody.innerHTML = filteredCards.map(card => {
     const stripeIndicators = card.stripes.map(s => `
-      <div 
-        class="stripe-indicator" 
-        style="background-color: ${s.color};" 
+      <div
+        class="stripe-indicator"
+        style="background-color: ${s.color};"
         title="Slot ${s.position}: ${escapeHtml(s.deckName)}"
       ></div>
     `).join('');
-    
+
     const rowClass = card.deckCount > 1 ? 'shared-row' : '';
     const nameClass = card.isBasicLand ? 'basic-land' : '';
-    
+
     return `
       <tr class="${rowClass}">
         <td class="${nameClass}">${escapeHtml(card.name)}${card.isBasicLand ? ' <span class="basic-tag">(Basic)</span>' : ''}</td>
@@ -565,7 +716,7 @@ function renderResults() {
       </tr>
     `;
   }).join('');
-  
+
   if (filteredCards.length === 0 && processedCards.length > 0) {
     elements.resultsTbody.innerHTML = `
       <tr>
@@ -575,6 +726,80 @@ function renderResults() {
       </tr>
     `;
   }
+}
+
+function sortCards(cards, column, direction) {
+  return cards.sort((a, b) => {
+    let comparison = 0;
+
+    switch (column) {
+      case 'name':
+        comparison = a.name.localeCompare(b.name);
+        break;
+      case 'copies':
+        comparison = a.totalQuantity - b.totalQuantity;
+        break;
+      case 'deckCount':
+        comparison = a.deckCount - b.deckCount;
+        // Secondary sort by name for same deck count
+        if (comparison === 0) {
+          comparison = a.name.localeCompare(b.name);
+        }
+        break;
+      default:
+        comparison = 0;
+    }
+
+    return direction === 'desc' ? -comparison : comparison;
+  });
+}
+
+function renderResultsHeader() {
+  const thead = document.querySelector('#results-table thead');
+  if (!thead) return;
+
+  const getSortIcon = (column) => {
+    if (sortState.column !== column) return 'sort';
+    return sortState.direction === 'asc' ? 'sort-up' : 'sort-down';
+  };
+
+  const getSortedClass = (column) => {
+    return sortState.column === column ? 'sorted' : '';
+  };
+
+  thead.innerHTML = `
+    <tr>
+      <th class="sortable ${getSortedClass('name')}" data-sort="name">
+        Card Name
+        <wa-icon name="${getSortIcon('name')}" class="sort-icon"></wa-icon>
+      </th>
+      <th class="sortable ${getSortedClass('copies')}" data-sort="copies">
+        Copies
+        <wa-icon name="${getSortIcon('copies')}" class="sort-icon"></wa-icon>
+      </th>
+      <th class="sortable ${getSortedClass('deckCount')}" data-sort="deckCount">
+        Decks
+        <wa-icon name="${getSortIcon('deckCount')}" class="sort-icon"></wa-icon>
+      </th>
+      <th>Stripes</th>
+    </tr>
+  `;
+
+  // Add click handlers for sortable columns
+  thead.querySelectorAll('th.sortable').forEach(th => {
+    th.addEventListener('click', () => {
+      const column = th.dataset.sort;
+      if (sortState.column === column) {
+        // Toggle direction
+        sortState.direction = sortState.direction === 'asc' ? 'desc' : 'asc';
+      } else {
+        // New column, default to desc for deckCount, asc for name
+        sortState.column = column;
+        sortState.direction = column === 'name' ? 'asc' : 'desc';
+      }
+      renderResults();
+    });
+  });
 }
 
 function renderExport() {
@@ -658,18 +883,21 @@ function resetDeckForm() {
   if (elements.deckForm) {
     elements.deckForm.reset();
   }
-  
+
   // Reset individual fields (Web Awesome components may need this)
   if (elements.deckName) elements.deckName.value = '';
   if (elements.deckCommander) elements.deckCommander.value = '';
   if (elements.deckBracket) elements.deckBracket.value = '2';
   if (elements.deckList) elements.deckList.value = '';
-  
+  if (elements.moxfieldUrl) elements.moxfieldUrl.value = '';
+  if (elements.fileNameDisplay) elements.fileNameDisplay.textContent = '';
+  if (elements.deckFileInput) elements.deckFileInput.value = '';
+
   // Set next available color
   const nextColor = getNextColor(currentPrism);
   if (elements.deckColor) elements.deckColor.value = nextColor;
   updateColorSwatchSelection();
-  
+
   hideParseErrors();
   hideColorWarning();
 }
@@ -727,11 +955,45 @@ function hideParseErrors() {
 
 function showError(message) {
   console.error('PRISM Error:', message);
-  alert(message);
+  showToast(message, 'danger', 'circle-exclamation');
 }
 
 function showSuccess(message) {
   console.log('PRISM Success:', message);
+  showToast(message, 'success', 'check-circle');
+}
+
+function showToast(message, variant = 'neutral', icon = 'info-circle') {
+  // Create toast element using Web Awesome's wa-callout as toast
+  const toast = document.createElement('wa-callout');
+  toast.variant = variant;
+  toast.closable = true;
+  toast.duration = 5000;
+  toast.innerHTML = `
+    <wa-icon slot="icon" name="${icon}"></wa-icon>
+    ${message}
+  `;
+
+  // Style it as a floating toast
+  toast.style.cssText = `
+    position: fixed;
+    bottom: var(--wa-space-xl);
+    right: var(--wa-space-xl);
+    max-width: 400px;
+    z-index: 9999;
+    animation: slideInUp 0.3s ease;
+  `;
+
+  document.body.appendChild(toast);
+
+  // Auto-remove after duration
+  setTimeout(() => {
+    toast.style.animation = 'slideOutDown 0.3s ease';
+    setTimeout(() => toast.remove(), 300);
+  }, 5000);
+
+  // Remove on close
+  toast.addEventListener('wa-hide', () => toast.remove());
 }
 
 // ============================================================================

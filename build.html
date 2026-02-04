@@ -121,13 +121,46 @@
                     </div>
                   </div>
 
+                  <div class="wa-stack wa-gap-xs">
+                    <label class="wa-caption-m">Decklist</label>
+                    <div class="wa-cluster wa-gap-s wa-align-items-center">
+                      <wa-button type="button" id="btn-upload-file" variant="neutral" appearance="outlined" size="small">
+                        <wa-icon slot="start" name="file-arrow-up"></wa-icon>
+                        Upload .txt
+                      </wa-button>
+                      <input type="file" id="deck-file-input" accept=".txt,.dec,.dek,.mwDeck" style="display: none;" />
+                      <span id="file-name-display" class="wa-caption-s" style="color: var(--wa-color-neutral-text-subtle);"></span>
+                    </div>
+                  </div>
+
                   <wa-textarea
                     id="deck-list"
-                    label="Decklist"
                     placeholder="1 Sol Ring&#10;1 Arcane Signet&#10;1 Command Tower&#10;12 Island&#10;..."
                     rows="8"
                     required
                   ></wa-textarea>
+
+                  <wa-divider style="--spacing: 0.5rem;"></wa-divider>
+
+                  <div class="wa-stack wa-gap-xs">
+                    <wa-input
+                      id="moxfield-url"
+                      label="Or Import from Moxfield"
+                      placeholder="https://moxfield.com/decks/..."
+                      type="url"
+                    >
+                      <wa-icon slot="start" name="link"></wa-icon>
+                    </wa-input>
+                    <div class="wa-cluster wa-gap-xs wa-align-items-center">
+                      <wa-button type="button" id="btn-import-moxfield" variant="neutral" appearance="outlined" size="small">
+                        <wa-icon slot="start" name="cloud-arrow-down"></wa-icon>
+                        Import from Moxfield
+                      </wa-button>
+                      <span class="wa-caption-s" style="color: var(--wa-color-neutral-text-subtle);">
+                        Paste the deck URL and click import
+                      </span>
+                    </div>
+                  </div>
 
                   <div id="parse-errors" class="wa-stack wa-gap-xs" style="display: none;">
                     <!-- Parse errors will be shown here -->

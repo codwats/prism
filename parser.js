@@ -23,15 +23,22 @@ export function isBasicLand(cardName) {
 export function parseLine(line) {
   // Trim whitespace
   const trimmed = line.trim();
-  
+
   // Skip empty lines
   if (!trimmed) return null;
-  
+
   // Skip comments
   if (trimmed.startsWith('//')) return null;
-  
-  // Stop at sideboard marker
-  if (trimmed.toUpperCase().startsWith('SIDEBOARD')) return null;
+
+  // Skip deck section headers (common in some formats)
+  const upper = trimmed.toUpperCase();
+  if (upper.startsWith('DECK') ||
+      upper.startsWith('COMMANDER') ||
+      upper.startsWith('COMPANION') ||
+      upper.startsWith('MAYBEBOARD') ||
+      upper.startsWith('//')) {
+    return null;
+  }
   
   // Match pattern: <quantity> <card name>
   // Quantity is one or more digits, followed by space(s), then card name
@@ -73,13 +80,20 @@ export function parseDecklist(decklist, commanderName = '') {
   
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
+    const trimmedLine = line.trim().toUpperCase();
+
+    // Check for sideboard marker - stop parsing BEFORE processing
+    // This catches various formats: "SIDEBOARD:", "Sideboard", "SIDEBOARD", etc.
+    if (trimmedLine.startsWith('SIDEBOARD') ||
+        trimmedLine === 'SB:' ||
+        trimmedLine.startsWith('SB:')) {
+      break;
+    }
+
     const result = parseLine(line);
-    
+
     // Null means skip (empty/comment)
     if (result === null) continue;
-    
-    // Check for sideboard marker - stop parsing
-    if (line.trim().toUpperCase().startsWith('SIDEBOARD')) break;
     
     // Check for parse errors
     if (result.error) {

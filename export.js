@@ -203,15 +203,45 @@ export function generatePrintableGuide(prism) {
     h1 { border-bottom: 2px solid #333; padding-bottom: 10px; }
     .deck-legend { display: flex; flex-wrap: wrap; gap: 15px; margin-bottom: 20px; padding: 15px; background: #f5f5f5; border-radius: 8px; }
     .deck-item { display: flex; align-items: center; gap: 8px; }
-    .color-swatch { width: 24px; height: 24px; border-radius: 4px; border: 1px solid #ccc; }
+    .color-swatch {
+      width: 24px;
+      height: 24px;
+      border-radius: 4px;
+      border: 2px solid #333;
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+      color-adjust: exact !important;
+    }
     table { width: 100%; border-collapse: collapse; margin-top: 20px; }
     th, td { padding: 8px 12px; text-align: left; border-bottom: 1px solid #ddd; }
     th { background: #f0f0f0; }
     .stripe-indicator { display: inline-flex; gap: 4px; }
-    .stripe-dot { width: 16px; height: 16px; border-radius: 3px; border: 1px solid #999; }
+    .stripe-dot {
+      width: 16px;
+      height: 16px;
+      border-radius: 3px;
+      border: 2px solid #333;
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+      color-adjust: exact !important;
+    }
     .shared { background: #fffde7; }
     .basic-land { font-style: italic; }
-    @media print { .no-print { display: none; } }
+
+    /* Force backgrounds to print */
+    * {
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+      color-adjust: exact !important;
+    }
+
+    @media print {
+      .no-print { display: none; }
+      body { padding: 10px; }
+      .deck-legend { background: #f5f5f5 !important; }
+      .shared { background: #fffde7 !important; }
+      th { background: #f0f0f0 !important; }
+    }
   </style>
 </head>
 <body>
