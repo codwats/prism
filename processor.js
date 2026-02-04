@@ -31,7 +31,7 @@ export const DEFAULT_COLORS = [
 	"#569899", // Teal
 	"#ECCAD7", // Pale-Pink
 	"#CCA427", // Straw
-	"#C2CCD2", // Chartreuse
+	"#C2CCD2", // Silver
 ];
 
 /**
@@ -62,7 +62,7 @@ export function getColorName(hex) {
 		"#569899": "Teal",
 		"#ECCAD7": "Pale-Pink",
 		"#CCA427": "Straw",
-		"#C2CCD2": "Chartreuse",
+		"#C2CCD2": "Silver",
 	};
 	return colorNames[hex.toUpperCase()] || hex;
 }
