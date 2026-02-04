@@ -117,6 +117,7 @@ export function exportToJSON(prism) {
         colorName: getColorName(deck.color),
         stripePosition: deck.stripePosition,
         cardCount: deck.cards.length,
+        cards: deck.cards, // Include full cards for re-import
         createdAt: deck.createdAt,
         updatedAt: deck.updatedAt
       })),

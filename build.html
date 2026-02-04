@@ -142,25 +142,27 @@
 
                   <wa-divider style="--spacing: 0.5rem;"></wa-divider>
 
-                  <div class="wa-stack wa-gap-xs">
-                    <wa-input
-                      id="moxfield-url"
-                      label="Or Import from Moxfield"
-                      placeholder="https://moxfield.com/decks/..."
-                      type="url"
-                    >
-                      <wa-icon slot="start" name="link"></wa-icon>
-                    </wa-input>
-                    <div class="wa-cluster wa-gap-xs wa-align-items-center">
-                      <wa-button type="button" id="btn-import-moxfield" variant="neutral" appearance="outlined" size="small">
-                        <wa-icon slot="start" name="cloud-arrow-down"></wa-icon>
-                        Import from Moxfield
-                      </wa-button>
-                      <span class="wa-caption-s" style="color: var(--wa-color-neutral-text-subtle);">
-                        Paste the deck URL and click import
-                      </span>
+                  <wa-details>
+                    <span slot="summary" class="wa-caption-m">
+                      <wa-icon name="link" style="margin-right: 0.5em;"></wa-icon>
+                      Import from Moxfield
+                    </span>
+                    <div class="wa-stack wa-gap-m" style="padding-top: var(--wa-space-s);">
+                      <wa-callout variant="neutral">
+                        <wa-icon slot="icon" name="circle-info"></wa-icon>
+                        <strong>How to import from Moxfield:</strong>
+                        <ol style="margin: var(--wa-space-xs) 0 0 var(--wa-space-m); padding: 0;">
+                          <li>Open your deck on Moxfield</li>
+                          <li>Click the <strong>Export</strong> button (top right)</li>
+                          <li>Select <strong>Text</strong> format</li>
+                          <li>Copy the text and paste it above, or save as .txt and upload</li>
+                        </ol>
+                      </wa-callout>
+                      <div class="wa-caption-s" style="color: var(--wa-color-neutral-text-subtle);">
+                        Direct API import is not available due to Moxfield's access restrictions.
+                      </div>
                     </div>
-                  </div>
+                  </wa-details>
 
                   <div id="parse-errors" class="wa-stack wa-gap-xs" style="display: none;">
                     <!-- Parse errors will be shown here -->
@@ -289,6 +291,27 @@
                     <wa-icon slot="start" name="print"></wa-icon>
                     Printable Guide
                   </wa-button>
+                </div>
+              </wa-card>
+
+              <!-- Import Options -->
+              <wa-card>
+                <div slot="header" class="wa-cluster wa-gap-s wa-align-items-center">
+                  <wa-icon name="file-import" style="color: var(--wa-color-brand-fill);"></wa-icon>
+                  <span class="wa-heading-m">Import Saved PRISM</span>
+                </div>
+                <div class="wa-stack wa-gap-m">
+                  <p class="wa-caption-m" style="color: var(--wa-color-neutral-text-subtle);">
+                    Import a previously exported PRISM JSON file to restore your decks and settings.
+                  </p>
+                  <div class="wa-cluster wa-gap-s wa-align-items-center">
+                    <wa-button id="btn-import-json" variant="neutral" appearance="outlined">
+                      <wa-icon slot="start" name="file-arrow-up"></wa-icon>
+                      Import JSON
+                    </wa-button>
+                    <input type="file" id="prism-json-input" accept=".json" style="display: none;" />
+                    <span id="import-status" class="wa-caption-s" style="color: var(--wa-color-neutral-text-subtle);"></span>
+                  </div>
                 </div>
               </wa-card>
             </div>

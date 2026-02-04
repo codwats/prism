@@ -58,8 +58,6 @@ function getElements() {
     deckFileInput: document.getElementById('deck-file-input'),
     btnUploadFile: document.getElementById('btn-upload-file'),
     fileNameDisplay: document.getElementById('file-name-display'),
-    moxfieldUrl: document.getElementById('moxfield-url'),
-    btnImportMoxfield: document.getElementById('btn-import-moxfield'),
     colorSwatches: document.getElementById('color-swatches'),
     colorWarning: document.getElementById('color-warning'),
     parseErrors: document.getElementById('parse-errors'),
@@ -86,6 +84,9 @@ function getElements() {
     btnExportCSV: document.getElementById('btn-export-csv'),
     btnExportJSON: document.getElementById('btn-export-json'),
     btnPrintGuide: document.getElementById('btn-print-guide'),
+    btnImportJson: document.getElementById('btn-import-json'),
+    prismJsonInput: document.getElementById('prism-json-input'),
+    importStatus: document.getElementById('import-status'),
     
     // Dialogs
     deleteDialog: document.getElementById('delete-dialog'),
@@ -217,9 +218,14 @@ function setupEventListeners() {
     elements.deckFileInput.addEventListener('change', handleFileUpload);
   }
 
-  // Moxfield import
-  if (elements.btnImportMoxfield) {
-    elements.btnImportMoxfield.addEventListener('click', handleMoxfieldImport);
+  // JSON import
+  if (elements.btnImportJson) {
+    elements.btnImportJson.addEventListener('click', () => {
+      elements.prismJsonInput?.click();
+    });
+  }
+  if (elements.prismJsonInput) {
+    elements.prismJsonInput.addEventListener('change', handleJsonImport);
   }
   
   // Results filter
@@ -446,95 +452,90 @@ function handleFileUpload(e) {
   reader.readAsText(file);
 }
 
-async function handleMoxfieldImport() {
-  const url = elements.moxfieldUrl?.value?.trim();
+function handleJsonImport(e) {
+  const file = e.target.files?.[0];
+  if (!file) return;
 
-  if (!url) {
-    showError('Please enter a Moxfield deck URL.');
-    return;
-  }
+  const reader = new FileReader();
+  reader.onload = (event) => {
+    try {
+      const jsonData = JSON.parse(event.target.result);
 
-  // Validate URL format
-  if (!url.includes('moxfield.com/decks/')) {
-    showError('Please enter a valid Moxfield deck URL (e.g., https://moxfield.com/decks/...)');
-    return;
-  }
+      // Validate the JSON structure
+      let prismData = null;
 
-  // Extract deck ID from URL
-  const deckIdMatch = url.match(/moxfield\.com\/decks\/([^/?#]+)/);
-  if (!deckIdMatch) {
-    showError('Could not extract deck ID from URL. Please check the URL format.');
-    return;
-  }
-
-  const deckId = deckIdMatch[1];
-
-  // Show loading state
-  if (elements.btnImportMoxfield) {
-    elements.btnImportMoxfield.disabled = true;
-    elements.btnImportMoxfield.innerHTML = `
-      <wa-icon slot="start" name="spinner" class="fa-spin"></wa-icon>
-      Importing...
-    `;
-  }
-
-  try {
-    // Fetch deck data from Moxfield API
-    const response = await fetch(`https://api2.moxfield.com/v2/decks/all/${deckId}`);
-
-    if (!response.ok) {
-      if (response.status === 404) {
-        throw new Error('Deck not found. Make sure the deck is public.');
+      // Handle both export formats:
+      // 1. Direct PRISM object with decks array
+      // 2. Export format with { prism: { decks: [...] } }
+      if (jsonData.prism && jsonData.prism.decks) {
+        prismData = jsonData.prism;
+      } else if (jsonData.decks && Array.isArray(jsonData.decks)) {
+        prismData = jsonData;
+      } else {
+        throw new Error('Invalid PRISM JSON format. Expected decks array.');
       }
-      throw new Error(`Failed to fetch deck: ${response.statusText}`);
+
+      // Validate decks
+      if (!prismData.decks || prismData.decks.length === 0) {
+        throw new Error('No decks found in the imported file.');
+      }
+
+      // Create new PRISM from imported data
+      const newPrism = createPrism(prismData.name || 'Imported PRISM');
+      newPrism.id = prismData.id || newPrism.id;
+      newPrism.createdAt = prismData.createdAt || newPrism.createdAt;
+      newPrism.updatedAt = new Date().toISOString();
+
+      // Import each deck
+      for (const deck of prismData.decks) {
+        // Handle both full deck objects and export format (which may have cardCount instead of cards)
+        const deckCards = deck.cards || [];
+
+        const newDeck = createDeck({
+          id: deck.id,
+          name: deck.name,
+          commander: deck.commander,
+          bracket: deck.bracket,
+          color: deck.color,
+          stripePosition: deck.stripePosition,
+          cards: deckCards,
+          createdAt: deck.createdAt,
+          updatedAt: deck.updatedAt
+        });
+
+        newPrism.decks.push(newDeck);
+      }
+
+      // Save and switch to imported PRISM
+      savePrism(newPrism);
+      setCurrentPrism(newPrism.id);
+      currentPrism = newPrism;
+
+      // Update UI
+      initColorSwatches();
+      renderAll();
+
+      // Update status
+      if (elements.importStatus) {
+        elements.importStatus.textContent = `Imported: ${file.name}`;
+      }
+
+      showSuccess(`Imported "${newPrism.name}" with ${newPrism.decks.length} decks.`);
+
+    } catch (err) {
+      console.error('JSON import error:', err);
+      showError(err.message || 'Failed to parse JSON file. Please check the format.');
     }
+  };
 
-    const data = await response.json();
+  reader.onerror = () => {
+    showError('Failed to read file. Please try again.');
+  };
 
-    // Extract deck name and commander
-    if (elements.deckName && !elements.deckName.value) {
-      elements.deckName.value = data.name || '';
-    }
+  reader.readAsText(file);
 
-    // Get commander(s)
-    const commanders = Object.values(data.commanders || {});
-    if (commanders.length > 0 && elements.deckCommander && !elements.deckCommander.value) {
-      elements.deckCommander.value = commanders[0]?.card?.name || '';
-    }
-
-    // Build decklist from mainboard
-    const decklistLines = [];
-
-    // Add commanders first
-    for (const card of commanders) {
-      decklistLines.push(`1 ${card.card.name}`);
-    }
-
-    // Add mainboard cards
-    const mainboard = Object.values(data.mainboard || {});
-    for (const card of mainboard) {
-      decklistLines.push(`${card.quantity} ${card.card.name}`);
-    }
-
-    if (elements.deckList) {
-      elements.deckList.value = decklistLines.join('\n');
-    }
-
-    showSuccess(`Imported "${data.name}" from Moxfield (${decklistLines.length} cards)`);
-
-  } catch (err) {
-    console.error('Moxfield import error:', err);
-    showError(err.message || 'Failed to import from Moxfield. The deck may be private or the URL is invalid.');
-  } finally {
-    // Reset button state
-    if (elements.btnImportMoxfield) {
-      elements.btnImportMoxfield.disabled = false;
-      elements.btnImportMoxfield.innerHTML = `
-        <wa-icon slot="start" name="cloud-arrow-down"></wa-icon>
-        Import from Moxfield
-      `;
-    }
-  }
+  // Reset file input so same file can be selected again
+  e.target.value = '';
 }
 
 function handleStripeReorder(deckId, direction) {
@@ -889,7 +890,6 @@ function resetDeckForm() {
   if (elements.deckCommander) elements.deckCommander.value = '';
   if (elements.deckBracket) elements.deckBracket.value = '2';
   if (elements.deckList) elements.deckList.value = '';
-  if (elements.moxfieldUrl) elements.moxfieldUrl.value = '';
   if (elements.fileNameDisplay) elements.fileNameDisplay.textContent = '';
   if (elements.deckFileInput) elements.deckFileInput.value = '';
 
