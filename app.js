@@ -32,6 +32,7 @@ import { downloadCSV, downloadJSON, openPrintableGuide } from './export.js';
 
 let currentPrism = null;
 let deckToDelete = null;
+let deckToEdit = null;
 let elements = null;
 let sortState = { column: 'deckCount', direction: 'desc' }; // Default: most shared first
 
@@ -97,7 +98,20 @@ function getElements() {
     newPrismDialog: document.getElementById('new-prism-dialog'),
     btnNewPrism: document.getElementById('btn-new-prism'),
     btnCancelNew: document.getElementById('btn-cancel-new'),
-    btnConfirmNew: document.getElementById('btn-confirm-new')
+    btnConfirmNew: document.getElementById('btn-confirm-new'),
+
+    // Edit dialog
+    editDialog: document.getElementById('edit-dialog'),
+    editDeckForm: document.getElementById('edit-deck-form'),
+    editDeckId: document.getElementById('edit-deck-id'),
+    editDeckName: document.getElementById('edit-deck-name'),
+    editDeckCommander: document.getElementById('edit-deck-commander'),
+    editDeckBracket: document.getElementById('edit-deck-bracket'),
+    editDeckColor: document.getElementById('edit-deck-color'),
+    editDeckList: document.getElementById('edit-deck-list'),
+    editParseErrors: document.getElementById('edit-parse-errors'),
+    btnCancelEdit: document.getElementById('btn-cancel-edit'),
+    btnConfirmEdit: document.getElementById('btn-confirm-edit')
   };
 }
 
@@ -279,6 +293,16 @@ function setupEventListeners() {
   if (elements.btnConfirmNew) {
     elements.btnConfirmNew.addEventListener('click', handleNewPrism);
   }
+
+  // Edit dialog
+  if (elements.btnCancelEdit) {
+    elements.btnCancelEdit.addEventListener('click', () => {
+      elements.editDialog.open = false;
+    });
+  }
+  if (elements.btnConfirmEdit) {
+    elements.btnConfirmEdit.addEventListener('click', handleEditConfirm);
+  }
 }
 
 // ============================================================================
@@ -384,10 +408,120 @@ function handleDeckSubmit(e) {
 function handleDeleteClick(deckId) {
   const deck = currentPrism.decks.find(d => d.id === deckId);
   if (!deck) return;
-  
+
   deckToDelete = deckId;
   elements.deleteDeckName.textContent = deck.name;
   elements.deleteDialog.open = true;
+}
+
+function handleEditClick(deckId) {
+  const deck = currentPrism.decks.find(d => d.id === deckId);
+  if (!deck) return;
+
+  deckToEdit = deckId;
+
+  // Populate form with deck data
+  if (elements.editDeckId) elements.editDeckId.value = deck.id;
+  if (elements.editDeckName) elements.editDeckName.value = deck.name;
+  if (elements.editDeckCommander) elements.editDeckCommander.value = deck.commander;
+  if (elements.editDeckBracket) elements.editDeckBracket.value = String(deck.bracket);
+  if (elements.editDeckColor) elements.editDeckColor.value = deck.color;
+
+  // Convert cards back to decklist text
+  if (elements.editDeckList) {
+    const decklistText = deck.cards
+      .map(card => `${card.quantity} ${card.name}`)
+      .join('\n');
+    elements.editDeckList.value = decklistText;
+  }
+
+  // Hide any previous parse errors
+  if (elements.editParseErrors) {
+    elements.editParseErrors.style.display = 'none';
+    elements.editParseErrors.innerHTML = '';
+  }
+
+  elements.editDialog.open = true;
+}
+
+function handleEditConfirm() {
+  if (!deckToEdit) return;
+
+  const deck = currentPrism.decks.find(d => d.id === deckToEdit);
+  if (!deck) return;
+
+  // Get form values
+  const name = (elements.editDeckName?.value || '').trim();
+  const commander = (elements.editDeckCommander?.value || '').trim();
+  const bracket = elements.editDeckBracket?.value || '2';
+  const color = elements.editDeckColor?.value || deck.color;
+  const decklistText = elements.editDeckList?.value || '';
+
+  // Basic validation
+  if (!name) {
+    showError('Please enter a deck name.');
+    return;
+  }
+  if (!commander) {
+    showError('Please enter a commander name.');
+    return;
+  }
+  if (!decklistText.trim()) {
+    showError('Please paste a decklist.');
+    return;
+  }
+
+  // Check for duplicate deck name (excluding current deck)
+  const existingDeck = currentPrism.decks.find(
+    d => d.id !== deckToEdit && d.name.toLowerCase() === name.toLowerCase()
+  );
+  if (existingDeck) {
+    showError(`A deck named "${name}" already exists.`);
+    return;
+  }
+
+  // Parse decklist
+  const parseResult = parseDecklist(decklistText, commander);
+  const validation = validateDecklist(parseResult);
+
+  // Show parse errors if any
+  if (parseResult.errors.length > 0 && elements.editParseErrors) {
+    elements.editParseErrors.style.display = '';
+    elements.editParseErrors.innerHTML = `
+      <wa-callout variant="warning">
+        <strong>Some lines couldn't be parsed:</strong>
+        <ul style="margin: 0.5em 0 0 1.5em; padding: 0;">
+          ${parseResult.errors.slice(0, 5).map(e => `<li>Line ${e.lineNumber}: ${escapeHtml(e.content)}</li>`).join('')}
+          ${parseResult.errors.length > 5 ? `<li>...and ${parseResult.errors.length - 5} more</li>` : ''}
+        </ul>
+      </wa-callout>
+    `;
+  }
+
+  // Check if valid
+  if (!validation.isValid) {
+    showError(validation.messages.join(' '));
+    return;
+  }
+
+  // Update deck
+  deck.name = name;
+  deck.commander = commander;
+  deck.bracket = parseInt(bracket, 10);
+  deck.color = color;
+  deck.cards = parseResult.cards;
+  deck.updatedAt = new Date().toISOString();
+
+  // Update PRISM timestamp
+  currentPrism.updatedAt = new Date().toISOString();
+
+  // Save and close
+  savePrism(currentPrism);
+  deckToEdit = null;
+  elements.editDialog.open = false;
+
+  renderAll();
+  showSuccess(`Updated "${name}" with ${parseResult.uniqueCards} cards.`);
 }
 
 function handleDeleteConfirm() {
@@ -621,9 +755,19 @@ function renderDecksList() {
           </div>
         </div>
         <div class="wa-cluster wa-gap-xs">
-          <wa-button 
-            appearance="plain" 
-            variant="neutral" 
+          <wa-button
+            appearance="plain"
+            variant="neutral"
+            size="small"
+            class="btn-edit-deck"
+            data-deck-id="${deck.id}"
+            title="Edit deck"
+          >
+            <wa-icon name="pen-to-square"></wa-icon>
+          </wa-button>
+          <wa-button
+            appearance="plain"
+            variant="neutral"
             size="small"
             class="btn-delete-deck"
             data-deck-id="${deck.id}"
@@ -635,7 +779,12 @@ function renderDecksList() {
       </div>
     </wa-card>
   `).join('');
-  
+
+  // Add edit button listeners
+  elements.decksList.querySelectorAll('.btn-edit-deck').forEach(btn => {
+    btn.addEventListener('click', () => handleEditClick(btn.dataset.deckId));
+  });
+
   // Add delete button listeners
   elements.decksList.querySelectorAll('.btn-delete-deck').forEach(btn => {
     btn.addEventListener('click', () => handleDeleteClick(btn.dataset.deckId));
