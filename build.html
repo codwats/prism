@@ -70,6 +70,20 @@
                 <!-- Deck cards will be inserted here -->
               </section>
 
+              <!-- Reorder Stripes -->
+              <wa-card id="reorder-card" style="display: none;">
+                <div slot="header" class="wa-cluster wa-gap-s wa-align-items-center">
+                  <wa-icon name="arrows-up-down" style="color: var(--wa-color-brand-fill);"></wa-icon>
+                  <span class="wa-heading-m">Reorder Stripe Positions</span>
+                </div>
+                <p class="wa-caption-m" style="margin-bottom: var(--wa-space-m);">
+                  Use the arrows to change stripe positions. Position 1 is at the top of the sleeve edge.
+                </p>
+                <div id="stripe-reorder-list" class="wa-stack wa-gap-xs">
+                  <!-- Reorder items will be inserted here -->
+                </div>
+              </wa-card>
+
               <!-- Add Deck Form -->
               <wa-card id="add-deck-card">
                 <div slot="header" class="wa-cluster wa-gap-s wa-align-items-center">
@@ -113,7 +127,11 @@
                       <div id="color-swatches" class="wa-cluster wa-gap-xs">
                         <!-- Color swatches will be inserted here -->
                       </div>
-                      <input type="color" id="deck-color" value="#FF0000" style="width: 40px; height: 32px; border: none; border-radius: var(--wa-border-radius-m); cursor: pointer;" />
+                      <wa-divider vertical style="height: 24px;"></wa-divider>
+                      <div class="wa-stack wa-gap-2xs wa-align-items-center">
+                        <input type="color" id="deck-color" value="#FF0000" title="Pick a custom color" style="width: 40px; height: 32px; border: 2px dashed var(--wa-color-neutral-stroke); border-radius: var(--wa-border-radius-m); cursor: pointer;" />
+                        <span class="wa-caption-s" style="color: var(--wa-color-neutral-text-subtle);">Custom</span>
+                      </div>
                     </div>
                     <div id="color-warning" class="wa-caption-s" style="color: var(--wa-color-warning-text); display: none;">
                       <wa-icon name="triangle-exclamation" style="font-size: 0.9em;"></wa-icon>
@@ -258,20 +276,6 @@
                 </div>
                 <div id="no-decks-legend" style="color: var(--wa-color-neutral-text-subtle);">
                   No decks added yet.
-                </div>
-              </wa-card>
-
-              <!-- Reorder Stripes -->
-              <wa-card>
-                <div slot="header" class="wa-cluster wa-gap-s wa-align-items-center">
-                  <wa-icon name="arrows-up-down" style="color: var(--wa-color-brand-fill);"></wa-icon>
-                  <span class="wa-heading-m">Reorder Stripe Positions</span>
-                </div>
-                <p class="wa-caption-m" style="margin-bottom: var(--wa-space-m);">
-                  Drag decks to change their stripe positions. Position 1 is at the top of the sleeve edge.
-                </p>
-                <div id="stripe-reorder-list" class="wa-stack wa-gap-xs">
-                  <!-- Reorder items will be inserted here -->
                 </div>
               </wa-card>
 

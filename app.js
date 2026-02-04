@@ -66,6 +66,7 @@ function getElements() {
     
     // Decks list
     decksList: document.getElementById('decks-list'),
+    reorderCard: document.getElementById('reorder-card'),
     
     // Results
     resultsStats: document.getElementById('results-stats'),
@@ -242,12 +243,11 @@ function setupEventListeners() {
     elements.prismJsonInput.addEventListener('change', handleJsonImport);
   }
   
-  // Results filter
+  // Results filter - use 'change' event for wa-radio-group
   if (elements.resultsFilter) {
-    elements.resultsFilter.addEventListener('wa-change', renderResults);
+    elements.resultsFilter.addEventListener('change', renderResults);
   }
   if (elements.resultsSearch) {
-    elements.resultsSearch.addEventListener('wa-input', renderResults);
     elements.resultsSearch.addEventListener('input', renderResults);
   }
   
@@ -321,22 +321,36 @@ function handleDeckSubmit(e) {
     e.preventDefault();
     e.stopPropagation();
   }
-  
+
   console.log('PRISM: Form submitted');
-  
+
   // Check deck limit
   if (currentPrism.decks.length >= 15) {
     showError('Maximum 15 decks per PRISM reached.');
     return;
   }
-  
-  // Get form values
-  const name = (elements.deckName.value || '').trim();
-  const commander = (elements.deckCommander.value || '').trim();
-  const bracket = elements.deckBracket.value || '2';
-  const color = elements.deckColor.value || '#FF0000';
-  const decklistText = elements.deckList.value || '';
-  
+
+  // Get form values - for web components, try multiple ways to get the value
+  const getInputValue = (element) => {
+    if (!element) return '';
+    // Try .value first (standard), then check for internal input
+    if (element.value !== undefined && element.value !== null) {
+      return String(element.value).trim();
+    }
+    // Fallback: try to find internal input in shadow DOM
+    const shadowInput = element.shadowRoot?.querySelector('input, textarea');
+    if (shadowInput) {
+      return String(shadowInput.value || '').trim();
+    }
+    return '';
+  };
+
+  const name = getInputValue(elements.deckName);
+  const commander = getInputValue(elements.deckCommander);
+  const bracket = elements.deckBracket?.value || '2';
+  const color = elements.deckColor?.value || '#FF0000';
+  const decklistText = getInputValue(elements.deckList);
+
   console.log('PRISM: Form values:', { name, commander, bracket, color, decklistLength: decklistText.length });
   
   // Basic validation
@@ -954,19 +968,22 @@ function renderResultsHeader() {
 
 function renderExport() {
   const sortedDecks = [...currentPrism.decks].sort((a, b) => a.stripePosition - b.stripePosition);
-  
+
+  // Show/hide reorder card based on deck count (needs 2+ decks to reorder)
+  if (elements.reorderCard) {
+    elements.reorderCard.style.display = sortedDecks.length >= 2 ? '' : 'none';
+  }
+
   // Deck legend
   if (sortedDecks.length === 0) {
     if (elements.deckLegend) elements.deckLegend.style.display = 'none';
     if (elements.noDecksLegend) elements.noDecksLegend.style.display = '';
     if (elements.stripeReorderList) {
-      elements.stripeReorderList.innerHTML = `
-        <p style="color: var(--wa-color-neutral-text-subtle);">Add decks to reorder stripe positions.</p>
-      `;
+      elements.stripeReorderList.innerHTML = '';
     }
     return;
   }
-  
+
   if (elements.deckLegend) elements.deckLegend.style.display = '';
   if (elements.noDecksLegend) elements.noDecksLegend.style.display = 'none';
   

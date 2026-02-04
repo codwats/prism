@@ -20,7 +20,7 @@ export const DEFAULT_COLORS = [
   '#00FFFF', // Cyan
   '#FFFFFF', // White
   '#A52A2A', // Brown
-  '#000000', // Black
+  '#008080', // Teal
   '#C0C0C0', // Silver
   '#FFD700', // Gold
   '#00FF00', // Lime
