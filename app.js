@@ -883,21 +883,53 @@ function renderResults() {
   const search = (elements.resultsSearch?.value || '').toLowerCase().trim();
 
   let filteredCards = [...processedCards];
+  let displayCards = []; // What we'll actually render
 
   if (filter === 'shared') {
     filteredCards = filteredCards.filter(c => c.deckCount > 1);
+    displayCards = filteredCards;
   } else if (filter === 'unique') {
     filteredCards = filteredCards.filter(c => c.deckCount === 1);
+    displayCards = filteredCards;
+  } else if (filter === 'basics-by-deck') {
+    // Split basic lands into per-deck rows
+    displayCards = [];
+    for (const card of filteredCards) {
+      if (card.isBasicLand) {
+        // Create a separate row for each deck this basic appears in
+        for (const stripe of card.stripes) {
+          // Find the quantity for this specific deck
+          const deck = currentPrism.decks.find(d => d.id === stripe.deckId);
+          const deckCard = deck?.cards.find(c => c.name.toLowerCase() === card.name.toLowerCase());
+          const quantity = deckCard?.quantity || 1;
+
+          displayCards.push({
+            name: `${card.name} (${stripe.deckName})`,
+            displayName: card.name,
+            deckName: stripe.deckName,
+            isBasicLand: true,
+            isBasicByDeck: true,
+            totalQuantity: quantity,
+            deckCount: 1,
+            stripes: [stripe]
+          });
+        }
+      } else {
+        displayCards.push(card);
+      }
+    }
+  } else {
+    displayCards = filteredCards;
   }
 
   if (search) {
-    filteredCards = filteredCards.filter(c =>
+    displayCards = displayCards.filter(c =>
       c.name.toLowerCase().includes(search)
     );
   }
 
   // Apply sorting
-  filteredCards = sortCards(filteredCards, sortState.column, sortState.direction);
+  displayCards = sortCards(displayCards, sortState.column, sortState.direction);
 
   // Render table header with sort indicators
   renderResultsHeader();
@@ -905,7 +937,7 @@ function renderResults() {
   // Render table body
   if (!elements.resultsTbody) return;
 
-  elements.resultsTbody.innerHTML = filteredCards.map(card => {
+  elements.resultsTbody.innerHTML = displayCards.map(card => {
     const stripeIndicators = card.stripes.map(s => `
       <div
         class="stripe-indicator"
@@ -916,10 +948,11 @@ function renderResults() {
 
     const rowClass = card.deckCount > 1 ? 'shared-row' : '';
     const nameClass = card.isBasicLand ? 'basic-land' : '';
+    const basicTag = card.isBasicLand && !card.isBasicByDeck ? ' <span class="basic-tag">(Basic)</span>' : '';
 
     return `
       <tr class="${rowClass}">
-        <td class="${nameClass}">${escapeHtml(card.name)}${card.isBasicLand ? ' <span class="basic-tag">(Basic)</span>' : ''}</td>
+        <td class="${nameClass}">${escapeHtml(card.name)}${basicTag}</td>
         <td>${card.totalQuantity}</td>
         <td>${card.deckCount}</td>
         <td><div class="stripe-indicators">${stripeIndicators}</div></td>
@@ -927,7 +960,7 @@ function renderResults() {
     `;
   }).join('');
 
-  if (filteredCards.length === 0 && processedCards.length > 0) {
+  if (displayCards.length === 0 && processedCards.length > 0) {
     elements.resultsTbody.innerHTML = `
       <tr>
         <td colspan="4" style="text-align: center; color: var(--wa-color-neutral-text-subtle); padding: var(--wa-space-xl);">
