@@ -892,7 +892,7 @@ function renderResults() {
     filteredCards = filteredCards.filter(c => c.deckCount === 1);
     displayCards = filteredCards;
   } else if (filter === 'basics-by-deck') {
-    // Split basic lands into per-deck rows
+    // Show only basic lands, split into per-deck rows
     displayCards = [];
     for (const card of filteredCards) {
       if (card.isBasicLand) {
@@ -914,9 +914,8 @@ function renderResults() {
             stripes: [stripe]
           });
         }
-      } else {
-        displayCards.push(card);
       }
+      // Non-basic cards are excluded from this view
     }
   } else {
     displayCards = filteredCards;
