@@ -110,6 +110,9 @@ function getElements() {
     editDeckBracket: document.getElementById('edit-deck-bracket'),
     editDeckColor: document.getElementById('edit-deck-color'),
     editDeckList: document.getElementById('edit-deck-list'),
+    editDeckFileInput: document.getElementById('edit-deck-file-input'),
+    btnEditUploadFile: document.getElementById('btn-edit-upload-file'),
+    editFileNameDisplay: document.getElementById('edit-file-name-display'),
     editParseErrors: document.getElementById('edit-parse-errors'),
     btnCancelEdit: document.getElementById('btn-cancel-edit'),
     btnConfirmEdit: document.getElementById('btn-confirm-edit')
@@ -303,6 +306,16 @@ function setupEventListeners() {
   if (elements.btnConfirmEdit) {
     elements.btnConfirmEdit.addEventListener('click', handleEditConfirm);
   }
+
+  // Edit dialog file upload
+  if (elements.btnEditUploadFile) {
+    elements.btnEditUploadFile.addEventListener('click', () => {
+      elements.editDeckFileInput?.click();
+    });
+  }
+  if (elements.editDeckFileInput) {
+    elements.editDeckFileInput.addEventListener('change', handleEditFileUpload);
+  }
 }
 
 // ============================================================================
@@ -325,23 +338,26 @@ function handleDeckSubmit(e) {
   console.log('PRISM: Form submitted');
 
   // Check deck limit
-  if (currentPrism.decks.length >= 15) {
-    showError('Maximum 15 decks per PRISM reached.');
+  if (currentPrism.decks.length >= 32) {
+    showError('Maximum 32 decks per PRISM reached.');
     return;
   }
 
-  // Get form values - for web components, try multiple ways to get the value
+  // Get form values - for web components, access the native input in shadow DOM
   const getInputValue = (element) => {
     if (!element) return '';
-    // Try .value first (standard), then check for internal input
-    if (element.value !== undefined && element.value !== null) {
+
+    // For wa-input/wa-textarea, get value from the native input in shadow DOM
+    const shadowInput = element.shadowRoot?.querySelector('input, textarea');
+    if (shadowInput && shadowInput.value) {
+      return String(shadowInput.value).trim();
+    }
+
+    // Fallback to direct .value property
+    if (element.value !== undefined && element.value !== null && element.value !== '') {
       return String(element.value).trim();
     }
-    // Fallback: try to find internal input in shadow DOM
-    const shadowInput = element.shadowRoot?.querySelector('input, textarea');
-    if (shadowInput) {
-      return String(shadowInput.value || '').trim();
-    }
+
     return '';
   };
 
@@ -600,6 +616,36 @@ function handleFileUpload(e) {
   reader.readAsText(file);
 }
 
+function handleEditFileUpload(e) {
+  const file = e.target.files?.[0];
+  if (!file) return;
+
+  // Show file name
+  if (elements.editFileNameDisplay) {
+    elements.editFileNameDisplay.textContent = file.name;
+  }
+
+  // Read file content
+  const reader = new FileReader();
+  reader.onload = (event) => {
+    const content = event.target.result;
+    if (elements.editDeckList) {
+      elements.editDeckList.value = content;
+    }
+
+    showSuccess(`Loaded ${file.name}`);
+  };
+
+  reader.onerror = () => {
+    showError('Failed to read file. Please try again.');
+  };
+
+  reader.readAsText(file);
+
+  // Reset file input so same file can be selected again
+  e.target.value = '';
+}
+
 function handleJsonImport(e) {
   const file = e.target.files?.[0];
   if (!file) return;
@@ -724,12 +770,12 @@ function renderPrismHeader() {
     elements.prismName.value = currentPrism.name;
   }
   if (elements.deckCountTag) {
-    elements.deckCountTag.textContent = `${currentPrism.decks.length}/15 decks`;
-    
+    elements.deckCountTag.textContent = `${currentPrism.decks.length}/32 decks`;
+
     // Update tag variant based on count
-    if (currentPrism.decks.length >= 15) {
+    if (currentPrism.decks.length >= 32) {
       elements.deckCountTag.variant = 'warning';
-    } else if (currentPrism.decks.length >= 10) {
+    } else if (currentPrism.decks.length >= 20) {
       elements.deckCountTag.variant = 'neutral';
     } else {
       elements.deckCountTag.variant = 'success';

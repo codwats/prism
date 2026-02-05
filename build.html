@@ -43,7 +43,7 @@
                 style="--wa-input-border-width: 0; font-weight: 600;"
               ></wa-input>
             </div>
-            <wa-tag id="deck-count-tag" variant="neutral" size="small">0/15 decks</wa-tag>
+            <wa-tag id="deck-count-tag" variant="neutral" size="small">0/32 decks</wa-tag>
           </div>
         </section>
 
@@ -392,9 +392,20 @@
           <input type="color" id="edit-deck-color" style="width: 60px; height: 40px; border: none; border-radius: var(--wa-border-radius-m); cursor: pointer;" />
         </div>
 
+        <div class="wa-stack wa-gap-xs">
+          <label class="wa-caption-m">Decklist</label>
+          <div class="wa-cluster wa-gap-s wa-align-items-center">
+            <wa-button type="button" id="btn-edit-upload-file" variant="neutral" appearance="outlined" size="small">
+              <wa-icon slot="start" name="file-arrow-up"></wa-icon>
+              Upload .txt
+            </wa-button>
+            <input type="file" id="edit-deck-file-input" accept=".txt,.dec,.dek,.mwDeck" style="display: none;" />
+            <span id="edit-file-name-display" class="wa-caption-s" style="color: var(--wa-color-neutral-text-subtle);"></span>
+          </div>
+        </div>
+
         <wa-textarea
           id="edit-deck-list"
-          label="Decklist"
           placeholder="1 Sol Ring&#10;1 Arcane Signet&#10;..."
           rows="10"
           required
