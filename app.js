@@ -75,6 +75,7 @@ function getElements() {
     statUnique: document.getElementById('stat-unique'),
     resultsFilter: document.getElementById('results-filter'),
     resultsSearch: document.getElementById('results-search'),
+    showAllSlots: document.getElementById('show-all-slots'),
     resultsTbody: document.getElementById('results-tbody'),
     noResults: document.getElementById('no-results'),
     btnGoToDecks: document.getElementById('btn-go-to-decks'),
@@ -253,7 +254,10 @@ function setupEventListeners() {
   if (elements.resultsSearch) {
     elements.resultsSearch.addEventListener('input', renderResults);
   }
-  
+  if (elements.showAllSlots) {
+    elements.showAllSlots.addEventListener('wa-change', renderResults);
+  }
+
   // Navigation button
   if (elements.btnGoToDecks) {
     elements.btnGoToDecks.addEventListener('click', () => {
@@ -936,14 +940,43 @@ function renderResults() {
   // Render table body
   if (!elements.resultsTbody) return;
 
+  const showAllSlots = elements.showAllSlots?.checked || false;
+  const totalDecks = currentPrism?.decks?.length || 0;
+
   elements.resultsTbody.innerHTML = displayCards.map(card => {
-    const stripeIndicators = card.stripes.map(s => `
-      <div
-        class="stripe-indicator"
-        style="background-color: ${s.color};"
-        title="Slot ${s.position}: ${escapeHtml(s.deckName)}"
-      ></div>
-    `).join('');
+    let stripeIndicators;
+
+    if (showAllSlots && totalDecks > 0) {
+      // Show all slots with empty placeholders
+      const stripeMap = new Map(card.stripes.map(s => [s.position, s]));
+      stripeIndicators = '';
+      for (let i = 1; i <= totalDecks; i++) {
+        const stripe = stripeMap.get(i);
+        if (stripe) {
+          stripeIndicators += `
+            <div
+              class="stripe-indicator"
+              style="background-color: ${stripe.color};"
+              title="Slot ${stripe.position}: ${escapeHtml(stripe.deckName)}"
+            ></div>`;
+        } else {
+          stripeIndicators += `
+            <div
+              class="stripe-indicator stripe-empty"
+              title="Slot ${i}: Empty"
+            ></div>`;
+        }
+      }
+    } else {
+      // Show only filled slots (default)
+      stripeIndicators = card.stripes.map(s => `
+        <div
+          class="stripe-indicator"
+          style="background-color: ${s.color};"
+          title="Slot ${s.position}: ${escapeHtml(s.deckName)}"
+        ></div>
+      `).join('');
+    }
 
     const rowClass = card.deckCount > 1 ? 'shared-row' : '';
     const nameClass = card.isBasicLand ? 'basic-land' : '';

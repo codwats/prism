@@ -103,6 +103,11 @@
   border: 1px solid var(--wa-color-neutral-stroke);
 }
 
+.stripe-empty {
+  background-color: transparent;
+  border: 1px dashed var(--wa-color-neutral-stroke-subtle);
+}
+
 /* ============================================================================
    Reorder List Items
    ============================================================================ */
