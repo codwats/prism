@@ -255,7 +255,7 @@ function setupEventListeners() {
     elements.resultsSearch.addEventListener('input', renderResults);
   }
   if (elements.showAllSlots) {
-    elements.showAllSlots.addEventListener('wa-change', renderResults);
+    elements.showAllSlots.addEventListener('change', renderResults);
   }
 
   // Navigation button
