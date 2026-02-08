@@ -69,6 +69,14 @@
   background: var(--wa-color-surface-2);
 }
 
+.results-table tbody tr:nth-child(even) {
+  background: rgba(255, 255, 255, 0.015);
+}
+
+.results-table tbody tr:nth-child(even):hover {
+  background: var(--wa-color-surface-2);
+}
+
 .results-table .shared-row {
   background: var(--wa-color-warning-surface-subtle);
 }

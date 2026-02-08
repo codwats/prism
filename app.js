@@ -72,7 +72,6 @@ function getElements() {
     resultsStats: document.getElementById('results-stats'),
     statTotal: document.getElementById('stat-total'),
     statShared: document.getElementById('stat-shared'),
-    statUnique: document.getElementById('stat-unique'),
     resultsFilter: document.getElementById('results-filter'),
     resultsSearch: document.getElementById('results-search'),
     showAllSlots: document.getElementById('show-all-slots'),
@@ -862,7 +861,6 @@ function renderResults() {
   // Update stats
   if (elements.statTotal) elements.statTotal.textContent = overlap.totalUniqueCards;
   if (elements.statShared) elements.statShared.textContent = overlap.sharedCardCount;
-  if (elements.statUnique) elements.statUnique.textContent = overlap.uniqueCardCount;
 
   // Show/hide based on deck count
   if (currentPrism.decks.length === 0) {
@@ -921,6 +919,12 @@ function renderResults() {
       }
       // Non-basic cards are excluded from this view
     }
+    // Sort by land type first, then by deck name
+    displayCards.sort((a, b) => {
+      const landCompare = a.displayName.localeCompare(b.displayName);
+      if (landCompare !== 0) return landCompare;
+      return a.deckName.localeCompare(b.deckName);
+    });
   } else {
     displayCards = filteredCards;
   }
@@ -981,21 +985,21 @@ function renderResults() {
     const rowClass = card.deckCount > 1 ? 'shared-row' : '';
     const nameClass = card.isBasicLand ? 'basic-land' : '';
     const basicTag = card.isBasicLand && !card.isBasicByDeck ? ' <span class="basic-tag">(Basic)</span>' : '';
+    const copiesCell = filter === 'basics-by-deck' ? `<td>${card.totalQuantity}</td>` : '';
 
     return `
       <tr class="${rowClass}">
-        <td class="${nameClass}">${escapeHtml(card.name)}${basicTag}</td>
-        <td>${card.totalQuantity}</td>
-        <td>${card.deckCount}</td>
+        <td class="${nameClass}">${escapeHtml(card.name)}${basicTag}</td>${copiesCell}
         <td><div class="stripe-indicators">${stripeIndicators}</div></td>
       </tr>
     `;
   }).join('');
 
+  const colspan = filter === 'basics-by-deck' ? 3 : 2;
   if (displayCards.length === 0 && processedCards.length > 0) {
     elements.resultsTbody.innerHTML = `
       <tr>
-        <td colspan="4" style="text-align: center; color: var(--wa-color-neutral-text-subtle); padding: var(--wa-space-xl);">
+        <td colspan="${colspan}" style="text-align: center; color: var(--wa-color-neutral-text-subtle); padding: var(--wa-space-xl);">
           No cards match your filter.
         </td>
       </tr>
@@ -1033,6 +1037,9 @@ function renderResultsHeader() {
   const thead = document.querySelector('#results-table thead');
   if (!thead) return;
 
+  const filter = elements.resultsFilter?.value || 'all';
+  const showCopies = filter === 'basics-by-deck';
+
   const getSortIcon = (column) => {
     if (sortState.column !== column) return 'sort';
     return sortState.direction === 'asc' ? 'sort-up' : 'sort-down';
@@ -1042,20 +1049,18 @@ function renderResultsHeader() {
     return sortState.column === column ? 'sorted' : '';
   };
 
+  const copiesHeader = showCopies ? `
+      <th class="sortable ${getSortedClass('copies')}" data-sort="copies">
+        Copies
+        <wa-icon name="${getSortIcon('copies')}" class="sort-icon"></wa-icon>
+      </th>` : '';
+
   thead.innerHTML = `
     <tr>
       <th class="sortable ${getSortedClass('name')}" data-sort="name">
         Card Name
         <wa-icon name="${getSortIcon('name')}" class="sort-icon"></wa-icon>
-      </th>
-      <th class="sortable ${getSortedClass('copies')}" data-sort="copies">
-        Copies
-        <wa-icon name="${getSortIcon('copies')}" class="sort-icon"></wa-icon>
-      </th>
-      <th class="sortable ${getSortedClass('deckCount')}" data-sort="deckCount">
-        Decks
-        <wa-icon name="${getSortIcon('deckCount')}" class="sort-icon"></wa-icon>
-      </th>
+      </th>${copiesHeader}
       <th>Stripes</th>
     </tr>
   `;
@@ -1064,13 +1069,21 @@ function renderResultsHeader() {
   thead.querySelectorAll('th.sortable').forEach(th => {
     th.addEventListener('click', () => {
       const column = th.dataset.sort;
+      const defaultDirection = column === 'name' ? 'asc' : 'desc';
+
       if (sortState.column === column) {
-        // Toggle direction
-        sortState.direction = sortState.direction === 'asc' ? 'desc' : 'asc';
+        if (sortState.direction === defaultDirection) {
+          // First click was default, toggle to opposite
+          sortState.direction = defaultDirection === 'asc' ? 'desc' : 'asc';
+        } else {
+          // Already toggled, reset to default sort (deckCount desc)
+          sortState.column = 'deckCount';
+          sortState.direction = 'desc';
+        }
       } else {
-        // New column, default to desc for deckCount, asc for name
+        // New column, set default direction for that column
         sortState.column = column;
-        sortState.direction = column === 'name' ? 'asc' : 'desc';
+        sortState.direction = defaultDirection;
       }
       renderResults();
     });

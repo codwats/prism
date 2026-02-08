@@ -226,6 +226,13 @@ export function generatePrintableGuide(prism) {
       print-color-adjust: exact !important;
       color-adjust: exact !important;
     }
+    .stripe-empty {
+      width: 16px;
+      height: 16px;
+      border-radius: 3px;
+      border: 1px dashed #999;
+      background: transparent;
+    }
     .shared { background: #fffde7; }
     .basic-land { font-style: italic; }
 
@@ -266,34 +273,40 @@ export function generatePrintableGuide(prism) {
   </div>
   
   <h2>Card Marking Guide</h2>
-  <p>Cards are sorted by number of decks (most shared first), then alphabetically.</p>
-  
+  <p>Cards are sorted by number of decks (most shared first), then alphabetically. For basic land quantities, use the "Basics by Deck" filter in the app.</p>
+
   <table>
     <thead>
       <tr>
         <th>Card Name</th>
-        <th>Copies</th>
-        <th>Decks</th>
         <th>Stripe Positions</th>
       </tr>
     </thead>
     <tbody>
 `;
 
+  const totalDecks = prism.decks.length;
+
   // Add card rows
   for (const card of processedCards) {
     const rowClass = card.deckCount > 1 ? 'shared' : '';
     const nameClass = card.isBasicLand ? 'basic-land' : '';
-    
-    const stripeIndicators = card.stripes
-      .map(s => `<div class="stripe-dot" style="background: ${s.color}" title="Slot ${s.position}: ${s.deckName}"></div>`)
-      .join('');
-    
+
+    // Show all slots with empty placeholders
+    const stripeMap = new Map(card.stripes.map(s => [s.position, s]));
+    let stripeIndicators = '';
+    for (let i = 1; i <= totalDecks; i++) {
+      const stripe = stripeMap.get(i);
+      if (stripe) {
+        stripeIndicators += `<div class="stripe-dot" style="background: ${stripe.color}" title="Slot ${stripe.position}: ${stripe.deckName}"></div>`;
+      } else {
+        stripeIndicators += `<div class="stripe-empty" title="Slot ${i}: Empty"></div>`;
+      }
+    }
+
     html += `
       <tr class="${rowClass}">
         <td class="${nameClass}">${card.name}${card.isBasicLand ? ' (Basic)' : ''}</td>
-        <td>${card.totalQuantity}</td>
-        <td>${card.deckCount}</td>
         <td><div class="stripe-indicator">${stripeIndicators}</div></td>
       </tr>`;
   }
