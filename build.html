@@ -233,11 +233,13 @@
                   <wa-radio appearance="button" value="shared">Shared (2+ Decks)</wa-radio>
                   <wa-radio appearance="button" value="basics-by-deck">Basics by Deck</wa-radio>
                 </wa-radio-group>
-                <wa-input id="results-search" placeholder="Search cards..." size="small" style="max-width: 200px;">
-                  <wa-icon slot="start" name="search"></wa-icon>
-                </wa-input>
                 <wa-switch id="show-all-slots" size="small">Show all slots</wa-switch>
               </div>
+
+              <!-- Search -->
+              <wa-input id="results-search" placeholder="Search cards..." size="medium" style="max-width: 400px;">
+                <wa-icon slot="start" name="search"></wa-icon>
+              </wa-input>
 
               <!-- Results Table -->
               <div id="results-table-container" style="overflow-x: auto;">
