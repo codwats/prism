@@ -1069,13 +1069,21 @@ function renderResultsHeader() {
   thead.querySelectorAll('th.sortable').forEach(th => {
     th.addEventListener('click', () => {
       const column = th.dataset.sort;
+      const defaultDirection = column === 'name' ? 'asc' : 'desc';
+
       if (sortState.column === column) {
-        // Toggle direction
-        sortState.direction = sortState.direction === 'asc' ? 'desc' : 'asc';
+        if (sortState.direction === defaultDirection) {
+          // First click was default, toggle to opposite
+          sortState.direction = defaultDirection === 'asc' ? 'desc' : 'asc';
+        } else {
+          // Already toggled, reset to default sort (deckCount desc)
+          sortState.column = 'deckCount';
+          sortState.direction = 'desc';
+        }
       } else {
-        // New column, default to desc for deckCount, asc for name
+        // New column, set default direction for that column
         sortState.column = column;
-        sortState.direction = column === 'name' ? 'asc' : 'desc';
+        sortState.direction = defaultDirection;
       }
       renderResults();
     });
