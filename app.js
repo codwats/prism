@@ -72,7 +72,6 @@ function getElements() {
     resultsStats: document.getElementById('results-stats'),
     statTotal: document.getElementById('stat-total'),
     statShared: document.getElementById('stat-shared'),
-    statUnique: document.getElementById('stat-unique'),
     resultsFilter: document.getElementById('results-filter'),
     resultsSearch: document.getElementById('results-search'),
     showAllSlots: document.getElementById('show-all-slots'),
@@ -862,7 +861,6 @@ function renderResults() {
   // Update stats
   if (elements.statTotal) elements.statTotal.textContent = overlap.totalUniqueCards;
   if (elements.statShared) elements.statShared.textContent = overlap.sharedCardCount;
-  if (elements.statUnique) elements.statUnique.textContent = overlap.uniqueCardCount;
 
   // Show/hide based on deck count
   if (currentPrism.decks.length === 0) {
@@ -921,6 +919,12 @@ function renderResults() {
       }
       // Non-basic cards are excluded from this view
     }
+    // Sort by land type first, then by deck name
+    displayCards.sort((a, b) => {
+      const landCompare = a.displayName.localeCompare(b.displayName);
+      if (landCompare !== 0) return landCompare;
+      return a.deckName.localeCompare(b.deckName);
+    });
   } else {
     displayCards = filteredCards;
   }
@@ -986,7 +990,6 @@ function renderResults() {
       <tr class="${rowClass}">
         <td class="${nameClass}">${escapeHtml(card.name)}${basicTag}</td>
         <td>${card.totalQuantity}</td>
-        <td>${card.deckCount}</td>
         <td><div class="stripe-indicators">${stripeIndicators}</div></td>
       </tr>
     `;
@@ -995,7 +998,7 @@ function renderResults() {
   if (displayCards.length === 0 && processedCards.length > 0) {
     elements.resultsTbody.innerHTML = `
       <tr>
-        <td colspan="4" style="text-align: center; color: var(--wa-color-neutral-text-subtle); padding: var(--wa-space-xl);">
+        <td colspan="3" style="text-align: center; color: var(--wa-color-neutral-text-subtle); padding: var(--wa-space-xl);">
           No cards match your filter.
         </td>
       </tr>
@@ -1051,10 +1054,6 @@ function renderResultsHeader() {
       <th class="sortable ${getSortedClass('copies')}" data-sort="copies">
         Copies
         <wa-icon name="${getSortIcon('copies')}" class="sort-icon"></wa-icon>
-      </th>
-      <th class="sortable ${getSortedClass('deckCount')}" data-sort="deckCount">
-        Decks
-        <wa-icon name="${getSortIcon('deckCount')}" class="sort-icon"></wa-icon>
       </th>
       <th>Stripes</th>
     </tr>

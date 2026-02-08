@@ -224,12 +224,6 @@
                     <span class="wa-caption-m">Shared (2+ Decks)</span>
                   </div>
                 </wa-card>
-                <wa-card appearance="filled">
-                  <div class="wa-stack wa-gap-2xs wa-align-items-center">
-                    <span class="wa-heading-3xl" id="stat-unique">0</span>
-                    <span class="wa-caption-m">Not Shared</span>
-                  </div>
-                </wa-card>
               </div>
 
               <!-- Filter -->
@@ -237,7 +231,6 @@
                 <wa-radio-group id="results-filter" orientation="horizontal" value="all">
                   <wa-radio appearance="button" value="all">All Cards</wa-radio>
                   <wa-radio appearance="button" value="shared">Shared (2+ Decks)</wa-radio>
-                  <wa-radio appearance="button" value="unique">Not Shared</wa-radio>
                   <wa-radio appearance="button" value="basics-by-deck">Basics by Deck</wa-radio>
                 </wa-radio-group>
                 <wa-input id="results-search" placeholder="Search cards..." size="small" style="max-width: 200px;">
@@ -253,7 +246,6 @@
                     <tr>
                       <th>Card Name</th>
                       <th>Copies</th>
-                      <th>Decks</th>
                       <th>Stripes</th>
                     </tr>
                   </thead>
