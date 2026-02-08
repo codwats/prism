@@ -273,13 +273,12 @@ export function generatePrintableGuide(prism) {
   </div>
   
   <h2>Card Marking Guide</h2>
-  <p>Cards are sorted by number of decks (most shared first), then alphabetically.</p>
-  
+  <p>Cards are sorted by number of decks (most shared first), then alphabetically. For basic land quantities, use the "Basics by Deck" filter in the app.</p>
+
   <table>
     <thead>
       <tr>
         <th>Card Name</th>
-        <th>Copies</th>
         <th>Stripe Positions</th>
       </tr>
     </thead>
@@ -308,7 +307,6 @@ export function generatePrintableGuide(prism) {
     html += `
       <tr class="${rowClass}">
         <td class="${nameClass}">${card.name}${card.isBasicLand ? ' (Basic)' : ''}</td>
-        <td>${card.totalQuantity}</td>
         <td><div class="stripe-indicator">${stripeIndicators}</div></td>
       </tr>`;
   }

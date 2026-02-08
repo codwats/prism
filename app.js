@@ -985,20 +985,21 @@ function renderResults() {
     const rowClass = card.deckCount > 1 ? 'shared-row' : '';
     const nameClass = card.isBasicLand ? 'basic-land' : '';
     const basicTag = card.isBasicLand && !card.isBasicByDeck ? ' <span class="basic-tag">(Basic)</span>' : '';
+    const copiesCell = filter === 'basics-by-deck' ? `<td>${card.totalQuantity}</td>` : '';
 
     return `
       <tr class="${rowClass}">
-        <td class="${nameClass}">${escapeHtml(card.name)}${basicTag}</td>
-        <td>${card.totalQuantity}</td>
+        <td class="${nameClass}">${escapeHtml(card.name)}${basicTag}</td>${copiesCell}
         <td><div class="stripe-indicators">${stripeIndicators}</div></td>
       </tr>
     `;
   }).join('');
 
+  const colspan = filter === 'basics-by-deck' ? 3 : 2;
   if (displayCards.length === 0 && processedCards.length > 0) {
     elements.resultsTbody.innerHTML = `
       <tr>
-        <td colspan="3" style="text-align: center; color: var(--wa-color-neutral-text-subtle); padding: var(--wa-space-xl);">
+        <td colspan="${colspan}" style="text-align: center; color: var(--wa-color-neutral-text-subtle); padding: var(--wa-space-xl);">
           No cards match your filter.
         </td>
       </tr>
@@ -1036,6 +1037,9 @@ function renderResultsHeader() {
   const thead = document.querySelector('#results-table thead');
   if (!thead) return;
 
+  const filter = elements.resultsFilter?.value || 'all';
+  const showCopies = filter === 'basics-by-deck';
+
   const getSortIcon = (column) => {
     if (sortState.column !== column) return 'sort';
     return sortState.direction === 'asc' ? 'sort-up' : 'sort-down';
@@ -1045,16 +1049,18 @@ function renderResultsHeader() {
     return sortState.column === column ? 'sorted' : '';
   };
 
+  const copiesHeader = showCopies ? `
+      <th class="sortable ${getSortedClass('copies')}" data-sort="copies">
+        Copies
+        <wa-icon name="${getSortIcon('copies')}" class="sort-icon"></wa-icon>
+      </th>` : '';
+
   thead.innerHTML = `
     <tr>
       <th class="sortable ${getSortedClass('name')}" data-sort="name">
         Card Name
         <wa-icon name="${getSortIcon('name')}" class="sort-icon"></wa-icon>
-      </th>
-      <th class="sortable ${getSortedClass('copies')}" data-sort="copies">
-        Copies
-        <wa-icon name="${getSortIcon('copies')}" class="sort-icon"></wa-icon>
-      </th>
+      </th>${copiesHeader}
       <th>Stripes</th>
     </tr>
   `;
