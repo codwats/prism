@@ -762,18 +762,23 @@ function handleStripeReorder(deckId, direction) {
  * Handle marking a card as done
  */
 function handleMarkToggle(event) {
-  const checkbox = event.target;
+  const checkbox = event.currentTarget; // Use currentTarget for the element the listener is on
   const row = checkbox.closest('tr');
-  const cardKey = row.dataset.cardKey;
+  const cardKey = row?.dataset?.cardKey;
 
-  if (!cardKey || !currentPrism) return;
+  if (!cardKey || !currentPrism) {
+    console.warn('Mark toggle failed:', { cardKey, hasPrism: !!currentPrism });
+    return;
+  }
 
   // Initialize markedCards array if it doesn't exist
   if (!currentPrism.markedCards) {
     currentPrism.markedCards = [];
   }
 
-  if (checkbox.checked) {
+  const isChecked = checkbox.checked;
+
+  if (isChecked) {
     // Add to marked cards
     if (!currentPrism.markedCards.includes(cardKey)) {
       currentPrism.markedCards.push(cardKey);
@@ -788,6 +793,8 @@ function handleMarkToggle(event) {
   // Save to localStorage
   currentPrism.updatedAt = new Date().toISOString();
   savePrism(currentPrism);
+
+  console.log('Card marked:', cardKey, 'checked:', isChecked, 'total marked:', currentPrism.markedCards.length);
 }
 
 // ============================================================================
@@ -1038,7 +1045,7 @@ function renderResults() {
 
   // Add event listeners for checkboxes
   elements.resultsTbody.querySelectorAll('.mark-checkbox').forEach(checkbox => {
-    checkbox.addEventListener('wa-change', handleMarkToggle);
+    checkbox.addEventListener('change', handleMarkToggle);
   });
 
   const colspan = filter === 'basics-by-deck' ? 4 : 3;
