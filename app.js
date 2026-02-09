@@ -682,6 +682,7 @@ function handleJsonImport(e) {
       newPrism.id = prismData.id || newPrism.id;
       newPrism.createdAt = prismData.createdAt || newPrism.createdAt;
       newPrism.updatedAt = new Date().toISOString();
+      newPrism.markedCards = prismData.markedCards || [];
 
       // Import each deck
       for (const deck of prismData.decks) {
@@ -753,8 +754,40 @@ function handleStripeReorder(deckId, direction) {
   // Apply new order
   currentPrism = reorderStripes(currentPrism, deckIds);
   savePrism(currentPrism);
-  
+
   renderAll();
+}
+
+/**
+ * Handle marking a card as done
+ */
+function handleMarkToggle(event) {
+  const checkbox = event.target;
+  const row = checkbox.closest('tr');
+  const cardKey = row.dataset.cardKey;
+
+  if (!cardKey || !currentPrism) return;
+
+  // Initialize markedCards array if it doesn't exist
+  if (!currentPrism.markedCards) {
+    currentPrism.markedCards = [];
+  }
+
+  if (checkbox.checked) {
+    // Add to marked cards
+    if (!currentPrism.markedCards.includes(cardKey)) {
+      currentPrism.markedCards.push(cardKey);
+    }
+    row.classList.add('marked-row');
+  } else {
+    // Remove from marked cards
+    currentPrism.markedCards = currentPrism.markedCards.filter(c => c !== cardKey);
+    row.classList.remove('marked-row');
+  }
+
+  // Save to localStorage
+  currentPrism.updatedAt = new Date().toISOString();
+  savePrism(currentPrism);
 }
 
 // ============================================================================
@@ -987,15 +1020,28 @@ function renderResults() {
     const basicTag = card.isBasicLand && !card.isBasicByDeck ? ' <span class="basic-tag">(Basic)</span>' : '';
     const copiesCell = filter === 'basics-by-deck' ? `<td>${card.totalQuantity}</td>` : '';
 
+    // Check if card is marked (use original card name for basics-by-deck entries)
+    const cardKey = card.isBasicByDeck ? `${card.displayName}|${card.deckName}` : card.name;
+    const isMarked = currentPrism.markedCards?.includes(cardKey) || false;
+    const markedClass = isMarked ? 'marked-row' : '';
+
     return `
-      <tr class="${rowClass}">
+      <tr class="${rowClass} ${markedClass}" data-card-key="${escapeHtml(cardKey)}">
         <td class="${nameClass}">${escapeHtml(card.name)}${basicTag}</td>${copiesCell}
         <td><div class="stripe-indicators">${stripeIndicators}</div></td>
+        <td style="text-align: center;">
+          <wa-checkbox class="mark-checkbox" ${isMarked ? 'checked' : ''}></wa-checkbox>
+        </td>
       </tr>
     `;
   }).join('');
 
-  const colspan = filter === 'basics-by-deck' ? 3 : 2;
+  // Add event listeners for checkboxes
+  elements.resultsTbody.querySelectorAll('.mark-checkbox').forEach(checkbox => {
+    checkbox.addEventListener('wa-change', handleMarkToggle);
+  });
+
+  const colspan = filter === 'basics-by-deck' ? 4 : 3;
   if (displayCards.length === 0 && processedCards.length > 0) {
     elements.resultsTbody.innerHTML = `
       <tr>
@@ -1062,6 +1108,7 @@ function renderResultsHeader() {
         <wa-icon name="${getSortIcon('name')}" class="sort-icon"></wa-icon>
       </th>${copiesHeader}
       <th>Stripes</th>
+      <th style="width: 60px; text-align: center;">Done</th>
     </tr>
   `;
 

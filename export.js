@@ -135,10 +135,12 @@ export function exportToJSON(prism) {
           bracket: s.bracket
         }))
       })),
+      markedCards: prism.markedCards || [],
       statistics: {
         totalUniqueCards: processedCards.length,
         sharedCards: processedCards.filter(c => c.deckCount > 1).length,
-        uniqueCards: processedCards.filter(c => c.deckCount === 1).length
+        uniqueCards: processedCards.filter(c => c.deckCount === 1).length,
+        markedCards: (prism.markedCards || []).length
       }
     }
   };

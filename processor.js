@@ -117,6 +117,7 @@ export function createPrism(name = "") {
 		id: generateId(),
 		name: name || `PRISM ${new Date().toLocaleDateString()}`,
 		decks: [],
+		markedCards: [], // Track which cards have been physically marked
 		createdAt: now,
 		updatedAt: now,
 	};

@@ -85,6 +85,14 @@
   background: var(--wa-color-warning-surface);
 }
 
+.results-table .marked-row {
+  opacity: 0.5;
+}
+
+.results-table .marked-row td:first-child {
+  text-decoration: line-through;
+}
+
 .results-table .basic-land {
   font-style: italic;
 }
