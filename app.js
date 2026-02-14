@@ -1037,7 +1037,7 @@ function renderResults() {
         <td class="${nameClass}">${escapeHtml(card.name)}${basicTag}</td>${copiesCell}
         <td><div class="stripe-indicators">${stripeIndicators}</div></td>
         <td style="text-align: center;">
-          <wa-checkbox class="mark-checkbox" ${isMarked ? 'checked' : ''}></wa-checkbox>
+          <input type="checkbox" class="mark-checkbox" ${isMarked ? 'checked' : ''}>
         </td>
       </tr>
     `;
@@ -1061,6 +1061,9 @@ function renderResults() {
 }
 
 function sortCards(cards, column, direction) {
+  // Pre-compute lookup for marked status
+  const markedSet = column === 'marked' ? new Set(currentPrism?.markedCards || []) : null;
+
   return cards.sort((a, b) => {
     let comparison = 0;
 
@@ -1071,26 +1074,39 @@ function sortCards(cards, column, direction) {
       case 'copies':
         comparison = a.totalQuantity - b.totalQuantity;
         break;
-      case 'deckCount':
-        comparison = a.deckCount - b.deckCount;
-        // Secondary sort by name for same deck count
+      case 'deckCount': {
+        // Single-stripe cards sorted by stripe position, multi-stripe at bottom
+        const aMulti = a.deckCount > 1 ? 1 : 0;
+        const bMulti = b.deckCount > 1 ? 1 : 0;
+        if (aMulti !== bMulti) {
+          // Always push multi-stripe cards to the bottom regardless of direction
+          return aMulti - bMulti;
+        }
+        if (aMulti === 0 && bMulti === 0) {
+          // Both single-stripe: sort by stripe position
+          const aPos = a.stripes[0]?.position || 999;
+          const bPos = b.stripes[0]?.position || 999;
+          comparison = aPos - bPos;
+        } else {
+          // Both multi-stripe: sort by deck count then name
+          comparison = a.deckCount - b.deckCount;
+        }
         if (comparison === 0) {
           comparison = a.name.localeCompare(b.name);
         }
         break;
-      case 'marked':
-        // Sort by marked status (need to check markedCards array)
-        const markedCards = currentPrism?.markedCards || [];
+      }
+      case 'marked': {
         const aKey = a.isBasicByDeck ? `${a.displayName}|${a.deckName}` : a.name;
         const bKey = b.isBasicByDeck ? `${b.displayName}|${b.deckName}` : b.name;
-        const aMarked = markedCards.includes(aKey) ? 1 : 0;
-        const bMarked = markedCards.includes(bKey) ? 1 : 0;
+        const aMarked = markedSet.has(aKey) ? 1 : 0;
+        const bMarked = markedSet.has(bKey) ? 1 : 0;
         comparison = aMarked - bMarked;
-        // Secondary sort by name
         if (comparison === 0) {
           comparison = a.name.localeCompare(b.name);
         }
         break;
+      }
       default:
         comparison = 0;
     }
