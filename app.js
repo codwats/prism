@@ -1078,6 +1078,19 @@ function sortCards(cards, column, direction) {
           comparison = a.name.localeCompare(b.name);
         }
         break;
+      case 'marked':
+        // Sort by marked status (need to check markedCards array)
+        const markedCards = currentPrism?.markedCards || [];
+        const aKey = a.isBasicByDeck ? `${a.displayName}|${a.deckName}` : a.name;
+        const bKey = b.isBasicByDeck ? `${b.displayName}|${b.deckName}` : b.name;
+        const aMarked = markedCards.includes(aKey) ? 1 : 0;
+        const bMarked = markedCards.includes(bKey) ? 1 : 0;
+        comparison = aMarked - bMarked;
+        // Secondary sort by name
+        if (comparison === 0) {
+          comparison = a.name.localeCompare(b.name);
+        }
+        break;
       default:
         comparison = 0;
     }
@@ -1114,8 +1127,14 @@ function renderResultsHeader() {
         Card Name
         <wa-icon name="${getSortIcon('name')}" class="sort-icon"></wa-icon>
       </th>${copiesHeader}
-      <th>Stripes</th>
-      <th style="width: 60px; text-align: center;">Done</th>
+      <th class="sortable ${getSortedClass('deckCount')}" data-sort="deckCount">
+        Stripes
+        <wa-icon name="${getSortIcon('deckCount')}" class="sort-icon"></wa-icon>
+      </th>
+      <th class="sortable ${getSortedClass('marked')}" data-sort="marked" style="width: 60px; text-align: center;">
+        Done
+        <wa-icon name="${getSortIcon('marked')}" class="sort-icon"></wa-icon>
+      </th>
     </tr>
   `;
 
