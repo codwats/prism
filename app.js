@@ -35,6 +35,7 @@ let deckToDelete = null;
 let deckToEdit = null;
 let elements = null;
 let sortState = { column: 'deckCount', direction: 'desc' }; // Default: most shared first
+let selectedDeckIds = new Set(); // For deck filter dropdown
 
 // ============================================================================
 // Initialization
@@ -75,6 +76,8 @@ function getElements() {
     resultsFilter: document.getElementById('results-filter'),
     resultsSearch: document.getElementById('results-search'),
     showAllSlots: document.getElementById('show-all-slots'),
+    deckFilterDropdown: document.getElementById('deck-filter-dropdown'),
+    deckFilterMenu: document.getElementById('deck-filter-menu'),
     resultsTbody: document.getElementById('results-tbody'),
     noResults: document.getElementById('no-results'),
     btnGoToDecks: document.getElementById('btn-go-to-decks'),
@@ -975,6 +978,17 @@ function renderResults() {
     );
   }
 
+  // Apply deck filter (if any decks are selected)
+  if (selectedDeckIds.size > 0) {
+    displayCards = displayCards.filter(card => {
+      // Check if any of the card's stripes match a selected deck
+      return card.stripes.some(s => selectedDeckIds.has(s.deckId));
+    });
+  }
+
+  // Render deck filter menu
+  renderDeckFilterMenu();
+
   // Apply sorting
   displayCards = sortCards(displayCards, sortState.column, sortState.direction);
 
@@ -1074,28 +1088,13 @@ function sortCards(cards, column, direction) {
       case 'copies':
         comparison = a.totalQuantity - b.totalQuantity;
         break;
-      case 'deckCount': {
-        // Single-stripe cards sorted by stripe position, multi-stripe at bottom
-        const aMulti = a.deckCount > 1 ? 1 : 0;
-        const bMulti = b.deckCount > 1 ? 1 : 0;
-        if (aMulti !== bMulti) {
-          // Always push multi-stripe cards to the bottom regardless of direction
-          return aMulti - bMulti;
-        }
-        if (aMulti === 0 && bMulti === 0) {
-          // Both single-stripe: sort by stripe position
-          const aPos = a.stripes[0]?.position || 999;
-          const bPos = b.stripes[0]?.position || 999;
-          comparison = aPos - bPos;
-        } else {
-          // Both multi-stripe: sort by deck count then name
-          comparison = a.deckCount - b.deckCount;
-        }
+      case 'deckCount':
+        // Sort by deck count (most shared first by default)
+        comparison = a.deckCount - b.deckCount;
         if (comparison === 0) {
           comparison = a.name.localeCompare(b.name);
         }
         break;
-      }
       case 'marked': {
         const aKey = a.isBasicByDeck ? `${a.displayName}|${a.deckName}` : a.name;
         const bKey = b.isBasicByDeck ? `${b.displayName}|${b.deckName}` : b.name;
@@ -1177,6 +1176,73 @@ function renderResultsHeader() {
       renderResults();
     });
   });
+}
+
+function renderDeckFilterMenu() {
+  if (!elements.deckFilterMenu) return;
+
+  const sortedDecks = [...currentPrism.decks].sort((a, b) => a.stripePosition - b.stripePosition);
+
+  if (sortedDecks.length === 0) {
+    elements.deckFilterMenu.innerHTML = '<wa-menu-item disabled>No decks added</wa-menu-item>';
+    return;
+  }
+
+  // Build menu with checkboxes using native inputs for performance
+  elements.deckFilterMenu.innerHTML = `
+    <wa-menu-item class="deck-filter-clear" style="border-bottom: 1px solid var(--wa-color-neutral-stroke-subtle);">
+      <wa-icon slot="start" name="xmark"></wa-icon>
+      Clear All Filters
+    </wa-menu-item>
+    ${sortedDecks.map(deck => `
+      <wa-menu-item class="deck-filter-item" data-deck-id="${deck.id}">
+        <input type="checkbox" class="deck-filter-checkbox" data-deck-id="${deck.id}"
+          ${selectedDeckIds.has(deck.id) ? 'checked' : ''}
+          style="margin-right: 8px;">
+        <div class="deck-color-indicator small" style="background-color: ${deck.color}; margin-right: 8px;"></div>
+        ${escapeHtml(deck.name)}
+      </wa-menu-item>
+    `).join('')}
+  `;
+
+  // Add event listeners for checkboxes
+  elements.deckFilterMenu.querySelectorAll('.deck-filter-checkbox').forEach(checkbox => {
+    checkbox.addEventListener('change', (e) => {
+      e.stopPropagation(); // Prevent menu item click
+      const deckId = checkbox.dataset.deckId;
+      if (checkbox.checked) {
+        selectedDeckIds.add(deckId);
+      } else {
+        selectedDeckIds.delete(deckId);
+      }
+      updateDeckFilterButtonLabel();
+      renderResults();
+    });
+  });
+
+  // Add clear all listener
+  const clearBtn = elements.deckFilterMenu.querySelector('.deck-filter-clear');
+  if (clearBtn) {
+    clearBtn.addEventListener('click', () => {
+      selectedDeckIds.clear();
+      updateDeckFilterButtonLabel();
+      renderResults();
+    });
+  }
+
+  // Update button label to show how many filters active
+  updateDeckFilterButtonLabel();
+}
+
+function updateDeckFilterButtonLabel() {
+  const btn = elements.deckFilterDropdown?.querySelector('wa-button');
+  if (!btn) return;
+
+  if (selectedDeckIds.size === 0) {
+    btn.innerHTML = '<wa-icon slot="start" name="filter"></wa-icon>Filter by Deck';
+  } else {
+    btn.innerHTML = `<wa-icon slot="start" name="filter"></wa-icon>Decks (${selectedDeckIds.size})`;
+  }
 }
 
 function renderExport() {
