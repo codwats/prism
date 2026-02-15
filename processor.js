@@ -118,6 +118,7 @@ export function createPrism(name = "") {
 		name: name || `PRISM ${new Date().toLocaleDateString()}`,
 		decks: [],
 		markedCards: [], // Track which cards have been physically marked
+		removedCards: [], // Track cards removed from decks that need marks removed
 		createdAt: now,
 		updatedAt: now,
 	};
@@ -389,4 +390,51 @@ export function updateDeckInPrism(prism, deckId, updates) {
 		}),
 		updatedAt: new Date().toISOString(),
 	};
+}
+
+/**
+ * Calculate which cards were removed from a deck (old cards not in new list)
+ * @param {Array} oldCards - Previous card list
+ * @param {Array} newCards - New card list
+ * @returns {Array} Array of removed card names
+ */
+export function calculateRemovedCards(oldCards, newCards) {
+	const newCardNames = new Set(newCards.map((c) => normalizeCardName(c.name)));
+	const removedCards = [];
+
+	for (const card of oldCards) {
+		const normalizedName = normalizeCardName(card.name);
+		if (!newCardNames.has(normalizedName)) {
+			removedCards.push({
+				name: card.name,
+				normalizedName,
+				isBasicLand: card.isBasicLand,
+			});
+		}
+	}
+
+	return removedCards;
+}
+
+/**
+ * Check if a card is still used in any other deck besides the specified one
+ * @param {Object} prism - The PRISM object
+ * @param {string} cardName - The card name to check
+ * @param {string} excludeDeckId - The deck ID to exclude from check
+ * @returns {boolean} True if the card is used in another deck
+ */
+export function isCardInOtherDecks(prism, cardName, excludeDeckId) {
+	const normalizedName = normalizeCardName(cardName);
+
+	for (const deck of prism.decks) {
+		if (deck.id === excludeDeckId) continue;
+
+		for (const card of deck.cards) {
+			if (normalizeCardName(card.name) === normalizedName) {
+				return true;
+			}
+		}
+	}
+
+	return false;
 }

@@ -14,7 +14,15 @@
     <link rel="stylesheet" href="custom.css" />
   </head>
   <body>
-    <wa-page disable-navigation-toggle="true" mobile-breakpoint="475">
+    <wa-page mobile-breakpoint="768">
+      <!-- Mobile Navigation -->
+      <nav slot="navigation" class="wa-stack wa-gap-m" style="padding: var(--wa-space-l);">
+        <a href="index.html" class="wa-heading-m" style="text-decoration: none; color: inherit;">Home</a>
+        <a href="guide.html" style="text-decoration: none; color: inherit;">Guide</a>
+        <a href="tools.html" style="text-decoration: none; color: inherit;">Tools</a>
+        <a href="build.html" style="text-decoration: none; color: inherit;">Build PRISM</a>
+      </nav>
+
       <!-- Header -->
       <header slot="header" class="wa-split">
         <div class="wa-cluster wa-gap-m wa-align-items-center">

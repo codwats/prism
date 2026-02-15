@@ -13,7 +13,15 @@
     <link rel="stylesheet" href="custom.css" />
   </head>
   <body>
-    <wa-page disable-navigation-toggle="true" mobile-breakpoint="475">
+    <wa-page mobile-breakpoint="768">
+      <!-- Mobile Navigation -->
+      <nav slot="navigation" class="wa-stack wa-gap-m" style="padding: var(--wa-space-l);">
+        <a href="index.html" style="text-decoration: none; color: inherit;">Home</a>
+        <a href="guide.html" class="wa-heading-m" style="text-decoration: none; color: var(--wa-color-brand-text);">Guide</a>
+        <a href="tools.html" style="text-decoration: none; color: inherit;">Tools</a>
+        <a href="build.html" style="text-decoration: none; color: inherit;">Build PRISM</a>
+      </nav>
+
       <!-- Header -->
       <header slot="header" class="wa-split">
         <div class="wa-cluster wa-gap-m wa-align-items-center">
@@ -117,14 +125,14 @@
           <wa-card>
             <div class="wa-stack wa-gap-s">
               <h3 class="wa-heading-m">Double-Sleeving?</h3>
-              <p>Mark the <strong>outer</strong> sleeve, not the inner. If you mark inner sleeves, they'll be hidden by the outer sleeve's edge.</p>
+              <p>Mark the <strong>inner</strong> sleeve on the card face side. The marks are subtle (~7mm) and won't be felt through the outer sleeve, keeping your cards tournament legal.</p>
             </div>
           </wa-card>
 
           <wa-card>
             <div class="wa-stack wa-gap-s">
-              <h3 class="wa-heading-m">Consider a Marking Jig</h3>
-              <p>A simple jig with position guides makes marking faster and more consistent. Check the <a href="tools.html">Tools page</a> for 3D printable options.</p>
+              <h3 class="wa-heading-m">Use a PRISM Spirit Guide</h3>
+              <p>A marking jig with position guides makes marking faster and more consistent. Check the <a href="tools.html">Tools page</a> for the 3D printable PRISM Spirit Guide.</p>
             </div>
           </wa-card>
 

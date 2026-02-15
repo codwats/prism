@@ -263,3 +263,20 @@
 #deck-filter-menu .deck-color-indicator {
   flex-shrink: 0;
 }
+
+/* ============================================================================
+   Removed Cards View
+   ============================================================================ */
+
+.results-table .removed-row {
+  background: var(--wa-color-danger-surface-subtle);
+}
+
+.results-table .removed-row:hover {
+  background: var(--wa-color-danger-surface);
+}
+
+.removed-deck-label {
+  font-size: var(--wa-font-size-s);
+  color: var(--wa-color-danger-text);
+}

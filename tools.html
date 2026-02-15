@@ -13,7 +13,15 @@
     <link rel="stylesheet" href="custom.css" />
   </head>
   <body>
-    <wa-page disable-navigation-toggle="true" mobile-breakpoint="475">
+    <wa-page mobile-breakpoint="768">
+      <!-- Mobile Navigation -->
+      <nav slot="navigation" class="wa-stack wa-gap-m" style="padding: var(--wa-space-l);">
+        <a href="index.html" style="text-decoration: none; color: inherit;">Home</a>
+        <a href="guide.html" style="text-decoration: none; color: inherit;">Guide</a>
+        <a href="tools.html" class="wa-heading-m" style="text-decoration: none; color: var(--wa-color-brand-text);">Tools</a>
+        <a href="build.html" style="text-decoration: none; color: inherit;">Build PRISM</a>
+      </nav>
+
       <!-- Header -->
       <header slot="header" class="wa-split">
         <div class="wa-cluster wa-gap-m wa-align-items-center">
@@ -136,9 +144,9 @@
             </wa-card>
           </div>
 
-          <wa-callout variant="warning">
-            <wa-icon slot="icon" name="triangle-exclamation"></wa-icon>
-            <strong>Double-sleeving:</strong> If you double-sleeve, mark the outer sleeve only. Inner sleeve marks will be hidden.
+          <wa-callout variant="neutral">
+            <wa-icon slot="icon" name="circle-info"></wa-icon>
+            <strong>Double-sleeving:</strong> Mark the inner sleeve on the card face side. The marks are subtle and won't be felt through the outer sleeve.
           </wa-callout>
         </section>
 
@@ -148,7 +156,7 @@
         <section class="wa-stack wa-gap-l" style="padding-block: var(--wa-space-xl);">
           <h2 class="wa-heading-xl">
             <wa-icon name="cube" style="margin-right: var(--wa-space-s);"></wa-icon>
-            3D Printed Marking Jig
+            PRISM Spirit Guide
           </h2>
           <p>A marking jig holds your sleeve in place with guides for consistent stripe positions. Makes marking faster and more accurate.</p>
 
@@ -157,8 +165,8 @@
               <div class="wa-cluster wa-gap-m wa-align-items-center">
                 <wa-icon name="file-arrow-down" style="font-size: 2rem; color: var(--wa-color-brand-text);"></wa-icon>
                 <div>
-                  <h3 class="wa-heading-m">PRISM Marking Jig v1</h3>
-                  <p style="color: var(--wa-color-neutral-text-subtle);">STL file for standard-size card sleeves</p>
+                  <h3 class="wa-heading-m">PRISM Spirit Guide v1</h3>
+                  <p style="color: var(--wa-color-neutral-text-subtle);">3D printable STL file for standard-size card sleeves</p>
                 </div>
               </div>
               <wa-button variant="brand" disabled>

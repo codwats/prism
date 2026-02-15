@@ -136,11 +136,13 @@ export function exportToJSON(prism) {
         }))
       })),
       markedCards: prism.markedCards || [],
+      removedCards: prism.removedCards || [],
       statistics: {
         totalUniqueCards: processedCards.length,
         sharedCards: processedCards.filter(c => c.deckCount > 1).length,
         uniqueCards: processedCards.filter(c => c.deckCount === 1).length,
-        markedCards: (prism.markedCards || []).length
+        markedCards: (prism.markedCards || []).length,
+        removedCards: (prism.removedCards || []).length
       }
     }
   };
