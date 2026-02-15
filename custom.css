@@ -239,3 +239,27 @@
 .results-table th.sorted .sort-icon {
   opacity: 1;
 }
+
+/* ============================================================================
+   Deck Filter Dropdown
+   ============================================================================ */
+
+#deck-filter-menu {
+  min-width: 220px;
+}
+
+#deck-filter-menu wa-menu-item {
+  display: flex;
+  align-items: center;
+}
+
+#deck-filter-menu .deck-filter-checkbox {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  flex-shrink: 0;
+}
+
+#deck-filter-menu .deck-color-indicator {
+  flex-shrink: 0;
+}
