@@ -29,16 +29,6 @@ export function parseLine(line) {
 
   // Skip comments
   if (trimmed.startsWith('//')) return null;
-
-  // Skip deck section headers (common in some formats)
-  const upper = trimmed.toUpperCase();
-  if (upper.startsWith('DECK') ||
-      upper.startsWith('COMMANDER') ||
-      upper.startsWith('COMPANION') ||
-      upper.startsWith('MAYBEBOARD') ||
-      upper.startsWith('//')) {
-    return null;
-  }
   
   // Match pattern: <quantity> <card name>
   // Quantity is one or more digits, followed by space(s), then card name
@@ -67,6 +57,13 @@ export function parseLine(line) {
 
 /**
  * Parse a complete decklist string
+ * Handles Moxfield/MTGO format with sections:
+ *   Main deck cards
+ *   Sideboard:
+ *   sideboard cards
+ *   Commander
+ *   commander card
+ * Only includes cards from maindeck and commander sections.
  * @param {string} decklist - The full decklist text
  * @param {string} commanderName - The commander's name for flagging
  * @returns {Object} Result with cards array and any errors
@@ -75,26 +72,52 @@ export function parseDecklist(decklist, commanderName = '') {
   const lines = decklist.split('\n');
   const cards = [];
   const errors = [];
-  
+
   const normalizedCommander = commanderName.toLowerCase().trim();
-  
+
+  // Track which section we're in: 'main', 'sideboard', 'commander', 'companion', 'maybeboard'
+  let currentSection = 'main';
+
+  // Sections whose cards we want to include
+  const includeSections = new Set(['main', 'commander', 'companion']);
+
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
-    const trimmedLine = line.trim().toUpperCase();
+    const trimmedLine = line.trim();
+    const upperLine = trimmedLine.toUpperCase();
 
-    // Check for sideboard marker - stop parsing BEFORE processing
-    // This catches various formats: "SIDEBOARD:", "Sideboard", "SIDEBOARD", etc.
-    if (trimmedLine.startsWith('SIDEBOARD') ||
-        trimmedLine === 'SB:' ||
-        trimmedLine.startsWith('SB:')) {
-      break;
+    // Check for section headers
+    if (upperLine.startsWith('SIDEBOARD') || upperLine === 'SB:' || upperLine.startsWith('SB:')) {
+      currentSection = 'sideboard';
+      continue;
+    }
+    if (upperLine.startsWith('COMMANDER')) {
+      currentSection = 'commander';
+      continue;
+    }
+    if (upperLine.startsWith('COMPANION')) {
+      currentSection = 'companion';
+      continue;
+    }
+    if (upperLine.startsWith('MAYBEBOARD') || upperLine.startsWith('CONSIDERING')) {
+      currentSection = 'maybeboard';
+      continue;
+    }
+    if (upperLine.startsWith('DECK') || upperLine === 'MAINBOARD' || upperLine === 'MAINBOARD:') {
+      currentSection = 'main';
+      continue;
+    }
+
+    // Skip cards in sections we don't want
+    if (!includeSections.has(currentSection)) {
+      continue;
     }
 
     const result = parseLine(line);
 
     // Null means skip (empty/comment)
     if (result === null) continue;
-    
+
     // Check for parse errors
     if (result.error) {
       errors.push({
@@ -104,15 +127,28 @@ export function parseDecklist(decklist, commanderName = '') {
       });
       continue;
     }
-    
-    // Flag if this is the commander
-    if (normalizedCommander && result.name.toLowerCase().trim() === normalizedCommander) {
+
+    // Flag if this is the commander (either by name match or by being in commander section)
+    if (currentSection === 'commander') {
+      result.isCommander = true;
+    } else if (normalizedCommander && result.name.toLowerCase().trim() === normalizedCommander) {
       result.isCommander = true;
     }
-    
+
+    // Avoid duplicate cards (e.g. commander listed in both main and commander sections)
+    const normalizedName = result.name.toLowerCase().trim();
+    const existingCard = cards.find(c => c.name.toLowerCase().trim() === normalizedName);
+    if (existingCard) {
+      // If it's already in the list, just update commander flag if needed
+      if (result.isCommander) {
+        existingCard.isCommander = true;
+      }
+      continue;
+    }
+
     cards.push(result);
   }
-  
+
   return {
     cards,
     errors,

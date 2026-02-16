@@ -431,16 +431,24 @@ function handleDeckSubmit(e) {
   
   // Add to PRISM
   currentPrism = addDeckToPrism(currentPrism, deck);
+
+  // Auto-clear any removed cards that are now back in a deck
+  const autoClearedCount = autoClearRemovedCards(parseResult.cards);
+
   savePrism(currentPrism);
-  
+
   console.log('PRISM: Deck added:', deck.name);
-  
+
   // Reset form and re-render
   resetDeckForm();
   renderAll();
-  
+
   // Show success feedback
-  showSuccess(`Added "${name}" with ${parseResult.uniqueCards} cards.`);
+  let message = `Added "${name}" with ${parseResult.uniqueCards} cards.`;
+  if (autoClearedCount > 0) {
+    message += ` ${autoClearedCount} card${autoClearedCount > 1 ? 's' : ''} auto-cleared from removed list.`;
+  }
+  showSuccess(message);
 }
 
 function handleDeleteClick(deckId) {
@@ -592,6 +600,10 @@ function handleEditConfirm() {
     }
   }
 
+  // Auto-clear removed cards that are now back in the deck
+  // (e.g. user pasted wrong list, then fixed it)
+  const autoClearedCount = autoClearRemovedCards(parseResult.cards);
+
   // Update deck
   deck.name = name;
   deck.commander = commander;
@@ -610,10 +622,13 @@ function handleEditConfirm() {
 
   renderAll();
 
-  // Show success message with removed card info
+  // Show success message with removed/cleared card info
   let message = `Updated "${name}" with ${parseResult.uniqueCards} cards.`;
   if (removedCount > 0) {
     message += ` ${removedCount} card${removedCount > 1 ? 's' : ''} marked for removal.`;
+  }
+  if (autoClearedCount > 0) {
+    message += ` ${autoClearedCount} card${autoClearedCount > 1 ? 's' : ''} auto-cleared from removed list.`;
   }
   showSuccess(message);
 }
@@ -869,6 +884,27 @@ function handleStripeReorder(deckId, direction) {
   savePrism(currentPrism);
 
   renderAll();
+}
+
+/**
+ * Auto-clear cards from the removed list if they've been added back to a deck.
+ * Call this after adding or editing a deck.
+ * @param {Array} newCards - The cards in the newly added/updated deck
+ * @returns {number} Number of cards auto-cleared
+ */
+function autoClearRemovedCards(newCards) {
+  if (!currentPrism?.removedCards?.length || !newCards?.length) return 0;
+
+  const newCardNames = new Set(
+    newCards.map(c => c.name.toLowerCase().trim())
+  );
+
+  const before = currentPrism.removedCards.length;
+  currentPrism.removedCards = currentPrism.removedCards.filter(
+    rc => !newCardNames.has(rc.cardName.toLowerCase().trim())
+  );
+
+  return before - currentPrism.removedCards.length;
 }
 
 /**
