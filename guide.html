@@ -12,7 +12,7 @@
     </script>
     <link rel="stylesheet" href="custom.css" />
   </head>
-  <body>
+  <wa-card>
     <wa-page mobile-breakpoint="768">
       <!-- Mobile Navigation -->
       <nav slot="navigation" class="wa-stack wa-gap-m" style="padding: var(--wa-space-l);">
@@ -29,10 +29,11 @@
             <img src="./assets/Prism-Small-Icon-Invert.svg" style="height:1.5em;">
             <span class="wa-heading-m wa-desktop-only">PRISM</span>
           </a>
-          <nav class="wa-cluster wa-gap-m wa-desktop-only">
+          <!--<nav class="wa-cluster wa-gap-m wa-desktop-only">
             <a href="guide.html" style="color: var(--wa-color-brand-text);">Guide</a>
             <a href="tools.html">Tools</a>
           </nav>
+          -->
         </div>
         <div class="wa-cluster wa-gap-xs wa-align-items-center">
           <wa-button href="build.html" variant="brand" size="small">
@@ -47,34 +48,33 @@
         <section class="wa-stack wa-gap-m" style="padding-block: var(--wa-space-2xl);">
           <h1 class="wa-heading-2xl">Sleeve Marking Guide</h1>
           <p class="wa-body-l" style="color: var(--wa-color-neutral-text-subtle);">
-            Everything you need to know about marking your sleeves with the PRISM system.
+Share your staples across every deck. PRISM tracks what goes where so you don't have to.
           </p>
         </section>
 
         <!-- Quick Overview -->
         <section class="wa-stack wa-gap-m" style="padding-block: var(--wa-space-xl);">
-          <h2 class="wa-heading-xl">Quick Overview</h2>
-          <p>PRISM uses colored marks on the top edge of your sleeves to indicate which decks a card belongs to. Each deck gets:</p>
+          <h2 class="wa-heading-xl">How PRISM Markings Work</h2>
+          <p>PRISM uses colored marks on the right edge of your sleeves to show which decks a card belongs to.  Each deck gets:</p>
           <ul style="padding-left: var(--wa-space-xl); line-height: 1.8;">
-            <li><strong>A unique color</strong> — Choose from 23 default colors or customize</li>
-            <li><strong>A stripe position</strong> — Position 1-32 from left to right on the sleeve edge</li>
+            <li><strong>A unique color</strong> - choose from 23 defaults or set your own</li>
+            <li><strong>A stripe position</strong> - 1 through 32, left to right along the sleeve edge</li>
           </ul>
-          <p>When you fan your cards, you can instantly see which deck(s) each card belongs to by the colored marks on top.</p>
+          <p>Fan your cards out and you can see at a glance which deck(s) each card belongs to.</p>
         </section>
 
         <wa-divider></wa-divider>
 
         <!-- Step by Step -->
         <section class="wa-stack wa-gap-l" style="padding-block: var(--wa-space-xl);">
-          <h2 class="wa-heading-xl">Step-by-Step Marking</h2>
+          <h2 class="wa-heading-xl">Marking Your Sleeves</h2>
 
           <div class="wa-stack wa-gap-m">
-            <h3 class="wa-heading-m">1. Prepare Your Workspace</h3>
+            <h3 class="wa-heading-m">1. Set Up Your Workspace</h3>
             <ul style="padding-left: var(--wa-space-xl); line-height: 1.8;">
-              <li>Work on a clean, flat surface</li>
-              <li>Have paper towels handy for wiping pen tips</li>
-              <li>Keep your PRISM results open on a screen or print the guide</li>
-              <li>Sort your cards by the PRISM results order (most shared first works well)</li>
+              <li>Work on a clean, flat surface, an old beat up playmat works well.</li>
+              <li>Keep paper towels, and cotton swabs nearby for touch-ups.</li>
+              <li>Have your PRISM results open on a screen, or print your guide.</li>
             </ul>
           </div>
 
@@ -91,20 +91,20 @@
           <div class="wa-stack wa-gap-m">
             <h3 class="wa-heading-m">3. Mark Consistently</h3>
             <ul style="padding-left: var(--wa-space-xl); line-height: 1.8;">
-              <li>Mark the <strong>top edge</strong> of each sleeve (the closed end)</li>
-              <li>Keep marks in consistent positions — use a jig or ruler if helpful</li>
-              <li>Small dots or short lines work well (2-3mm)</li>
-              <li>Let each color dry before adding the next to prevent smearing</li>
+              <li>Mark the <strong>right edge</strong> of each sleeve.</li>
+              <li>Use the PRISM Sprit Guide as a jig or ruler.</li>
+              <li>Small dots or short lines work well (3-7mm).</li>
             </ul>
           </div>
 
           <div class="wa-stack wa-gap-m">
             <h3 class="wa-heading-m">4. Work Through Your List</h3>
             <ul style="padding-left: var(--wa-space-xl); line-height: 1.8;">
-              <li>Use the search bar to find cards as you go</li>
-              <li>Check "Done" as you mark each card</li>
-              <li>Filter by deck to focus on one deck's cards at a time</li>
-              <li>Start with shared cards (they appear in multiple decks, so you mark once)</li>
+              <li>Start with shared cards, since they appear in multiple decks and only need to be marked once.</li>
+              <li>Check "Done" as you mark each card.</li>
+              <li>Use the search bar to find cards as you go.</li>
+              <i>&nbsp; &nbsp; or</i>
+              <li>Filter by deck to focus on one deck at a time.</li>
             </ul>
           </div>
         </section>
@@ -115,31 +115,32 @@
         <section class="wa-stack wa-gap-l" style="padding-block: var(--wa-space-xl);">
           <h2 class="wa-heading-xl">Pro Tips</h2>
 
+         <wa-callout variant="warning">
+  <wa-icon slot="icon" name="hourglass"></wa-icon>            
+              <strong>Let marks dry before sleeving.</strong><br />
+             Give them 2-3 minutes, especially paint pens. Rushing this step leads to smeared marks and re-dos.
+            
+          </wa-callout>
+
           <wa-card>
             <div class="wa-stack wa-gap-s">
-              <h3 class="wa-heading-m">Let It Dry!</h3>
-              <p>Give marks 10-15 seconds to dry before handling. Paint pens especially need a moment to set. Impatience leads to smeared marks.</p>
+              <h3 class="wa-heading-m">PRISM is designed to be Double-Sleeved</h3>
+              <p>Mark the <strong>inner</strong> sleeve on the card-face side. The marks are small (around 7mm) and won't be felt through the outer sleeve, so your cards stay tournament legal.</p>
             </div>
           </wa-card>
 
           <wa-card>
             <div class="wa-stack wa-gap-s">
-              <h3 class="wa-heading-m">Double-Sleeving?</h3>
-              <p>Mark the <strong>inner</strong> sleeve on the card face side. The marks are subtle (~7mm) and won't be felt through the outer sleeve, keeping your cards tournament legal.</p>
+              <h3 class="wa-heading-m">Use our PRISM Spirit Guide</h3>
+              <p>A marking jig with position guides makes the whole process faster and more consistent. It holds the sleeve in place so you can add all colors for that card at once, rather than batching by color. You can find the 3D-printable PRISM Spirit Guide on the <a href="tools.html">Tools page</a>.</p>
             </div>
           </wa-card>
 
           <wa-card>
             <div class="wa-stack wa-gap-s">
-              <h3 class="wa-heading-m">Use a PRISM Spirit Guide</h3>
-              <p>A marking jig with position guides makes marking faster and more consistent. Check the <a href="tools.html">Tools page</a> for the 3D printable PRISM Spirit Guide.</p>
-            </div>
-          </wa-card>
-
-          <wa-card>
-            <div class="wa-stack wa-gap-s">
-              <h3 class="wa-heading-m">Batch by Color</h3>
-              <p>Instead of switching pens for each card, do all marks for one color first. This is faster and lets the previous color dry.</p>
+ :lua package.loaded["lualine"]=true
+             <h3 class="wa-heading-m">Batch by Color</h3>
+              <p>Instead of switching pens for every card, do all marks for one color first. It's faster, and it gives the previous color time to dry. If you're using the PRISM Spirit Guide, you can skip this. The jig uses magnets to hold sleeves in place, so you can work through cards one-handed and add all colors per sleeve as you go. Print or buy multiple guides and set up an assembly line for even faster marking.</p>
             </div>
           </wa-card>
         </section>
@@ -149,32 +150,42 @@
         <!-- Basic Lands -->
         <section class="wa-stack wa-gap-m" style="padding-block: var(--wa-space-xl);">
           <h2 class="wa-heading-xl">Handling Basic Lands</h2>
-          <p>Basic lands are special because they're not singleton — you can have as many as you want in a deck. PRISM handles this by:</p>
-          <ol style="padding-left: var(--wa-space-xl); line-height: 1.8;">
-            <li><strong>Tracking the maximum</strong> — If Deck A needs 12 Islands and Deck B needs 8, you need 12 total</li>
-            <li><strong>Marking all of them</strong> — All 12 Islands get marks for both Deck A and Deck B</li>
-            <li><strong>Using "Basics by Deck"</strong> — This filter shows exactly how many of each basic each deck needs</li>
-          </ol>
-          <p style="margin-top: var(--wa-space-m);">
-            <strong>Tip:</strong> Consider using different art for each deck's basics. It makes sorting easier and adds personality!
+          <p>Basics work differently because they aren't singleton. You can run as many as you want in a deck, so PRISM handles them with a few extra rules.</p>
+          <p>PRISM tracks the maximum count across your decks. If Deck A needs 12 Islands and Deck B needs 8, you need 12 total. All 12 get Deck A's mark. Only 8 of them get Deck B's mark. The "Basics by Deck" filter shows exactly how many of each basic land each deck needs.</p>
+          <p>
+            <strong>One more thing:</strong> consider using different art or sets for each deck's basics. It makes sorting faster and gives each deck its own feel.         
           </p>
         </section>
 
         <wa-divider></wa-divider>
 
-        <!-- Adding New Decks -->
+        <!-- Bracket Stacking -->
         <section class="wa-stack wa-gap-m" style="padding-block: var(--wa-space-xl);">
+          <h2 class="wa-heading-xl">Same Commander, Different Power Levels</h2>
+          <p>If you run the same commander at multiple brackets or budgets, you'll want a way to tell those decks apart beyond just the deck color. Two approaches work well.</p>
+          <ul style="padding-left: var(--wa-space-xl); line-height: 1.8;">
+<li><strong>Dots next to the stripe.</strong> Add a small dot beside the right-edge stripe to indicate power level. One dot for casual, two for mid, three for high, or whatever system makes sense for your group. This keeps everything on the same edge and is easy to read at a glance.</li>
+            <li><strong>Secondary stripes on the left edge.</strong> Use the left side of the sleeve for a second set of marks that indicate bracket or budget tier. This gives you more visual separation and avoids crowding the right edge if you're already sharing cards across several decks.</li>
+          </ul>
+          <p>
+            Either method works. Pick whichever feels more natural for how many variants you're tracking. If you only have two versions of a commander, dots are simpler. If you're running three or more, left-edge stripes give you more room.</p>
+        </section>
+
+        <wa-divider></wa-divider>
+
+        <!-- Adding New Decks -->
+        <section class="wa-stack wa-gap-m" style="padding-block: var(--wa%w !pbcopy%w !pbcopy-space-xl);">
           <h2 class="wa-heading-xl">Adding New Decks</h2>
           <p>When you build a new deck:</p>
           <ol style="padding-left: var(--wa-space-xl); line-height: 1.8;">
             <li>Add the deck to your existing PRISM</li>
-            <li>Use "Filter by Deck" to see only cards in the new deck</li>
-            <li>Cards already in your collection just need the new deck's mark added</li>
-            <li>New cards need all their marks (check other decks they appear in)</li>
+            <li>Use "Filter by Deck" to see only the cards in the new deck.</li>
+            <li>Cards already in your collection just need the new deck's color added. </li>
+            <li>New cards need all their marks, so check whether they appear in other decks too.</li>
           </ol>
           <wa-callout variant="neutral" style="margin-top: var(--wa-space-m);">
             <wa-icon slot="icon" name="lightbulb"></wa-icon>
-            <strong>Tip:</strong> The "Done" checkbox resets when you add a new deck, so you can track your progress marking the new deck's cards.
+            <strong>Tip:</strong> The "Done" checkbox resets when you add a new deck, so you can track your progress on the new markings from scratch.
           </wa-callout>
         </section>
 
