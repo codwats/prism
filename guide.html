@@ -45,12 +45,21 @@
 
       <main style="max-width: 800px; margin: 0 auto;">
         <!-- Page Header -->
-        <section class="wa-stack wa-gap-m" style="padding-block: var(--wa-space-2xl);">
-          <h1 class="wa-heading-2xl">Sleeve Marking Guide</h1>
-          <p class="wa-body-l" style="color: var(--wa-color-neutral-text-subtle);">
+        <div class="wa-flank" style="--flank-size: 8rem;">
+  <div class="wa-frame wa-border-radius-m">
+    <img src="assets/stripe.avif" alt="" />
+  </div>
+  <div class="wa-flank:end" style="--content-percentage: 45%">
+    <div class="wa-stack wa-gap-xs">
+      <h1 class="wa-heading-2xl">Sleeve Marking Guide</h1>
+      <span>
 Share your staples across every deck. PRISM tracks what goes where so you don't have to.
-          </p>
-        </section>
+</span>
+    </div>
+    
+  </div>
+</div>
+        
 
         <!-- Quick Overview -->
         <section class="wa-stack wa-gap-m" style="padding-block: var(--wa-space-xl);">
@@ -87,6 +96,11 @@ Share your staples across every deck. PRISM tracks what goes where so you don't 
               <li>Some sleeve materials work better with certain pen types</li>
             </ul>
           </div>
+          <wa-callout variant="warning">
+            <wa-icon slot="icon" name="hourglass"></wa-icon>            
+              <strong>Let marks dry before sleeving.</strong><br />
+             Give them 2-3 minutes, especially paint pens. Rushing this step leads to smeared marks and re-dos.
+          </wa-callout>
 
           <div class="wa-stack wa-gap-m">
             <h3 class="wa-heading-m">3. Mark Consistently</h3>
@@ -96,6 +110,12 @@ Share your staples across every deck. PRISM tracks what goes where so you don't 
               <li>Small dots or short lines work well (3-7mm).</li>
             </ul>
           </div>
+
+          <wa-callout variant="brand" appearance="outlined">
+            <wa-icon slot="icon"  name="handshake-angle"></wa-icon>            
+              <strong>Use our PRISM Spirit Guide</strong><br />
+              A marking jig with position guides makes the whole process faster and more consistent. It holds the sleeve in place so you can add all colors for that card at once, rather than batching by color. You can find the 3D-printable PRISM Spirit Guide on the <a href="tools.html">Tools page</a>.
+          </wa-callout>
 
           <div class="wa-stack wa-gap-m">
             <h3 class="wa-heading-m">4. Work Through Your List</h3>
@@ -109,43 +129,23 @@ Share your staples across every deck. PRISM tracks what goes where so you don't 
           </div>
         </section>
 
-        <wa-divider></wa-divider>
 
         <!-- Tips Section -->
         <section class="wa-stack wa-gap-l" style="padding-block: var(--wa-space-xl);">
-          <h2 class="wa-heading-xl">Pro Tips</h2>
+         
 
-         <wa-callout variant="warning">
-  <wa-icon slot="icon" name="hourglass"></wa-icon>            
-              <strong>Let marks dry before sleeving.</strong><br />
-             Give them 2-3 minutes, especially paint pens. Rushing this step leads to smeared marks and re-dos.
-            
+          <wa-callout variant="neutral">
+              <wa-icon slot="icon" name="layer-group"></wa-icon>
+              <strong>PRISM is designed to be Double-Sleeved</strong><br />
+              Mark the <strong>inner</strong> sleeve on the card-face side. The marks are small (around 7mm) and won't be felt through the outer sleeve, so your cards stay tournament legal.
           </wa-callout>
 
-          <wa-card>
-            <div class="wa-stack wa-gap-s">
-              <h3 class="wa-heading-m">PRISM is designed to be Double-Sleeved</h3>
-              <p>Mark the <strong>inner</strong> sleeve on the card-face side. The marks are small (around 7mm) and won't be felt through the outer sleeve, so your cards stay tournament legal.</p>
-            </div>
-          </wa-card>
+          
+          
+  
 
-          <wa-card>
-            <div class="wa-stack wa-gap-s">
-              <h3 class="wa-heading-m">Use our PRISM Spirit Guide</h3>
-              <p>A marking jig with position guides makes the whole process faster and more consistent. It holds the sleeve in place so you can add all colors for that card at once, rather than batching by color. You can find the 3D-printable PRISM Spirit Guide on the <a href="tools.html">Tools page</a>.</p>
-            </div>
-          </wa-card>
-
-          <wa-card>
-            <div class="wa-stack wa-gap-s">
- :lua package.loaded["lualine"]=true
-             <h3 class="wa-heading-m">Batch by Color</h3>
-              <p>Instead of switching pens for every card, do all marks for one color first. It's faster, and it gives the previous color time to dry. If you're using the PRISM Spirit Guide, you can skip this. The jig uses magnets to hold sleeves in place, so you can work through cards one-handed and add all colors per sleeve as you go. Print or buy multiple guides and set up an assembly line for even faster marking.</p>
-            </div>
-          </wa-card>
         </section>
 
-        <wa-divider></wa-divider>
 
         <!-- Basic Lands -->
         <section class="wa-stack wa-gap-m" style="padding-block: var(--wa-space-xl);">
@@ -157,7 +157,11 @@ Share your staples across every deck. PRISM tracks what goes where so you don't 
           </p>
         </section>
 
-        <wa-divider></wa-divider>
+          <wa-callout variant="success" appearance="outlined">
+              <wa-icon slot="icon" name="palette"></wa-icon>
+              <strong>Batch by Color</strong><br />
+              Instead of switching pens for every card, do all marks for one color first. It's faster, and it gives the previous color time to dry. If you're using the PRISM Spirit Guide, you can skip this. The jig uses magnets to hold sleeves in place, so you can work through cards one-handed and add all colors per sleeve as you go. Print or buy multiple guides and set up an assembly line for even faster marking.
+          </wa-callout>
 
         <!-- Bracket Stacking -->
         <section class="wa-stack wa-gap-m" style="padding-block: var(--wa-space-xl);">

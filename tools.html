@@ -29,11 +29,7 @@
             <img src="./assets/Prism-Small-Icon-Invert.svg" style="height:1.5em;">
             <span class="wa-heading-m wa-desktop-only">PRISM</span>
           </a>
-          <nav class="wa-cluster wa-gap-m wa-desktop-only">
-            <a href="guide.html">Guide</a>
-            <a href="tools.html" style="color: var(--wa-color-brand-text);">Tools</a>
-          </nav>
-        </div>
+                  </div>
         <div class="wa-cluster wa-gap-xs wa-align-items-center">
           <wa-button href="build.html" variant="brand" size="small">
             <wa-icon slot="start" name="wand-magic-sparkles"></wa-icon>
@@ -44,9 +40,20 @@
 
       <main style="max-width: 900px; margin: 0 auto;">
         <!-- Page Header -->
-        <section class="wa-stack wa-gap-m" style="padding-block: var(--wa-space-2xl);">
-          <h1 class="wa-heading-2xl">Tools & Supplies</h1>
-        </section>
+        <div class="wa-flank" style="--flank-size: 8rem;">
+  <div class="wa-frame wa-border-radius-m">
+    <img src="assets/spiritguide.avif" alt="3dprinted-cardguide" />
+  </div>
+  <div class="wa-flank:end" style="--content-percentage: 45%">
+    <div class="wa-stack wa-gap-xs">
+      <h1 class="wa-heading-2xl">Tools and Supplies</h1>
+     
+    </div>
+    
+  </div>
+</div>
+
+        
 
         <!-- Paint Pens -->
         <section class="wa-stack wa-gap-l" style="padding-block: var(--wa-space-xl);">
@@ -180,7 +187,7 @@
         <!-- 3D Printed Tools -->
         <section class="wa-stack wa-gap-l" style="padding-block: var(--wa-space-xl);">
           <h2 class="wa-heading-xl">
-            <wa-icon name="cube" style="margin-right: var(--wa-space-s);"></wa-icon>
+            <wa-icon name="handshake-angle" style="margin-right: var(--wa-space-s);"></wa-icon>
             PRISM Spirit Guide
           </h2>
           <p>The Spirit Guide is a marking jig that holds your sleeve in place with guides for each stripe position. It makes marking faster, more consistent, and lets you work one-handed thanks to its magnetic hold.</p>
