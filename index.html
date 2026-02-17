@@ -14,7 +14,15 @@
     <link rel="stylesheet" href="custom.css" />
   </head>
   <body>
-    <wa-page disable-navigation-toggle="true" mobile-breakpoint="475">
+    <wa-page mobile-breakpoint="768">
+      <!-- Mobile Navigation -->
+      <nav slot="navigation" class="wa-stack wa-gap-m" style="padding: var(--wa-space-l);">
+        <a href="index.html" class="wa-heading-m" style="text-decoration: none; color: inherit;">Home</a>
+        <a href="guide.html" style="text-decoration: none; color: inherit;">Guide</a>
+        <a href="tools.html" style="text-decoration: none; color: inherit;">Tools</a>
+        <a href="build.html" style="text-decoration: none; color: inherit;">Build PRISM</a>
+      </nav>
+
       <!-- Header -->
       <header slot="header" class="wa-split">
         <div class="wa-cluster wa-gap-m wa-align-items-center">
@@ -22,10 +30,13 @@
           <img src="./assets/Prism-Small-Icon-Invert.svg" style="height:1.5em;">
             <span class="wa-heading-m wa-desktop-only">PRISM</span>
           </a>
+          <!-- mobile nav now seems to be working so I'll comment this out
           <nav class="wa-cluster wa-gap-m wa-desktop-only">
-            <a href="#features">Features</a>
+            <a href="guide.html">Guide</a>
+            <a href="tools.html">Tools</a>
             <a href="#faq">FAQ</a>
           </nav>
+          --->
         </div>
         <div class="wa-cluster wa-gap-xs wa-align-items-center">
           <wa-button href="build.html" variant="brand" size="small">
@@ -64,17 +75,17 @@
           
           <div class="wa-grid wa-gap-xl" style="--min-column-size: 250px;">
             <div class="wa-stack wa-gap-s wa-align-items-center" style="text-align: center;">
-              <div style="font-size: 3rem;">1️⃣</div>
+              <div style="font-size: 3rem;"><wa-icon name="1"></wa-icon></div>
               <h3 class="wa-heading-m">Import Your Decks</h3>
               <p>Paste your decklists (up to 32 decks). Each deck gets a unique color and stripe position.</p>
             </div>
             <div class="wa-stack wa-gap-s wa-align-items-center" style="text-align: center;">
-              <div style="font-size: 3rem;">2️⃣</div>
+              <div style="font-size: 3rem;"><wa-icon name="2"></wa-icon></div>
               <h3 class="wa-heading-m">See Shared Cards</h3>
               <p>PRISM finds cards that appear in multiple decks. One Sol Ring can serve all 32!</p>
             </div>
             <div class="wa-stack wa-gap-s wa-align-items-center" style="text-align: center;">
-              <div style="font-size: 3rem;">3️⃣</div>
+              <div style="font-size: 3rem;"><wa-icon name="3"></wa-icon></div>
               <h3 class="wa-heading-m">Mark Your Sleeves</h3>
               <p>Export a guide showing exactly where to mark each sleeve. Fan cards to find any deck instantly.</p>
             </div>

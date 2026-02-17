@@ -85,6 +85,21 @@
   background: var(--wa-color-warning-surface);
 }
 
+.results-table .mark-checkbox {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+  accent-color: var(--wa-color-brand-fill);
+}
+
+.results-table .marked-row {
+  opacity: 0.45;
+}
+
+.results-table .marked-row td:first-child {
+  text-decoration: line-through;
+}
+
 .results-table .basic-land {
   font-style: italic;
 }
@@ -223,4 +238,45 @@
 
 .results-table th.sorted .sort-icon {
   opacity: 1;
+}
+
+/* ============================================================================
+   Deck Filter Dropdown
+   ============================================================================ */
+
+#deck-filter-menu {
+  min-width: 220px;
+}
+
+#deck-filter-menu wa-menu-item {
+  display: flex;
+  align-items: center;
+}
+
+#deck-filter-menu .deck-filter-checkbox {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  flex-shrink: 0;
+}
+
+#deck-filter-menu .deck-color-indicator {
+  flex-shrink: 0;
+}
+
+/* ============================================================================
+   Removed Cards View
+   ============================================================================ */
+
+.results-table .removed-row {
+  background: var(--wa-color-danger-surface-subtle);
+}
+
+.results-table .removed-row:hover {
+  background: var(--wa-color-danger-surface);
+}
+
+.removed-deck-label {
+  font-size: var(--wa-font-size-s);
+  color: var(--wa-color-danger-text);
 }

@@ -13,7 +13,15 @@
     <link rel="stylesheet" href="custom.css" />
   </head>
   <body>
-    <wa-page disable-navigation-toggle="true" mobile-breakpoint="475">
+    <wa-page mobile-breakpoint="768">
+      <!-- Mobile Navigation -->
+      <nav slot="navigation" class="wa-stack wa-gap-m" style="padding: var(--wa-space-l);">
+        <a href="index.html" style="text-decoration: none; color: inherit;">Home</a>
+        <a href="guide.html" style="text-decoration: none; color: inherit;">Guide</a>
+        <a href="tools.html" style="text-decoration: none; color: inherit;">Tools</a>
+        <a href="build.html" class="wa-heading-m" style="text-decoration: none; color: var(--wa-color-brand-text);">Build PRISM</a>
+      </nav>
+
       <!-- Header -->
       <header slot="header" class="wa-split">
         <div class="wa-cluster wa-gap-m wa-align-items-center">
@@ -21,6 +29,10 @@
             <img src="./assets/Prism-Small-Icon-Invert.svg" alt="Prism Logo" style="height:1.5em;">
             <span class="wa-heading-m wa-desktop-only">PRISM</span>
           </a>
+          <nav class="wa-cluster wa-gap-m wa-desktop-only">
+            <a href="guide.html">Guide</a>
+            <a href="tools.html">Tools</a>
+          </nav>
         </div>
         <div class="wa-cluster wa-gap-xs wa-align-items-center">
           <wa-button id="btn-new-prism" appearance="outlined" variant="neutral" size="small">
@@ -232,7 +244,20 @@
                   <wa-radio appearance="button" value="all">All Cards</wa-radio>
                   <wa-radio appearance="button" value="shared">Shared (2+ Decks)</wa-radio>
                   <wa-radio appearance="button" value="basics-by-deck">Basics by Deck</wa-radio>
+                  <wa-radio appearance="button" value="removed" id="removed-filter-btn">Removed</wa-radio>
                 </wa-radio-group>
+
+                <!-- Deck Filter Dropdown -->
+                <wa-dropdown id="deck-filter-dropdown" stay-open-on-select>
+                  <wa-button slot="trigger" variant="neutral" size="small" caret>
+                    <wa-icon slot="start" name="filter"></wa-icon>
+                    Filter by Deck
+                  </wa-button>
+                  <wa-menu id="deck-filter-menu">
+                    <!-- Deck checkboxes will be dynamically inserted here -->
+                  </wa-menu>
+                </wa-dropdown>
+
                 <wa-switch id="show-all-slots" size="small">Show all slots</wa-switch>
               </div>
 
@@ -248,6 +273,7 @@
                     <tr>
                       <th>Card Name</th>
                       <th>Stripes</th>
+                      <th style="width: 60px;">Done</th>
                     </tr>
                   </thead>
                   <tbody id="results-tbody">

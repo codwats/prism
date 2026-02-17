@@ -4,19 +4,21 @@
  */
 
 import { parseDecklist, validateDecklist } from './parser.js';
-import { 
-  createDeck, 
-  createPrism, 
-  processCards, 
+import {
+  createDeck,
+  createPrism,
+  processCards,
   calculateOverlap,
-  getNextStripePosition, 
+  getNextStripePosition,
   getNextColor,
   isColorUsed,
   addDeckToPrism,
   removeDeckFromPrism,
   reorderStripes,
   DEFAULT_COLORS,
-  getColorName
+  getColorName,
+  calculateRemovedCards,
+  isCardInOtherDecks
 } from './processor.js';
 import { 
   getCurrentPrism, 
@@ -35,6 +37,7 @@ let deckToDelete = null;
 let deckToEdit = null;
 let elements = null;
 let sortState = { column: 'deckCount', direction: 'desc' }; // Default: most shared first
+let selectedDeckIds = new Set(); // For deck filter dropdown
 
 // ============================================================================
 // Initialization
@@ -75,6 +78,8 @@ function getElements() {
     resultsFilter: document.getElementById('results-filter'),
     resultsSearch: document.getElementById('results-search'),
     showAllSlots: document.getElementById('show-all-slots'),
+    deckFilterDropdown: document.getElementById('deck-filter-dropdown'),
+    deckFilterMenu: document.getElementById('deck-filter-menu'),
     resultsTbody: document.getElementById('results-tbody'),
     noResults: document.getElementById('no-results'),
     btnGoToDecks: document.getElementById('btn-go-to-decks'),
@@ -426,16 +431,24 @@ function handleDeckSubmit(e) {
   
   // Add to PRISM
   currentPrism = addDeckToPrism(currentPrism, deck);
+
+  // Auto-clear any removed cards that are now back in a deck
+  const autoClearedCount = autoClearRemovedCards(parseResult.cards);
+
   savePrism(currentPrism);
-  
+
   console.log('PRISM: Deck added:', deck.name);
-  
+
   // Reset form and re-render
   resetDeckForm();
   renderAll();
-  
+
   // Show success feedback
-  showSuccess(`Added "${name}" with ${parseResult.uniqueCards} cards.`);
+  let message = `Added "${name}" with ${parseResult.uniqueCards} cards.`;
+  if (autoClearedCount > 0) {
+    message += ` ${autoClearedCount} card${autoClearedCount > 1 ? 's' : ''} auto-cleared from removed list.`;
+  }
+  showSuccess(message);
 }
 
 function handleDeleteClick(deckId) {
@@ -482,6 +495,9 @@ function handleEditConfirm() {
 
   const deck = currentPrism.decks.find(d => d.id === deckToEdit);
   if (!deck) return;
+
+  // Store old cards for comparison
+  const oldCards = [...deck.cards];
 
   // Get form values
   const name = (elements.editDeckName?.value || '').trim();
@@ -537,16 +553,67 @@ function handleEditConfirm() {
     return;
   }
 
+  // Calculate removed cards BEFORE updating the deck
+  const removedFromDeck = calculateRemovedCards(oldCards, parseResult.cards);
+
+  // Initialize removedCards array if it doesn't exist
+  if (!currentPrism.removedCards) {
+    currentPrism.removedCards = [];
+  }
+
+  // Track cards that need their marks removed
+  // Only add if the card is NOT in any other deck (otherwise the mark is still needed)
+  const now = new Date().toISOString();
+  let removedCount = 0;
+
+  for (const removedCard of removedFromDeck) {
+    // Check if this card is still in another deck
+    if (!isCardInOtherDecks(currentPrism, removedCard.name, deckToEdit)) {
+      // Card is completely removed from all decks - track it
+      currentPrism.removedCards.push({
+        cardName: removedCard.name,
+        deckId: deck.id,
+        deckName: deck.name,
+        deckColor: deck.color,
+        stripePosition: deck.stripePosition,
+        removedAt: now
+      });
+      removedCount++;
+    } else {
+      // Card is still in other decks - just need to remove this deck's mark
+      // Check if we already track this exact card+deck combination
+      const alreadyTracked = currentPrism.removedCards.some(
+        rc => rc.cardName.toLowerCase() === removedCard.name.toLowerCase() &&
+              rc.deckId === deck.id
+      );
+      if (!alreadyTracked) {
+        currentPrism.removedCards.push({
+          cardName: removedCard.name,
+          deckId: deck.id,
+          deckName: deck.name,
+          deckColor: deck.color,
+          stripePosition: deck.stripePosition,
+          removedAt: now
+        });
+        removedCount++;
+      }
+    }
+  }
+
+  // Auto-clear removed cards that are now back in the deck
+  // (e.g. user pasted wrong list, then fixed it)
+  const autoClearedCount = autoClearRemovedCards(parseResult.cards);
+
   // Update deck
   deck.name = name;
   deck.commander = commander;
   deck.bracket = parseInt(bracket, 10);
   deck.color = color;
   deck.cards = parseResult.cards;
-  deck.updatedAt = new Date().toISOString();
+  deck.updatedAt = now;
 
   // Update PRISM timestamp
-  currentPrism.updatedAt = new Date().toISOString();
+  currentPrism.updatedAt = now;
 
   // Save and close
   savePrism(currentPrism);
@@ -554,19 +621,79 @@ function handleEditConfirm() {
   elements.editDialog.open = false;
 
   renderAll();
-  showSuccess(`Updated "${name}" with ${parseResult.uniqueCards} cards.`);
+
+  // Show success message with removed/cleared card info
+  let message = `Updated "${name}" with ${parseResult.uniqueCards} cards.`;
+  if (removedCount > 0) {
+    message += ` ${removedCount} card${removedCount > 1 ? 's' : ''} marked for removal.`;
+  }
+  if (autoClearedCount > 0) {
+    message += ` ${autoClearedCount} card${autoClearedCount > 1 ? 's' : ''} auto-cleared from removed list.`;
+  }
+  showSuccess(message);
 }
 
 function handleDeleteConfirm() {
   if (!deckToDelete) return;
-  
+
+  const deck = currentPrism.decks.find(d => d.id === deckToDelete);
+  if (!deck) return;
+
+  // Initialize removedCards array if it doesn't exist
+  if (!currentPrism.removedCards) {
+    currentPrism.removedCards = [];
+  }
+
+  // Track cards that need their marks removed
+  const now = new Date().toISOString();
+  let removedCount = 0;
+
+  for (const card of deck.cards) {
+    // Check if this card is in any OTHER deck (not the one being deleted)
+    if (!isCardInOtherDecks(currentPrism, card.name, deckToDelete)) {
+      // Card is only in this deck - track for complete removal
+      currentPrism.removedCards.push({
+        cardName: card.name,
+        deckId: deck.id,
+        deckName: deck.name,
+        deckColor: deck.color,
+        stripePosition: deck.stripePosition,
+        removedAt: now
+      });
+      removedCount++;
+    } else {
+      // Card is in other decks - still need to remove this deck's mark
+      const alreadyTracked = currentPrism.removedCards.some(
+        rc => rc.cardName.toLowerCase() === card.name.toLowerCase() &&
+              rc.deckId === deck.id
+      );
+      if (!alreadyTracked) {
+        currentPrism.removedCards.push({
+          cardName: card.name,
+          deckId: deck.id,
+          deckName: deck.name,
+          deckColor: deck.color,
+          stripePosition: deck.stripePosition,
+          removedAt: now
+        });
+        removedCount++;
+      }
+    }
+  }
+
+  const deckName = deck.name;
   currentPrism = removeDeckFromPrism(currentPrism, deckToDelete);
   savePrism(currentPrism);
-  
+
   deckToDelete = null;
   elements.deleteDialog.open = false;
-  
+
   renderAll();
+
+  // Show message about removed cards
+  if (removedCount > 0) {
+    showSuccess(`Deleted "${deckName}". ${removedCount} card${removedCount > 1 ? 's' : ''} marked for removal.`);
+  }
 }
 
 function handleNewPrism() {
@@ -682,6 +809,8 @@ function handleJsonImport(e) {
       newPrism.id = prismData.id || newPrism.id;
       newPrism.createdAt = prismData.createdAt || newPrism.createdAt;
       newPrism.updatedAt = new Date().toISOString();
+      newPrism.markedCards = prismData.markedCards || [];
+      newPrism.removedCards = prismData.removedCards || [];
 
       // Import each deck
       for (const deck of prismData.decks) {
@@ -753,8 +882,107 @@ function handleStripeReorder(deckId, direction) {
   // Apply new order
   currentPrism = reorderStripes(currentPrism, deckIds);
   savePrism(currentPrism);
-  
+
   renderAll();
+}
+
+/**
+ * Auto-clear cards from the removed list if they've been added back to a deck.
+ * Call this after adding or editing a deck.
+ * @param {Array} newCards - The cards in the newly added/updated deck
+ * @returns {number} Number of cards auto-cleared
+ */
+function autoClearRemovedCards(newCards) {
+  if (!currentPrism?.removedCards?.length || !newCards?.length) return 0;
+
+  const newCardNames = new Set(
+    newCards.map(c => c.name.toLowerCase().trim())
+  );
+
+  const before = currentPrism.removedCards.length;
+  currentPrism.removedCards = currentPrism.removedCards.filter(
+    rc => !newCardNames.has(rc.cardName.toLowerCase().trim())
+  );
+
+  return before - currentPrism.removedCards.length;
+}
+
+/**
+ * Handle clearing a removed card entry (user has removed the physical mark)
+ */
+function handleClearRemoved(cardName, deckId) {
+  if (!currentPrism || !currentPrism.removedCards) return;
+
+  // Remove the entry from removedCards
+  currentPrism.removedCards = currentPrism.removedCards.filter(
+    rc => !(rc.cardName.toLowerCase() === cardName.toLowerCase() && rc.deckId === deckId)
+  );
+
+  currentPrism.updatedAt = new Date().toISOString();
+  savePrism(currentPrism);
+
+  // Update the removed filter button badge
+  updateRemovedFilterBadge();
+
+  renderResults();
+  showSuccess(`Cleared "${cardName}" from removed list.`);
+}
+
+/**
+ * Update the "Removed" filter button to show badge with count
+ */
+function updateRemovedFilterBadge() {
+  const removedBtn = document.getElementById('removed-filter-btn');
+  if (!removedBtn) return;
+
+  const count = currentPrism?.removedCards?.length || 0;
+
+  if (count > 0) {
+    removedBtn.textContent = `Removed (${count})`;
+    removedBtn.style.setProperty('--wa-color-surface', 'var(--wa-color-warning-surface-subtle)');
+  } else {
+    removedBtn.textContent = 'Removed';
+    removedBtn.style.removeProperty('--wa-color-surface');
+  }
+}
+
+/**
+ * Handle marking a card as done
+ */
+function handleMarkToggle(event) {
+  const checkbox = event.currentTarget; // Use currentTarget for the element the listener is on
+  const row = checkbox.closest('tr');
+  const cardKey = row?.dataset?.cardKey;
+
+  if (!cardKey || !currentPrism) {
+    console.warn('Mark toggle failed:', { cardKey, hasPrism: !!currentPrism });
+    return;
+  }
+
+  // Initialize markedCards array if it doesn't exist
+  if (!currentPrism.markedCards) {
+    currentPrism.markedCards = [];
+  }
+
+  const isChecked = checkbox.checked;
+
+  if (isChecked) {
+    // Add to marked cards
+    if (!currentPrism.markedCards.includes(cardKey)) {
+      currentPrism.markedCards.push(cardKey);
+    }
+    row.classList.add('marked-row');
+  } else {
+    // Remove from marked cards
+    currentPrism.markedCards = currentPrism.markedCards.filter(c => c !== cardKey);
+    row.classList.remove('marked-row');
+  }
+
+  // Save to localStorage
+  currentPrism.updatedAt = new Date().toISOString();
+  savePrism(currentPrism);
+
+  console.log('Card marked:', cardKey, 'checked:', isChecked, 'total marked:', currentPrism.markedCards.length);
 }
 
 // ============================================================================
@@ -766,6 +994,7 @@ function renderAll() {
   renderDecksList();
   renderResults();
   renderExport();
+  updateRemovedFilterBadge();
 }
 
 function renderPrismHeader() {
@@ -925,6 +1154,36 @@ function renderResults() {
       if (landCompare !== 0) return landCompare;
       return a.deckName.localeCompare(b.deckName);
     });
+  } else if (filter === 'removed') {
+    // Show cards that have been removed from decks and need marks cleared
+    displayCards = [];
+    const removedCards = currentPrism.removedCards || [];
+
+    for (const removed of removedCards) {
+      displayCards.push({
+        name: removed.cardName,
+        isRemoved: true,
+        removedDeckId: removed.deckId,
+        removedDeckName: removed.deckName,
+        removedDeckColor: removed.deckColor,
+        removedStripePosition: removed.stripePosition,
+        removedAt: removed.removedAt,
+        deckCount: 0, // Not in any deck now (for this stripe)
+        stripes: [{
+          position: removed.stripePosition,
+          color: removed.deckColor,
+          deckName: removed.deckName,
+          deckId: removed.deckId
+        }]
+      });
+    }
+
+    // Sort by removal date (most recent first), then by card name
+    displayCards.sort((a, b) => {
+      const dateCompare = new Date(b.removedAt) - new Date(a.removedAt);
+      if (dateCompare !== 0) return dateCompare;
+      return a.name.localeCompare(b.name);
+    });
   } else {
     displayCards = filteredCards;
   }
@@ -934,6 +1193,17 @@ function renderResults() {
       c.name.toLowerCase().includes(search)
     );
   }
+
+  // Apply deck filter (if any decks are selected)
+  if (selectedDeckIds.size > 0) {
+    displayCards = displayCards.filter(card => {
+      // Check if any of the card's stripes match a selected deck
+      return card.stripes.some(s => selectedDeckIds.has(s.deckId));
+    });
+  }
+
+  // Render deck filter menu
+  renderDeckFilterMenu();
 
   // Apply sorting
   displayCards = sortCards(displayCards, sortState.column, sortState.direction);
@@ -948,6 +1218,39 @@ function renderResults() {
   const totalDecks = currentPrism?.decks?.length || 0;
 
   elements.resultsTbody.innerHTML = displayCards.map(card => {
+    // Handle removed cards differently
+    if (card.isRemoved) {
+      const removedKey = `${card.name}|${card.removedDeckId}`;
+      return `
+        <tr class="removed-row" data-removed-key="${escapeHtml(removedKey)}">
+          <td>${escapeHtml(card.name)}</td>
+          <td>
+            <div class="wa-cluster wa-gap-xs wa-align-items-center">
+              <div
+                class="stripe-indicator"
+                style="background-color: ${card.removedDeckColor};"
+                title="Remove from Slot ${card.removedStripePosition}"
+              ></div>
+              <span class="removed-deck-label">Remove from ${escapeHtml(card.removedDeckName)}</span>
+            </div>
+          </td>
+          <td style="text-align: center;">
+            <wa-button
+              appearance="plain"
+              variant="neutral"
+              size="small"
+              class="btn-clear-removed"
+              data-card-name="${escapeHtml(card.name)}"
+              data-deck-id="${card.removedDeckId}"
+              title="Mark as cleared"
+            >
+              <wa-icon name="check"></wa-icon>
+            </wa-button>
+          </td>
+        </tr>
+      `;
+    }
+
     let stripeIndicators;
 
     if (showAllSlots && totalDecks > 0) {
@@ -987,20 +1290,52 @@ function renderResults() {
     const basicTag = card.isBasicLand && !card.isBasicByDeck ? ' <span class="basic-tag">(Basic)</span>' : '';
     const copiesCell = filter === 'basics-by-deck' ? `<td>${card.totalQuantity}</td>` : '';
 
+    // Check if card is marked (use original card name for basics-by-deck entries)
+    const cardKey = card.isBasicByDeck ? `${card.displayName}|${card.deckName}` : card.name;
+    const isMarked = currentPrism.markedCards?.includes(cardKey) || false;
+    const markedClass = isMarked ? 'marked-row' : '';
+
     return `
-      <tr class="${rowClass}">
+      <tr class="${rowClass} ${markedClass}" data-card-key="${escapeHtml(cardKey)}">
         <td class="${nameClass}">${escapeHtml(card.name)}${basicTag}</td>${copiesCell}
         <td><div class="stripe-indicators">${stripeIndicators}</div></td>
+        <td style="text-align: center;">
+          <input type="checkbox" class="mark-checkbox" ${isMarked ? 'checked' : ''}>
+        </td>
       </tr>
     `;
   }).join('');
 
-  const colspan = filter === 'basics-by-deck' ? 3 : 2;
-  if (displayCards.length === 0 && processedCards.length > 0) {
+  // Add event listeners for checkboxes
+  elements.resultsTbody.querySelectorAll('.mark-checkbox').forEach(checkbox => {
+    checkbox.addEventListener('change', handleMarkToggle);
+  });
+
+  // Add event listeners for "Clear removed" buttons
+  elements.resultsTbody.querySelectorAll('.btn-clear-removed').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const cardName = btn.dataset.cardName;
+      const deckId = btn.dataset.deckId;
+      handleClearRemoved(cardName, deckId);
+    });
+  });
+
+  const colspan = filter === 'basics-by-deck' ? 4 : 3;
+
+  // Handle empty states
+  if (displayCards.length === 0) {
+    let emptyMessage = 'No cards match your filter.';
+
+    if (filter === 'removed') {
+      emptyMessage = 'No cards pending removal. Edit a deck to see cards that need marks cleared.';
+    } else if (processedCards.length === 0) {
+      return; // Don't show message if no cards exist at all
+    }
+
     elements.resultsTbody.innerHTML = `
       <tr>
         <td colspan="${colspan}" style="text-align: center; color: var(--wa-color-neutral-text-subtle); padding: var(--wa-space-xl);">
-          No cards match your filter.
+          ${emptyMessage}
         </td>
       </tr>
     `;
@@ -1008,6 +1343,9 @@ function renderResults() {
 }
 
 function sortCards(cards, column, direction) {
+  // Pre-compute lookup for marked status
+  const markedSet = column === 'marked' ? new Set(currentPrism?.markedCards || []) : null;
+
   return cards.sort((a, b) => {
     let comparison = 0;
 
@@ -1019,12 +1357,23 @@ function sortCards(cards, column, direction) {
         comparison = a.totalQuantity - b.totalQuantity;
         break;
       case 'deckCount':
+        // Sort by deck count (most shared first by default)
         comparison = a.deckCount - b.deckCount;
-        // Secondary sort by name for same deck count
         if (comparison === 0) {
           comparison = a.name.localeCompare(b.name);
         }
         break;
+      case 'marked': {
+        const aKey = a.isBasicByDeck ? `${a.displayName}|${a.deckName}` : a.name;
+        const bKey = b.isBasicByDeck ? `${b.displayName}|${b.deckName}` : b.name;
+        const aMarked = markedSet.has(aKey) ? 1 : 0;
+        const bMarked = markedSet.has(bKey) ? 1 : 0;
+        comparison = aMarked - bMarked;
+        if (comparison === 0) {
+          comparison = a.name.localeCompare(b.name);
+        }
+        break;
+      }
       default:
         comparison = 0;
     }
@@ -1039,6 +1388,7 @@ function renderResultsHeader() {
 
   const filter = elements.resultsFilter?.value || 'all';
   const showCopies = filter === 'basics-by-deck';
+  const isRemovedFilter = filter === 'removed';
 
   const getSortIcon = (column) => {
     if (sortState.column !== column) return 'sort';
@@ -1055,15 +1405,36 @@ function renderResultsHeader() {
         <wa-icon name="${getSortIcon('copies')}" class="sort-icon"></wa-icon>
       </th>` : '';
 
-  thead.innerHTML = `
-    <tr>
-      <th class="sortable ${getSortedClass('name')}" data-sort="name">
-        Card Name
-        <wa-icon name="${getSortIcon('name')}" class="sort-icon"></wa-icon>
-      </th>${copiesHeader}
-      <th>Stripes</th>
-    </tr>
-  `;
+  // Different header for removed cards view
+  if (isRemovedFilter) {
+    thead.innerHTML = `
+      <tr>
+        <th class="sortable ${getSortedClass('name')}" data-sort="name">
+          Card Name
+          <wa-icon name="${getSortIcon('name')}" class="sort-icon"></wa-icon>
+        </th>
+        <th>Remove Mark From</th>
+        <th style="width: 60px; text-align: center;">Clear</th>
+      </tr>
+    `;
+  } else {
+    thead.innerHTML = `
+      <tr>
+        <th class="sortable ${getSortedClass('name')}" data-sort="name">
+          Card Name
+          <wa-icon name="${getSortIcon('name')}" class="sort-icon"></wa-icon>
+        </th>${copiesHeader}
+        <th class="sortable ${getSortedClass('deckCount')}" data-sort="deckCount">
+          Stripes
+          <wa-icon name="${getSortIcon('deckCount')}" class="sort-icon"></wa-icon>
+        </th>
+        <th class="sortable ${getSortedClass('marked')}" data-sort="marked" style="width: 60px; text-align: center;">
+          Done
+          <wa-icon name="${getSortIcon('marked')}" class="sort-icon"></wa-icon>
+        </th>
+      </tr>
+    `;
+  }
 
   // Add click handlers for sortable columns
   thead.querySelectorAll('th.sortable').forEach(th => {
@@ -1088,6 +1459,73 @@ function renderResultsHeader() {
       renderResults();
     });
   });
+}
+
+function renderDeckFilterMenu() {
+  if (!elements.deckFilterMenu) return;
+
+  const sortedDecks = [...currentPrism.decks].sort((a, b) => a.stripePosition - b.stripePosition);
+
+  if (sortedDecks.length === 0) {
+    elements.deckFilterMenu.innerHTML = '<wa-menu-item disabled>No decks added</wa-menu-item>';
+    return;
+  }
+
+  // Build menu with checkboxes using native inputs for performance
+  elements.deckFilterMenu.innerHTML = `
+    <wa-menu-item class="deck-filter-clear" style="border-bottom: 1px solid var(--wa-color-neutral-stroke-subtle);">
+      <wa-icon slot="start" name="xmark"></wa-icon>
+      Clear All Filters
+    </wa-menu-item>
+    ${sortedDecks.map(deck => `
+      <wa-menu-item class="deck-filter-item" data-deck-id="${deck.id}">
+        <input type="checkbox" class="deck-filter-checkbox" data-deck-id="${deck.id}"
+          ${selectedDeckIds.has(deck.id) ? 'checked' : ''}
+          style="margin-right: 8px;">
+        <div class="deck-color-indicator small" style="background-color: ${deck.color}; margin-right: 8px;"></div>
+        ${escapeHtml(deck.name)}
+      </wa-menu-item>
+    `).join('')}
+  `;
+
+  // Add event listeners for checkboxes
+  elements.deckFilterMenu.querySelectorAll('.deck-filter-checkbox').forEach(checkbox => {
+    checkbox.addEventListener('change', (e) => {
+      e.stopPropagation(); // Prevent menu item click
+      const deckId = checkbox.dataset.deckId;
+      if (checkbox.checked) {
+        selectedDeckIds.add(deckId);
+      } else {
+        selectedDeckIds.delete(deckId);
+      }
+      updateDeckFilterButtonLabel();
+      renderResults();
+    });
+  });
+
+  // Add clear all listener
+  const clearBtn = elements.deckFilterMenu.querySelector('.deck-filter-clear');
+  if (clearBtn) {
+    clearBtn.addEventListener('click', () => {
+      selectedDeckIds.clear();
+      updateDeckFilterButtonLabel();
+      renderResults();
+    });
+  }
+
+  // Update button label to show how many filters active
+  updateDeckFilterButtonLabel();
+}
+
+function updateDeckFilterButtonLabel() {
+  const btn = elements.deckFilterDropdown?.querySelector('wa-button');
+  if (!btn) return;
+
+  if (selectedDeckIds.size === 0) {
+    btn.innerHTML = '<wa-icon slot="start" name="filter"></wa-icon>Filter by Deck';
+  } else {
+    btn.innerHTML = `<wa-icon slot="start" name="filter"></wa-icon>Decks (${selectedDeckIds.size})`;
+  }
 }
 
 function renderExport() {
