@@ -25,15 +25,13 @@
       <!-- Header -->
       <header slot="header" class="wa-split">
         <div class="wa-cluster wa-gap-m wa-align-items-center">
+          <wa-button data-toggle-nav appearance="plain" variant="neutral" size="small">
+            <wa-icon name="bars"></wa-icon>
+          </wa-button>
           <a href="index.html" class="wa-cluster wa-gap-xs wa-align-items-center" style="text-decoration: none; color: inherit;">
             <img src="./assets/Prism-Small-Icon-Invert.svg" style="height:1.5em;">
             <span class="wa-heading-m wa-desktop-only">PRISM</span>
           </a>
-          <!--<nav class="wa-cluster wa-gap-m wa-desktop-only">
-            <a href="guide.html" style="color: var(--wa-color-brand-text);">Guide</a>
-            <a href="tools.html">Tools</a>
-          </nav>
-          -->
         </div>
         <div class="wa-cluster wa-gap-xs wa-align-items-center">
           <wa-button href="build.html" variant="brand" size="small">
@@ -63,13 +61,9 @@ Share your staples across every deck. PRISM tracks what goes where so you don't 
 
         <!-- Quick Overview -->
         <section class="wa-stack wa-gap-m" style="padding-block: var(--wa-space-xl);">
-          <h2 class="wa-heading-xl">How PRISM Markings Work</h2>
-          <p>PRISM uses colored marks on the right edge of your sleeves to show which decks a card belongs to.  Each deck gets:</p>
-          <ul style="padding-left: var(--wa-space-xl); line-height: 1.8;">
-            <li><strong>A unique color</strong> - choose from 23 defaults or set your own</li>
-            <li><strong>A stripe position</strong> - 1 through 32, left to right along the sleeve edge</li>
-          </ul>
-          <p>Fan your cards out and you can see at a glance which deck(s) each card belongs to.</p>
+          <h2 class="wa-heading-xl">How PRISM Marks Work</h2>
+          <p>PRISM uses colored marks on the edge of your sleeves to show which decks a card belongs to. Whether you mark the left or right edge depends on how you fan your cards. Pick whichever side is visible when you fan, and stay consistent.</p>
+          <p>Each deck gets a unique color (choose from 23 defaults or set your own) and a stripe position (1 through 32 along the sleeve edge). Fan your cards out and you can see at a glance which deck(s) each card belongs to.</p>
         </section>
 
         <wa-divider></wa-divider>
@@ -77,6 +71,11 @@ Share your staples across every deck. PRISM tracks what goes where so you don't 
         <!-- Step by Step -->
         <section class="wa-stack wa-gap-l" style="padding-block: var(--wa-space-xl);">
           <h2 class="wa-heading-xl">Marking Your Sleeves</h2>
+
+          <wa-callout variant="danger">
+            <wa-icon slot="icon" name="triangle-exclamation"></wa-icon>
+            <strong>Finalize your decklists before you start marking.</strong> Do not edit your decks during the marking process. Changing cards mid-session leads to incorrect deck counts, missed marks, and a lot of confusion. If you realize a change is needed, write it down and make the edit after you've finished the initial marking pass. This will save you time and headaches. Trust us on this one.
+          </wa-callout>
 
           <div class="wa-stack wa-gap-m">
             <h3 class="wa-heading-m">1. Set Up Your Workspace</h3>
@@ -89,12 +88,7 @@ Share your staples across every deck. PRISM tracks what goes where so you don't 
 
           <div class="wa-stack wa-gap-m">
             <h3 class="wa-heading-m">2. Test Your Markers</h3>
-            <ul style="padding-left: var(--wa-space-xl); line-height: 1.8;">
-              <li>Always test on a spare sleeve first!</li>
-              <li>Check that the color shows up clearly</li>
-              <li>Make sure the ink adheres and doesn't smear once dry</li>
-              <li>Some sleeve materials work better with certain pen types</li>
-            </ul>
+            <p>Always test on a spare sleeve first. Check that the color is clearly visible against your sleeve backs (see the <a href="tools.html">Tools page</a> for color recommendations). Make sure the ink sticks and doesn't smear once it's dry. Some sleeve materials work better with certain pen types, so test before committing.</p>
           </div>
           <wa-callout variant="warning">
             <wa-icon slot="icon" name="hourglass"></wa-icon>            
@@ -105,8 +99,8 @@ Share your staples across every deck. PRISM tracks what goes where so you don't 
           <div class="wa-stack wa-gap-m">
             <h3 class="wa-heading-m">3. Mark Consistently</h3>
             <ul style="padding-left: var(--wa-space-xl); line-height: 1.8;">
-              <li>Mark the <strong>right edge</strong> of each sleeve.</li>
-              <li>Use the PRISM Sprit Guide as a jig or ruler.</li>
+              <li>Mark the same edge of each sleeve (left or right, whichever you chose).</li>
+              <li>Use the PRISM Spirit Guide as a jig or ruler.</li>
               <li>Small dots or short lines work well (3-7mm).</li>
             </ul>
           </div>
@@ -119,13 +113,7 @@ Share your staples across every deck. PRISM tracks what goes where so you don't 
 
           <div class="wa-stack wa-gap-m">
             <h3 class="wa-heading-m">4. Work Through Your List</h3>
-            <ul style="padding-left: var(--wa-space-xl); line-height: 1.8;">
-              <li>Start with shared cards, since they appear in multiple decks and only need to be marked once.</li>
-              <li>Check "Done" as you mark each card.</li>
-              <li>Use the search bar to find cards as you go.</li>
-              <i>&nbsp; &nbsp; or</i>
-              <li>Filter by deck to focus on one deck at a time.</li>
-            </ul>
+            <p>Use the search bar to find cards as you go. Check "Done" as you finish each one. Filter by deck to focus on one deck at a time. Start with pool cards (cards shared across multiple decks) since they need a mark for every deck they belong to. Core cards only appear in one deck, so they're quicker to handle.</p>
           </div>
         </section>
 
@@ -168,8 +156,8 @@ Share your staples across every deck. PRISM tracks what goes where so you don't 
           <h2 class="wa-heading-xl">Same Commander, Different Power Levels</h2>
           <p>If you run the same commander at multiple brackets or budgets, you'll want a way to tell those decks apart beyond just the deck color. Two approaches work well.</p>
           <ul style="padding-left: var(--wa-space-xl); line-height: 1.8;">
-<li><strong>Dots next to the stripe.</strong> Add a small dot beside the right-edge stripe to indicate power level. One dot for casual, two for mid, three for high, or whatever system makes sense for your group. This keeps everything on the same edge and is easy to read at a glance.</li>
-            <li><strong>Secondary stripes on the left edge.</strong> Use the left side of the sleeve for a second set of marks that indicate bracket or budget tier. This gives you more visual separation and avoids crowding the right edge if you're already sharing cards across several decks.</li>
+<li><strong>Dots next to the stripe.</strong> Add a small dot beside the stripe to indicate power level. One dot for casual, two for mid, three for high, or whatever system makes sense for your group. This keeps everything on the same edge and is easy to read at a glance.</li>
+            <li><strong>Secondary stripes on the other edge.</strong> Use the other side of the sleeve for a second set of marks that indicate bracket or budget tier. This gives you more visual separation and avoids crowding your main marking edge if you're already sharing cards across several decks.</li>
           </ul>
           <p>
             Either method works. Pick whichever feels more natural for how many variants you're tracking. If you only have two versions of a commander, dots are simpler. If you're running three or more, left-edge stripes give you more room.</p>
@@ -178,7 +166,7 @@ Share your staples across every deck. PRISM tracks what goes where so you don't 
         <wa-divider></wa-divider>
 
         <!-- Adding New Decks -->
-        <section class="wa-stack wa-gap-m" style="padding-block: var(--wa%w !pbcopy%w !pbcopy-space-xl);">
+        <section class="wa-stack wa-gap-m" style="padding-block: var(--wa-space-xl);">
           <h2 class="wa-heading-xl">Adding New Decks</h2>
           <p>When you build a new deck:</p>
           <ol style="padding-left: var(--wa-space-xl); line-height: 1.8;">
