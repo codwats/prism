@@ -1,33 +1,3 @@
-# Dependencies
 node_modules/
-
-# Build output
 dist/
-
-# Logs
-*.log
-npm-debug.log*
-
-# Environment
-.env
-.env.local
-
-# OS
 .DS_Store
-Thumbs.db
-
-# IDE
-.vscode/
-.idea/
-*.swp
-*.swo
-
-# Output files (examples - users may want to keep these)
-prism-output.csv
-prism-output.json
-prism-changes.csv
-
-# Testing
-coverage/
-test-*.json
-test-*.csv
