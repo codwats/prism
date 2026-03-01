@@ -28,6 +28,7 @@ import {
 } from './storage.js';
 import { downloadCSV, downloadJSON, openPrintableGuide } from './export.js';
 import { showPreview, hidePreview, updatePosition } from './card-preview.js';
+import { initAuth, setupAuthListeners } from './auth.js';
 import { prefetchCards } from './scryfall.js';
 
 // ============================================================================
@@ -128,10 +129,14 @@ function getElements() {
 
 async function init() {
   console.log('PRISM: Initializing...');
-  
+
   // Wait a tick for Web Awesome components to upgrade
   await new Promise(resolve => setTimeout(resolve, 100));
-  
+
+  // Initialize auth
+  await initAuth();
+  setupAuthListeners();
+
   // Get element references
   elements = getElements();
   

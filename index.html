@@ -6,6 +6,7 @@
     <title>PRISM - MTG Deck Sleeve Marking Tool</title>
     <meta name="description" content="Share MTG Commander cards across multiple decks without buying duplicates. PRISM helps you mark sleeves so one card can live in many decks." />
     <script src="https://kit.webawesome.com/da021fed1e5141f2.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link rel="icon" type="image/x-icon" href="./assets/Prism-Small-Icon-Invert.svg">
     <script>
       // Always dark mode
@@ -16,11 +17,36 @@
   <body>
     <wa-page mobile-breakpoint="768">
       <!-- Mobile Navigation -->
-      <nav slot="navigation" class="wa-stack wa-gap-m" style="padding: var(--wa-space-l);">
-        <a href="index.html" class="wa-heading-m" style="text-decoration: none; color: inherit;">Home</a>
-        <a href="guide.html" style="text-decoration: none; color: inherit;">Guide</a>
-        <a href="tools.html" style="text-decoration: none; color: inherit;">Tools</a>
-        <a href="build.html" style="text-decoration: none; color: inherit;">Build PRISM</a>
+      <nav slot="navigation" class="wa-stack wa-gap-m" style="padding: var(--wa-space-l); height: 100%; justify-content: space-between;">
+        <div class="wa-stack wa-gap-m">
+          <a href="index.html" class="wa-heading-m" style="text-decoration: none; color: inherit;">Home</a>
+          <a href="guide.html" style="text-decoration: none; color: inherit;">Guide</a>
+          <a href="tools.html" style="text-decoration: none; color: inherit;">Tools</a>
+          <a href="build.html" style="text-decoration: none; color: inherit;">Build PRISM</a>
+        </div>
+
+        <!-- Account Section -->
+        <div class="wa-stack wa-gap-s" style="border-top: 1px solid var(--wa-color-neutral-border); padding-top: var(--wa-space-m);">
+          <!-- Logged Out State -->
+          <div id="auth-logged-out">
+            <wa-button id="btn-login" variant="neutral" appearance="outlined" style="width: 100%;">
+              <wa-icon slot="start" name="right-to-bracket"></wa-icon>
+              Log In
+            </wa-button>
+          </div>
+
+          <!-- Logged In State -->
+          <div id="auth-logged-in" hidden class="wa-stack wa-gap-s">
+            <div class="wa-cluster wa-gap-s wa-align-items-center">
+              <wa-icon name="circle-user" style="font-size: 1.5em;"></wa-icon>
+              <span id="user-email" class="wa-caption-m" style="overflow: hidden; text-overflow: ellipsis;"></span>
+            </div>
+            <wa-button id="btn-logout" variant="neutral" appearance="plain" size="small">
+              <wa-icon slot="start" name="right-from-bracket"></wa-icon>
+              Log Out
+            </wa-button>
+          </div>
+        </div>
       </nav>
 
       <!-- Header -->
@@ -226,5 +252,21 @@
       </main>
     </wa-page>
 
+    <!-- Auth Dialog -->
+    <wa-dialog id="auth-dialog" label="Log In">
+      <span slot="label" id="auth-dialog-title">Log In</span>
+      <form id="auth-form" class="wa-stack wa-gap-m">
+        <input type="hidden" id="auth-mode" value="login" />
+        <wa-input name="email" type="email" label="Email" placeholder="you@example.com" required></wa-input>
+        <wa-input name="password" type="password" label="Password" placeholder="Your password" required minlength="6"></wa-input>
+        <div id="auth-error" hidden class="wa-caption-m" style="color: var(--wa-color-danger-text);"></div>
+        <wa-button id="auth-submit-btn" type="submit" variant="brand" style="width: 100%;">Log In</wa-button>
+        <wa-button id="toggle-auth-mode" type="button" appearance="plain" size="small" style="align-self: center;">
+          Don't have an account? Sign up
+        </wa-button>
+      </form>
+    </wa-dialog>
+
+    <script type="module" src="auth-nav.js"></script>
   </body>
 </html>
