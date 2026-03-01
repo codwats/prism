@@ -3,11 +3,27 @@
  * Fetches deck data from Moxfield API (bypasses CORS)
  */
 
+const CORS_HEADERS = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'Content-Type',
+  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS'
+};
+
 export async function handler(event) {
+  // Handle CORS preflight
+  if (event.httpMethod === 'OPTIONS') {
+    return {
+      statusCode: 204,
+      headers: CORS_HEADERS,
+      body: ''
+    };
+  }
+
   // Only allow POST
   if (event.httpMethod !== 'POST') {
     return {
       statusCode: 405,
+      headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
       body: JSON.stringify({ error: 'Method not allowed' })
     };
   }
@@ -18,6 +34,7 @@ export async function handler(event) {
     if (!publicId) {
       return {
         statusCode: 400,
+        headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
         body: JSON.stringify({ error: 'Missing publicId' })
       };
     }
@@ -26,6 +43,7 @@ export async function handler(event) {
     if (!/^[a-zA-Z0-9_-]+$/.test(publicId)) {
       return {
         statusCode: 400,
+        headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
         body: JSON.stringify({ error: 'Invalid deck ID format' })
       };
     }
@@ -53,12 +71,14 @@ export async function handler(event) {
       if (response.status === 404) {
         return {
           statusCode: 404,
+          headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
           body: JSON.stringify({ error: 'Deck not found. Make sure the deck is public.' })
         };
       }
 
       return {
         statusCode: response.status,
+        headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
         body: JSON.stringify({ error: `Moxfield API error: ${response.status}` })
       };
     }
@@ -68,8 +88,9 @@ export async function handler(event) {
     return {
       statusCode: 200,
       headers: {
+        ...CORS_HEADERS,
         'Content-Type': 'application/json',
-        'Cache-Control': 'public, max-age=3600' // Cache for 1 hour
+        'Cache-Control': 'public, max-age=3600'
       },
       body: JSON.stringify(data)
     };
@@ -78,6 +99,7 @@ export async function handler(event) {
     console.error('Moxfield proxy error:', error);
     return {
       statusCode: 500,
+      headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
       body: JSON.stringify({ error: 'Failed to fetch deck from Moxfield' })
     };
   }

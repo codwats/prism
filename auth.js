@@ -106,6 +106,18 @@ export async function resetPassword(email) {
   if (error) throw error;
 }
 
+// Update password (for logged in users)
+export async function updatePassword(newPassword) {
+  const supabase = getSupabase();
+  if (!supabase) throw new Error('Supabase not configured');
+
+  const { error } = await supabase.auth.updateUser({
+    password: newPassword
+  });
+
+  if (error) throw error;
+}
+
 // Update user account UI in the nav
 export function updateAuthUI(user) {
   const loginSection = document.getElementById('auth-logged-out');
@@ -126,6 +138,52 @@ export function updateAuthUI(user) {
   }
 }
 
+// Show specific auth view
+function showAuthView(viewName) {
+  const dialog = document.getElementById('auth-dialog');
+  const loginView = document.getElementById('auth-login-view');
+  const signupView = document.getElementById('auth-signup-view');
+  const forgotView = document.getElementById('auth-forgot-view');
+  const dialogTitle = document.getElementById('auth-dialog-title');
+
+  // Hide all views
+  if (loginView) loginView.hidden = true;
+  if (signupView) signupView.hidden = true;
+  if (forgotView) forgotView.hidden = true;
+
+  // Show requested view and update title
+  switch (viewName) {
+    case 'login':
+      if (loginView) loginView.hidden = false;
+      if (dialogTitle) dialogTitle.textContent = 'Login';
+      break;
+    case 'signup':
+      if (signupView) signupView.hidden = false;
+      if (dialogTitle) dialogTitle.textContent = 'Sign up with Email';
+      break;
+    case 'forgot':
+      if (forgotView) forgotView.hidden = false;
+      if (dialogTitle) dialogTitle.textContent = 'Reset Password';
+      break;
+  }
+
+  // Clear any error/success messages
+  clearAuthMessages();
+}
+
+// Clear all error and success messages
+function clearAuthMessages() {
+  const errorEls = document.querySelectorAll('#login-error, #signup-error, #forgot-error');
+  const successEls = document.querySelectorAll('#signup-success, #forgot-success');
+
+  errorEls.forEach(el => {
+    if (el) el.hidden = true;
+  });
+  successEls.forEach(el => {
+    if (el) el.hidden = true;
+  });
+}
+
 // Setup auth event listeners for nav buttons
 export function setupAuthListeners() {
   // Login button - opens dialog
@@ -133,7 +191,19 @@ export function setupAuthListeners() {
   if (loginBtn) {
     loginBtn.addEventListener('click', () => {
       const dialog = document.getElementById('auth-dialog');
-      if (dialog) dialog.open = true;
+      if (dialog) {
+        showAuthView('login');
+        dialog.open = true;
+      }
+    });
+  }
+
+  // Profile/user email click - go to profile page
+  const userEmail = document.getElementById('user-email');
+  if (userEmail) {
+    userEmail.style.cursor = 'pointer';
+    userEmail.addEventListener('click', () => {
+      window.location.href = 'profile.html';
     });
   }
 
@@ -149,43 +219,54 @@ export function setupAuthListeners() {
     });
   }
 
-  // Auth form submission
-  const authForm = document.getElementById('auth-form');
-  if (authForm) {
-    authForm.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const formData = new FormData(authForm);
-      const email = formData.get('email');
-      const password = formData.get('password');
-      const mode = document.getElementById('auth-mode')?.value || 'login';
+  // View toggle buttons
+  const btnShowSignup = document.getElementById('btn-show-signup');
+  if (btnShowSignup) {
+    btnShowSignup.addEventListener('click', () => showAuthView('signup'));
+  }
 
-      const submitBtn = authForm.querySelector('wa-button[type="submit"]');
-      const errorEl = document.getElementById('auth-error');
+  const btnShowLogin = document.getElementById('btn-show-login');
+  if (btnShowLogin) {
+    btnShowLogin.addEventListener('click', () => showAuthView('login'));
+  }
+
+  const btnForgotPassword = document.getElementById('btn-forgot-password');
+  if (btnForgotPassword) {
+    btnForgotPassword.addEventListener('click', (e) => {
+      e.preventDefault();
+      showAuthView('forgot');
+    });
+  }
+
+  const btnBackToLogin = document.getElementById('btn-back-to-login');
+  if (btnBackToLogin) {
+    btnBackToLogin.addEventListener('click', () => showAuthView('login'));
+  }
+
+  // Login form submission
+  const loginForm = document.getElementById('login-form');
+  if (loginForm) {
+    loginForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const email = document.getElementById('login-email')?.value;
+      const password = document.getElementById('login-password')?.value;
+      const submitBtn = document.getElementById('btn-login-submit');
+      const errorEl = document.getElementById('login-error');
 
       try {
         if (submitBtn) submitBtn.loading = true;
         if (errorEl) errorEl.hidden = true;
 
-        if (mode === 'signup') {
-          await signUp(email, password);
-          // Show success message for signup (needs email confirmation)
-          if (errorEl) {
-            errorEl.textContent = 'Check your email to confirm your account!';
-            errorEl.hidden = false;
-            errorEl.style.color = 'var(--wa-color-success-text)';
-          }
-        } else {
-          await signIn(email, password);
-          // Close dialog on successful login
-          const dialog = document.getElementById('auth-dialog');
-          if (dialog) dialog.open = false;
-        }
+        await signIn(email, password);
+
+        // Close dialog on successful login
+        const dialog = document.getElementById('auth-dialog');
+        if (dialog) dialog.open = false;
       } catch (err) {
-        console.error('Auth error:', err);
+        console.error('Login error:', err);
         if (errorEl) {
           errorEl.textContent = err.message;
           errorEl.hidden = false;
-          errorEl.style.color = 'var(--wa-color-danger-text)';
         }
       } finally {
         if (submitBtn) submitBtn.loading = false;
@@ -193,24 +274,74 @@ export function setupAuthListeners() {
     });
   }
 
-  // Toggle between login/signup mode
-  const toggleModeBtn = document.getElementById('toggle-auth-mode');
-  if (toggleModeBtn) {
-    toggleModeBtn.addEventListener('click', () => {
-      const modeInput = document.getElementById('auth-mode');
-      const submitBtn = document.getElementById('auth-submit-btn');
-      const dialogTitle = document.getElementById('auth-dialog-title');
+  // Signup form submission
+  const signupForm = document.getElementById('signup-form');
+  if (signupForm) {
+    signupForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const email = document.getElementById('signup-email')?.value;
+      const password = document.getElementById('signup-password')?.value;
+      const submitBtn = document.getElementById('btn-signup-submit');
+      const errorEl = document.getElementById('signup-error');
+      const successEl = document.getElementById('signup-success');
 
-      if (modeInput.value === 'login') {
-        modeInput.value = 'signup';
-        if (submitBtn) submitBtn.textContent = 'Sign Up';
-        if (dialogTitle) dialogTitle.textContent = 'Create Account';
-        toggleModeBtn.textContent = 'Already have an account? Log in';
-      } else {
-        modeInput.value = 'login';
-        if (submitBtn) submitBtn.textContent = 'Log In';
-        if (dialogTitle) dialogTitle.textContent = 'Log In';
-        toggleModeBtn.textContent = "Don't have an account? Sign up";
+      try {
+        if (submitBtn) submitBtn.loading = true;
+        if (errorEl) errorEl.hidden = true;
+        if (successEl) successEl.hidden = true;
+
+        await signUp(email, password);
+
+        // Show success message
+        if (successEl) {
+          successEl.textContent = 'Check your email to confirm your account!';
+          successEl.hidden = false;
+        }
+
+        // Disable form after successful signup
+        if (submitBtn) submitBtn.disabled = true;
+      } catch (err) {
+        console.error('Signup error:', err);
+        if (errorEl) {
+          errorEl.textContent = err.message;
+          errorEl.hidden = false;
+        }
+      } finally {
+        if (submitBtn) submitBtn.loading = false;
+      }
+    });
+  }
+
+  // Forgot password form submission
+  const forgotForm = document.getElementById('forgot-form');
+  if (forgotForm) {
+    forgotForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const email = document.getElementById('forgot-email')?.value;
+      const submitBtn = document.getElementById('btn-forgot-submit');
+      const errorEl = document.getElementById('forgot-error');
+      const successEl = document.getElementById('forgot-success');
+
+      try {
+        if (submitBtn) submitBtn.loading = true;
+        if (errorEl) errorEl.hidden = true;
+        if (successEl) successEl.hidden = true;
+
+        await resetPassword(email);
+
+        // Show success message
+        if (successEl) {
+          successEl.textContent = 'Check your email for a password reset link!';
+          successEl.hidden = false;
+        }
+      } catch (err) {
+        console.error('Password reset error:', err);
+        if (errorEl) {
+          errorEl.textContent = err.message;
+          errorEl.hidden = false;
+        }
+      } finally {
+        if (submitBtn) submitBtn.loading = false;
       }
     });
   }

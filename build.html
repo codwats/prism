@@ -476,38 +476,55 @@
     <div id="card-preview-tooltip" class="card-preview-tooltip" hidden></div>
 
     <!-- Auth Dialog -->
-    <wa-dialog id="auth-dialog" label="Log In">
-      <span slot="label" id="auth-dialog-title">Log In</span>
-      <form id="auth-form" class="wa-stack wa-gap-m">
-        <input type="hidden" id="auth-mode" value="login" />
+    <wa-dialog id="auth-dialog" style="--width: 45ch;">
+      <span slot="label" id="auth-dialog-title">Login</span>
 
-        <wa-input
-          name="email"
-          type="email"
-          label="Email"
-          placeholder="you@example.com"
-          required
-        ></wa-input>
-
-        <wa-input
-          name="password"
-          type="password"
-          label="Password"
-          placeholder="Your password"
-          required
-          minlength="6"
-        ></wa-input>
-
-        <div id="auth-error" hidden class="wa-caption-m" style="color: var(--wa-color-danger-text);"></div>
-
-        <wa-button id="auth-submit-btn" type="submit" variant="brand" style="width: 100%;">
-          Log In
-        </wa-button>
-
-        <wa-button id="toggle-auth-mode" type="button" appearance="plain" size="small" style="align-self: center;">
+      <!-- Login View -->
+      <div id="auth-login-view" class="wa-stack wa-gap-m">
+        <form id="login-form" class="wa-stack wa-gap-m">
+          <wa-input id="login-email" name="email" type="email" label="Email" placeholder="you@example.com" required></wa-input>
+          <wa-input id="login-password" name="password" type="password" label="Password" placeholder="Your password" required minlength="6"></wa-input>
+          <a href="#" id="btn-forgot-password" class="wa-caption-m" style="color: var(--wa-color-brand-text);">Having trouble signing in?</a>
+          <div id="login-error" hidden class="wa-caption-m" style="color: var(--wa-color-danger-text);"></div>
+          <wa-button id="btn-login-submit" type="submit" variant="brand" style="width: 100%;">Sign in</wa-button>
+        </form>
+        <wa-divider></wa-divider>
+        <wa-button id="btn-show-signup" type="button" appearance="plain" size="small" style="align-self: center;">
           Don't have an account? Sign up
         </wa-button>
-      </form>
+      </div>
+
+      <!-- Signup View -->
+      <div id="auth-signup-view" class="wa-stack wa-gap-m" hidden>
+        <p class="wa-body-m" style="color: var(--wa-color-neutral-text-subtle);">You don't need to sign in to use PRISM, but if you want to save multiple PRISMs or sync across devices, create an account.</p>
+        <form id="signup-form" class="wa-stack wa-gap-m">
+          <wa-input id="signup-email" name="email" type="email" label="Email" placeholder="you@example.com" required></wa-input>
+          <wa-input id="signup-password" name="password" type="password" label="Password" placeholder="Create a password" required minlength="6"></wa-input>
+          <div id="signup-error" hidden class="wa-caption-m" style="color: var(--wa-color-danger-text);"></div>
+          <div id="signup-success" hidden class="wa-caption-m" style="color: var(--wa-color-success-text);"></div>
+          <wa-button id="btn-signup-submit" type="submit" variant="brand" style="width: 100%;">Create Account</wa-button>
+        </form>
+        <p class="wa-caption-xs" style="color: var(--wa-color-neutral-text-subtle);">By clicking continue, you agree to our <a href="terms.html">Terms of Service</a> and <a href="privacy.html">Privacy Policy</a>.</p>
+        <wa-divider></wa-divider>
+        <wa-button id="btn-show-login" type="button" appearance="plain" size="small" style="align-self: center;">
+          Already have an account? Log in
+        </wa-button>
+      </div>
+
+      <!-- Forgot Password View -->
+      <div id="auth-forgot-view" class="wa-stack wa-gap-m" hidden>
+        <p class="wa-body-m" style="color: var(--wa-color-neutral-text-subtle);">Enter your email and we'll send you a link to reset your password.</p>
+        <form id="forgot-form" class="wa-stack wa-gap-m">
+          <wa-input id="forgot-email" name="email" type="email" label="Email" placeholder="you@example.com" required></wa-input>
+          <div id="forgot-error" hidden class="wa-caption-m" style="color: var(--wa-color-danger-text);"></div>
+          <div id="forgot-success" hidden class="wa-caption-m" style="color: var(--wa-color-success-text);"></div>
+          <wa-button id="btn-forgot-submit" type="submit" variant="brand" style="width: 100%;">Send Reset Link</wa-button>
+        </form>
+        <wa-divider></wa-divider>
+        <wa-button id="btn-back-to-login" type="button" appearance="plain" size="small" style="align-self: center;">
+          Back to login
+        </wa-button>
+      </div>
     </wa-dialog>
 
     <script type="module" src="app.js"></script>

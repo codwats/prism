@@ -3,8 +3,8 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Terms of Service - PRISM</title>
-    <meta name="description" content="Terms of Service for PRISM - MTG Deck Sleeve Marking Tool" />
+    <title>Profile - PRISM</title>
+    <meta name="description" content="Manage your PRISM account, view your PRISMs, and update your settings." />
     <script src="https://kit.webawesome.com/da021fed1e5141f2.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link rel="icon" type="image/x-icon" href="./assets/Prism-Small-Icon-Invert.svg">
@@ -26,12 +26,15 @@
 
         <!-- Account Section -->
         <div class="wa-stack wa-gap-s" style="border-top: 1px solid var(--wa-color-neutral-border); padding-top: var(--wa-space-m);">
+          <!-- Logged Out State -->
           <div id="auth-logged-out">
             <wa-button id="btn-login" variant="neutral" appearance="outlined" style="width: 100%;">
               <wa-icon slot="start" name="right-to-bracket"></wa-icon>
               Log In
             </wa-button>
           </div>
+
+          <!-- Logged In State -->
           <div id="auth-logged-in" hidden class="wa-stack wa-gap-s">
             <div class="wa-cluster wa-gap-s wa-align-items-center">
               <wa-icon name="circle-user" style="font-size: 1.5em;"></wa-icon>
@@ -52,120 +55,123 @@
             <wa-icon name="bars"></wa-icon>
           </wa-button>
           <a href="index.html" class="wa-cluster wa-gap-xs wa-align-items-center" style="text-decoration: none; color: inherit;">
-            <img src="./assets/Prism-Small-Icon-Invert.svg" alt="Prism Logo" style="height:1.5em;">
+            <img src="./assets/Prism-Small-Icon-Invert.svg" style="height:1.5em;">
             <span class="wa-heading-m wa-desktop-only">PRISM</span>
           </a>
         </div>
         <div class="wa-cluster wa-gap-xs wa-align-items-center">
           <wa-button href="build.html" variant="brand" size="small">
-            <wa-icon slot="start" name="plus"></wa-icon>
-            New PRISM
+            <wa-icon slot="start" name="wand-magic-sparkles"></wa-icon>
+            Build PRISM
           </wa-button>
         </div>
       </header>
 
-      <main class="wa-stack wa-gap-xl" style="max-width: 800px; margin: 0 auto; padding: var(--wa-space-xl);">
-        <div class="wa-stack wa-gap-m">
-          <h1 class="wa-heading-xl">Terms of Service</h1>
-          <p class="wa-caption-m" style="color: var(--wa-color-neutral-text-subtle);">Last updated: March 2026</p>
+      <main style="max-width: 800px; margin: 0 auto; padding: var(--wa-space-xl);">
+        <!-- Not Logged In State -->
+        <div id="profile-logged-out" class="wa-stack wa-gap-l wa-align-items-center" style="padding: var(--wa-space-2xl);">
+          <wa-icon name="circle-user" style="font-size: 4rem; color: var(--wa-color-neutral-text-subtle);"></wa-icon>
+          <h1 class="wa-heading-xl">Profile</h1>
+          <p style="text-align: center; color: var(--wa-color-neutral-text-subtle);">
+            Sign in to manage your PRISMs across devices and access your account settings.
+          </p>
+          <wa-button id="btn-profile-login" variant="brand" size="large">
+            <wa-icon slot="start" name="right-to-bracket"></wa-icon>
+            Sign In
+          </wa-button>
         </div>
 
-        <section class="wa-stack wa-gap-m">
-          <h2 class="wa-heading-m">1. Acceptance of Terms</h2>
-          <p>By accessing or using PRISM ("the Service"), you agree to be bound by these Terms of Service. If you do not agree to these terms, do not use the Service.</p>
-        </section>
-
-        <section class="wa-stack wa-gap-m">
-          <h2 class="wa-heading-m">2. Description of Service</h2>
-          <p>PRISM is a free tool that helps Magic: The Gathering players manage shared cards across multiple Commander decks using a sleeve marking system. The Service allows you to:</p>
-          <ul class="wa-stack wa-gap-xs" style="padding-left: var(--wa-space-l);">
-            <li>Create and manage deck lists</li>
-            <li>Generate sleeve marking guides</li>
-            <li>Export data for personal use</li>
-            <li>Optionally sync data across devices with an account</li>
-          </ul>
-        </section>
-
-        <section class="wa-stack wa-gap-m">
-          <h2 class="wa-heading-m">3. User Accounts</h2>
-          <p>Account creation is optional. If you create an account:</p>
-          <ul class="wa-stack wa-gap-xs" style="padding-left: var(--wa-space-l);">
-            <li>You must provide accurate information</li>
-            <li>You are responsible for maintaining the security of your account</li>
-            <li>You must notify us immediately of any unauthorized access</li>
-            <li>You may not share your account with others</li>
-          </ul>
-        </section>
-
-        <section class="wa-stack wa-gap-m">
-          <h2 class="wa-heading-m">4. Acceptable Use</h2>
-          <p>You agree not to:</p>
-          <ul class="wa-stack wa-gap-xs" style="padding-left: var(--wa-space-l);">
-            <li>Use the Service for any unlawful purpose</li>
-            <li>Attempt to gain unauthorized access to the Service or its systems</li>
-            <li>Interfere with or disrupt the Service</li>
-            <li>Upload malicious content or code</li>
-            <li>Use automated systems to access the Service in a manner that exceeds reasonable use</li>
-            <li>Resell or redistribute the Service without permission</li>
-          </ul>
-        </section>
-
-        <section class="wa-stack wa-gap-m">
-          <h2 class="wa-heading-m">5. Intellectual Property</h2>
-          <h3 class="wa-heading-s">Our Content</h3>
-          <p>The PRISM application, including its design, code, and documentation, is owned by us and protected by intellectual property laws.</p>
-
-          <h3 class="wa-heading-s">Your Content</h3>
-          <p>You retain ownership of any deck lists or data you create. By using the Service, you grant us a limited license to store and display your content as necessary to provide the Service.</p>
-
-          <h3 class="wa-heading-s">Third-Party Content</h3>
-          <p>Magic: The Gathering card names, images, and related content are property of Wizards of the Coast. Card data and images are provided by Scryfall under their terms of use. PRISM is not affiliated with or endorsed by Wizards of the Coast or Scryfall.</p>
-        </section>
-
-        <section class="wa-stack wa-gap-m">
-          <h2 class="wa-heading-m">6. Service Availability</h2>
-          <p>We strive to maintain the Service but do not guarantee:</p>
-          <ul class="wa-stack wa-gap-xs" style="padding-left: var(--wa-space-l);">
-            <li>Uninterrupted access to the Service</li>
-            <li>That the Service will be error-free</li>
-            <li>That data will never be lost</li>
-          </ul>
-          <p>We recommend regularly exporting your data as a backup.</p>
-        </section>
-
-        <section class="wa-stack wa-gap-m">
-          <h2 class="wa-heading-m">7. Disclaimer of Warranties</h2>
-          <p>THE SERVICE IS PROVIDED "AS IS" WITHOUT WARRANTIES OF ANY KIND, EXPRESS OR IMPLIED. WE DISCLAIM ALL WARRANTIES INCLUDING MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, AND NON-INFRINGEMENT.</p>
-        </section>
-
-        <section class="wa-stack wa-gap-m">
-          <h2 class="wa-heading-m">8. Limitation of Liability</h2>
-          <p>TO THE MAXIMUM EXTENT PERMITTED BY LAW, WE SHALL NOT BE LIABLE FOR ANY INDIRECT, INCIDENTAL, SPECIAL, CONSEQUENTIAL, OR PUNITIVE DAMAGES, INCLUDING LOSS OF DATA, ARISING FROM YOUR USE OF THE SERVICE.</p>
-        </section>
-
-        <section class="wa-stack wa-gap-m">
-          <h2 class="wa-heading-m">9. Termination</h2>
-          <p>We may suspend or terminate your access to the Service at any time for violation of these terms or for any other reason. You may delete your account at any time.</p>
-        </section>
-
-        <section class="wa-stack wa-gap-m">
-          <h2 class="wa-heading-m">10. Changes to Terms</h2>
-          <p>We may modify these terms at any time. Continued use of the Service after changes constitutes acceptance of the new terms. Significant changes will be communicated via the Service.</p>
-        </section>
-
-        <section class="wa-stack wa-gap-m">
-          <h2 class="wa-heading-m">11. Contact</h2>
-          <p>For questions about these Terms, contact us at:</p>
-          <p><a href="mailto:legal@example.com">legal@example.com</a></p>
-        </section>
-
-        <!-- Footer -->
-        <footer style="border-top: 1px solid var(--wa-color-neutral-border); padding-top: var(--wa-space-xl); margin-top: var(--wa-space-xl);">
-          <div class="wa-cluster wa-gap-l" style="justify-content: center;">
-            <a href="privacy.html" style="color: var(--wa-color-neutral-text-subtle);">Privacy Policy</a>
-            <a href="terms.html" style="color: var(--wa-color-neutral-text-subtle);">Terms of Service</a>
+        <!-- Logged In State -->
+        <div id="profile-logged-in" hidden>
+          <!-- Profile Header -->
+          <div class="wa-stack wa-gap-m" style="padding-bottom: var(--wa-space-xl);">
+            <div class="wa-cluster wa-gap-m wa-align-items-center">
+              <wa-icon name="circle-user" style="font-size: 3rem; color: var(--wa-color-brand-fill);"></wa-icon>
+              <div class="wa-stack wa-gap-2xs">
+                <h1 class="wa-heading-xl">Profile</h1>
+                <span id="profile-email" class="wa-body-m" style="color: var(--wa-color-neutral-text-subtle);"></span>
+              </div>
+            </div>
           </div>
-        </footer>
+
+          <wa-divider></wa-divider>
+
+          <!-- My PRISMs Section -->
+          <section class="wa-stack wa-gap-m" style="padding-block: var(--wa-space-xl);">
+            <div class="wa-split wa-align-items-center">
+              <h2 class="wa-heading-l">My PRISMs</h2>
+              <wa-button id="btn-new-prism" variant="neutral" appearance="outlined" size="small">
+                <wa-icon slot="start" name="plus"></wa-icon>
+                New PRISM
+              </wa-button>
+            </div>
+
+            <div id="prisms-list" class="wa-stack wa-gap-m">
+              <!-- PRISMs will be loaded here -->
+              <div class="wa-stack wa-gap-m wa-align-items-center" style="padding: var(--wa-space-xl); color: var(--wa-color-neutral-text-subtle);">
+                <wa-icon name="layer-group" style="font-size: 2rem;"></wa-icon>
+                <p>Loading your PRISMs...</p>
+              </div>
+            </div>
+          </section>
+
+          <wa-divider></wa-divider>
+
+          <!-- Account Settings Section -->
+          <section class="wa-stack wa-gap-m" style="padding-block: var(--wa-space-xl);">
+            <h2 class="wa-heading-l">Account Settings</h2>
+
+            <wa-card>
+              <div slot="header" class="wa-cluster wa-gap-s wa-align-items-center">
+                <wa-icon name="key"></wa-icon>
+                <span class="wa-heading-m">Change Password</span>
+              </div>
+
+              <form id="change-password-form" class="wa-stack wa-gap-m">
+                <wa-input
+                  id="new-password"
+                  type="password"
+                  label="New Password"
+                  placeholder="Enter new password"
+                  required
+                  minlength="6"
+                ></wa-input>
+                <wa-input
+                  id="confirm-password"
+                  type="password"
+                  label="Confirm Password"
+                  placeholder="Confirm new password"
+                  required
+                  minlength="6"
+                ></wa-input>
+                <div id="password-error" hidden class="wa-caption-m" style="color: var(--wa-color-danger-text);"></div>
+                <div id="password-success" hidden class="wa-caption-m" style="color: var(--wa-color-success-text);"></div>
+                <wa-button id="btn-change-password" type="submit" variant="brand">
+                  Update Password
+                </wa-button>
+              </form>
+            </wa-card>
+          </section>
+
+          <wa-divider></wa-divider>
+
+          <!-- Danger Zone -->
+          <section class="wa-stack wa-gap-m" style="padding-block: var(--wa-space-xl);">
+            <h2 class="wa-heading-l" style="color: var(--wa-color-danger-text);">Danger Zone</h2>
+
+            <wa-card style="border: 1px solid var(--wa-color-danger-stroke);">
+              <div class="wa-split wa-align-items-center">
+                <div class="wa-stack wa-gap-xs">
+                  <span class="wa-heading-m">Sign Out</span>
+                  <span class="wa-caption-m" style="color: var(--wa-color-neutral-text-subtle);">Sign out of your account on this device.</span>
+                </div>
+                <wa-button id="btn-profile-logout" variant="danger" appearance="outlined">
+                  Sign Out
+                </wa-button>
+              </div>
+            </wa-card>
+          </section>
+        </div>
       </main>
     </wa-page>
 
@@ -221,6 +227,6 @@
       </div>
     </wa-dialog>
 
-    <script type="module" src="auth-nav.js"></script>
+    <script type="module" src="profile.js"></script>
   </body>
 </html>
