@@ -1,8 +1,8 @@
 // Supabase client configuration
 // Replace these with your actual Supabase project credentials
 
-const SUPABASE_URL = 'YOUR_SUPABASE_URL'; // e.g., 'https://xxxx.supabase.co'
-const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY';
+const SUPABASE_URL = 'https://clqxysoimlsjfmnjbxsa.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_EmMs1syywKSfhJuPsO0LvA_GsCzVYFD';
 
 // Import Supabase from CDN (loaded in HTML)
 // We'll use the global supabase object
