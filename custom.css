@@ -342,11 +342,11 @@ wa-page[view='desktop'] [data-toggle-nav] {
 
 .stripe-mark {
   position: absolute;
-  right: 6px;
-  width: 15px;
-  height: 14px;
+  right: 0px;
+  width: 26px;
+  height: 8px;
   border-radius: 2px;
-  box-shadow: 0 0 3px rgba(0, 0, 0, 0.6);
+  box-shadow: 0 0 4px rgba(1,1,1, .8);
 }
 
 /* Card name hover cursor */
