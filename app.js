@@ -1343,11 +1343,12 @@ function renderResults() {
     const markedClass = isMarked ? 'marked-row' : '';
 
     // Prepare stripes data for preview (exclude position-only data for cleaner JSON)
+    // Escape for use in HTML attribute (escape single quotes and ampersands)
     const stripesJson = JSON.stringify(card.stripes.map(s => ({
       position: s.position,
       color: s.color,
       deckName: s.deckName
-    })));
+    }))).replace(/&/g, '&amp;').replace(/'/g, '&#39;');
 
     return `
       <tr class="${rowClass} ${markedClass}" data-card-key="${escapeHtml(cardKey)}">

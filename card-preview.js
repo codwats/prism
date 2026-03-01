@@ -22,12 +22,15 @@ function createStripeOverlay(stripes) {
   const container = document.createElement('div');
   container.className = 'card-preview-stripes';
 
+  console.log('Creating stripe overlay with', stripes.length, 'stripes:', stripes);
+
   for (const stripe of stripes) {
     const mark = document.createElement('div');
     mark.className = 'stripe-mark';
     mark.style.backgroundColor = stripe.color;
     mark.style.top = `${getStripeY(stripe.position)}px`;
     mark.title = `${stripe.deckName} (Position ${stripe.position})`;
+    console.log(`Stripe at position ${stripe.position}: y=${getStripeY(stripe.position)}px, color=${stripe.color}`);
     container.appendChild(mark);
   }
 
