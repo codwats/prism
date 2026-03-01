@@ -371,6 +371,7 @@ function handleCardPreviewMove(e) {
   if (!cell) return;
 
   updatePosition(e);
+}
 
 // ============================================================================
 // Event Handlers
