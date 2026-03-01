@@ -8,9 +8,9 @@ const DISPLAY_HEIGHT = 340;
 const SCALE = 0.5; // Display scale factor
 
 // Stripe positioning at display scale (32 positions along right edge)
-// Original values at full scale: start=40, height=12, gap=4, slot=16
-const STRIPE_START_Y = 20; // 40 * 0.5
-const STRIPE_SLOT_HEIGHT = 8; // 16 * 0.5
+// Stripes start below title bar and span down the card art area
+const STRIPE_START_Y = 45; // Start below title
+const STRIPE_SLOT_HEIGHT = 9; // Spacing between stripe positions
 
 // Get Y position for a stripe (1-32) at display scale
 function getStripeY(position) {
