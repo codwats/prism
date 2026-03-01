@@ -204,25 +204,30 @@
 
                   <wa-divider style="--spacing: 0.5rem;"></wa-divider>
 
-                  <wa-details>
+                  <wa-details id="moxfield-import-section">
                     <span slot="summary" class="wa-caption-m">
                       <wa-icon name="link" style="margin-right: 0.5em;"></wa-icon>
                       Import from Moxfield
                     </span>
                     <div class="wa-stack wa-gap-m" style="padding-top: var(--wa-space-s);">
+                      <div class="wa-cluster wa-gap-s wa-align-items-end">
+                        <wa-input
+                          id="moxfield-url"
+                          label="Moxfield URL or Deck ID"
+                          placeholder="https://www.moxfield.com/decks/abc123 or abc123"
+                          style="flex: 1; min-width: 250px;"
+                        ></wa-input>
+                        <wa-button type="button" id="btn-import-moxfield" variant="neutral">
+                          <wa-icon slot="start" name="download"></wa-icon>
+                          Import
+                        </wa-button>
+                      </div>
+                      <div id="moxfield-error" hidden class="wa-caption-s" style="color: var(--wa-color-danger-text);"></div>
+                      <div id="moxfield-success" hidden class="wa-caption-s" style="color: var(--wa-color-success-text);"></div>
                       <wa-callout variant="neutral">
                         <wa-icon slot="icon" name="circle-info"></wa-icon>
-                        <strong>How to import from Moxfield:</strong>
-                        <ol style="margin: var(--wa-space-xs) 0 0 var(--wa-space-m); padding: 0;">
-                          <li>Open your deck on Moxfield</li>
-                          <li>Click the <strong>Export</strong> button (top right)</li>
-                          <li>Select <strong>Text</strong> format</li>
-                          <li>Copy the text and paste it above, or save as .txt and upload</li>
-                        </ol>
+                        Paste your Moxfield deck URL and click Import. The deck name, commander, and card list will be auto-filled. Make sure your deck is set to <strong>Public</strong> on Moxfield.
                       </wa-callout>
-                      <div class="wa-caption-s" style="color: var(--wa-color-neutral-text-subtle);">
-                        Direct Moxfield import coming soon.
-                      </div>
                     </div>
                   </wa-details>
 

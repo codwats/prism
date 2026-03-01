@@ -30,6 +30,7 @@ import { downloadCSV, downloadJSON, openPrintableGuide } from './export.js';
 import { showPreview, hidePreview, updatePosition } from './card-preview.js';
 import { initAuth, setupAuthListeners } from './auth.js';
 import { prefetchCards } from './scryfall.js';
+import { importFromMoxfield, toDecklistText } from './moxfield.js';
 
 // ============================================================================
 // State
@@ -69,6 +70,13 @@ function getElements() {
     colorWarning: document.getElementById('color-warning'),
     parseErrors: document.getElementById('parse-errors'),
     btnResetForm: document.getElementById('btn-reset-form'),
+
+    // Moxfield import
+    moxfieldUrl: document.getElementById('moxfield-url'),
+    btnImportMoxfield: document.getElementById('btn-import-moxfield'),
+    moxfieldError: document.getElementById('moxfield-error'),
+    moxfieldSuccess: document.getElementById('moxfield-success'),
+    moxfieldImportSection: document.getElementById('moxfield-import-section'),
     
     // Decks list
     decksList: document.getElementById('decks-list'),
@@ -257,7 +265,21 @@ function setupEventListeners() {
   if (elements.prismJsonInput) {
     elements.prismJsonInput.addEventListener('change', handleJsonImport);
   }
-  
+
+  // Moxfield import
+  if (elements.btnImportMoxfield) {
+    elements.btnImportMoxfield.addEventListener('click', handleMoxfieldImport);
+  }
+  if (elements.moxfieldUrl) {
+    // Also allow pressing Enter to import
+    elements.moxfieldUrl.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        handleMoxfieldImport();
+      }
+    });
+  }
+
   // Results filter - use 'change' event for wa-radio-group
   if (elements.resultsFilter) {
     elements.resultsFilter.addEventListener('change', renderResults);
@@ -914,6 +936,80 @@ function handleJsonImport(e) {
 
   // Reset file input so same file can be selected again
   e.target.value = '';
+}
+
+async function handleMoxfieldImport() {
+  const urlOrId = elements.moxfieldUrl?.value?.trim();
+  if (!urlOrId) {
+    showMoxfieldError('Please enter a Moxfield URL or deck ID.');
+    return;
+  }
+
+  // Clear previous messages
+  hideMoxfieldMessages();
+
+  // Set loading state
+  const btn = elements.btnImportMoxfield;
+  if (btn) btn.loading = true;
+
+  try {
+    const deckData = await importFromMoxfield(urlOrId);
+
+    // Fill in the deck form with imported data
+    if (elements.deckName) {
+      elements.deckName.value = deckData.name || '';
+    }
+    if (elements.deckCommander) {
+      elements.deckCommander.value = deckData.commander || '';
+    }
+    if (elements.deckList) {
+      elements.deckList.value = toDecklistText(deckData);
+    }
+
+    // Show success message
+    showMoxfieldSuccess(`Imported "${deckData.name}" (${deckData.cards.length} cards). Review the form and click "Add Deck" to save.`);
+
+    // Clear the Moxfield URL input
+    if (elements.moxfieldUrl) {
+      elements.moxfieldUrl.value = '';
+    }
+
+    // Collapse the Moxfield section
+    if (elements.moxfieldImportSection) {
+      elements.moxfieldImportSection.open = false;
+    }
+
+  } catch (err) {
+    console.error('Moxfield import error:', err);
+    showMoxfieldError(err.message || 'Failed to import deck from Moxfield.');
+  } finally {
+    if (btn) btn.loading = false;
+  }
+}
+
+function showMoxfieldError(message) {
+  if (elements.moxfieldError) {
+    elements.moxfieldError.textContent = message;
+    elements.moxfieldError.hidden = false;
+  }
+  if (elements.moxfieldSuccess) {
+    elements.moxfieldSuccess.hidden = true;
+  }
+}
+
+function showMoxfieldSuccess(message) {
+  if (elements.moxfieldSuccess) {
+    elements.moxfieldSuccess.textContent = message;
+    elements.moxfieldSuccess.hidden = false;
+  }
+  if (elements.moxfieldError) {
+    elements.moxfieldError.hidden = true;
+  }
+}
+
+function hideMoxfieldMessages() {
+  if (elements.moxfieldError) elements.moxfieldError.hidden = true;
+  if (elements.moxfieldSuccess) elements.moxfieldSuccess.hidden = true;
 }
 
 function handleStripeReorder(deckId, direction) {
