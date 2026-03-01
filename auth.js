@@ -1,5 +1,6 @@
 // Authentication module for Prism
 import { getSupabase, isConfigured } from './supabase-client.js';
+import { syncWithSupabase } from './storage.js';
 
 // Current user state
 let currentUser = null;
@@ -34,12 +35,21 @@ export async function initAuth() {
   const { data: { session } } = await supabase.auth.getSession();
   if (session?.user) {
     notifyAuthChange(session.user);
+    // Sync on initial load if already logged in
+    await syncWithSupabase();
   }
 
   // Listen for auth changes
-  supabase.auth.onAuthStateChange((event, session) => {
+  supabase.auth.onAuthStateChange(async (event, session) => {
     console.log('Auth state changed:', event);
     notifyAuthChange(session?.user || null);
+
+    // Sync with Supabase when user logs in
+    if (event === 'SIGNED_IN' && session?.user) {
+      await syncWithSupabase();
+      // Reload page to show synced data
+      window.location.reload();
+    }
   });
 
   return currentUser;
