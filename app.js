@@ -27,6 +27,8 @@ import {
   getAllPrisms
 } from './storage.js';
 import { downloadCSV, downloadJSON, openPrintableGuide } from './export.js';
+import { showPreview, hidePreview, updatePosition } from './card-preview.js';
+import { prefetchCards } from './scryfall.js';
 
 // ============================================================================
 // State
@@ -324,7 +326,51 @@ function setupEventListeners() {
   if (elements.editDeckFileInput) {
     elements.editDeckFileInput.addEventListener('change', handleEditFileUpload);
   }
+
+  // Card preview hover handlers (event delegation on results table)
+  if (elements.resultsTbody) {
+    elements.resultsTbody.addEventListener('mouseenter', handleCardPreviewShow, true);
+    elements.resultsTbody.addEventListener('mouseleave', handleCardPreviewHide, true);
+    elements.resultsTbody.addEventListener('mousemove', handleCardPreviewMove);
+  }
 }
+
+// Card preview handlers
+function handleCardPreviewShow(e) {
+  const cell = e.target.closest('.card-name-cell');
+  if (!cell) return;
+
+  const cardName = cell.dataset.cardName;
+  const stripesJson = cell.dataset.stripes;
+
+  if (!cardName) return;
+
+  let stripes = [];
+  try {
+    stripes = JSON.parse(stripesJson || '[]');
+  } catch (err) {
+    console.warn('Failed to parse stripes data:', err);
+  }
+
+  showPreview(cardName, stripes, e);
+}
+
+function handleCardPreviewHide(e) {
+  const cell = e.target.closest('.card-name-cell');
+  if (!cell) return;
+
+  // Check if we're leaving to another element within the same cell
+  const relatedTarget = e.relatedTarget;
+  if (relatedTarget && cell.contains(relatedTarget)) return;
+
+  hidePreview();
+}
+
+function handleCardPreviewMove(e) {
+  const cell = e.target.closest('.card-name-cell');
+  if (!cell) return;
+
+  updatePosition(e);
 
 // ============================================================================
 // Event Handlers
@@ -1295,9 +1341,16 @@ function renderResults() {
     const isMarked = currentPrism.markedCards?.includes(cardKey) || false;
     const markedClass = isMarked ? 'marked-row' : '';
 
+    // Prepare stripes data for preview (exclude position-only data for cleaner JSON)
+    const stripesJson = JSON.stringify(card.stripes.map(s => ({
+      position: s.position,
+      color: s.color,
+      deckName: s.deckName
+    })));
+
     return `
       <tr class="${rowClass} ${markedClass}" data-card-key="${escapeHtml(cardKey)}">
-        <td class="${nameClass}">${escapeHtml(card.name)}${basicTag}</td>${copiesCell}
+        <td class="${nameClass} card-name-cell" data-card-name="${escapeHtml(card.name)}" data-stripes='${stripesJson}'>${escapeHtml(card.name)}${basicTag}</td>${copiesCell}
         <td><div class="stripe-indicators">${stripeIndicators}</div></td>
         <td style="text-align: center;">
           <input type="checkbox" class="mark-checkbox" ${isMarked ? 'checked' : ''}>
@@ -1339,6 +1392,18 @@ function renderResults() {
         </td>
       </tr>
     `;
+    return;
+  }
+
+  // Prefetch card images for visible cards (first 20 to avoid rate limiting)
+  const cardNames = displayCards
+    .slice(0, 20)
+    .map(c => c.isBasicByDeck ? c.displayName : c.name)
+    .filter(Boolean);
+  if (cardNames.length > 0) {
+    prefetchCards(cardNames).catch(() => {
+      // Silently ignore prefetch errors
+    });
   }
 }
 
