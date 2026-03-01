@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en" class="wa-cloak">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Privacy Policy - PRISM</title>
+    <meta name="description" content="Privacy Policy for PRISM - MTG Deck Sleeve Marking Tool" />
+    <script src="https://kit.webawesome.com/da021fed1e5141f2.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link rel="icon" type="image/x-icon" href="./assets/Prism-Small-Icon-Invert.svg">
+    <script>
+      document.documentElement.classList.add('wa-dark');
+    </script>
+    <link rel="stylesheet" href="custom.css" />
+  </head>
+  <body>
+    <wa-page mobile-breakpoint="768">
+      <!-- Mobile Navigation -->
+      <nav slot="navigation" class="wa-stack wa-gap-m" style="padding: var(--wa-space-l); height: 100%; justify-content: space-between;">
+        <div class="wa-stack wa-gap-m">
+          <a href="index.html" style="text-decoration: none; color: inherit;">Home</a>
+          <a href="guide.html" style="text-decoration: none; color: inherit;">Guide</a>
+          <a href="tools.html" style="text-decoration: none; color: inherit;">Tools</a>
+          <a href="build.html" style="text-decoration: none; color: inherit;">Build PRISM</a>
+        </div>
+
+        <!-- Account Section -->
+        <div class="wa-stack wa-gap-s" style="border-top: 1px solid var(--wa-color-neutral-border); padding-top: var(--wa-space-m);">
+          <div id="auth-logged-out">
+            <wa-button id="btn-login" variant="neutral" appearance="outlined" style="width: 100%;">
+              <wa-icon slot="start" name="right-to-bracket"></wa-icon>
+              Log In
+            </wa-button>
+          </div>
+          <div id="auth-logged-in" hidden class="wa-stack wa-gap-s">
+            <div class="wa-cluster wa-gap-s wa-align-items-center">
+              <wa-icon name="circle-user" style="font-size: 1.5em;"></wa-icon>
+              <span id="user-email" class="wa-caption-m" style="overflow: hidden; text-overflow: ellipsis;"></span>
+            </div>
+            <wa-button id="btn-logout" variant="neutral" appearance="plain" size="small">
+              <wa-icon slot="start" name="right-from-bracket"></wa-icon>
+              Log Out
+            </wa-button>
+          </div>
+        </div>
+      </nav>
+
+      <!-- Header -->
+      <header slot="header" class="wa-split">
+        <div class="wa-cluster wa-gap-m wa-align-items-center">
+          <wa-button data-toggle-nav appearance="plain" variant="neutral" size="small">
+            <wa-icon name="bars"></wa-icon>
+          </wa-button>
+          <a href="index.html" class="wa-cluster wa-gap-xs wa-align-items-center" style="text-decoration: none; color: inherit;">
+            <img src="./assets/Prism-Small-Icon-Invert.svg" alt="Prism Logo" style="height:1.5em;">
+            <span class="wa-heading-m wa-desktop-only">PRISM</span>
+          </a>
+        </div>
+        <div class="wa-cluster wa-gap-xs wa-align-items-center">
+          <wa-button href="build.html" variant="brand" size="small">
+            <wa-icon slot="start" name="plus"></wa-icon>
+            New PRISM
+          </wa-button>
+        </div>
+      </header>
+
+      <main class="wa-stack wa-gap-xl" style="max-width: 800px; margin: 0 auto; padding: var(--wa-space-xl);">
+        <div class="wa-stack wa-gap-m">
+          <h1 class="wa-heading-xl">Privacy Policy</h1>
+          <p class="wa-caption-m" style="color: var(--wa-color-neutral-text-subtle);">Last updated: March 2026</p>
+        </div>
+
+        <section class="wa-stack wa-gap-m">
+          <h2 class="wa-heading-m">Overview</h2>
+          <p>PRISM ("we", "our", or "us") is a tool for Magic: The Gathering players to manage shared cards across multiple Commander decks. This Privacy Policy explains how we collect, use, and protect your information.</p>
+        </section>
+
+        <section class="wa-stack wa-gap-m">
+          <h2 class="wa-heading-m">Information We Collect</h2>
+
+          <h3 class="wa-heading-s">Account Information</h3>
+          <p>When you create an account, we collect:</p>
+          <ul class="wa-stack wa-gap-xs" style="padding-left: var(--wa-space-l);">
+            <li>Email address (required for authentication)</li>
+            <li>Password (stored securely using industry-standard hashing)</li>
+          </ul>
+
+          <h3 class="wa-heading-s">Usage Data</h3>
+          <p>We collect information about how you use PRISM:</p>
+          <ul class="wa-stack wa-gap-xs" style="padding-left: var(--wa-space-l);">
+            <li>Deck names and card lists you create</li>
+            <li>PRISM configurations you save</li>
+            <li>Basic usage logs for debugging purposes</li>
+          </ul>
+
+          <h3 class="wa-heading-s">Local Storage</h3>
+          <p>PRISM stores data locally in your browser (localStorage) for offline functionality. This data stays on your device unless you choose to sync it with an account.</p>
+        </section>
+
+        <section class="wa-stack wa-gap-m">
+          <h2 class="wa-heading-m">How We Use Your Information</h2>
+          <p>We use your information to:</p>
+          <ul class="wa-stack wa-gap-xs" style="padding-left: var(--wa-space-l);">
+            <li>Provide and maintain the PRISM service</li>
+            <li>Authenticate your account</li>
+            <li>Sync your deck data across devices</li>
+            <li>Debug and improve the application</li>
+            <li>Send important service-related emails (e.g., password reset)</li>
+          </ul>
+          <p>We do <strong>not</strong> sell your personal information or share it with third parties for marketing purposes.</p>
+        </section>
+
+        <section class="wa-stack wa-gap-m">
+          <h2 class="wa-heading-m">Data Storage & Security</h2>
+          <p>Your data is stored securely using <a href="https://supabase.com" target="_blank" rel="noopener">Supabase</a>, which provides:</p>
+          <ul class="wa-stack wa-gap-xs" style="padding-left: var(--wa-space-l);">
+            <li>Encrypted data transmission (HTTPS/TLS)</li>
+            <li>Row-level security ensuring you can only access your own data</li>
+            <li>Secure password hashing</li>
+            <li>Regular security updates</li>
+          </ul>
+        </section>
+
+        <section class="wa-stack wa-gap-m">
+          <h2 class="wa-heading-m">Your Rights</h2>
+          <p>You have the right to:</p>
+          <ul class="wa-stack wa-gap-xs" style="padding-left: var(--wa-space-l);">
+            <li><strong>Access</strong> your personal data</li>
+            <li><strong>Export</strong> your deck data (JSON/CSV export feature)</li>
+            <li><strong>Delete</strong> your account and all associated data</li>
+            <li><strong>Correct</strong> inaccurate information</li>
+          </ul>
+          <p>To exercise these rights, contact us at the email below.</p>
+        </section>
+
+        <section class="wa-stack wa-gap-m">
+          <h2 class="wa-heading-m">Cookies & Tracking</h2>
+          <p>PRISM uses minimal cookies:</p>
+          <ul class="wa-stack wa-gap-xs" style="padding-left: var(--wa-space-l);">
+            <li><strong>Authentication cookies</strong> - Required to keep you logged in</li>
+          </ul>
+          <p>We do not use third-party tracking cookies or analytics services that track individual users.</p>
+        </section>
+
+        <section class="wa-stack wa-gap-m">
+          <h2 class="wa-heading-m">Third-Party Services</h2>
+          <p>PRISM uses the following third-party services:</p>
+          <ul class="wa-stack wa-gap-xs" style="padding-left: var(--wa-space-l);">
+            <li><strong>Supabase</strong> - Database and authentication (<a href="https://supabase.com/privacy" target="_blank" rel="noopener">Privacy Policy</a>)</li>
+            <li><strong>Scryfall API</strong> - Card images and data (<a href="https://scryfall.com/docs/api" target="_blank" rel="noopener">Terms</a>)</li>
+            <li><strong>Netlify</strong> - Website hosting (<a href="https://www.netlify.com/privacy/" target="_blank" rel="noopener">Privacy Policy</a>)</li>
+          </ul>
+        </section>
+
+        <section class="wa-stack wa-gap-m">
+          <h2 class="wa-heading-m">Children's Privacy</h2>
+          <p>PRISM is not intended for children under 13. We do not knowingly collect personal information from children under 13. If you believe we have collected such information, please contact us immediately.</p>
+        </section>
+
+        <section class="wa-stack wa-gap-m">
+          <h2 class="wa-heading-m">Changes to This Policy</h2>
+          <p>We may update this Privacy Policy from time to time. We will notify users of significant changes by posting a notice on the site. Your continued use of PRISM after changes constitutes acceptance of the updated policy.</p>
+        </section>
+
+        <section class="wa-stack wa-gap-m">
+          <h2 class="wa-heading-m">Contact Us</h2>
+          <p>If you have questions about this Privacy Policy or your data, contact us at:</p>
+          <p><a href="mailto:privacy@example.com">privacy@example.com</a></p>
+        </section>
+
+        <!-- Footer -->
+        <footer style="border-top: 1px solid var(--wa-color-neutral-border); padding-top: var(--wa-space-xl); margin-top: var(--wa-space-xl);">
+          <div class="wa-cluster wa-gap-l" style="justify-content: center;">
+            <a href="privacy.html" style="color: var(--wa-color-neutral-text-subtle);">Privacy Policy</a>
+            <a href="terms.html" style="color: var(--wa-color-neutral-text-subtle);">Terms of Service</a>
+          </div>
+        </footer>
+      </main>
+    </wa-page>
+
+    <!-- Auth Dialog -->
+    <wa-dialog id="auth-dialog" label="Log In">
+      <span slot="label" id="auth-dialog-title">Log In</span>
+      <form id="auth-form" class="wa-stack wa-gap-m">
+        <input type="hidden" id="auth-mode" value="login" />
+        <wa-input name="email" type="email" label="Email" placeholder="you@example.com" required></wa-input>
+        <wa-input name="password" type="password" label="Password" placeholder="Your password" required minlength="6"></wa-input>
+        <div id="auth-error" hidden class="wa-caption-m" style="color: var(--wa-color-danger-text);"></div>
+        <wa-button id="auth-submit-btn" type="submit" variant="brand" style="width: 100%;">Log In</wa-button>
+        <wa-button id="toggle-auth-mode" type="button" appearance="plain" size="small" style="align-self: center;">
+          Don't have an account? Sign up
+        </wa-button>
+      </form>
+    </wa-dialog>
+
+    <script type="module" src="auth-nav.js"></script>
+  </body>
+</html>
