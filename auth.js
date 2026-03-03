@@ -123,14 +123,12 @@ export function updateAuthUI(user) {
   const loginSection = document.getElementById('auth-logged-out');
   const userSection = document.getElementById('auth-logged-in');
 
-  if (!loginSection || !userSection) return;
-
   if (user) {
-    loginSection.hidden = true;
-    userSection.hidden = false;
+    if (loginSection) loginSection.style.display = 'none';
+    if (userSection) userSection.style.display = '';
   } else {
-    loginSection.hidden = false;
-    userSection.hidden = true;
+    if (loginSection) loginSection.style.display = '';
+    if (userSection) userSection.style.display = 'none';
   }
 }
 
