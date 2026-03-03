@@ -36,10 +36,10 @@
 
           <!-- Logged In State -->
           <div id="auth-logged-in" hidden class="wa-stack wa-gap-s">
-            <div class="wa-cluster wa-gap-s wa-align-items-center">
-              <wa-icon name="circle-user" style="font-size: 1.5em;"></wa-icon>
-              <span id="user-email" class="wa-caption-m" style="overflow: hidden; text-overflow: ellipsis;"></span>
-            </div>
+            <wa-button href="profile.html" variant="neutral" appearance="outlined" style="width: 100%;">
+              <wa-icon slot="start" name="circle-user"></wa-icon>
+              Profile
+            </wa-button>
             <wa-button id="btn-logout" variant="neutral" appearance="plain" size="small">
               <wa-icon slot="start" name="right-from-bracket"></wa-icon>
               Log Out
@@ -267,7 +267,7 @@ Share your staples across every deck. PRISM tracks what goes where so you don't 
       </div>
 
       <!-- Signup View -->
-      <div id="auth-signup-view" class="wa-stack wa-gap-m" hidden>
+      <div id="auth-signup-view" class="wa-stack wa-gap-m" style="display: none;">
         <p class="wa-body-m" style="color: var(--wa-color-neutral-text-subtle);">You don't need to sign in to use PRISM, but if you want to save multiple PRISMs or sync across devices, create an account.</p>
         <form id="signup-form" class="wa-stack wa-gap-m">
           <wa-input id="signup-email" name="email" type="email" label="Email" placeholder="you@example.com" required></wa-input>
@@ -284,7 +284,7 @@ Share your staples across every deck. PRISM tracks what goes where so you don't 
       </div>
 
       <!-- Forgot Password View -->
-      <div id="auth-forgot-view" class="wa-stack wa-gap-m" hidden>
+      <div id="auth-forgot-view" class="wa-stack wa-gap-m" style="display: none;">
         <p class="wa-body-m" style="color: var(--wa-color-neutral-text-subtle);">Enter your email and we'll send you a link to reset your password.</p>
         <form id="forgot-form" class="wa-stack wa-gap-m">
           <wa-input id="forgot-email" name="email" type="email" label="Email" placeholder="you@example.com" required></wa-input>

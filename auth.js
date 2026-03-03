@@ -122,16 +122,12 @@ export async function updatePassword(newPassword) {
 export function updateAuthUI(user) {
   const loginSection = document.getElementById('auth-logged-out');
   const userSection = document.getElementById('auth-logged-in');
-  const userEmail = document.getElementById('user-email');
 
   if (!loginSection || !userSection) return;
 
   if (user) {
     loginSection.hidden = true;
     userSection.hidden = false;
-    if (userEmail) {
-      userEmail.textContent = user.email;
-    }
   } else {
     loginSection.hidden = false;
     userSection.hidden = true;
@@ -140,29 +136,28 @@ export function updateAuthUI(user) {
 
 // Show specific auth view
 function showAuthView(viewName) {
-  const dialog = document.getElementById('auth-dialog');
   const loginView = document.getElementById('auth-login-view');
   const signupView = document.getElementById('auth-signup-view');
   const forgotView = document.getElementById('auth-forgot-view');
   const dialogTitle = document.getElementById('auth-dialog-title');
 
   // Hide all views
-  if (loginView) loginView.hidden = true;
-  if (signupView) signupView.hidden = true;
-  if (forgotView) forgotView.hidden = true;
+  if (loginView) loginView.style.display = 'none';
+  if (signupView) signupView.style.display = 'none';
+  if (forgotView) forgotView.style.display = 'none';
 
   // Show requested view and update title
   switch (viewName) {
     case 'login':
-      if (loginView) loginView.hidden = false;
+      if (loginView) loginView.style.display = '';
       if (dialogTitle) dialogTitle.textContent = 'Login';
       break;
     case 'signup':
-      if (signupView) signupView.hidden = false;
+      if (signupView) signupView.style.display = '';
       if (dialogTitle) dialogTitle.textContent = 'Sign up with Email';
       break;
     case 'forgot':
-      if (forgotView) forgotView.hidden = false;
+      if (forgotView) forgotView.style.display = '';
       if (dialogTitle) dialogTitle.textContent = 'Reset Password';
       break;
   }
@@ -195,15 +190,6 @@ export function setupAuthListeners() {
         showAuthView('login');
         dialog.open = true;
       }
-    });
-  }
-
-  // Profile/user email click - go to profile page
-  const userEmail = document.getElementById('user-email');
-  if (userEmail) {
-    userEmail.style.cursor = 'pointer';
-    userEmail.addEventListener('click', () => {
-      window.location.href = 'profile.html';
     });
   }
 
