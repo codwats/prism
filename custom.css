@@ -266,6 +266,118 @@ wa-page[view='desktop'] [data-toggle-nav] {
 }
 
 /* ============================================================================
+   Deck Overlap Matrix
+   ============================================================================ */
+
+.overlap-matrix-table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: var(--wa-font-size-s);
+}
+
+.overlap-matrix-table th,
+.overlap-matrix-table td {
+  padding: var(--wa-space-xs) var(--wa-space-s);
+  text-align: center;
+  border: 1px solid var(--wa-color-neutral-stroke-subtle);
+  white-space: nowrap;
+}
+
+.overlap-matrix-table thead th {
+  background: var(--wa-color-surface-2);
+  font-weight: var(--wa-font-weight-semibold);
+  position: sticky;
+  top: 0;
+}
+
+.overlap-matrix-table tbody th {
+  background: var(--wa-color-surface-2);
+  font-weight: var(--wa-font-weight-semibold);
+  text-align: left;
+  position: sticky;
+  left: 0;
+}
+
+.overlap-cell {
+  min-width: 48px;
+  transition: background 0.15s ease;
+}
+
+.overlap-cell.overlap-self {
+  background: var(--wa-color-surface-3);
+}
+
+.overlap-cell.overlap-has-value {
+  font-weight: var(--wa-font-weight-semibold);
+  cursor: default;
+}
+
+.overlap-header {
+  display: flex;
+  align-items: center;
+  gap: var(--wa-space-2xs);
+}
+
+.deck-color-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+/* ============================================================================
+   What-If Analysis
+   ============================================================================ */
+
+.what-if-panel {
+  margin-top: var(--wa-space-m);
+  padding: var(--wa-space-m);
+  background: var(--wa-color-surface-2);
+  border-radius: var(--wa-border-radius-m);
+  border: 1px solid var(--wa-color-neutral-stroke-subtle);
+}
+
+.what-if-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: var(--wa-space-s);
+  margin-bottom: var(--wa-space-m);
+}
+
+.what-if-stat {
+  text-align: center;
+  padding: var(--wa-space-s);
+  background: var(--wa-color-surface-1);
+  border-radius: var(--wa-border-radius-s);
+}
+
+.what-if-stat .stat-value {
+  font-size: var(--wa-font-size-xl);
+  font-weight: var(--wa-font-weight-bold);
+}
+
+.what-if-stat .stat-label {
+  font-size: var(--wa-font-size-s);
+  color: var(--wa-color-neutral-text-subtle);
+}
+
+.what-if-card-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.what-if-card-list li {
+  padding: var(--wa-space-2xs) 0;
+  border-bottom: 1px solid var(--wa-color-neutral-stroke-subtle);
+  font-size: var(--wa-font-size-s);
+}
+
+.what-if-card-list li:last-child {
+  border-bottom: none;
+}
+
+/* ============================================================================
    Card Preview Tooltip
    ============================================================================ */
 

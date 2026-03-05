@@ -258,6 +258,15 @@
                 </wa-card>
               </div>
 
+              <!-- Deck Overlap Matrix -->
+              <wa-details id="overlap-matrix-container" style="display: none;">
+                <span slot="summary" class="wa-heading-s">
+                  <wa-icon name="table-cells" style="margin-right: var(--wa-space-xs);"></wa-icon>
+                  Deck Overlap Matrix
+                </span>
+                <div id="overlap-matrix" style="overflow-x: auto;"></div>
+              </wa-details>
+
               <!-- Filter -->
               <div class="wa-cluster wa-gap-m wa-align-items-center" style="flex-wrap: wrap;">
                 <wa-radio-group id="results-filter" orientation="horizontal" value="all">
