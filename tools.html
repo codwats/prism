@@ -333,8 +333,8 @@
       <!-- Login View -->
       <div id="auth-login-view" class="wa-stack wa-gap-m">
         <form id="login-form" class="wa-stack wa-gap-m">
-          <wa-input id="login-email" name="email" type="email" label="Email" placeholder="you@example.com" required></wa-input>
-          <wa-input id="login-password" name="password" type="password" label="Password" placeholder="Your password" required minlength="6"></wa-input>
+          <wa-input id="login-email" name="email" type="email" label="Email" placeholder="you@example.com" autocomplete="email" required></wa-input>
+          <wa-input id="login-password" name="password" type="password" label="Password" placeholder="Your password" autocomplete="current-password" required minlength="6"></wa-input>
           <a href="#" id="btn-forgot-password" class="wa-caption-m" style="color: var(--wa-color-brand-text);">Having trouble signing in?</a>
           <div id="login-error" hidden class="wa-caption-m" style="color: var(--wa-color-danger-text);"></div>
           <wa-button id="btn-login-submit" type="submit" variant="brand" style="width: 100%;">Sign in</wa-button>
@@ -349,8 +349,8 @@
       <div id="auth-signup-view" class="wa-stack wa-gap-m" style="display: none;">
         <p class="wa-body-m" style="color: var(--wa-color-neutral-text-subtle);">You don't need to sign in to use PRISM, but if you want to save multiple PRISMs or sync across devices, create an account.</p>
         <form id="signup-form" class="wa-stack wa-gap-m">
-          <wa-input id="signup-email" name="email" type="email" label="Email" placeholder="you@example.com" required></wa-input>
-          <wa-input id="signup-password" name="password" type="password" label="Password" placeholder="Create a password" required minlength="6"></wa-input>
+          <wa-input id="signup-email" name="email" type="email" label="Email" placeholder="you@example.com" autocomplete="email" required></wa-input>
+          <wa-input id="signup-password" name="password" type="password" label="Password" placeholder="Create a password" autocomplete="new-password" required minlength="6"></wa-input>
           <div id="signup-error" hidden class="wa-caption-m" style="color: var(--wa-color-danger-text);"></div>
           <div id="signup-success" hidden class="wa-caption-m" style="color: var(--wa-color-success-text);"></div>
           <wa-button id="btn-signup-submit" type="submit" variant="brand" style="width: 100%;">Create Account</wa-button>
