@@ -305,6 +305,12 @@ export async function syncWithSupabase() {
 }
 
 // ============================================
+// SYNC DEBOUNCE
+// ============================================
+
+let syncTimeout = null;
+
+// ============================================
 // PUBLIC API (unchanged interface)
 // ============================================
 
@@ -337,11 +343,14 @@ export function savePrism(prism) {
   storage.prisms[prism.id] = prism;
   saveStorage(storage);
 
-  // Sync to Supabase if logged in
+  // Sync to Supabase if logged in (debounced to avoid race conditions on rapid saves)
   if (shouldSyncToSupabase()) {
-    savePrismToSupabase(prism).catch(err => {
-      console.error('Background sync failed:', err);
-    });
+    clearTimeout(syncTimeout);
+    syncTimeout = setTimeout(() => {
+      savePrismToSupabase(prism).catch(err => {
+        console.error('Background sync failed:', err);
+      });
+    }, 2000);
   }
 }
 

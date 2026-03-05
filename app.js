@@ -8,7 +8,6 @@ import {
   createDeck,
   createPrism,
   processCards,
-  calculateOverlap,
   getNextStripePosition,
   getNextColor,
   isColorUsed,
@@ -1252,11 +1251,11 @@ function renderDecksList() {
 
 function renderResults() {
   const processedCards = processCards(currentPrism);
-  const overlap = calculateOverlap(currentPrism);
+  const sharedCardCount = processedCards.filter(c => c.deckCount > 1).length;
 
   // Update stats
-  if (elements.statTotal) elements.statTotal.textContent = overlap.totalUniqueCards;
-  if (elements.statShared) elements.statShared.textContent = overlap.sharedCardCount;
+  if (elements.statTotal) elements.statTotal.textContent = processedCards.length;
+  if (elements.statShared) elements.statShared.textContent = sharedCardCount;
 
   // Show/hide based on deck count
   if (currentPrism.decks.length === 0) {
@@ -1878,6 +1877,8 @@ function showSuccess(message) {
   showToast(message, 'success', 'check-circle');
 }
 
+const activeToasts = [];
+
 function showToast(message, variant = 'neutral', icon = 'info-circle') {
   // Create toast element using Web Awesome's wa-callout as toast
   const toast = document.createElement('wa-callout');
@@ -1889,10 +1890,16 @@ function showToast(message, variant = 'neutral', icon = 'info-circle') {
     ${message}
   `;
 
-  // Style it as a floating toast
+  // Calculate vertical offset based on active toasts
+  const offset = activeToasts.reduce((sum, t) => {
+    const rect = t.getBoundingClientRect();
+    return sum + rect.height + 8;
+  }, 0);
+
+  // Style it as a floating toast with offset
   toast.style.cssText = `
     position: fixed;
-    bottom: var(--wa-space-xl);
+    bottom: calc(var(--wa-space-xl) + ${offset}px);
     right: var(--wa-space-xl);
     max-width: 400px;
     z-index: 9999;
@@ -1900,15 +1907,20 @@ function showToast(message, variant = 'neutral', icon = 'info-circle') {
   `;
 
   document.body.appendChild(toast);
+  activeToasts.push(toast);
 
-  // Auto-remove after duration
-  setTimeout(() => {
+  function removeToast() {
+    const index = activeToasts.indexOf(toast);
+    if (index > -1) activeToasts.splice(index, 1);
     toast.style.animation = 'slideOutDown 0.3s ease';
     setTimeout(() => toast.remove(), 300);
-  }, 5000);
+  }
+
+  // Auto-remove after duration
+  setTimeout(removeToast, 5000);
 
   // Remove on close
-  toast.addEventListener('wa-hide', () => toast.remove());
+  toast.addEventListener('wa-hide', removeToast);
 }
 
 // ============================================================================
