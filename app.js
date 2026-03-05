@@ -8,7 +8,6 @@ import {
   createDeck,
   createPrism,
   processCards,
-  calculateOverlap,
   getNextStripePosition,
   getNextColor,
   isColorUsed,
@@ -27,6 +26,11 @@ import {
   getAllPrisms
 } from './storage.js';
 import { downloadCSV, downloadJSON, openPrintableGuide } from './export.js';
+import { showPreview, hidePreview, updatePosition } from './card-preview.js';
+import { initAuth, setupAuthListeners } from './auth.js';
+import { prefetchCards } from './scryfall.js';
+import { importFromMoxfield, toDecklistText, extractMoxfieldId } from './moxfield.js';
+import { importFromArchidekt, extractArchidektId } from './archidekt.js';
 
 // ============================================================================
 // State
@@ -66,6 +70,13 @@ function getElements() {
     colorWarning: document.getElementById('color-warning'),
     parseErrors: document.getElementById('parse-errors'),
     btnResetForm: document.getElementById('btn-reset-form'),
+
+    // Moxfield import
+    moxfieldUrl: document.getElementById('moxfield-url'),
+    btnImportMoxfield: document.getElementById('btn-import-moxfield'),
+    moxfieldError: document.getElementById('moxfield-error'),
+    moxfieldSuccess: document.getElementById('moxfield-success'),
+    moxfieldImportSection: document.getElementById('moxfield-import-section'),
     
     // Decks list
     decksList: document.getElementById('decks-list'),
@@ -126,10 +137,14 @@ function getElements() {
 
 async function init() {
   console.log('PRISM: Initializing...');
-  
+
   // Wait a tick for Web Awesome components to upgrade
   await new Promise(resolve => setTimeout(resolve, 100));
-  
+
+  // Initialize auth
+  await initAuth();
+  setupAuthListeners();
+
   // Get element references
   elements = getElements();
   
@@ -250,7 +265,21 @@ function setupEventListeners() {
   if (elements.prismJsonInput) {
     elements.prismJsonInput.addEventListener('change', handleJsonImport);
   }
-  
+
+  // Moxfield import
+  if (elements.btnImportMoxfield) {
+    elements.btnImportMoxfield.addEventListener('click', handleMoxfieldImport);
+  }
+  if (elements.moxfieldUrl) {
+    // Also allow pressing Enter to import
+    elements.moxfieldUrl.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        handleMoxfieldImport();
+      }
+    });
+  }
+
   // Results filter - use 'change' event for wa-radio-group
   if (elements.resultsFilter) {
     elements.resultsFilter.addEventListener('change', renderResults);
@@ -324,6 +353,51 @@ function setupEventListeners() {
   if (elements.editDeckFileInput) {
     elements.editDeckFileInput.addEventListener('change', handleEditFileUpload);
   }
+
+  // Card preview hover handlers (event delegation on results table)
+  if (elements.resultsTbody) {
+    elements.resultsTbody.addEventListener('mouseenter', handleCardPreviewShow, true);
+    elements.resultsTbody.addEventListener('mouseleave', handleCardPreviewHide, true);
+    elements.resultsTbody.addEventListener('mousemove', handleCardPreviewMove);
+  }
+}
+
+// Card preview handlers
+function handleCardPreviewShow(e) {
+  const cell = e.target.closest('.card-name-cell');
+  if (!cell) return;
+
+  const cardName = cell.dataset.cardName;
+  const stripesJson = cell.dataset.stripes;
+
+  if (!cardName) return;
+
+  let stripes = [];
+  try {
+    stripes = JSON.parse(stripesJson || '[]');
+  } catch (err) {
+    console.warn('Failed to parse stripes data:', err);
+  }
+
+  showPreview(cardName, stripes, e);
+}
+
+function handleCardPreviewHide(e) {
+  const cell = e.target.closest('.card-name-cell');
+  if (!cell) return;
+
+  // Check if we're leaving to another element within the same cell
+  const relatedTarget = e.relatedTarget;
+  if (relatedTarget && cell.contains(relatedTarget)) return;
+
+  hidePreview();
+}
+
+function handleCardPreviewMove(e) {
+  const cell = e.target.closest('.card-name-cell');
+  if (!cell) return;
+
+  updatePosition(e);
 }
 
 // ============================================================================
@@ -864,6 +938,98 @@ function handleJsonImport(e) {
   e.target.value = '';
 }
 
+async function handleMoxfieldImport() {
+  const urlOrId = elements.moxfieldUrl?.value?.trim();
+  if (!urlOrId) {
+    showMoxfieldError('Please enter a deck URL.');
+    return;
+  }
+
+  // Clear previous messages
+  hideMoxfieldMessages();
+
+  // Set loading state
+  const btn = elements.btnImportMoxfield;
+  if (btn) btn.loading = true;
+
+  try {
+    // Detect which service based on URL/input
+    let deckData;
+    let serviceName;
+
+    if (urlOrId.includes('archidekt.com') || extractArchidektId(urlOrId)) {
+      // Try Archidekt first if URL contains archidekt or is a numeric ID
+      if (urlOrId.includes('archidekt.com') || /^\d+$/.test(urlOrId)) {
+        serviceName = 'Archidekt';
+        deckData = await importFromArchidekt(urlOrId);
+      } else {
+        serviceName = 'Moxfield';
+        deckData = await importFromMoxfield(urlOrId);
+      }
+    } else if (urlOrId.includes('moxfield.com') || extractMoxfieldId(urlOrId)) {
+      serviceName = 'Moxfield';
+      deckData = await importFromMoxfield(urlOrId);
+    } else {
+      throw new Error('Could not detect deck source. Please use a Moxfield or Archidekt URL.');
+    }
+
+    // Fill in the deck form with imported data
+    if (elements.deckName) {
+      elements.deckName.value = deckData.name || '';
+    }
+    if (elements.deckCommander) {
+      elements.deckCommander.value = deckData.commander || '';
+    }
+    if (elements.deckList) {
+      elements.deckList.value = toDecklistText(deckData);
+    }
+
+    // Show success message
+    showMoxfieldSuccess(`Imported "${deckData.name}" from ${serviceName} (${deckData.cards.length} cards). Review the form and click "Add Deck" to save.`);
+
+    // Clear the URL input
+    if (elements.moxfieldUrl) {
+      elements.moxfieldUrl.value = '';
+    }
+
+    // Collapse the import section
+    if (elements.moxfieldImportSection) {
+      elements.moxfieldImportSection.open = false;
+    }
+
+  } catch (err) {
+    console.error('Deck import error:', err);
+    showMoxfieldError(err.message || 'Failed to import deck.');
+  } finally {
+    if (btn) btn.loading = false;
+  }
+}
+
+function showMoxfieldError(message) {
+  if (elements.moxfieldError) {
+    elements.moxfieldError.textContent = message;
+    elements.moxfieldError.hidden = false;
+  }
+  if (elements.moxfieldSuccess) {
+    elements.moxfieldSuccess.hidden = true;
+  }
+}
+
+function showMoxfieldSuccess(message) {
+  if (elements.moxfieldSuccess) {
+    elements.moxfieldSuccess.textContent = message;
+    elements.moxfieldSuccess.hidden = false;
+  }
+  if (elements.moxfieldError) {
+    elements.moxfieldError.hidden = true;
+  }
+}
+
+function hideMoxfieldMessages() {
+  if (elements.moxfieldError) elements.moxfieldError.hidden = true;
+  if (elements.moxfieldSuccess) elements.moxfieldSuccess.hidden = true;
+}
+
 function handleStripeReorder(deckId, direction) {
   const currentIndex = currentPrism.decks.findIndex(d => d.id === deckId);
   if (currentIndex === -1) return;
@@ -1085,11 +1251,11 @@ function renderDecksList() {
 
 function renderResults() {
   const processedCards = processCards(currentPrism);
-  const overlap = calculateOverlap(currentPrism);
+  const sharedCardCount = processedCards.filter(c => c.deckCount > 1).length;
 
   // Update stats
-  if (elements.statTotal) elements.statTotal.textContent = overlap.totalUniqueCards;
-  if (elements.statShared) elements.statShared.textContent = overlap.sharedCardCount;
+  if (elements.statTotal) elements.statTotal.textContent = processedCards.length;
+  if (elements.statShared) elements.statShared.textContent = sharedCardCount;
 
   // Show/hide based on deck count
   if (currentPrism.decks.length === 0) {
@@ -1295,9 +1461,17 @@ function renderResults() {
     const isMarked = currentPrism.markedCards?.includes(cardKey) || false;
     const markedClass = isMarked ? 'marked-row' : '';
 
+    // Prepare stripes data for preview (exclude position-only data for cleaner JSON)
+    // Escape for use in HTML attribute (escape single quotes and ampersands)
+    const stripesJson = JSON.stringify(card.stripes.map(s => ({
+      position: s.position,
+      color: s.color,
+      deckName: s.deckName
+    }))).replace(/&/g, '&amp;').replace(/'/g, '&#39;');
+
     return `
       <tr class="${rowClass} ${markedClass}" data-card-key="${escapeHtml(cardKey)}">
-        <td class="${nameClass}">${escapeHtml(card.name)}${basicTag}</td>${copiesCell}
+        <td class="${nameClass} card-name-cell" data-card-name="${escapeHtml(card.name)}" data-stripes='${stripesJson}'>${escapeHtml(card.name)}${basicTag}</td>${copiesCell}
         <td><div class="stripe-indicators">${stripeIndicators}</div></td>
         <td style="text-align: center;">
           <input type="checkbox" class="mark-checkbox" ${isMarked ? 'checked' : ''}>
@@ -1339,6 +1513,18 @@ function renderResults() {
         </td>
       </tr>
     `;
+    return;
+  }
+
+  // Prefetch card images for visible cards (first 20 to avoid rate limiting)
+  const cardNames = displayCards
+    .slice(0, 20)
+    .map(c => c.isBasicByDeck ? c.displayName : c.name)
+    .filter(Boolean);
+  if (cardNames.length > 0) {
+    prefetchCards(cardNames).catch(() => {
+      // Silently ignore prefetch errors
+    });
   }
 }
 
@@ -1691,6 +1877,8 @@ function showSuccess(message) {
   showToast(message, 'success', 'check-circle');
 }
 
+const activeToasts = [];
+
 function showToast(message, variant = 'neutral', icon = 'info-circle') {
   // Create toast element using Web Awesome's wa-callout as toast
   const toast = document.createElement('wa-callout');
@@ -1702,10 +1890,16 @@ function showToast(message, variant = 'neutral', icon = 'info-circle') {
     ${message}
   `;
 
-  // Style it as a floating toast
+  // Calculate vertical offset based on active toasts
+  const offset = activeToasts.reduce((sum, t) => {
+    const rect = t.getBoundingClientRect();
+    return sum + rect.height + 8;
+  }, 0);
+
+  // Style it as a floating toast with offset
   toast.style.cssText = `
     position: fixed;
-    bottom: var(--wa-space-xl);
+    bottom: calc(var(--wa-space-xl) + ${offset}px);
     right: var(--wa-space-xl);
     max-width: 400px;
     z-index: 9999;
@@ -1713,15 +1907,20 @@ function showToast(message, variant = 'neutral', icon = 'info-circle') {
   `;
 
   document.body.appendChild(toast);
+  activeToasts.push(toast);
 
-  // Auto-remove after duration
-  setTimeout(() => {
+  function removeToast() {
+    const index = activeToasts.indexOf(toast);
+    if (index > -1) activeToasts.splice(index, 1);
     toast.style.animation = 'slideOutDown 0.3s ease';
     setTimeout(() => toast.remove(), 300);
-  }, 5000);
+  }
+
+  // Auto-remove after duration
+  setTimeout(removeToast, 5000);
 
   // Remove on close
-  toast.addEventListener('wa-hide', () => toast.remove());
+  toast.addEventListener('wa-hide', removeToast);
 }
 
 // ============================================================================

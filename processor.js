@@ -41,7 +41,7 @@ export const DEFAULT_COLORS = [
  */
 export function getColorName(hex) {
 	const colorNames = {
-		"#ecc933": "Yellow",
+		"#ECC933": "Yellow",
 		"#558CC1": "Blue",
 		"#6B5597": "Purple",
 		"#C73D2B": "Red",
@@ -261,13 +261,13 @@ export function getNextStripePosition(prism) {
 
 	const usedPositions = new Set(prism.decks.map((d) => d.stripePosition));
 
-	for (let i = 1; i <= 15; i++) {
+	for (let i = 1; i <= 32; i++) {
 		if (!usedPositions.has(i)) {
 			return i;
 		}
 	}
 
-	// All positions used (shouldn't happen with 15 limit)
+	// All positions used (shouldn't happen with 32 deck limit)
 	return prism.decks.length + 1;
 }
 

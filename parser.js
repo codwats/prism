@@ -4,7 +4,11 @@
  */
 
 // Basic land names for special handling
-const BASIC_LANDS = ['island', 'mountain', 'plains', 'forest', 'swamp', 'wastes'];
+const BASIC_LANDS = [
+  'island', 'mountain', 'plains', 'forest', 'swamp', 'wastes',
+  'snow-covered island', 'snow-covered mountain', 'snow-covered plains',
+  'snow-covered forest', 'snow-covered swamp'
+];
 
 /**
  * Check if a card name is a basic land

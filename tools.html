@@ -6,6 +6,7 @@
     <title>Tools & Supplies - PRISM</title>
     <meta name="description" content="Recommended paint pens, sleeves, and 3D printable marking jigs for the PRISM sleeve marking system." />
     <script src="https://kit.webawesome.com/da021fed1e5141f2.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link rel="icon" type="image/x-icon" href="./assets/Prism-Small-Icon-Invert.svg">
     <script>
       document.documentElement.classList.add('wa-dark');
@@ -15,11 +16,36 @@
   <body>
     <wa-page mobile-breakpoint="768">
       <!-- Mobile Navigation -->
-      <nav slot="navigation" class="wa-stack wa-gap-m" style="padding: var(--wa-space-l);">
-        <a href="index.html" style="text-decoration: none; color: inherit;">Home</a>
-        <a href="guide.html" style="text-decoration: none; color: inherit;">Guide</a>
-        <a href="tools.html" class="wa-heading-m" style="text-decoration: none; color: var(--wa-color-brand-text);">Tools</a>
-        <a href="build.html" style="text-decoration: none; color: inherit;">Build PRISM</a>
+      <nav slot="navigation" class="wa-stack wa-gap-m" style="padding: var(--wa-space-l); height: 100%; justify-content: space-between;">
+        <div class="wa-stack wa-gap-m">
+          <a href="index.html" style="text-decoration: none; color: inherit;">Home</a>
+          <a href="guide.html" style="text-decoration: none; color: inherit;">Guide</a>
+          <a href="tools.html" class="wa-heading-m" style="text-decoration: none; color: var(--wa-color-brand-text);">Tools</a>
+          <a href="build.html" style="text-decoration: none; color: inherit;">Build PRISM</a>
+        </div>
+
+        <!-- Account Section -->
+        <div class="wa-stack wa-gap-s" style="border-top: 1px solid var(--wa-color-neutral-border); padding-top: var(--wa-space-m);">
+          <!-- Logged Out State -->
+          <div id="auth-logged-out">
+            <wa-button id="btn-login" variant="neutral" appearance="outlined" style="width: 100%;">
+              <wa-icon slot="start" name="right-to-bracket"></wa-icon>
+              Log In
+            </wa-button>
+          </div>
+
+          <!-- Logged In State -->
+          <div id="auth-logged-in" class="wa-stack wa-gap-s" style="display: none;">
+            <wa-button href="profile.html" variant="neutral" appearance="outlined" style="width: 100%;">
+              <wa-icon slot="start" name="circle-user"></wa-icon>
+              Profile
+            </wa-button>
+            <wa-button id="btn-logout" variant="neutral" appearance="plain" size="small">
+              <wa-icon slot="start" name="right-from-bracket"></wa-icon>
+              Log Out
+            </wa-button>
+          </div>
+        </div>
       </nav>
 
       <!-- Header -->
@@ -274,24 +300,84 @@
 
         <!-- Footer -->
         <footer style="margin-top: var(--wa-space-4xl); padding-block: var(--wa-space-xl); border-top: 1px solid var(--wa-color-neutral-stroke-subtle);">
-          <div class="wa-split">
-            <div class="wa-cluster wa-gap-s wa-align-items-center">
-              <img src="./assets/Prism-Small-Icon-Invert.svg" style="height:1em;">
-              <span>PRISM</span>
-              <span style="color: var(--wa-color-neutral-text-subtle);">•</span>
-              <span style="color: var(--wa-color-neutral-text-subtle);">Made for Commander players, by Commander players</span>
+          <div class="wa-stack wa-gap-m">
+            <div class="wa-split">
+              <div class="wa-cluster wa-gap-s wa-align-items-center">
+                <img src="./assets/Prism-Small-Icon-Invert.svg" style="height:1em;" class="wa-border-radius-square">
+                <span>PRISM</span>
+                <span style="color: var(--wa-color-neutral-text-subtle);">•</span>
+                <span style="color: var(--wa-color-neutral-text-subtle);">Made for Commander players, by Commander players</span>
+              </div>
+              <div class="wa-cluster wa-gap-m" style="color: var(--wa-color-neutral-text-subtle);">
+                <a href="https://github.com" target="_blank" rel="noopener">
+                  <wa-icon name="github" family="brands"></wa-icon>
+                </a>
+                <a href="https://discord.com" target="_blank" rel="noopener">
+                  <wa-icon name="discord" family="brands"></wa-icon>
+                </a>
+              </div>
             </div>
-            <div class="wa-cluster wa-gap-m" style="color: var(--wa-color-neutral-text-subtle);">
-              <a href="https://github.com" target="_blank" rel="noopener">
-                <wa-icon name="github" family="brands"></wa-icon>
-              </a>
-              <a href="https://discord.com" target="_blank" rel="noopener">
-                <wa-icon name="discord" family="brands"></wa-icon>
-              </a>
+            <div class="wa-cluster wa-gap-m" style="justify-content: center;">
+              <a href="privacy.html" class="wa-caption-s" style="color: var(--wa-color-neutral-text-subtle);">Privacy Policy</a>
+              <a href="terms.html" class="wa-caption-s" style="color: var(--wa-color-neutral-text-subtle);">Terms of Service</a>
             </div>
           </div>
         </footer>
       </main>
     </wa-page>
+
+    <!-- Auth Dialog -->
+    <wa-dialog id="auth-dialog" style="--width: 45ch;">
+      <span slot="label" id="auth-dialog-title">Login</span>
+
+      <!-- Login View -->
+      <div id="auth-login-view" class="wa-stack wa-gap-m">
+        <form id="login-form" class="wa-stack wa-gap-m">
+          <wa-input id="login-email" name="email" type="email" label="Email" placeholder="you@example.com" autocomplete="email" required></wa-input>
+          <wa-input id="login-password" name="password" type="password" label="Password" placeholder="Your password" autocomplete="current-password" required minlength="6"></wa-input>
+          <a href="#" id="btn-forgot-password" class="wa-caption-m" style="color: var(--wa-color-brand-text);">Having trouble signing in?</a>
+          <div id="login-error" hidden class="wa-caption-m" style="color: var(--wa-color-danger-text);"></div>
+          <wa-button id="btn-login-submit" type="submit" variant="brand" style="width: 100%;">Sign in</wa-button>
+        </form>
+        <wa-divider></wa-divider>
+        <wa-button id="btn-show-signup" type="button" appearance="plain" size="small" style="align-self: center;">
+          Don't have an account? Sign up
+        </wa-button>
+      </div>
+
+      <!-- Signup View -->
+      <div id="auth-signup-view" class="wa-stack wa-gap-m" style="display: none;">
+        <p class="wa-body-m" style="color: var(--wa-color-neutral-text-subtle);">You don't need to sign in to use PRISM, but if you want to save multiple PRISMs or sync across devices, create an account.</p>
+        <form id="signup-form" class="wa-stack wa-gap-m">
+          <wa-input id="signup-email" name="email" type="email" label="Email" placeholder="you@example.com" autocomplete="email" required></wa-input>
+          <wa-input id="signup-password" name="password" type="password" label="Password" placeholder="Create a password" autocomplete="new-password" required minlength="6"></wa-input>
+          <div id="signup-error" hidden class="wa-caption-m" style="color: var(--wa-color-danger-text);"></div>
+          <div id="signup-success" hidden class="wa-caption-m" style="color: var(--wa-color-success-text);"></div>
+          <wa-button id="btn-signup-submit" type="submit" variant="brand" style="width: 100%;">Create Account</wa-button>
+        </form>
+        <p class="wa-caption-xs" style="color: var(--wa-color-neutral-text-subtle);">By clicking continue, you agree to our <a href="terms.html">Terms of Service</a> and <a href="privacy.html">Privacy Policy</a>.</p>
+        <wa-divider></wa-divider>
+        <wa-button id="btn-show-login" type="button" appearance="plain" size="small" style="align-self: center;">
+          Already have an account? Log in
+        </wa-button>
+      </div>
+
+      <!-- Forgot Password View -->
+      <div id="auth-forgot-view" class="wa-stack wa-gap-m" style="display: none;">
+        <p class="wa-body-m" style="color: var(--wa-color-neutral-text-subtle);">Enter your email and we'll send you a link to reset your password.</p>
+        <form id="forgot-form" class="wa-stack wa-gap-m">
+          <wa-input id="forgot-email" name="email" type="email" label="Email" placeholder="you@example.com" required></wa-input>
+          <div id="forgot-error" hidden class="wa-caption-m" style="color: var(--wa-color-danger-text);"></div>
+          <div id="forgot-success" hidden class="wa-caption-m" style="color: var(--wa-color-success-text);"></div>
+          <wa-button id="btn-forgot-submit" type="submit" variant="brand" style="width: 100%;">Send Reset Link</wa-button>
+        </form>
+        <wa-divider></wa-divider>
+        <wa-button id="btn-back-to-login" type="button" appearance="plain" size="small" style="align-self: center;">
+          Back to login
+        </wa-button>
+      </div>
+    </wa-dialog>
+
+    <script type="module" src="auth-nav.js"></script>
   </body>
 </html>
