@@ -57,7 +57,7 @@ exports.handler = async function(event, context) {
         'accept-language': 'en-US,en;q=0.9',
         'cache-control': 'no-cache',
         'pragma': 'no-cache',
-        'x-moxfield-version': '2025.10.13.2',
+        'x-moxfield-version': '2026.03.05.1',
         'Referer': 'https://moxfield.com/',
         'Referrer-Policy': 'strict-origin-when-cross-origin',
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
