@@ -43,7 +43,7 @@ export function exportToCSV(prism) {
   const processedCards = processCards(prism);
   
   // Build header row
-  // Fixed columns + up to 15 slot columns (3 columns each: Color, Deck, Bracket)
+  // Fixed columns + slot columns (3 columns each: Color, Deck, Bracket)
   const headers = [
     'Card Name',
     'Is Basic Land',
@@ -51,9 +51,14 @@ export function exportToCSV(prism) {
     'Total Decks',
     'Stripe Summary'
   ];
-  
-  // Add slot columns for each possible position (1-15)
-  for (let i = 1; i <= 15; i++) {
+
+  // Determine the max stripe position used across all decks
+  const maxSlot = prism.decks.length > 0
+    ? Math.max(...prism.decks.map(d => d.stripePosition))
+    : 0;
+
+  // Add slot columns for each position up to the max used
+  for (let i = 1; i <= maxSlot; i++) {
     headers.push(`Slot ${i} Color`);
     headers.push(`Slot ${i} Deck`);
     headers.push(`Slot ${i} Bracket`);
@@ -73,9 +78,9 @@ export function exportToCSV(prism) {
     
     // Create a map of position -> stripe for easy lookup
     const stripeMap = new Map(card.stripes.map(s => [s.position, s]));
-    
+
     // Add slot columns
-    for (let i = 1; i <= 15; i++) {
+    for (let i = 1; i <= maxSlot; i++) {
       const stripe = stripeMap.get(i);
       if (stripe) {
         row.push(escapeCSV(getColorName(stripe.color)));
