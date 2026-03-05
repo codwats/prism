@@ -207,14 +207,14 @@
                   <wa-details id="moxfield-import-section">
                     <span slot="summary" class="wa-caption-m">
                       <wa-icon name="link" style="margin-right: 0.5em;"></wa-icon>
-                      Import from Moxfield
+                      Import from URL
                     </span>
                     <div class="wa-stack wa-gap-m" style="padding-top: var(--wa-space-s);">
                       <div class="wa-cluster wa-gap-s wa-align-items-end">
                         <wa-input
                           id="moxfield-url"
-                          label="Moxfield URL or Deck ID"
-                          placeholder="https://www.moxfield.com/decks/abc123 or abc123"
+                          label="Deck URL"
+                          placeholder="https://moxfield.com/decks/... or https://archidekt.com/decks/..."
                           style="flex: 1; min-width: 250px;"
                         ></wa-input>
                         <wa-button type="button" id="btn-import-moxfield" variant="neutral">
@@ -226,7 +226,7 @@
                       <div id="moxfield-success" hidden class="wa-caption-s" style="color: var(--wa-color-success-text);"></div>
                       <wa-callout variant="neutral">
                         <wa-icon slot="icon" name="circle-info"></wa-icon>
-                        Paste your Moxfield deck URL and click Import. The deck name, commander, and card list will be auto-filled. Make sure your deck is set to <strong>Public</strong> on Moxfield.
+                        Paste a deck URL from <strong>Moxfield</strong> or <strong>Archidekt</strong> and click Import. The deck name, commander, and card list will be auto-filled. Make sure your deck is set to <strong>Public</strong>.
                       </wa-callout>
                     </div>
                   </wa-details>

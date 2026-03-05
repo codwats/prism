@@ -30,7 +30,8 @@ import { downloadCSV, downloadJSON, openPrintableGuide } from './export.js';
 import { showPreview, hidePreview, updatePosition } from './card-preview.js';
 import { initAuth, setupAuthListeners } from './auth.js';
 import { prefetchCards } from './scryfall.js';
-import { importFromMoxfield, toDecklistText } from './moxfield.js';
+import { importFromMoxfield, toDecklistText, extractMoxfieldId } from './moxfield.js';
+import { importFromArchidekt, extractArchidektId } from './archidekt.js';
 
 // ============================================================================
 // State
@@ -941,7 +942,7 @@ function handleJsonImport(e) {
 async function handleMoxfieldImport() {
   const urlOrId = elements.moxfieldUrl?.value?.trim();
   if (!urlOrId) {
-    showMoxfieldError('Please enter a Moxfield URL or deck ID.');
+    showMoxfieldError('Please enter a deck URL.');
     return;
   }
 
@@ -953,7 +954,25 @@ async function handleMoxfieldImport() {
   if (btn) btn.loading = true;
 
   try {
-    const deckData = await importFromMoxfield(urlOrId);
+    // Detect which service based on URL/input
+    let deckData;
+    let serviceName;
+
+    if (urlOrId.includes('archidekt.com') || extractArchidektId(urlOrId)) {
+      // Try Archidekt first if URL contains archidekt or is a numeric ID
+      if (urlOrId.includes('archidekt.com') || /^\d+$/.test(urlOrId)) {
+        serviceName = 'Archidekt';
+        deckData = await importFromArchidekt(urlOrId);
+      } else {
+        serviceName = 'Moxfield';
+        deckData = await importFromMoxfield(urlOrId);
+      }
+    } else if (urlOrId.includes('moxfield.com') || extractMoxfieldId(urlOrId)) {
+      serviceName = 'Moxfield';
+      deckData = await importFromMoxfield(urlOrId);
+    } else {
+      throw new Error('Could not detect deck source. Please use a Moxfield or Archidekt URL.');
+    }
 
     // Fill in the deck form with imported data
     if (elements.deckName) {
@@ -967,21 +986,21 @@ async function handleMoxfieldImport() {
     }
 
     // Show success message
-    showMoxfieldSuccess(`Imported "${deckData.name}" (${deckData.cards.length} cards). Review the form and click "Add Deck" to save.`);
+    showMoxfieldSuccess(`Imported "${deckData.name}" from ${serviceName} (${deckData.cards.length} cards). Review the form and click "Add Deck" to save.`);
 
-    // Clear the Moxfield URL input
+    // Clear the URL input
     if (elements.moxfieldUrl) {
       elements.moxfieldUrl.value = '';
     }
 
-    // Collapse the Moxfield section
+    // Collapse the import section
     if (elements.moxfieldImportSection) {
       elements.moxfieldImportSection.open = false;
     }
 
   } catch (err) {
-    console.error('Moxfield import error:', err);
-    showMoxfieldError(err.message || 'Failed to import deck from Moxfield.');
+    console.error('Deck import error:', err);
+    showMoxfieldError(err.message || 'Failed to import deck.');
   } finally {
     if (btn) btn.loading = false;
   }

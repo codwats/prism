@@ -107,17 +107,20 @@ function handleAuthChange(user) {
   updateAuthUI(user);
 
   if (user) {
-    // Show logged in state
-    if (elements.profileLoggedOut) elements.profileLoggedOut.hidden = true;
-    if (elements.profileLoggedIn) elements.profileLoggedIn.hidden = false;
+    // Show logged in state - use style.display for reliability with Web Awesome CSS
+    if (elements.profileLoggedOut) elements.profileLoggedOut.style.display = 'none';
+    if (elements.profileLoggedIn) {
+      elements.profileLoggedIn.hidden = false;
+      elements.profileLoggedIn.style.display = '';
+    }
     if (elements.profileEmail) elements.profileEmail.textContent = user.email;
 
     // Load PRISMs
     renderPrismsList();
   } else {
     // Show logged out state
-    if (elements.profileLoggedOut) elements.profileLoggedOut.hidden = false;
-    if (elements.profileLoggedIn) elements.profileLoggedIn.hidden = true;
+    if (elements.profileLoggedOut) elements.profileLoggedOut.style.display = '';
+    if (elements.profileLoggedIn) elements.profileLoggedIn.style.display = 'none';
   }
 }
 
