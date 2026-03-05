@@ -4,6 +4,10 @@
 
 [functions]
   node_bundler = "esbuild"
+  included_files = ["netlify/functions/**"]
+
+[context.production]
+  environment = { AWS_LAMBDA_JS_RUNTIME = "nodejs18.x" }
 
 # Headers for the functions
 [[headers]]
