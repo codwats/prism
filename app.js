@@ -64,8 +64,6 @@ function getElements() {
     deckColor: document.getElementById('deck-color'),
     deckList: document.getElementById('deck-list'),
     deckFileInput: document.getElementById('deck-file-input'),
-    btnUploadFile: document.getElementById('btn-upload-file'),
-    fileNameDisplay: document.getElementById('file-name-display'),
     colorSwatches: document.getElementById('color-swatches'),
     colorWarning: document.getElementById('color-warning'),
     parseErrors: document.getElementById('parse-errors'),
@@ -102,9 +100,7 @@ function getElements() {
     btnExportCSV: document.getElementById('btn-export-csv'),
     btnExportJSON: document.getElementById('btn-export-json'),
     btnPrintGuide: document.getElementById('btn-print-guide'),
-    btnImportJson: document.getElementById('btn-import-json'),
     prismJsonInput: document.getElementById('prism-json-input'),
-    importStatus: document.getElementById('import-status'),
     
     // Dialogs
     deleteDialog: document.getElementById('delete-dialog'),
@@ -127,8 +123,6 @@ function getElements() {
     editDeckColor: document.getElementById('edit-deck-color'),
     editDeckList: document.getElementById('edit-deck-list'),
     editDeckFileInput: document.getElementById('edit-deck-file-input'),
-    btnEditUploadFile: document.getElementById('btn-edit-upload-file'),
-    editFileNameDisplay: document.getElementById('edit-file-name-display'),
     editParseErrors: document.getElementById('edit-parse-errors'),
     btnCancelEdit: document.getElementById('btn-cancel-edit'),
     btnConfirmEdit: document.getElementById('btn-confirm-edit')
@@ -246,22 +240,12 @@ function setupEventListeners() {
     });
   }
 
-  // File upload
-  if (elements.btnUploadFile) {
-    elements.btnUploadFile.addEventListener('click', () => {
-      elements.deckFileInput?.click();
-    });
-  }
+  // File upload (wa-file-input handles its own UI)
   if (elements.deckFileInput) {
     elements.deckFileInput.addEventListener('change', handleFileUpload);
   }
 
-  // JSON import
-  if (elements.btnImportJson) {
-    elements.btnImportJson.addEventListener('click', () => {
-      elements.prismJsonInput?.click();
-    });
-  }
+  // JSON import (wa-file-input handles its own UI)
   if (elements.prismJsonInput) {
     elements.prismJsonInput.addEventListener('change', handleJsonImport);
   }
@@ -344,12 +328,7 @@ function setupEventListeners() {
     elements.btnConfirmEdit.addEventListener('click', handleEditConfirm);
   }
 
-  // Edit dialog file upload
-  if (elements.btnEditUploadFile) {
-    elements.btnEditUploadFile.addEventListener('click', () => {
-      elements.editDeckFileInput?.click();
-    });
-  }
+  // Edit dialog file upload (wa-file-input handles its own UI)
   if (elements.editDeckFileInput) {
     elements.editDeckFileInput.addEventListener('change', handleEditFileUpload);
   }
@@ -791,11 +770,6 @@ function handleFileUpload(e) {
   const file = e.target.files?.[0];
   if (!file) return;
 
-  // Show file name
-  if (elements.fileNameDisplay) {
-    elements.fileNameDisplay.textContent = file.name;
-  }
-
   // Read file content
   const reader = new FileReader();
   reader.onload = (event) => {
@@ -824,11 +798,6 @@ function handleEditFileUpload(e) {
   const file = e.target.files?.[0];
   if (!file) return;
 
-  // Show file name
-  if (elements.editFileNameDisplay) {
-    elements.editFileNameDisplay.textContent = file.name;
-  }
-
   // Read file content
   const reader = new FileReader();
   reader.onload = (event) => {
@@ -845,9 +814,6 @@ function handleEditFileUpload(e) {
   };
 
   reader.readAsText(file);
-
-  // Reset file input so same file can be selected again
-  e.target.value = '';
 }
 
 function handleJsonImport(e) {
@@ -915,11 +881,6 @@ function handleJsonImport(e) {
       initColorSwatches();
       renderAll();
 
-      // Update status
-      if (elements.importStatus) {
-        elements.importStatus.textContent = `Imported: ${file.name}`;
-      }
-
       showSuccess(`Imported "${newPrism.name}" with ${newPrism.decks.length} decks.`);
 
     } catch (err) {
@@ -935,7 +896,7 @@ function handleJsonImport(e) {
   reader.readAsText(file);
 
   // Reset file input so same file can be selected again
-  e.target.value = '';
+  e.target.files = [];
 }
 
 async function handleMoxfieldImport() {
@@ -1804,8 +1765,7 @@ function resetDeckForm() {
   if (elements.deckCommander) elements.deckCommander.value = '';
   if (elements.deckBracket) elements.deckBracket.value = '2';
   if (elements.deckList) elements.deckList.value = '';
-  if (elements.fileNameDisplay) elements.fileNameDisplay.textContent = '';
-  if (elements.deckFileInput) elements.deckFileInput.value = '';
+  if (elements.deckFileInput) elements.deckFileInput.files = [];
 
   // Set next available color
   const nextColor = getNextColor(currentPrism);
@@ -1877,50 +1837,11 @@ function showSuccess(message) {
   showToast(message, 'success', 'check-circle');
 }
 
-const activeToasts = [];
-
 function showToast(message, variant = 'neutral', icon = 'info-circle') {
-  // Create toast element using Web Awesome's wa-callout as toast
-  const toast = document.createElement('wa-callout');
-  toast.variant = variant;
-  toast.closable = true;
-  toast.duration = 5000;
-  toast.innerHTML = `
-    <wa-icon slot="icon" name="${icon}"></wa-icon>
-    ${message}
-  `;
-
-  // Calculate vertical offset based on active toasts
-  const offset = activeToasts.reduce((sum, t) => {
-    const rect = t.getBoundingClientRect();
-    return sum + rect.height + 8;
-  }, 0);
-
-  // Style it as a floating toast with offset
-  toast.style.cssText = `
-    position: fixed;
-    bottom: calc(var(--wa-space-xl) + ${offset}px);
-    right: var(--wa-space-xl);
-    max-width: 400px;
-    z-index: 9999;
-    animation: slideInUp 0.3s ease;
-  `;
-
-  document.body.appendChild(toast);
-  activeToasts.push(toast);
-
-  function removeToast() {
-    const index = activeToasts.indexOf(toast);
-    if (index > -1) activeToasts.splice(index, 1);
-    toast.style.animation = 'slideOutDown 0.3s ease';
-    setTimeout(() => toast.remove(), 300);
+  const toastContainer = document.querySelector('#toast-container');
+  if (toastContainer) {
+    toastContainer.create(message, { variant, duration: 5000, icon });
   }
-
-  // Auto-remove after duration
-  setTimeout(removeToast, 5000);
-
-  // Remove on close
-  toast.addEventListener('wa-hide', removeToast);
 }
 
 // ============================================================================

@@ -198,31 +198,7 @@ wa-page[view='desktop'] [data-toggle-nav] {
   }
 }
 
-/* ============================================================================
-   Toast Animations
-   ============================================================================ */
-
-@keyframes slideInUp {
-  from {
-    transform: translateY(100%);
-    opacity: 0;
-  }
-  to {
-    transform: translateY(0);
-    opacity: 1;
-  }
-}
-
-@keyframes slideOutDown {
-  from {
-    transform: translateY(0);
-    opacity: 1;
-  }
-  to {
-    transform: translateY(100%);
-    opacity: 0;
-  }
-}
+/* Toast styles handled by <wa-toast> component */
 
 /* ============================================================================
    Sortable Table Headers
