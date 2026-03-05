@@ -1,6 +1,6 @@
 # Web Awesome
 
-> A forward-thinking library of web components. Version 3.1.0.
+> A forward-thinking library of web components. Version 3.3.1.
 
 Web Awesome provides a comprehensive set of customizable, accessible web components for building modern
 web applications. All components use shadow DOM and are framework-agnostic, working with vanilla JavaScript
@@ -27,24 +27,30 @@ For comprehensive documentation, visit https://webawesome.com/docs/
 - [Animation](https://webawesome.com/docs/components/animation): Animate elements declaratively with nearly 100 baked-in presets, or roll your own with custom keyframes.
 - [Avatar](https://webawesome.com/docs/components/avatar): Avatars are used to represent a person or object.
 - [Badge](https://webawesome.com/docs/components/badge): Badges are used to draw attention and display statuses or counts.
+- [Bar Chart](https://webawesome.com/docs/components/bar-chart): They work well for comparing quantities across categories, showing rankings, and highlighting differences between groups.
 - [Breadcrumb](https://webawesome.com/docs/components/breadcrumb): Breadcrumbs provide a group of links so users can easily navigate a website's hierarchy.
 - [Breadcrumb Item](https://webawesome.com/docs/components/breadcrumb-item): Breadcrumb Items are used inside breadcrumbs to represent different links.
+- [Bubble Chart](https://webawesome.com/docs/components/bubble-chart): They are useful for visualizing relationships where a third variable adds meaning beyond a simple x/y correlation.
 - [Button](https://webawesome.com/docs/components/button): Buttons represent actions that are available to the user.
 - [Button Group](https://webawesome.com/docs/components/button-group): Button groups can be used to group related buttons into sections.
 - [Callout](https://webawesome.com/docs/components/callout): Callouts are used to display important messages inline.
 - [Card](https://webawesome.com/docs/components/card): Cards can be used to group related subjects in a container.
 - [Carousel](https://webawesome.com/docs/components/carousel): Carousels display an arbitrary number of content slides along a horizontal or vertical axis.
 - [Carousel Item](https://webawesome.com/docs/components/carousel-item): A carousel item represent a slide within a carousel.
+- [Chart](https://webawesome.com/docs/components/chart): Use this component for advanced configuration such as mixed chart types, custom plugins, and direct Chart.js access.
 - [Checkbox](https://webawesome.com/docs/components/checkbox): Checkboxes allow the user to toggle an option on or off.
 - [Color Picker](https://webawesome.com/docs/components/color-picker): Color pickers allow the user to select a color.
+- [Combobox](https://webawesome.com/docs/components/combobox): Comboboxes combine a text input with a listbox, allowing users to filter and select from predefined options or enter custom values.
 - [Comparison](https://webawesome.com/docs/components/comparison): Compare visual differences between similar content with a sliding panel.
 - [Copy Button](https://webawesome.com/docs/components/copy-button): Copies data to the clipboard when the user clicks the button.
 - [Details](https://webawesome.com/docs/components/details): Details show a brief summary and expand to show additional content.
 - [Dialog](https://webawesome.com/docs/components/dialog): Dialogs, sometimes called "modals", appear above the page and require the user's immediate attention.
 - [Divider](https://webawesome.com/docs/components/divider): Dividers are used to visually separate or group elements.
+- [Doughnut Chart](https://webawesome.com/docs/components/doughnut-chart): They offer a cleaner look than pie charts that works well in dashboards, and are best suited for a small number of categories.
 - [Drawer](https://webawesome.com/docs/components/drawer): Drawers slide in from a container to expose additional options and information.
 - [Dropdown](https://webawesome.com/docs/components/dropdown): Dropdowns expose additional content that "drops down" in a panel.
 - [Dropdown Item](https://webawesome.com/docs/components/dropdown-item): Provides items to select in a dropdown.
+- [File Input](https://webawesome.com/docs/components/file-input): File inputs allow users to select files from their device.
 - [Format Bytes](https://webawesome.com/docs/components/format-bytes): Formats a number as a human readable bytes value.
 - [Format Date](https://webawesome.com/docs/components/format-date): Formats a date/time using the specified locale and options.
 - [Format Number](https://webawesome.com/docs/components/format-number): Formats a number using the specified locale and options.
@@ -52,23 +58,30 @@ For comprehensive documentation, visit https://webawesome.com/docs/
 - [Include](https://webawesome.com/docs/components/include): Includes give you the power to embed external HTML files into the page.
 - [Input](https://webawesome.com/docs/components/input): Inputs collect data from the user.
 - [Intersection Observer](https://webawesome.com/docs/components/intersection-observer): Tracks immediate child elements and fires events as they move in and out of view.
+- [Line Chart](https://webawesome.com/docs/components/line-chart): Use them when the x-axis represents a sequential dimension and you want to emphasize the shape and direction of the data.
 - [Mutation Observer](https://webawesome.com/docs/components/mutation-observer): The Mutation Observer component offers a thin, declarative interface to the MutationObserver API.
 - [Number Input](https://webawesome.com/docs/components/number-input): Number inputs allow users to enter and edit numeric values with optional stepper buttons.
 - [Option](https://webawesome.com/docs/components/option): Options define the selectable items within various form controls such as select.
+- [Page](https://webawesome.com/docs/components/page): Pages offer an easy way to scaffold entire page layouts using minimal markup.
+- [Pie Chart](https://webawesome.com/docs/components/pie-chart): They work best with a small number of categories where the relative proportions matter more than exact values.
+- [Polar Area Chart](https://webawesome.com/docs/components/polar-area-chart): Unlike pie charts, each segment has an equal angle while the radius varies, making them useful for comparing magnitudes without visual bias.
 - [Popover](https://webawesome.com/docs/components/popover): Popovers display interactive content when their anchor element is clicked.
 - [Popup](https://webawesome.com/docs/components/popup): Popup is a utility that lets you declaratively anchor "popup" containers to another element.
 - [Progress Bar](https://webawesome.com/docs/components/progress-bar): Progress bars are used to show the status of an ongoing operation.
 - [Progress Ring](https://webawesome.com/docs/components/progress-ring): Progress rings are used to show the progress of a determinate operation in a circular fashion.
 - [QR Code](https://webawesome.com/docs/components/qr-code): Generates a QR code and renders it using the Canvas API.
+- [Radar Chart](https://webawesome.com/docs/components/radar-chart): They are well-suited for comparing profiles across several dimensions, such as skill assessments, product attributes, or performance metrics.
 - [Radio](https://webawesome.com/docs/components/radio): Radios allow the user to select a single option from a group.
 - [Radio Group](https://webawesome.com/docs/components/radio-group): Radio groups are used to group multiple radios so they function as a single form control.
 - [Rating](https://webawesome.com/docs/components/rating): Ratings give users a way to quickly view and provide feedback.
 - [Relative Time](https://webawesome.com/docs/components/relative-time): Outputs a localized time phrase relative to the current date and time.
 - [Resize Observer](https://webawesome.com/docs/components/resize-observer): The Resize Observer component offers a thin, declarative interface to the ResizeObserver API.
+- [Scatter Chart](https://webawesome.com/docs/components/scatter-chart): They are ideal for identifying correlations, clusters, and outliers in datasets.
 - [Scroller](https://webawesome.com/docs/components/scroller): Scrollers create an accessible container while providing visual cues that help users identify and navigate through content that scrolls.
 - [Select](https://webawesome.com/docs/components/select): Selects allow you to choose items from a menu of predefined options.
 - [Skeleton](https://webawesome.com/docs/components/skeleton): Skeletons are used to provide a visual representation of where content will eventually be drawn.
 - [Slider](https://webawesome.com/docs/components/slider): Ranges allow the user to select a single value within a given range using a slider.
+- [Sparkline](https://webawesome.com/docs/components/sparkline): Sparklines display inline data trends as compact, visual charts.
 - [Spinner](https://webawesome.com/docs/components/spinner): Spinners are used to show the progress of an indeterminate operation.
 - [Split Panel](https://webawesome.com/docs/components/split-panel): Split panels display two adjacent panels, allowing the user to reposition them.
 - [Switch](https://webawesome.com/docs/components/switch): Switches allow the user to toggle an option on or off.
@@ -77,6 +90,8 @@ For comprehensive documentation, visit https://webawesome.com/docs/
 - [Tab Panel](https://webawesome.com/docs/components/tab-panel): Tab panels are used inside tab groups to display tabbed content.
 - [Tag](https://webawesome.com/docs/components/tag): Tags are used as labels to organize things or to indicate a selection.
 - [Textarea](https://webawesome.com/docs/components/textarea): Textareas collect data from the user and allow multiple lines of text.
+- [Toast](https://webawesome.com/docs/components/toast): Toasts display brief, non-blocking notifications that appear temporarily above the page content.
+- [Toast Item](https://webawesome.com/docs/components/toast-item): Toast items are individual notifications displayed within a toast container.
 - [Tooltip](https://webawesome.com/docs/components/tooltip): Tooltips display additional information based on a specific action.
 - [Tree](https://webawesome.com/docs/components/tree): Trees allow you to display a hierarchical list of selectable tree items. Items with children can be expanded and collapsed as desired by the user.
 - [Tree Item](https://webawesome.com/docs/components/tree-item): A tree item serves as a hierarchical node that lives inside a tree.
@@ -198,6 +213,8 @@ The following is a quick reference describing every component's API. For compreh
 **Slots:**
 
 - `(default)`: The badge's content.
+- `start`: An element, such as `<wa-icon>`, placed before the label.
+- `end`: An element, such as `<wa-icon>`, placed after the label.
 
 **Properties:**
 
@@ -214,6 +231,59 @@ The following is a quick reference describing every component's API. For compreh
 **CSS Parts:**
 
 - `base`: The component's base wrapper.
+- `start`: The container that wraps the `start` slot.
+- `end`: The container that wraps the `end` slot.
+
+#### `<wa-bar-chart>`
+
+**Description:** They work well for comparing quantities across categories, showing rankings, and highlighting differences between groups.
+
+**Documentation:** https://webawesome.com/docs/components/bar-chart
+
+**Slots:**
+
+- `(default)`: An optional `<script type="application/json">` element containing the Chart.js configuration object.
+
+**Properties:**
+
+- `type`: The type of chart to render. Valid types include `bar`, `line`, `pie`, `doughnut`, `polarArea`, `radar`, `scatter`, and `bubble`. (Type: `ChartType`, Default: `'bar'`)
+- `css`: One or more CSSResultGroup to include in the component's shadow root. Host styles are automatically prepended. (Type: `CSSResultGroup | undefined`, Default: `[styles]`)
+- `label`: A label for the chart, used for accessibility. (Type: `string | null`, Default: `null`)
+- `description`: A description of the chart, used for accessibility. (Type: `string | null`, Default: `null`)
+- `xLabel`: A label for the x-axis. (Type: `string | null`, Default: `null`)
+- `yLabel`: A label for the y-axis. (Type: `string | null`, Default: `null`)
+- `legendPosition` (attribute: `legend-position`): The position of the legend relative to the chart. (Type: `LayoutPosition | 'start' | 'end'`, Default: `'top'`)
+- `stacked`: Stacks datasets on top of each other along the value axis. (Type: `boolean`, Default: `false`)
+- `indexAxis` (attribute: `index-axis`): The base axis of the dataset. 'x' for vertical bars and 'y' for horizontal bars. (Type: `'x' | 'y'`, Default: `'x'`)
+- `grid`: Which axes to show grid lines on. (Type: `'x' | 'y' | 'both' | 'none'`, Default: `'both'`)
+- `min`: The minimum value for the value axis. (Type: `number | null`, Default: `null`)
+- `max`: The maximum value for the value axis. (Type: `number | null`, Default: `null`)
+- `withoutAnimation` (attribute: `without-animation`): Disables chart animations (Type: `boolean`, Default: `false`)
+- `withoutLegend` (attribute: `without-legend`): Hides the legend (Type: `boolean`, Default: `false`)
+- `withoutTooltip` (attribute: `without-tooltip`): Hides tooltips over data points (Type: `boolean`, Default: `false`)
+- `config`: The Chart.js configuration object. Setting this property will automatically re-render the chart. (Type: `ChartJS['config']`)
+- `plugins`: Additional Chart.js plugins to register for this chart instance. (Type: `array`, Default: `[]`)
+
+**CSS Custom Properties:**
+
+- `--fill-color-1`: Fill color for the first dataset. (Default: `color-mix(in srgb, var(--wa-color-blue-60) 40%, transparent)`)
+- `--fill-color-2`: Fill color for the second dataset. (Default: `color-mix(in srgb, var(--wa-color-pink-60) 40%, transparent)`)
+- `--fill-color-3`: Fill color for the third dataset. (Default: `color-mix(in srgb, var(--wa-color-green-60) 40%, transparent)`)
+- `--fill-color-4`: Fill color for the fourth dataset. (Default: `color-mix(in srgb, var(--wa-color-yellow-60) 40%, transparent)`)
+- `--fill-color-5`: Fill color for the fifth dataset. (Default: `color-mix(in srgb, var(--wa-color-purple-60) 40%, transparent)`)
+- `--fill-color-6`: Fill color for the sixth dataset. (Default: `color-mix(in srgb, var(--wa-color-orange-60) 40%, transparent)`)
+- `--border-color-1`: Border color for the first dataset. (Default: `var(--wa-color-blue-60)`)
+- `--border-color-2`: Border color for the second dataset. (Default: `var(--wa-color-pink-60)`)
+- `--border-color-3`: Border color for the third dataset. (Default: `var(--wa-color-green-60)`)
+- `--border-color-4`: Border color for the fourth dataset. (Default: `var(--wa-color-yellow-60)`)
+- `--border-color-5`: Border color for the fifth dataset. (Default: `var(--wa-color-purple-60)`)
+- `--border-color-6`: Border color for the sixth dataset. (Default: `var(--wa-color-orange-60)`)
+- `--grid-color`: Color of the chart grid lines and axis borders. (Default: `var(--wa-color-neutral-border-quiet)`)
+- `--border-width`: Border width for bars and arcs. (Default: `var(--wa-border-width-s)`)
+- `--border-radius`: Border radius for bar charts. (Default: `var(--wa-border-radius-s)`)
+- `--grid-border-width`: Border width for chart grid lines and axis borders. (Default: `var(--wa-border-width-s)`)
+- `--line-border-width`: Border width for line and radar charts. (Default: `var(--wa-border-width-m)`)
+- `--point-radius`: Radius of data point dots. (Default: `var(--wa-border-width-m)`)
 
 #### `<wa-breadcrumb>`
 
@@ -261,6 +331,57 @@ The following is a quick reference describing every component's API. For compreh
 - `start`: The container that wraps the `start` slot.
 - `end`: The container that wraps the `end` slot.
 - `separator`: The container that wraps the separator.
+
+#### `<wa-bubble-chart>`
+
+**Description:** They are useful for visualizing relationships where a third variable adds meaning beyond a simple x/y correlation.
+
+**Documentation:** https://webawesome.com/docs/components/bubble-chart
+
+**Slots:**
+
+- `(default)`: An optional `<script type="application/json">` element containing the Chart.js configuration object.
+
+**Properties:**
+
+- `type`: The type of chart to render. Valid types include `bar`, `line`, `pie`, `doughnut`, `polarArea`, `radar`, `scatter`, and `bubble`. (Type: `ChartType`, Default: `'bubble'`)
+- `css`: One or more CSSResultGroup to include in the component's shadow root. Host styles are automatically prepended. (Type: `CSSResultGroup | undefined`, Default: `[styles]`)
+- `label`: A label for the chart, used for accessibility. (Type: `string | null`, Default: `null`)
+- `description`: A description of the chart, used for accessibility. (Type: `string | null`, Default: `null`)
+- `xLabel`: A label for the x-axis. (Type: `string | null`, Default: `null`)
+- `yLabel`: A label for the y-axis. (Type: `string | null`, Default: `null`)
+- `legendPosition` (attribute: `legend-position`): The position of the legend relative to the chart. (Type: `LayoutPosition | 'start' | 'end'`, Default: `'top'`)
+- `stacked`: Stacks datasets on top of each other along the value axis. (Type: `boolean`, Default: `false`)
+- `indexAxis` (attribute: `index-axis`): The base axis of the dataset. 'x' for vertical bars and 'y' for horizontal bars. (Type: `'x' | 'y'`, Default: `'x'`)
+- `grid`: Which axes to show grid lines on. (Type: `'x' | 'y' | 'both' | 'none'`, Default: `'both'`)
+- `min`: The minimum value for the value axis. (Type: `number | null`, Default: `null`)
+- `max`: The maximum value for the value axis. (Type: `number | null`, Default: `null`)
+- `withoutAnimation` (attribute: `without-animation`): Disables chart animations (Type: `boolean`, Default: `false`)
+- `withoutLegend` (attribute: `without-legend`): Hides the legend (Type: `boolean`, Default: `false`)
+- `withoutTooltip` (attribute: `without-tooltip`): Hides tooltips over data points (Type: `boolean`, Default: `false`)
+- `config`: The Chart.js configuration object. Setting this property will automatically re-render the chart. (Type: `ChartJS['config']`)
+- `plugins`: Additional Chart.js plugins to register for this chart instance. (Type: `array`, Default: `[]`)
+
+**CSS Custom Properties:**
+
+- `--fill-color-1`: Fill color for the first dataset. (Default: `color-mix(in srgb, var(--wa-color-blue-60) 40%, transparent)`)
+- `--fill-color-2`: Fill color for the second dataset. (Default: `color-mix(in srgb, var(--wa-color-pink-60) 40%, transparent)`)
+- `--fill-color-3`: Fill color for the third dataset. (Default: `color-mix(in srgb, var(--wa-color-green-60) 40%, transparent)`)
+- `--fill-color-4`: Fill color for the fourth dataset. (Default: `color-mix(in srgb, var(--wa-color-yellow-60) 40%, transparent)`)
+- `--fill-color-5`: Fill color for the fifth dataset. (Default: `color-mix(in srgb, var(--wa-color-purple-60) 40%, transparent)`)
+- `--fill-color-6`: Fill color for the sixth dataset. (Default: `color-mix(in srgb, var(--wa-color-orange-60) 40%, transparent)`)
+- `--border-color-1`: Border color for the first dataset. (Default: `var(--wa-color-blue-60)`)
+- `--border-color-2`: Border color for the second dataset. (Default: `var(--wa-color-pink-60)`)
+- `--border-color-3`: Border color for the third dataset. (Default: `var(--wa-color-green-60)`)
+- `--border-color-4`: Border color for the fourth dataset. (Default: `var(--wa-color-yellow-60)`)
+- `--border-color-5`: Border color for the fifth dataset. (Default: `var(--wa-color-purple-60)`)
+- `--border-color-6`: Border color for the sixth dataset. (Default: `var(--wa-color-orange-60)`)
+- `--grid-color`: Color of the chart grid lines and axis borders. (Default: `var(--wa-color-neutral-border-quiet)`)
+- `--border-width`: Border width for bars and arcs. (Default: `var(--wa-border-width-s)`)
+- `--border-radius`: Border radius for bar charts. (Default: `var(--wa-border-radius-s)`)
+- `--grid-border-width`: Border width for chart grid lines and axis borders. (Default: `var(--wa-border-width-s)`)
+- `--line-border-width`: Border width for line and radar charts. (Default: `var(--wa-border-width-m)`)
+- `--point-radius`: Radius of data point dots. (Default: `var(--wa-border-width-m)`)
 
 #### `<wa-button>`
 
@@ -474,6 +595,57 @@ The following is a quick reference describing every component's API. For compreh
 
 - `--aspect-ratio`: The slide's aspect ratio. Inherited from the carousel by default.
 
+#### `<wa-chart>`
+
+**Description:** Use this component for advanced configuration such as mixed chart types, custom plugins, and direct Chart.js access.
+
+**Documentation:** https://webawesome.com/docs/components/chart
+
+**Slots:**
+
+- `(default)`: An optional `<script type="application/json">` element containing the Chart.js configuration object.
+
+**Properties:**
+
+- `css`: One or more CSSResultGroup to include in the component's shadow root. Host styles are automatically prepended. (Type: `CSSResultGroup | undefined`, Default: `[styles]`)
+- `label`: A label for the chart, used for accessibility. (Type: `string | null`, Default: `null`)
+- `description`: A description of the chart, used for accessibility. (Type: `string | null`, Default: `null`)
+- `type`: The type of chart to render. Valid types include `bar`, `line`, `pie`, `doughnut`, `polarArea`, `radar`, `scatter`, and `bubble`. (Type: `ChartType`, Default: `'bar'`)
+- `xLabel`: A label for the x-axis. (Type: `string | null`, Default: `null`)
+- `yLabel`: A label for the y-axis. (Type: `string | null`, Default: `null`)
+- `legendPosition` (attribute: `legend-position`): The position of the legend relative to the chart. (Type: `LayoutPosition | 'start' | 'end'`, Default: `'top'`)
+- `stacked`: Stacks datasets on top of each other along the value axis. (Type: `boolean`, Default: `false`)
+- `indexAxis` (attribute: `index-axis`): The base axis of the dataset. 'x' for vertical bars and 'y' for horizontal bars. (Type: `'x' | 'y'`, Default: `'x'`)
+- `grid`: Which axes to show grid lines on. (Type: `'x' | 'y' | 'both' | 'none'`, Default: `'both'`)
+- `min`: The minimum value for the value axis. (Type: `number | null`, Default: `null`)
+- `max`: The maximum value for the value axis. (Type: `number | null`, Default: `null`)
+- `withoutAnimation` (attribute: `without-animation`): Disables chart animations (Type: `boolean`, Default: `false`)
+- `withoutLegend` (attribute: `without-legend`): Hides the legend (Type: `boolean`, Default: `false`)
+- `withoutTooltip` (attribute: `without-tooltip`): Hides tooltips over data points (Type: `boolean`, Default: `false`)
+- `config`: The Chart.js configuration object. Setting this property will automatically re-render the chart. (Type: `ChartJS['config']`)
+- `plugins`: Additional Chart.js plugins to register for this chart instance. (Type: `array`, Default: `[]`)
+
+**CSS Custom Properties:**
+
+- `--fill-color-1`: Fill color for the first dataset. (Default: `color-mix(in srgb, var(--wa-color-blue-60) 40%, transparent)`)
+- `--fill-color-2`: Fill color for the second dataset. (Default: `color-mix(in srgb, var(--wa-color-pink-60) 40%, transparent)`)
+- `--fill-color-3`: Fill color for the third dataset. (Default: `color-mix(in srgb, var(--wa-color-green-60) 40%, transparent)`)
+- `--fill-color-4`: Fill color for the fourth dataset. (Default: `color-mix(in srgb, var(--wa-color-yellow-60) 40%, transparent)`)
+- `--fill-color-5`: Fill color for the fifth dataset. (Default: `color-mix(in srgb, var(--wa-color-purple-60) 40%, transparent)`)
+- `--fill-color-6`: Fill color for the sixth dataset. (Default: `color-mix(in srgb, var(--wa-color-orange-60) 40%, transparent)`)
+- `--border-color-1`: Border color for the first dataset. (Default: `var(--wa-color-blue-60)`)
+- `--border-color-2`: Border color for the second dataset. (Default: `var(--wa-color-pink-60)`)
+- `--border-color-3`: Border color for the third dataset. (Default: `var(--wa-color-green-60)`)
+- `--border-color-4`: Border color for the fourth dataset. (Default: `var(--wa-color-yellow-60)`)
+- `--border-color-5`: Border color for the fifth dataset. (Default: `var(--wa-color-purple-60)`)
+- `--border-color-6`: Border color for the sixth dataset. (Default: `var(--wa-color-orange-60)`)
+- `--grid-color`: Color of the chart grid lines and axis borders. (Default: `var(--wa-color-neutral-border-quiet)`)
+- `--border-width`: Border width for bars and arcs. (Default: `var(--wa-border-width-s)`)
+- `--border-radius`: Border radius for bar charts. (Default: `var(--wa-border-radius-s)`)
+- `--grid-border-width`: Border width for chart grid lines and axis borders. (Default: `var(--wa-border-width-s)`)
+- `--line-border-width`: Border width for line and radar charts. (Default: `var(--wa-border-width-m)`)
+- `--point-radius`: Radius of data point dots. (Default: `var(--wa-border-width-m)`)
+
 #### `<wa-checkbox>`
 
 **Description:** Checkboxes allow the user to toggle an option on or off.
@@ -489,12 +661,12 @@ The following is a quick reference describing every component's API. For compreh
 
 - `css`: One or more CSSResultGroup to include in the component's shadow root. Host styles are automatically prepended. (Type: `CSSResultGroup | undefined`, Default: `[formControlStyles, sizeStyles, styles]`)
 - `validators`: Validators are static because they have `observedAttributes`, essentially attributes to "watch" for changes. Whenever these attributes change, we want to be notified and update the validator. (Type: `Validator[]`, Default: `[]`)
-- `name`: The name of the checkbox, submitted as a name/value pair with form data. (Type: `string | null`, Default: `''`)
+- `name`: The name of the checkbox, submitted as a name/value pair with form data. (Type: `string | null`, Default: `null`)
 - `value`: The value of the checkbox, submitted as a name/value pair with form data. (Type: `string | null`)
 - `size`: The checkbox's size. (Type: `'small' | 'medium' | 'large'`, Default: `'medium'`)
 - `disabled`: Disables the checkbox. (Type: `boolean`, Default: `false`)
 - `indeterminate`: Draws the checkbox in an indeterminate state. This is usually applied to checkboxes that represents a "select all/none" behavior when associated checkboxes have a mix of checked and unchecked states. (Type: `boolean`, Default: `false`)
-- `checked`: Draws the checkbox in a checked state. (Type: `boolean`)
+- `checked`: Draws the checkbox in a checked state.
 - `defaultChecked` (attribute: `checked`): The default value of the form control. Primarily used for resetting the form control. (Type: `boolean`)
 - `required`: Makes the checkbox a required field. (Type: `boolean`, Default: `false`)
 - `hint`: The checkbox's hint. If you need to display HTML, use the `hint` slot instead. (Type: `string`, Default: `''`)
@@ -631,6 +803,104 @@ The following is a quick reference describing every component's API. For compreh
 - `format-button__label`: The format button's exported `label` part.
 - `format-button__end`: The format button's exported `end` part.
 - `format-button__caret`: The format button's exported `caret` part.
+
+#### `<wa-combobox>`
+
+**Description:** Comboboxes combine a text input with a listbox, allowing users to filter and select from predefined options or enter custom values.
+
+**Documentation:** https://webawesome.com/docs/components/combobox
+
+**Slots:**
+
+- `(default)`: The listbox options. Must be `<wa-option>` elements. You can use `<wa-divider>` to group items visually.
+- `label`: The input's label. Alternatively, you can use the `label` attribute.
+- `start`: An element, such as `<wa-icon>`, placed at the start of the combobox.
+- `end`: An element, such as `<wa-icon>`, placed at the end of the combobox.
+- `clear-icon`: An icon to use in lieu of the default clear icon.
+- `expand-icon`: The icon to show when the control is expanded and collapsed. Rotates on open and close.
+- `hint`: Text that describes how to use the input. Alternatively, you can use the `hint` attribute.
+
+**Properties:**
+
+- `css`: One or more CSSResultGroup to include in the component's shadow root. Host styles are automatically prepended. (Type: `CSSResultGroup | undefined`, Default: `[styles, formControlStyles, sizeStyles]`)
+- `validators`: Validators are static because they have `observedAttributes`, essentially attributes to "watch" for changes. Whenever these attributes change, we want to be notified and update the validator. (Type: `Validator[]`, Default: `[]`)
+- `validationTarget`: Where to anchor native constraint validation (Type: `undefined | HTMLElement`)
+- `inputValue`: The current text value in the input field. (Type: `string`, Default: `''`)
+- `name`: The name of the combobox, submitted as a name/value pair with form data. (Type: `string | null`, Default: `''`)
+- `value`: The combobox's value. This will be a string for single select or an array for multi-select.
+- `size`: The combobox's size. (Type: `'small' | 'medium' | 'large'`, Default: `'medium'`)
+- `placeholder`: Placeholder text to show as a hint when the combobox is empty. (Type: `string`, Default: `''`)
+- `multiple`: Allows more than one option to be selected. (Type: `boolean`, Default: `false`)
+- `maxOptionsVisible` (attribute: `max-options-visible`): The maximum number of selected options to show when `multiple` is true. After the maximum, "+n" will be shown to indicate the number of additional items that are selected. Set to 0 to remove the limit. (Type: `number`, Default: `3`)
+- `disabled`: Disables the combobox control. (Type: `boolean`, Default: `false`)
+- `withClear` (attribute: `with-clear`): Adds a clear button when the combobox is not empty. (Type: `boolean`, Default: `false`)
+- `open`: Indicates whether or not the combobox is open. You can toggle this attribute to show and hide the menu, or you can use the `show()` and `hide()` methods and this attribute will reflect the combobox's open state. (Type: `boolean`, Default: `false`)
+- `appearance`: The combobox's visual appearance. (Type: `'filled' | 'outlined' | 'filled-outlined'`, Default: `'outlined'`)
+- `pill`: Draws a pill-style combobox with rounded edges. (Type: `boolean`, Default: `false`)
+- `label`: The combobox's label. If you need to display HTML, use the `label` slot instead. (Type: `string`, Default: `''`)
+- `placement`: The preferred placement of the combobox's menu. Note that the actual placement may vary as needed to keep the listbox inside of the viewport. (Type: `'top' | 'bottom'`, Default: `'bottom'`)
+- `hint`: The combobox's hint. If you need to display HTML, use the `hint` slot instead. (Type: `string`, Default: `''`)
+- `withLabel` (attribute: `with-label`): Used for SSR purposes when a label is slotted in. Will show the label on first render. (Type: `boolean`, Default: `false`)
+- `withHint` (attribute: `with-hint`): Used for SSR purposes when hint is slotted in. Will show the hint on first render. (Type: `boolean`, Default: `false`)
+- `required`: The combobox's required attribute. (Type: `boolean`, Default: `false`)
+- `autocomplete`: The autocomplete behavior of the combobox. - `list`: When the popup is triggered, it presents suggested values that complete or logically correspond to the   characters typed in the combobox. The character string the user has typed will become the value of the combobox   unless the user selects a value in the popup. - `none`: The combobox is editable, and when the popup is triggered, the suggested values it contains are the same   regardless of the characters typed in the combobox. (Type: `'list' | 'none'`, Default: `'list'`)
+- `allowCustomValue` (attribute: `allow-custom-value`): When true, allows the user to enter a value that doesn't match any of the options. Only applies to single-select comboboxes. When false, the combobox will only accept values that match an option. (Type: `boolean`, Default: `false`)
+- `filter`: A function that customizes how options are filtered based on the input value. The function receives the option and the current input query string. Return `true` to include the option in the filtered list, `false` to exclude. By default, options are filtered by checking if the option's label contains the query (case-insensitive). (Type: `((option: WaOption, query: string) => boolean) | null`, Default: `null`)
+- `getTag`: A function that customizes the tags to be rendered when multiple=true. The first argument is the option, the second is the current tag's index.  The function should return either a Lit TemplateResult or a string containing trusted HTML of the symbol to render at the specified value. (Type: `(option: WaOption, index: number) => TemplateResult | string | HTMLElement`)
+- `form`: By default, form controls are associated with the nearest containing `<form>` element. This attribute allows you to place the form control outside of a form and associate it with the form that has this `id`. The form must be in the same document or shadow root for this to work. (Type: `HTMLFormElement | null`)
+
+**Methods:**
+
+- `show()`: Shows the listbox.
+- `hide()`: Hides the listbox.
+- `focus(options: FocusOptions)`: Sets focus on the control.
+- `blur()`: Removes focus from the control.
+- `setCustomValidity(message: string)`: Do not use this when creating a "Validator". This is intended for end users of components. We track manually defined custom errors so we don't clear them on accident in our validators.
+- `formStateRestoreCallback(state: string | File | FormData | null, reason: 'autocomplete' | 'restore')`: Called when the browser is trying to restore element’s state to state in which case reason is "restore", or when the browser is trying to fulfill autofill on behalf of user in which case reason is "autocomplete". In the case of "restore", state is a string, File, or FormData object previously set as the second argument to setFormValue.
+- `resetValidity()`: Reset validity is a way of removing manual custom errors and native validation.
+
+**Events:**
+
+- `input`: Emitted when the control receives input.
+- `change`: Emitted when the control's value changes.
+- `focus`: Emitted when the control gains focus.
+- `blur`: Emitted when the control loses focus.
+- `wa-clear`: Emitted when the control's value is cleared.
+- `wa-show`: Emitted when the combobox's menu opens.
+- `wa-after-show`: Emitted after the combobox's menu opens and all animations are complete.
+- `wa-hide`: Emitted when the combobox's menu closes.
+- `wa-after-hide`: Emitted after the combobox's menu closes and all animations are complete.
+- `wa-invalid`: Emitted when the form control has been checked for validity and its constraints aren't satisfied.
+
+**CSS Custom Properties:**
+
+- `--show-duration`: The duration of the show animation. (Default: `100ms`)
+- `--hide-duration`: The duration of the hide animation. (Default: `100ms`)
+- `--tag-max-size`: When using `multiple`, the max size of tags before their content is truncated. (Default: `10ch`)
+
+**CSS Parts:**
+
+- `form-control`: The form control that wraps the label, input, and hint.
+- `form-control-label`: The label's wrapper.
+- `form-control-input`: The combobox's wrapper.
+- `hint`: The hint's wrapper.
+- `combobox`: The container the wraps the start, end, value, clear icon, and expand button.
+- `start`: The container that wraps the `start` slot.
+- `end`: The container that wraps the `end` slot.
+- `combobox-input`: The text input element.
+- `listbox`: The listbox container where options are slotted.
+- `tags`: The container that houses option tags when `multiselect` is used.
+- `tag`: The individual tags that represent each multiselect option.
+- `tag__content`: The tag's content part.
+- `tag__remove-button`: The tag's remove button.
+- `tag__remove-button__base`: The tag's remove button base part.
+- `clear-button`: The clear button.
+- `expand-icon`: The container that wraps the expand icon.
+
+**CSS States:**
+
+- `blank`: The combobox is empty.
+- `disabled`: The combobox is disabled.
 
 #### `<wa-comparison>`
 
@@ -826,6 +1096,57 @@ The following is a quick reference describing every component's API. For compreh
 - `--width`: The width of the divider.
 - `--spacing`: The spacing of the divider.
 
+#### `<wa-doughnut-chart>`
+
+**Description:** They offer a cleaner look than pie charts that works well in dashboards, and are best suited for a small number of categories.
+
+**Documentation:** https://webawesome.com/docs/components/doughnut-chart
+
+**Slots:**
+
+- `(default)`: An optional `<script type="application/json">` element containing the Chart.js configuration object.
+
+**Properties:**
+
+- `type`: The type of chart to render. Valid types include `bar`, `line`, `pie`, `doughnut`, `polarArea`, `radar`, `scatter`, and `bubble`. (Type: `ChartType`, Default: `'doughnut'`)
+- `css`: One or more CSSResultGroup to include in the component's shadow root. Host styles are automatically prepended. (Type: `CSSResultGroup | undefined`, Default: `[styles]`)
+- `label`: A label for the chart, used for accessibility. (Type: `string | null`, Default: `null`)
+- `description`: A description of the chart, used for accessibility. (Type: `string | null`, Default: `null`)
+- `xLabel`: A label for the x-axis. (Type: `string | null`, Default: `null`)
+- `yLabel`: A label for the y-axis. (Type: `string | null`, Default: `null`)
+- `legendPosition` (attribute: `legend-position`): The position of the legend relative to the chart. (Type: `LayoutPosition | 'start' | 'end'`, Default: `'top'`)
+- `stacked`: Stacks datasets on top of each other along the value axis. (Type: `boolean`, Default: `false`)
+- `indexAxis` (attribute: `index-axis`): The base axis of the dataset. 'x' for vertical bars and 'y' for horizontal bars. (Type: `'x' | 'y'`, Default: `'x'`)
+- `grid`: Which axes to show grid lines on. (Type: `'x' | 'y' | 'both' | 'none'`, Default: `'both'`)
+- `min`: The minimum value for the value axis. (Type: `number | null`, Default: `null`)
+- `max`: The maximum value for the value axis. (Type: `number | null`, Default: `null`)
+- `withoutAnimation` (attribute: `without-animation`): Disables chart animations (Type: `boolean`, Default: `false`)
+- `withoutLegend` (attribute: `without-legend`): Hides the legend (Type: `boolean`, Default: `false`)
+- `withoutTooltip` (attribute: `without-tooltip`): Hides tooltips over data points (Type: `boolean`, Default: `false`)
+- `config`: The Chart.js configuration object. Setting this property will automatically re-render the chart. (Type: `ChartJS['config']`)
+- `plugins`: Additional Chart.js plugins to register for this chart instance. (Type: `array`, Default: `[]`)
+
+**CSS Custom Properties:**
+
+- `--fill-color-1`: Fill color for the first dataset. (Default: `color-mix(in srgb, var(--wa-color-blue-60) 40%, transparent)`)
+- `--fill-color-2`: Fill color for the second dataset. (Default: `color-mix(in srgb, var(--wa-color-pink-60) 40%, transparent)`)
+- `--fill-color-3`: Fill color for the third dataset. (Default: `color-mix(in srgb, var(--wa-color-green-60) 40%, transparent)`)
+- `--fill-color-4`: Fill color for the fourth dataset. (Default: `color-mix(in srgb, var(--wa-color-yellow-60) 40%, transparent)`)
+- `--fill-color-5`: Fill color for the fifth dataset. (Default: `color-mix(in srgb, var(--wa-color-purple-60) 40%, transparent)`)
+- `--fill-color-6`: Fill color for the sixth dataset. (Default: `color-mix(in srgb, var(--wa-color-orange-60) 40%, transparent)`)
+- `--border-color-1`: Border color for the first dataset. (Default: `var(--wa-color-blue-60)`)
+- `--border-color-2`: Border color for the second dataset. (Default: `var(--wa-color-pink-60)`)
+- `--border-color-3`: Border color for the third dataset. (Default: `var(--wa-color-green-60)`)
+- `--border-color-4`: Border color for the fourth dataset. (Default: `var(--wa-color-yellow-60)`)
+- `--border-color-5`: Border color for the fifth dataset. (Default: `var(--wa-color-purple-60)`)
+- `--border-color-6`: Border color for the sixth dataset. (Default: `var(--wa-color-orange-60)`)
+- `--grid-color`: Color of the chart grid lines and axis borders. (Default: `var(--wa-color-neutral-border-quiet)`)
+- `--border-width`: Border width for bars and arcs. (Default: `var(--wa-border-width-s)`)
+- `--border-radius`: Border radius for bar charts. (Default: `var(--wa-border-radius-s)`)
+- `--grid-border-width`: Border width for chart grid lines and axis borders. (Default: `var(--wa-border-width-s)`)
+- `--line-border-width`: Border width for line and radar charts. (Default: `var(--wa-border-width-m)`)
+- `--point-radius`: Radius of data point dots. (Default: `var(--wa-border-width-m)`)
+
 #### `<wa-drawer>`
 
 **Description:** Drawers slide in from a container to expose additional options and information.
@@ -953,6 +1274,78 @@ The following is a quick reference describing every component's API. For compreh
 - `details`: The container for the details slot.
 - `submenu-icon`: The submenu indicator icon (a `<wa-icon>` element).
 - `submenu`: The submenu container.
+
+#### `<wa-file-input>`
+
+**Description:** File inputs allow users to select files from their device.
+
+**Documentation:** https://webawesome.com/docs/components/file-input
+
+**Slots:**
+
+- `label`: The file input's label. Alternatively, you can use the `label` attribute.
+- `hint`: Text that describes how to use the file input. Alternatively, you can use the `hint` attribute.
+- `dropzone`: Custom content to show in the dropzone.
+- `file-icon`: Custom icon for non-image files.
+
+**Properties:**
+
+- `css`: One or more CSSResultGroup to include in the component's shadow root. Host styles are automatically prepended. (Type: `CSSResultGroup | undefined`, Default: `[sizeStyles, formControlStyles, styles]`)
+- `validators`: Validators are static because they have `observedAttributes`, essentially attributes to "watch" for changes. Whenever these attributes change, we want to be notified and update the validator. (Type: `Validator[]`, Default: `[]`)
+- `files`: The selected files. (Type: `File[]`, Default: `[]`)
+- `dragging`: Whether files are being dragged over the dropzone. (Type: `boolean`, Default: `false`)
+- `size`: The file input's size. (Type: `'small' | 'medium' | 'large'`, Default: `'medium'`)
+- `label`: The file input's label. If you need to display HTML, use the `label` slot instead. (Type: `string`, Default: `''`)
+- `hint`: The file input's hint. If you need to display HTML, use the `hint` slot instead. (Type: `string`, Default: `''`)
+- `multiple`: Allows more than one file to be selected. (Type: `boolean`, Default: `false`)
+- `accept`: A comma-separated list of acceptable file types. Must be a list of [unique file type specifiers](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/input/file#unique_file_type_specifiers). (Type: `string`, Default: `''`)
+- `required`: Makes the file input a required field. (Type: `boolean`, Default: `false`)
+- `withLabel` (attribute: `with-label`): Used for SSR. Will determine if the SSRed component will have the label slot rendered on initial paint. (Type: `boolean`, Default: `false`)
+- `withHint` (attribute: `with-hint`): Used for SSR. Will determine if the SSRed component will have the hint slot rendered on initial paint. (Type: `boolean`, Default: `false`)
+- `fileCount`: The number of selected files. Used for validation. (Type: `number`)
+- `name`: The name of the input, submitted as a name/value pair with form data. (Type: `string | null`, Default: `null`)
+- `disabled`: Disables the form control. (Type: `boolean`, Default: `false`)
+- `form`: By default, form controls are associated with the nearest containing `<form>` element. This attribute allows you to place the form control outside of a form and associate it with the form that has this `id`. The form must be in the same document or shadow root for this to work. (Type: `HTMLFormElement | null`)
+- `validationTarget`: Override this to change where constraint validation popups are anchored. (Type: `undefined | HTMLElement`)
+
+**Methods:**
+
+- `focus(options: FocusOptions)`: Sets focus on the file input.
+- `blur()`: Removes focus from the file input.
+- `setCustomValidity(message: string)`: Do not use this when creating a "Validator". This is intended for end users of components. We track manually defined custom errors so we don't clear them on accident in our validators.
+- `formStateRestoreCallback(state: string | File | FormData | null, reason: 'autocomplete' | 'restore')`: Called when the browser is trying to restore element’s state to state in which case reason is "restore", or when the browser is trying to fulfill autofill on behalf of user in which case reason is "autocomplete". In the case of "restore", state is a string, File, or FormData object previously set as the second argument to setFormValue.
+- `resetValidity()`: Reset validity is a way of removing manual custom errors and native validation.
+
+**Events:**
+
+- `input`: Emitted when file selection changes.
+- `change`: Emitted when files are added or removed.
+- `focus`: Emitted when the dropzone gains focus.
+- `blur`: Emitted when the dropzone loses focus.
+- `wa-invalid`: Emitted when the form control has been checked for validity and its constraints aren't satisfied.
+
+**CSS Parts:**
+
+- `label`: The label element.
+- `hint`: The hint element.
+- `base`: The main component wrapper.
+- `dropzone`: The drag-and-drop area.
+- `dropzone-icon`: The upload icon in the dropzone.
+- `dropzone-text`: The instruction text in the dropzone.
+- `file-list`: The container for selected files.
+- `file`: Individual file item container.
+- `file-thumbnail`: The thumbnail/icon container for a file.
+- `file-image`: The image element for image thumbnails.
+- `file-icon`: The icon for non-image files.
+- `file-details`: Container for file name and size.
+- `file-name`: The file name text.
+- `file-size`: The file size text.
+- `remove-button`: The remove button for each file.
+
+**CSS States:**
+
+- `blank`: No files selected.
+- `dragging`: Files being dragged over dropzone.
 
 #### `<wa-format-bytes>`
 
@@ -1203,6 +1596,57 @@ The following is a quick reference describing every component's API. For compreh
 
 - `wa-intersect`: Fired when a tracked element begins or ceases intersecting.
 
+#### `<wa-line-chart>`
+
+**Description:** Use them when the x-axis represents a sequential dimension and you want to emphasize the shape and direction of the data.
+
+**Documentation:** https://webawesome.com/docs/components/line-chart
+
+**Slots:**
+
+- `(default)`: An optional `<script type="application/json">` element containing the Chart.js configuration object.
+
+**Properties:**
+
+- `type`: The type of chart to render. Valid types include `bar`, `line`, `pie`, `doughnut`, `polarArea`, `radar`, `scatter`, and `bubble`. (Type: `ChartType`, Default: `'line'`)
+- `css`: One or more CSSResultGroup to include in the component's shadow root. Host styles are automatically prepended. (Type: `CSSResultGroup | undefined`, Default: `[styles]`)
+- `label`: A label for the chart, used for accessibility. (Type: `string | null`, Default: `null`)
+- `description`: A description of the chart, used for accessibility. (Type: `string | null`, Default: `null`)
+- `xLabel`: A label for the x-axis. (Type: `string | null`, Default: `null`)
+- `yLabel`: A label for the y-axis. (Type: `string | null`, Default: `null`)
+- `legendPosition` (attribute: `legend-position`): The position of the legend relative to the chart. (Type: `LayoutPosition | 'start' | 'end'`, Default: `'top'`)
+- `stacked`: Stacks datasets on top of each other along the value axis. (Type: `boolean`, Default: `false`)
+- `indexAxis` (attribute: `index-axis`): The base axis of the dataset. 'x' for vertical bars and 'y' for horizontal bars. (Type: `'x' | 'y'`, Default: `'x'`)
+- `grid`: Which axes to show grid lines on. (Type: `'x' | 'y' | 'both' | 'none'`, Default: `'both'`)
+- `min`: The minimum value for the value axis. (Type: `number | null`, Default: `null`)
+- `max`: The maximum value for the value axis. (Type: `number | null`, Default: `null`)
+- `withoutAnimation` (attribute: `without-animation`): Disables chart animations (Type: `boolean`, Default: `false`)
+- `withoutLegend` (attribute: `without-legend`): Hides the legend (Type: `boolean`, Default: `false`)
+- `withoutTooltip` (attribute: `without-tooltip`): Hides tooltips over data points (Type: `boolean`, Default: `false`)
+- `config`: The Chart.js configuration object. Setting this property will automatically re-render the chart. (Type: `ChartJS['config']`)
+- `plugins`: Additional Chart.js plugins to register for this chart instance. (Type: `array`, Default: `[]`)
+
+**CSS Custom Properties:**
+
+- `--fill-color-1`: Fill color for the first dataset. (Default: `color-mix(in srgb, var(--wa-color-blue-60) 40%, transparent)`)
+- `--fill-color-2`: Fill color for the second dataset. (Default: `color-mix(in srgb, var(--wa-color-pink-60) 40%, transparent)`)
+- `--fill-color-3`: Fill color for the third dataset. (Default: `color-mix(in srgb, var(--wa-color-green-60) 40%, transparent)`)
+- `--fill-color-4`: Fill color for the fourth dataset. (Default: `color-mix(in srgb, var(--wa-color-yellow-60) 40%, transparent)`)
+- `--fill-color-5`: Fill color for the fifth dataset. (Default: `color-mix(in srgb, var(--wa-color-purple-60) 40%, transparent)`)
+- `--fill-color-6`: Fill color for the sixth dataset. (Default: `color-mix(in srgb, var(--wa-color-orange-60) 40%, transparent)`)
+- `--border-color-1`: Border color for the first dataset. (Default: `var(--wa-color-blue-60)`)
+- `--border-color-2`: Border color for the second dataset. (Default: `var(--wa-color-pink-60)`)
+- `--border-color-3`: Border color for the third dataset. (Default: `var(--wa-color-green-60)`)
+- `--border-color-4`: Border color for the fourth dataset. (Default: `var(--wa-color-yellow-60)`)
+- `--border-color-5`: Border color for the fifth dataset. (Default: `var(--wa-color-purple-60)`)
+- `--border-color-6`: Border color for the sixth dataset. (Default: `var(--wa-color-orange-60)`)
+- `--grid-color`: Color of the chart grid lines and axis borders. (Default: `var(--wa-color-neutral-border-quiet)`)
+- `--border-width`: Border width for bars and arcs. (Default: `var(--wa-border-width-s)`)
+- `--border-radius`: Border radius for bar charts. (Default: `var(--wa-border-radius-s)`)
+- `--grid-border-width`: Border width for chart grid lines and axis borders. (Default: `var(--wa-border-width-s)`)
+- `--line-border-width`: Border width for line and radar charts. (Default: `var(--wa-border-width-m)`)
+- `--point-radius`: Radius of data point dots. (Default: `var(--wa-border-width-m)`)
+
 #### `<wa-mutation-observer>`
 
 **Description:** The Mutation Observer component offers a thin, declarative interface to the MutationObserver API.
@@ -1342,6 +1786,179 @@ The following is a quick reference describing every component's API. For compreh
 - `selected`: The option is selected and has aria-selected="true"
 - `hover`: Like `:hover` but works while dragging in Safari
 
+#### `<wa-page>`
+
+**Description:** Pages offer an easy way to scaffold entire page layouts using minimal markup.
+
+**Documentation:** https://webawesome.com/docs/components/page
+
+**Slots:**
+
+- `(default)`: The page's main content.
+- `banner`: The banner that gets display above the header. The banner will not be shown if no content is provided.
+- `header`: The header to display at the top of the page. If a banner is present, the header will appear below the banner. The header will not be shown if there is no content.
+- `subheader`: A subheader to display below the `header`. This is a good place to put things like breadcrumbs.
+- `menu`: The left side of the page. If you slot an element in here, you will override the default `navigation` slot and will be handling navigation on your own. This also will not disable the fallback behavior of the navigation button. This section "sticks" to the top as the page scrolls.
+- `navigation-header`: The header for a navigation area. On mobile this will be the header for `<wa-drawer>`.
+- `navigation`: The main content to display in the navigation area. This is displayed on the left side of the page, if `menu` is not used. This section "sticks" to the top as the page scrolls.
+- `navigation-footer`: The footer for a navigation area. On mobile this will be the footer for `<wa-drawer>`.
+- `navigation-toggle`: Use this slot to slot in your own button + icon for toggling the navigation drawer. By default it is a `<wa-button>` + a 3 bars `<wa-icon>`
+- `navigation-toggle-icon`: Use this to slot in your own icon for toggling the navigation drawer. By default it is 3 bars `<wa-icon>`.
+- `main-header`: Header to display inline above the main content.
+- `main-footer`: Footer to display inline below the main content.
+- `aside`: Content to be shown on the right side of the page. Typically contains a table of contents, ads, etc. This section "sticks" to the top as the page scrolls.
+- `skip-to-content`: The "skip to content" slot. You can override this If you would like to override the `Skip to content` button and add additional "Skip to X", they can be inserted here.
+- `footer`: The content to display in the footer. This is always displayed underneath the viewport so will always make the page "scrollable".
+
+**Properties:**
+
+- `css`: One or more CSSResultGroup to include in the component's shadow root. Host styles are automatically prepended. (Type: `CSSResultGroup | undefined`, Default: `[visuallyHidden, styles]`)
+- `view`: The view is a reflection of the "mobileBreakpoint", when the page is larger than the `mobile-breakpoint` (768px by default), it is considered to be a "desktop" view. The view is merely a way to distinguish when to show/hide the navigation. You can use additional media queries to make other adjustments to content as necessary. The default is "desktop" because the "mobile navigation drawer" isn't accessible via SSR due to drawer requiring JS. (Type: `'mobile' | 'desktop'`, Default: `'desktop'`)
+- `navOpen` (attribute: `nav-open`): Whether or not the navigation drawer is open. Note, the navigation drawer is only "open" on mobile views. (Type: `boolean`, Default: `false`)
+- `mobileBreakpoint` (attribute: `mobile-breakpoint`): At what page width to hide the "navigation" slot and collapse into a hamburger button. Accepts both numbers (interpreted as px) and CSS lengths (e.g. `50em`), which are resolved based on the root element. (Type: `string`, Default: `'768px'`)
+- `navigationPlacement` (attribute: `navigation-placement`): Where to place the navigation when in the mobile viewport. (Type: `'start' | 'end'`, Default: `'start'`)
+- `disableNavigationToggle` (attribute: `disable-navigation-toggle`): Determines whether or not to hide the default hamburger button. This will automatically flip to "true" if you add an element with `data-toggle-nav` anywhere in the element light DOM. Generally this will be set for you and you don't need to do anything, unless you're using SSR, in which case you should set this manually for initial page loads. (Type: `boolean`, Default: `false`)
+
+**Methods:**
+
+- `visiblePixelsInViewport(element: HTMLElement | null)`: https://stackoverflow.com/a/26831113 This prevents awkward gaps when scrolling the page and the aside / menu dont "fill" the gaps.
+- `showNavigation()`: Shows the mobile navigation drawer
+- `hideNavigation()`: Hides the mobile navigation drawer
+- `toggleNavigation()`: Toggles the mobile navigation drawer
+
+**CSS Custom Properties:**
+
+- `--menu-width`: The width of the page's "menu" section. (Default: `auto`)
+- `--main-width`: The width of the page's "main" section. (Default: `1fr`)
+- `--aside-width`: The wide of the page's "aside" section. (Default: `auto`)
+- `--banner-height`: The height of the banner. This gets calculated when the page initializes. If the height is known, you can set it here to prevent shifting when the page loads. (Default: `0px`)
+- `--header-height`: The height of the header. This gets calculated when the page initializes. If the height is known, you can set it here to prevent shifting when the page loads. (Default: `0px`)
+- `--subheader-height`: The height of the subheader. This gets calculated when the page initializes. If the height is known, you can set it here to prevent shifting when the page loads. (Default: `0px`)
+
+**CSS Parts:**
+
+- `base`: The component's base wrapper.
+- `banner`: The banner to show above header.
+- `header`: The header, usually for top level navigation / branding.
+- `subheader`: Shown below the header, usually intended for things like breadcrumbs and other page level navigation.
+- `body`: The wrapper around menu, main, and aside.
+- `menu`: The left hand side of the page. Generally intended for navigation.
+- `navigation`: The `<nav>` that wraps the navigation slots on desktop viewports.
+- `navigation-header`: The header for a navigation area. On mobile this will be the header for `<wa-drawer>`.
+- `navigation-footer`: The footer for a navigation area. On mobile this will be the footer for `<wa-drawer>`.
+- `navigation-toggle`: The default `<wa-button>` that will toggle the `<wa-drawer>` for mobile viewports.
+- `navigation-toggle-icon`: The default `<wa-icon>` displayed inside of the navigation-toggle button.
+- `main-header`: The header above main content.
+- `main-content`: The main content.
+- `main-footer`: The footer below main content.
+- `aside`: The right hand side of the page. Used for things like table of contents, ads, etc.
+- `skip-links`: Wrapper around skip-link
+- `skip-link`: The "skip to main content" link
+- `footer`: The footer of the page. This is always below the initial viewport size.
+- `dialog-wrapper`: A wrapper around elements such as dialogs or other modal-like elements.
+
+#### `<wa-pie-chart>`
+
+**Description:** They work best with a small number of categories where the relative proportions matter more than exact values.
+
+**Documentation:** https://webawesome.com/docs/components/pie-chart
+
+**Slots:**
+
+- `(default)`: An optional `<script type="application/json">` element containing the Chart.js configuration object.
+
+**Properties:**
+
+- `type`: The type of chart to render. Valid types include `bar`, `line`, `pie`, `doughnut`, `polarArea`, `radar`, `scatter`, and `bubble`. (Type: `ChartType`, Default: `'pie'`)
+- `css`: One or more CSSResultGroup to include in the component's shadow root. Host styles are automatically prepended. (Type: `CSSResultGroup | undefined`, Default: `[styles]`)
+- `label`: A label for the chart, used for accessibility. (Type: `string | null`, Default: `null`)
+- `description`: A description of the chart, used for accessibility. (Type: `string | null`, Default: `null`)
+- `xLabel`: A label for the x-axis. (Type: `string | null`, Default: `null`)
+- `yLabel`: A label for the y-axis. (Type: `string | null`, Default: `null`)
+- `legendPosition` (attribute: `legend-position`): The position of the legend relative to the chart. (Type: `LayoutPosition | 'start' | 'end'`, Default: `'top'`)
+- `stacked`: Stacks datasets on top of each other along the value axis. (Type: `boolean`, Default: `false`)
+- `indexAxis` (attribute: `index-axis`): The base axis of the dataset. 'x' for vertical bars and 'y' for horizontal bars. (Type: `'x' | 'y'`, Default: `'x'`)
+- `grid`: Which axes to show grid lines on. (Type: `'x' | 'y' | 'both' | 'none'`, Default: `'both'`)
+- `min`: The minimum value for the value axis. (Type: `number | null`, Default: `null`)
+- `max`: The maximum value for the value axis. (Type: `number | null`, Default: `null`)
+- `withoutAnimation` (attribute: `without-animation`): Disables chart animations (Type: `boolean`, Default: `false`)
+- `withoutLegend` (attribute: `without-legend`): Hides the legend (Type: `boolean`, Default: `false`)
+- `withoutTooltip` (attribute: `without-tooltip`): Hides tooltips over data points (Type: `boolean`, Default: `false`)
+- `config`: The Chart.js configuration object. Setting this property will automatically re-render the chart. (Type: `ChartJS['config']`)
+- `plugins`: Additional Chart.js plugins to register for this chart instance. (Type: `array`, Default: `[]`)
+
+**CSS Custom Properties:**
+
+- `--fill-color-1`: Fill color for the first dataset. (Default: `color-mix(in srgb, var(--wa-color-blue-60) 40%, transparent)`)
+- `--fill-color-2`: Fill color for the second dataset. (Default: `color-mix(in srgb, var(--wa-color-pink-60) 40%, transparent)`)
+- `--fill-color-3`: Fill color for the third dataset. (Default: `color-mix(in srgb, var(--wa-color-green-60) 40%, transparent)`)
+- `--fill-color-4`: Fill color for the fourth dataset. (Default: `color-mix(in srgb, var(--wa-color-yellow-60) 40%, transparent)`)
+- `--fill-color-5`: Fill color for the fifth dataset. (Default: `color-mix(in srgb, var(--wa-color-purple-60) 40%, transparent)`)
+- `--fill-color-6`: Fill color for the sixth dataset. (Default: `color-mix(in srgb, var(--wa-color-orange-60) 40%, transparent)`)
+- `--border-color-1`: Border color for the first dataset. (Default: `var(--wa-color-blue-60)`)
+- `--border-color-2`: Border color for the second dataset. (Default: `var(--wa-color-pink-60)`)
+- `--border-color-3`: Border color for the third dataset. (Default: `var(--wa-color-green-60)`)
+- `--border-color-4`: Border color for the fourth dataset. (Default: `var(--wa-color-yellow-60)`)
+- `--border-color-5`: Border color for the fifth dataset. (Default: `var(--wa-color-purple-60)`)
+- `--border-color-6`: Border color for the sixth dataset. (Default: `var(--wa-color-orange-60)`)
+- `--grid-color`: Color of the chart grid lines and axis borders. (Default: `var(--wa-color-neutral-border-quiet)`)
+- `--border-width`: Border width for bars and arcs. (Default: `var(--wa-border-width-s)`)
+- `--border-radius`: Border radius for bar charts. (Default: `var(--wa-border-radius-s)`)
+- `--grid-border-width`: Border width for chart grid lines and axis borders. (Default: `var(--wa-border-width-s)`)
+- `--line-border-width`: Border width for line and radar charts. (Default: `var(--wa-border-width-m)`)
+- `--point-radius`: Radius of data point dots. (Default: `var(--wa-border-width-m)`)
+
+#### `<wa-polar-area-chart>`
+
+**Description:** Unlike pie charts, each segment has an equal angle while the radius varies, making them useful for comparing magnitudes without visual bias.
+
+**Documentation:** https://webawesome.com/docs/components/polar-area-chart
+
+**Slots:**
+
+- `(default)`: An optional `<script type="application/json">` element containing the Chart.js configuration object.
+
+**Properties:**
+
+- `type`: The type of chart to render. Valid types include `bar`, `line`, `pie`, `doughnut`, `polarArea`, `radar`, `scatter`, and `bubble`. (Type: `ChartType`, Default: `'polarArea'`)
+- `css`: One or more CSSResultGroup to include in the component's shadow root. Host styles are automatically prepended. (Type: `CSSResultGroup | undefined`, Default: `[styles]`)
+- `label`: A label for the chart, used for accessibility. (Type: `string | null`, Default: `null`)
+- `description`: A description of the chart, used for accessibility. (Type: `string | null`, Default: `null`)
+- `xLabel`: A label for the x-axis. (Type: `string | null`, Default: `null`)
+- `yLabel`: A label for the y-axis. (Type: `string | null`, Default: `null`)
+- `legendPosition` (attribute: `legend-position`): The position of the legend relative to the chart. (Type: `LayoutPosition | 'start' | 'end'`, Default: `'top'`)
+- `stacked`: Stacks datasets on top of each other along the value axis. (Type: `boolean`, Default: `false`)
+- `indexAxis` (attribute: `index-axis`): The base axis of the dataset. 'x' for vertical bars and 'y' for horizontal bars. (Type: `'x' | 'y'`, Default: `'x'`)
+- `grid`: Which axes to show grid lines on. (Type: `'x' | 'y' | 'both' | 'none'`, Default: `'both'`)
+- `min`: The minimum value for the value axis. (Type: `number | null`, Default: `null`)
+- `max`: The maximum value for the value axis. (Type: `number | null`, Default: `null`)
+- `withoutAnimation` (attribute: `without-animation`): Disables chart animations (Type: `boolean`, Default: `false`)
+- `withoutLegend` (attribute: `without-legend`): Hides the legend (Type: `boolean`, Default: `false`)
+- `withoutTooltip` (attribute: `without-tooltip`): Hides tooltips over data points (Type: `boolean`, Default: `false`)
+- `config`: The Chart.js configuration object. Setting this property will automatically re-render the chart. (Type: `ChartJS['config']`)
+- `plugins`: Additional Chart.js plugins to register for this chart instance. (Type: `array`, Default: `[]`)
+
+**CSS Custom Properties:**
+
+- `--fill-color-1`: Fill color for the first dataset. (Default: `color-mix(in srgb, var(--wa-color-blue-60) 40%, transparent)`)
+- `--fill-color-2`: Fill color for the second dataset. (Default: `color-mix(in srgb, var(--wa-color-pink-60) 40%, transparent)`)
+- `--fill-color-3`: Fill color for the third dataset. (Default: `color-mix(in srgb, var(--wa-color-green-60) 40%, transparent)`)
+- `--fill-color-4`: Fill color for the fourth dataset. (Default: `color-mix(in srgb, var(--wa-color-yellow-60) 40%, transparent)`)
+- `--fill-color-5`: Fill color for the fifth dataset. (Default: `color-mix(in srgb, var(--wa-color-purple-60) 40%, transparent)`)
+- `--fill-color-6`: Fill color for the sixth dataset. (Default: `color-mix(in srgb, var(--wa-color-orange-60) 40%, transparent)`)
+- `--border-color-1`: Border color for the first dataset. (Default: `var(--wa-color-blue-60)`)
+- `--border-color-2`: Border color for the second dataset. (Default: `var(--wa-color-pink-60)`)
+- `--border-color-3`: Border color for the third dataset. (Default: `var(--wa-color-green-60)`)
+- `--border-color-4`: Border color for the fourth dataset. (Default: `var(--wa-color-yellow-60)`)
+- `--border-color-5`: Border color for the fifth dataset. (Default: `var(--wa-color-purple-60)`)
+- `--border-color-6`: Border color for the sixth dataset. (Default: `var(--wa-color-orange-60)`)
+- `--grid-color`: Color of the chart grid lines and axis borders. (Default: `var(--wa-color-neutral-border-quiet)`)
+- `--border-width`: Border width for bars and arcs. (Default: `var(--wa-border-width-s)`)
+- `--border-radius`: Border radius for bar charts. (Default: `var(--wa-border-radius-s)`)
+- `--grid-border-width`: Border width for chart grid lines and axis borders. (Default: `var(--wa-border-width-s)`)
+- `--line-border-width`: Border width for line and radar charts. (Default: `var(--wa-border-width-m)`)
+- `--point-radius`: Radius of data point dots. (Default: `var(--wa-border-width-m)`)
+
 #### `<wa-popover>`
 
 **Description:** Popovers display interactive content when their anchor element is clicked.
@@ -1442,6 +2059,7 @@ The following is a quick reference describing every component's API. For compreh
 **CSS Custom Properties:**
 
 - `--arrow-size`: The size of the arrow. Note that an arrow won't be shown unless the `arrow` attribute is used. (Default: `6px`)
+- `--popup-border-width`: The width of any custom border applied to the popup. This is used to reposition the arrow to overlap to the inside edge of the popup border.
 - `--arrow-color`: The color of the arrow. (Default: `black`)
 - `--auto-size-available-width`: A read-only custom property that determines the amount of width the popup can be before overflowing. Useful for positioning child elements that need to overflow. This property is only available when using `auto-size`.
 - `--auto-size-available-height`: A read-only custom property that determines the amount of height the popup can be before overflowing. Useful for positioning child elements that need to overflow. This property is only available when using `auto-size`.
@@ -1535,6 +2153,57 @@ The following is a quick reference describing every component's API. For compreh
 **CSS Parts:**
 
 - `base`: The component's base wrapper.
+
+#### `<wa-radar-chart>`
+
+**Description:** They are well-suited for comparing profiles across several dimensions, such as skill assessments, product attributes, or performance metrics.
+
+**Documentation:** https://webawesome.com/docs/components/radar-chart
+
+**Slots:**
+
+- `(default)`: An optional `<script type="application/json">` element containing the Chart.js configuration object.
+
+**Properties:**
+
+- `type`: The type of chart to render. Valid types include `bar`, `line`, `pie`, `doughnut`, `polarArea`, `radar`, `scatter`, and `bubble`. (Type: `ChartType`, Default: `'radar'`)
+- `css`: One or more CSSResultGroup to include in the component's shadow root. Host styles are automatically prepended. (Type: `CSSResultGroup | undefined`, Default: `[styles]`)
+- `label`: A label for the chart, used for accessibility. (Type: `string | null`, Default: `null`)
+- `description`: A description of the chart, used for accessibility. (Type: `string | null`, Default: `null`)
+- `xLabel`: A label for the x-axis. (Type: `string | null`, Default: `null`)
+- `yLabel`: A label for the y-axis. (Type: `string | null`, Default: `null`)
+- `legendPosition` (attribute: `legend-position`): The position of the legend relative to the chart. (Type: `LayoutPosition | 'start' | 'end'`, Default: `'top'`)
+- `stacked`: Stacks datasets on top of each other along the value axis. (Type: `boolean`, Default: `false`)
+- `indexAxis` (attribute: `index-axis`): The base axis of the dataset. 'x' for vertical bars and 'y' for horizontal bars. (Type: `'x' | 'y'`, Default: `'x'`)
+- `grid`: Which axes to show grid lines on. (Type: `'x' | 'y' | 'both' | 'none'`, Default: `'both'`)
+- `min`: The minimum value for the value axis. (Type: `number | null`, Default: `null`)
+- `max`: The maximum value for the value axis. (Type: `number | null`, Default: `null`)
+- `withoutAnimation` (attribute: `without-animation`): Disables chart animations (Type: `boolean`, Default: `false`)
+- `withoutLegend` (attribute: `without-legend`): Hides the legend (Type: `boolean`, Default: `false`)
+- `withoutTooltip` (attribute: `without-tooltip`): Hides tooltips over data points (Type: `boolean`, Default: `false`)
+- `config`: The Chart.js configuration object. Setting this property will automatically re-render the chart. (Type: `ChartJS['config']`)
+- `plugins`: Additional Chart.js plugins to register for this chart instance. (Type: `array`, Default: `[]`)
+
+**CSS Custom Properties:**
+
+- `--fill-color-1`: Fill color for the first dataset. (Default: `color-mix(in srgb, var(--wa-color-blue-60) 40%, transparent)`)
+- `--fill-color-2`: Fill color for the second dataset. (Default: `color-mix(in srgb, var(--wa-color-pink-60) 40%, transparent)`)
+- `--fill-color-3`: Fill color for the third dataset. (Default: `color-mix(in srgb, var(--wa-color-green-60) 40%, transparent)`)
+- `--fill-color-4`: Fill color for the fourth dataset. (Default: `color-mix(in srgb, var(--wa-color-yellow-60) 40%, transparent)`)
+- `--fill-color-5`: Fill color for the fifth dataset. (Default: `color-mix(in srgb, var(--wa-color-purple-60) 40%, transparent)`)
+- `--fill-color-6`: Fill color for the sixth dataset. (Default: `color-mix(in srgb, var(--wa-color-orange-60) 40%, transparent)`)
+- `--border-color-1`: Border color for the first dataset. (Default: `var(--wa-color-blue-60)`)
+- `--border-color-2`: Border color for the second dataset. (Default: `var(--wa-color-pink-60)`)
+- `--border-color-3`: Border color for the third dataset. (Default: `var(--wa-color-green-60)`)
+- `--border-color-4`: Border color for the fourth dataset. (Default: `var(--wa-color-yellow-60)`)
+- `--border-color-5`: Border color for the fifth dataset. (Default: `var(--wa-color-purple-60)`)
+- `--border-color-6`: Border color for the sixth dataset. (Default: `var(--wa-color-orange-60)`)
+- `--grid-color`: Color of the chart grid lines and axis borders. (Default: `var(--wa-color-neutral-border-quiet)`)
+- `--border-width`: Border width for bars and arcs. (Default: `var(--wa-border-width-s)`)
+- `--border-radius`: Border radius for bar charts. (Default: `var(--wa-border-radius-s)`)
+- `--grid-border-width`: Border width for chart grid lines and axis borders. (Default: `var(--wa-border-width-s)`)
+- `--line-border-width`: Border width for line and radar charts. (Default: `var(--wa-border-width-m)`)
+- `--point-radius`: Radius of data point dots. (Default: `var(--wa-border-width-m)`)
 
 #### `<wa-radio>`
 
@@ -1706,6 +2375,57 @@ The following is a quick reference describing every component's API. For compreh
 **Events:**
 
 - `wa-resize`: Emitted when the element is resized.
+
+#### `<wa-scatter-chart>`
+
+**Description:** They are ideal for identifying correlations, clusters, and outliers in datasets.
+
+**Documentation:** https://webawesome.com/docs/components/scatter-chart
+
+**Slots:**
+
+- `(default)`: An optional `<script type="application/json">` element containing the Chart.js configuration object.
+
+**Properties:**
+
+- `type`: The type of chart to render. Valid types include `bar`, `line`, `pie`, `doughnut`, `polarArea`, `radar`, `scatter`, and `bubble`. (Type: `ChartType`, Default: `'scatter'`)
+- `css`: One or more CSSResultGroup to include in the component's shadow root. Host styles are automatically prepended. (Type: `CSSResultGroup | undefined`, Default: `[styles]`)
+- `label`: A label for the chart, used for accessibility. (Type: `string | null`, Default: `null`)
+- `description`: A description of the chart, used for accessibility. (Type: `string | null`, Default: `null`)
+- `xLabel`: A label for the x-axis. (Type: `string | null`, Default: `null`)
+- `yLabel`: A label for the y-axis. (Type: `string | null`, Default: `null`)
+- `legendPosition` (attribute: `legend-position`): The position of the legend relative to the chart. (Type: `LayoutPosition | 'start' | 'end'`, Default: `'top'`)
+- `stacked`: Stacks datasets on top of each other along the value axis. (Type: `boolean`, Default: `false`)
+- `indexAxis` (attribute: `index-axis`): The base axis of the dataset. 'x' for vertical bars and 'y' for horizontal bars. (Type: `'x' | 'y'`, Default: `'x'`)
+- `grid`: Which axes to show grid lines on. (Type: `'x' | 'y' | 'both' | 'none'`, Default: `'both'`)
+- `min`: The minimum value for the value axis. (Type: `number | null`, Default: `null`)
+- `max`: The maximum value for the value axis. (Type: `number | null`, Default: `null`)
+- `withoutAnimation` (attribute: `without-animation`): Disables chart animations (Type: `boolean`, Default: `false`)
+- `withoutLegend` (attribute: `without-legend`): Hides the legend (Type: `boolean`, Default: `false`)
+- `withoutTooltip` (attribute: `without-tooltip`): Hides tooltips over data points (Type: `boolean`, Default: `false`)
+- `config`: The Chart.js configuration object. Setting this property will automatically re-render the chart. (Type: `ChartJS['config']`)
+- `plugins`: Additional Chart.js plugins to register for this chart instance. (Type: `array`, Default: `[]`)
+
+**CSS Custom Properties:**
+
+- `--fill-color-1`: Fill color for the first dataset. (Default: `color-mix(in srgb, var(--wa-color-blue-60) 40%, transparent)`)
+- `--fill-color-2`: Fill color for the second dataset. (Default: `color-mix(in srgb, var(--wa-color-pink-60) 40%, transparent)`)
+- `--fill-color-3`: Fill color for the third dataset. (Default: `color-mix(in srgb, var(--wa-color-green-60) 40%, transparent)`)
+- `--fill-color-4`: Fill color for the fourth dataset. (Default: `color-mix(in srgb, var(--wa-color-yellow-60) 40%, transparent)`)
+- `--fill-color-5`: Fill color for the fifth dataset. (Default: `color-mix(in srgb, var(--wa-color-purple-60) 40%, transparent)`)
+- `--fill-color-6`: Fill color for the sixth dataset. (Default: `color-mix(in srgb, var(--wa-color-orange-60) 40%, transparent)`)
+- `--border-color-1`: Border color for the first dataset. (Default: `var(--wa-color-blue-60)`)
+- `--border-color-2`: Border color for the second dataset. (Default: `var(--wa-color-pink-60)`)
+- `--border-color-3`: Border color for the third dataset. (Default: `var(--wa-color-green-60)`)
+- `--border-color-4`: Border color for the fourth dataset. (Default: `var(--wa-color-yellow-60)`)
+- `--border-color-5`: Border color for the fifth dataset. (Default: `var(--wa-color-purple-60)`)
+- `--border-color-6`: Border color for the sixth dataset. (Default: `var(--wa-color-orange-60)`)
+- `--grid-color`: Color of the chart grid lines and axis borders. (Default: `var(--wa-color-neutral-border-quiet)`)
+- `--border-width`: Border width for bars and arcs. (Default: `var(--wa-border-width-s)`)
+- `--border-radius`: Border radius for bar charts. (Default: `var(--wa-border-radius-s)`)
+- `--grid-border-width`: Border width for chart grid lines and axis borders. (Default: `var(--wa-border-width-s)`)
+- `--line-border-width`: Border width for line and radar charts. (Default: `var(--wa-border-width-m)`)
+- `--point-radius`: Radius of data point dots. (Default: `var(--wa-border-width-m)`)
 
 #### `<wa-scroller>`
 
@@ -1941,6 +2661,33 @@ The following is a quick reference describing every component's API. For compreh
 - `user-valid`: Applied when the slider is valid and the user has sufficiently interacted with it.
 - `user-invalid`: Applied when the slider is invalid and the user has sufficiently interacted with it.
 
+#### `<wa-sparkline>`
+
+**Description:** Sparklines display inline data trends as compact, visual charts.
+
+**Documentation:** https://webawesome.com/docs/components/sparkline
+
+**Properties:**
+
+- `css`: One or more CSSResultGroup to include in the component's shadow root. Host styles are automatically prepended. (Type: `CSSResultGroup | undefined`, Default: `[styles]`)
+- `label`: An accessible label describing the sparkline for screen readers. (Type: `string`, Default: `''`)
+- `data`: Space-separated numeric values to visualize (e.g., "10 20 40 25 35"). (Type: `string`, Default: `''`)
+- `appearance`: The visual fill style of the sparkline. (Type: `'gradient' | 'line' | 'solid'`, Default: `'solid'`)
+- `trend`: A trend to indicate, which will affect the sparkline's default color. (Type: `'positive' | 'negative' | 'neutral'`)
+- `curve`: The type of curve used to connect data points. (Type: `'linear' | 'natural' | 'step'`, Default: `'linear'`)
+
+**CSS Custom Properties:**
+
+- `--fill-color`: The fill color for the area under the line.
+- `--line-color`: The color of the sparkline stroke.
+- `--line-width`: The width of the sparkline stroke.
+
+**CSS Parts:**
+
+- `base`: The SVG container element.
+- `line`: The sparkline stroke path.
+- `fill`: The filled area under the line (visible with gradient or solid appearance).
+
 #### `<wa-spinner>`
 
 **Description:** Spinners are used to show the progress of an indeterminate operation.
@@ -2022,7 +2769,7 @@ The following is a quick reference describing every component's API. For compreh
 - `value`: The value of the switch, submitted as a name/value pair with form data. (Type: `string | null`)
 - `size`: The switch's size. (Type: `'small' | 'medium' | 'large'`, Default: `'medium'`)
 - `disabled`: Disables the switch. (Type: `boolean`, Default: `false`)
-- `checked`: Draws the switch in a checked state. (Type: `boolean`)
+- `checked`: Draws the checkbox in a checked state.
 - `defaultChecked` (attribute: `checked`): The default value of the form control. Primarily used for resetting the form control. (Type: `boolean`)
 - `required`: Makes the switch a required field. (Type: `boolean`, Default: `false`)
 - `hint`: The switch's hint. If you need to display HTML, use the `hint` slot instead. (Type: `string`, Default: `''`)
@@ -2249,6 +2996,88 @@ The following is a quick reference describing every component's API. For compreh
 **CSS States:**
 
 - `blank`: The textarea is empty.
+
+#### `<wa-toast>`
+
+**Description:** Toasts display brief, non-blocking notifications that appear temporarily above the page content.
+
+**Documentation:** https://webawesome.com/docs/components/toast
+
+**Slots:**
+
+- `(default)`: Place `<wa-toast-item>` elements here to show them as notifications.
+
+**Properties:**
+
+- `css`: One or more CSSResultGroup to include in the component's shadow root. Host styles are automatically prepended. (Type: `CSSResultGroup | undefined`, Default: `styles`)
+- `placement`: The placement of the toast stack on the screen. (Type: `| 'top-start'     | 'top-center'     | 'top-end'     | 'bottom-start'     | 'bottom-center'     | 'bottom-end'`, Default: `'top-end'`)
+
+**Methods:**
+
+- `create(message: string, options: ToastCreateOptions)`: Creates a toast notification programmatically and adds it to the stack. Returns a reference to the created toast item element.
+
+**CSS Custom Properties:**
+
+- `--gap`: The gap between stacked toast items. (Default: `var(--wa-space-s)`)
+- `--width`: The width of the toast stack. (Default: `28rem`)
+
+**CSS Parts:**
+
+- `stack`: The container that holds the toast items.
+
+**CSS States:**
+
+- `visible`: Applied when the toast stack has one or more visible toast items.
+
+#### `<wa-toast-item>`
+
+**Description:** Toast items are individual notifications displayed within a toast container.
+
+**Documentation:** https://webawesome.com/docs/components/toast-item
+
+**Slots:**
+
+- `(default)`: The toast item's message content.
+- `icon`: An optional icon to show at the start of the toast item.
+
+**Properties:**
+
+- `css`: One or more CSSResultGroup to include in the component's shadow root. Host styles are automatically prepended. (Type: `CSSResultGroup | undefined`, Default: `[styles, variantStyles, sizeStyles]`)
+- `variant`: The toast item's variant. (Type: `'brand' | 'success' | 'warning' | 'danger' | 'neutral'`, Default: `'neutral'`)
+- `size`: The toast item's size. (Type: `'small' | 'medium' | 'large'`, Default: `'medium'`)
+- `duration`: The length of time in milliseconds before the toast item is automatically dismissed. Set to 0 to keep the toast item open until the user dismisses it. (Type: `number`, Default: `5000`)
+
+**Methods:**
+
+- `hide()`: Hides the toast item with animation and removes it from the DOM.
+
+**Events:**
+
+- `wa-show`: Emitted when the toast item begins to show.
+- `wa-after-show`: Emitted after the toast item has finished showing.
+- `wa-hide`: Emitted when the toast item begins to hide.
+- `wa-after-hide`: Emitted after the toast item has finished hiding.
+
+**CSS Custom Properties:**
+
+- `--accent-width`: The width of the accent line. Defaults to 4px.
+- `--show-duration`: The animation duration when showing. Defaults to 200ms.
+- `--hide-duration`: The animation duration when hiding. Defaults to 200ms.
+
+**CSS Parts:**
+
+- `toast-item`: The toast item's main container.
+- `accent`: The colored accent line on the start side.
+- `icon`: The icon container.
+- `content`: The message content container.
+- `close-button`: The close button element.
+- `progress-ring`: The progress ring component.
+- `progress-ring__base`: The progress ring's exported base part.
+- `progress-ring__label`: The progress ring's exported label part.
+- `progress-ring__track`: The progress ring's exported track part.
+- `progress-ring__indicator`: The progress ring's exported indicator part.
+- `close-icon`: The close icon element.
+- `close-icon__svg`: The close icon's exported svg part.
 
 #### `<wa-tooltip>`
 
