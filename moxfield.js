@@ -26,11 +26,29 @@ export function extractMoxfieldId(input) {
 }
 
 /**
- * Fetch deck data from Moxfield via Netlify function proxy
+ * Fetch deck data from Moxfield via Netlify proxy
+ * Tries edge function first (different IP range), falls back to regular function
  * @param {string} publicId - The Moxfield deck ID
  * @returns {Promise<Object>} The deck data
  */
 export async function fetchMoxfieldDeck(publicId) {
+  // Try edge function first (runs on Deno at edge, different IP)
+  try {
+    const edgeResponse = await fetch('/api/moxfield-edge', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ publicId })
+    });
+
+    if (edgeResponse.ok) {
+      return edgeResponse.json();
+    }
+    // Fall through to regular function if edge fails
+  } catch (e) {
+    console.warn('Edge function failed, trying regular function:', e);
+  }
+
+  // Fallback to regular function
   const response = await fetch('/.netlify/functions/moxfield', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

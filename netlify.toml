@@ -9,6 +9,11 @@
 [context.production]
   environment = { AWS_LAMBDA_JS_RUNTIME = "nodejs18.x" }
 
+# Edge Functions
+[[edge_functions]]
+  path = "/api/moxfield-edge"
+  function = "moxfield-edge"
+
 # Headers for the functions
 [[headers]]
   for = "/.netlify/functions/*"
