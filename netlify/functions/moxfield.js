@@ -9,7 +9,7 @@ const CORS_HEADERS = {
   'Access-Control-Allow-Methods': 'GET, POST, OPTIONS'
 };
 
-export async function handler(event) {
+exports.handler = async function(event, context) {
   // Handle CORS preflight
   if (event.httpMethod === 'OPTIONS') {
     return {
@@ -103,4 +103,4 @@ export async function handler(event) {
       body: JSON.stringify({ error: 'Failed to fetch deck from Moxfield' })
     };
   }
-}
+};
