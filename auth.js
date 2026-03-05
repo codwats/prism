@@ -5,6 +5,7 @@ import { syncWithSupabase } from './storage.js';
 // Current user state
 let currentUser = null;
 let authListeners = [];
+let wasLoggedOut = true; // Track if user was logged out before sign-in
 
 // Subscribe to auth state changes
 export function onAuthChange(callback) {
@@ -34,6 +35,7 @@ export async function initAuth() {
   // Get initial session
   const { data: { session } } = await supabase.auth.getSession();
   if (session?.user) {
+    wasLoggedOut = false; // User already logged in, don't reload on SIGNED_IN
     notifyAuthChange(session.user);
     // Sync on initial load if already logged in
     await syncWithSupabase();
@@ -44,8 +46,14 @@ export async function initAuth() {
     console.log('Auth state changed:', event);
     notifyAuthChange(session?.user || null);
 
-    // Sync with Supabase when user logs in
-    if (event === 'SIGNED_IN' && session?.user) {
+    // Track logout state
+    if (event === 'SIGNED_OUT') {
+      wasLoggedOut = true;
+    }
+
+    // Sync with Supabase when user freshly logs in (not on session recovery)
+    if (event === 'SIGNED_IN' && session?.user && wasLoggedOut) {
+      wasLoggedOut = false;
       await syncWithSupabase();
       // Reload page to show synced data
       window.location.reload();
