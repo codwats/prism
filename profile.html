@@ -123,6 +123,28 @@
 
             <wa-card>
               <div slot="header" class="wa-cluster wa-gap-s wa-align-items-center">
+                <wa-icon name="envelope"></wa-icon>
+                <span class="wa-heading-m">Change Email</span>
+              </div>
+
+              <form id="change-email-form" class="wa-stack wa-gap-m">
+                <wa-input
+                  id="new-email"
+                  type="email"
+                  label="New Email"
+                  placeholder="Enter new email address"
+                  required
+                ></wa-input>
+                <div id="email-error" hidden class="wa-caption-m" style="color: var(--wa-color-danger-text);"></div>
+                <div id="email-success" hidden class="wa-caption-m" style="color: var(--wa-color-success-text);"></div>
+                <wa-button id="btn-change-email" type="submit" variant="brand">
+                  Update Email
+                </wa-button>
+              </form>
+            </wa-card>
+
+            <wa-card>
+              <div slot="header" class="wa-cluster wa-gap-s wa-align-items-center">
                 <wa-icon name="key"></wa-icon>
                 <span class="wa-heading-m">Change Password</span>
               </div>

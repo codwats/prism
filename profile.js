@@ -3,8 +3,9 @@
  * Handles user profile, PRISM management, and account settings
  */
 
-import { initAuth, setupAuthListeners, onAuthChange, getCurrentUser, signOut, updatePassword } from './auth.js';
-import { getAllPrisms, setCurrentPrism, deletePrism, createPrism, savePrism } from './storage.js';
+import { initAuth, setupAuthListeners, onAuthChange, getCurrentUser, signOut, updatePassword, updateEmail, updateAuthUI } from './auth.js';
+import { getAllPrisms, setCurrentPrism, deletePrism, savePrism, getCurrentPrism } from './storage.js';
+import { createPrism } from './processor.js';
 
 // DOM Elements
 let elements = {};
@@ -19,6 +20,13 @@ function getElements() {
     // PRISMs list
     prismsList: document.getElementById('prisms-list'),
     btnNewPrism: document.getElementById('btn-new-prism'),
+
+    // Email change
+    changeEmailForm: document.getElementById('change-email-form'),
+    newEmail: document.getElementById('new-email'),
+    emailError: document.getElementById('email-error'),
+    emailSuccess: document.getElementById('email-success'),
+    btnChangeEmail: document.getElementById('btn-change-email'),
 
     // Password change
     changePasswordForm: document.getElementById('change-password-form'),
@@ -83,6 +91,11 @@ function setupEventListeners() {
     elements.btnNewPrism.addEventListener('click', handleNewPrism);
   }
 
+  // Change email form
+  if (elements.changeEmailForm) {
+    elements.changeEmailForm.addEventListener('submit', handleChangeEmail);
+  }
+
   // Change password form
   if (elements.changePasswordForm) {
     elements.changePasswordForm.addEventListener('submit', handleChangePassword);
@@ -90,6 +103,9 @@ function setupEventListeners() {
 }
 
 function handleAuthChange(user) {
+  // Update nav auth UI
+  updateAuthUI(user);
+
   if (user) {
     // Show logged in state
     if (elements.profileLoggedOut) elements.profileLoggedOut.hidden = true;
@@ -109,6 +125,8 @@ function renderPrismsList() {
   if (!elements.prismsList) return;
 
   const prisms = getAllPrisms();
+  const currentPrism = getCurrentPrism();
+  const currentPrismId = currentPrism?.id;
 
   if (prisms.length === 0) {
     elements.prismsList.innerHTML = `
@@ -126,28 +144,43 @@ function renderPrismsList() {
     return;
   }
 
-  elements.prismsList.innerHTML = prisms.map(prism => `
-    <wa-card class="prism-card" data-prism-id="${prism.id}">
+  elements.prismsList.innerHTML = prisms.map(prism => {
+    const isActive = prism.id === currentPrismId;
+    return `
+    <wa-card class="prism-card ${isActive ? 'prism-active' : ''}" data-prism-id="${prism.id}" style="${isActive ? 'border: 2px solid var(--wa-color-brand-stroke);' : ''}">
       <div class="wa-split wa-align-items-center">
         <div class="wa-stack wa-gap-2xs">
           <div class="wa-cluster wa-gap-s wa-align-items-center">
             <span class="wa-heading-m">${escapeHtml(prism.name)}</span>
             <wa-tag size="small" variant="neutral">${prism.decks?.length || 0} decks</wa-tag>
+            ${isActive ? '<wa-tag size="small" variant="brand">Active</wa-tag>' : ''}
           </div>
           <span class="wa-caption-m" style="color: var(--wa-color-neutral-text-subtle);">
             Last updated: ${formatDate(prism.updatedAt)}
           </span>
         </div>
         <div class="wa-cluster wa-gap-xs">
+          ${!isActive ? `
+          <wa-button
+            appearance="outlined"
+            variant="neutral"
+            size="small"
+            class="btn-set-active"
+            data-prism-id="${prism.id}"
+            title="Set as Active"
+          >
+            Set Active
+          </wa-button>
+          ` : ''}
           <wa-button
             appearance="plain"
             variant="neutral"
             size="small"
             class="btn-open-prism"
             data-prism-id="${prism.id}"
-            title="Open PRISM"
+            title="Edit PRISM"
           >
-            <wa-icon name="arrow-up-right-from-square"></wa-icon>
+            <wa-icon name="pen-to-square"></wa-icon>
           </wa-button>
           <wa-button
             appearance="plain"
@@ -162,9 +195,14 @@ function renderPrismsList() {
         </div>
       </div>
     </wa-card>
-  `).join('');
+  `;
+  }).join('');
 
   // Add event listeners
+  elements.prismsList.querySelectorAll('.btn-set-active').forEach(btn => {
+    btn.addEventListener('click', () => handleSetActive(btn.dataset.prismId));
+  });
+
   elements.prismsList.querySelectorAll('.btn-open-prism').forEach(btn => {
     btn.addEventListener('click', () => handleOpenPrism(btn.dataset.prismId));
   });
@@ -172,6 +210,11 @@ function renderPrismsList() {
   elements.prismsList.querySelectorAll('.btn-delete-prism').forEach(btn => {
     btn.addEventListener('click', () => handleDeletePrism(btn.dataset.prismId));
   });
+}
+
+function handleSetActive(prismId) {
+  setCurrentPrism(prismId);
+  renderPrismsList();
 }
 
 function handleOpenPrism(prismId) {
@@ -196,6 +239,49 @@ function handleNewPrism() {
   savePrism(newPrism);
   setCurrentPrism(newPrism.id);
   window.location.href = 'build.html';
+}
+
+async function handleChangeEmail(e) {
+  e.preventDefault();
+
+  const newEmailValue = elements.newEmail?.value;
+
+  // Clear previous messages
+  if (elements.emailError) elements.emailError.hidden = true;
+  if (elements.emailSuccess) elements.emailSuccess.hidden = true;
+
+  // Validate email
+  if (!newEmailValue || !newEmailValue.includes('@')) {
+    if (elements.emailError) {
+      elements.emailError.textContent = 'Please enter a valid email address.';
+      elements.emailError.hidden = false;
+    }
+    return;
+  }
+
+  try {
+    if (elements.btnChangeEmail) elements.btnChangeEmail.loading = true;
+
+    await updateEmail(newEmailValue);
+
+    // Show success
+    if (elements.emailSuccess) {
+      elements.emailSuccess.textContent = 'Check your new email to confirm the change.';
+      elements.emailSuccess.hidden = false;
+    }
+
+    // Clear form
+    if (elements.newEmail) elements.newEmail.value = '';
+
+  } catch (err) {
+    console.error('Email update error:', err);
+    if (elements.emailError) {
+      elements.emailError.textContent = err.message || 'Failed to update email.';
+      elements.emailError.hidden = false;
+    }
+  } finally {
+    if (elements.btnChangeEmail) elements.btnChangeEmail.loading = false;
+  }
 }
 
 async function handleChangePassword(e) {

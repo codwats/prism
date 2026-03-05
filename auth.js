@@ -118,6 +118,18 @@ export async function updatePassword(newPassword) {
   if (error) throw error;
 }
 
+// Update email (for logged in users)
+export async function updateEmail(newEmail) {
+  const supabase = getSupabase();
+  if (!supabase) throw new Error('Supabase not configured');
+
+  const { error } = await supabase.auth.updateUser({
+    email: newEmail
+  });
+
+  if (error) throw error;
+}
+
 // Update user account UI in the nav
 export function updateAuthUI(user) {
   const loginSection = document.getElementById('auth-logged-out');
