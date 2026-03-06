@@ -435,6 +435,33 @@
           <input type="color" id="edit-deck-color" style="width: 60px; height: 40px; border: none; border-radius: var(--wa-border-radius-m); cursor: pointer;" />
         </div>
 
+        <wa-details id="edit-import-section">
+          <span slot="summary" class="wa-caption-m">
+            <wa-icon name="link" style="margin-right: 0.5em;"></wa-icon>
+            Import from URL
+          </span>
+          <div class="wa-stack wa-gap-m" style="padding-top: var(--wa-space-s);">
+            <div class="wa-cluster wa-gap-s wa-align-items-end">
+              <wa-input
+                id="edit-import-url"
+                label="Deck URL"
+                placeholder="https://moxfield.com/decks/... or https://archidekt.com/decks/..."
+                style="flex: 1; min-width: 250px;"
+              ></wa-input>
+              <wa-button type="button" id="btn-edit-import-url" variant="neutral">
+                <wa-icon slot="start" name="download"></wa-icon>
+                Import
+              </wa-button>
+            </div>
+            <div id="edit-import-error" hidden class="wa-caption-s" style="color: var(--wa-color-danger-text);"></div>
+            <div id="edit-import-success" hidden class="wa-caption-s" style="color: var(--wa-color-success-text);"></div>
+            <wa-callout variant="neutral">
+              <wa-icon slot="icon" name="circle-info"></wa-icon>
+              Paste a deck URL from <strong>Moxfield</strong> or <strong>Archidekt</strong> to replace the current decklist. The card list will be updated but name, commander, and color will be kept.
+            </wa-callout>
+          </div>
+        </wa-details>
+
         <wa-file-input id="edit-deck-file-input" accept=".txt,.dec,.dek,.mwDeck" label="Decklist" hint="Drag & drop or click to upload a .txt, .dec, .dek, or .mwDeck file" size="small"></wa-file-input>
 
         <wa-textarea

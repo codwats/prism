@@ -7,14 +7,22 @@ const DISPLAY_WIDTH = 244;
 const DISPLAY_HEIGHT = 340;
 const SCALE = 0.5; // Display scale factor
 
-// Stripe positioning at display scale (32 positions along right edge)
-// Stripes start below title bar and span down the card art area
-const STRIPE_START_Y = 35; // Start below title
-const STRIPE_SLOT_HEIGHT = 18; // Spacing between stripe positions
+// Stripe positioning at display scale
+// Side A (positions 1-24): right edge of card
+// Side B (positions 25-48): left edge of card
+// 24 slots per side, spanning the card art area
+const STRIPE_START_Y = 28;   // Start just below title bar
+const STRIPE_SLOT_HEIGHT = 12; // Spacing between stripe positions
+const SLOTS_PER_SIDE = 24;
 
-// Get Y position for a stripe (1-32) at display scale
+// Get Y position for a stripe at display scale
+// Side A: position 1-24 → index 0-23
+// Side B: position 25-48 → index 0-23
 function getStripeY(position) {
-  return STRIPE_START_Y + (position - 1) * STRIPE_SLOT_HEIGHT;
+  const index = position <= SLOTS_PER_SIDE
+    ? position - 1
+    : position - SLOTS_PER_SIDE - 1;
+  return STRIPE_START_Y + index * STRIPE_SLOT_HEIGHT;
 }
 
 // Create stripe overlay element
@@ -24,10 +32,21 @@ function createStripeOverlay(stripes) {
 
   for (const stripe of stripes) {
     const mark = document.createElement('div');
-    mark.className = 'stripe-mark';
+    const isSideB = stripe.side === 'b' || stripe.position > SLOTS_PER_SIDE;
+    mark.className = `stripe-mark${isSideB ? ' stripe-mark-left' : ''}`;
     mark.style.backgroundColor = stripe.color;
     mark.style.top = `${getStripeY(stripe.position)}px`;
-    mark.title = `${stripe.deckName} (Position ${stripe.position})`;
+
+    const sideLabel = isSideB ? 'Side B' : 'Side A';
+    mark.title = `${stripe.deckName} (${sideLabel} · Slot ${stripe.position})`;
+
+    if (isSideB) {
+      mark.style.borderStyle = 'dashed';
+      mark.style.borderWidth = '1px';
+      mark.style.borderColor = stripe.color;
+      mark.style.backgroundColor = `${stripe.color}88`; // Semi-transparent for Side B
+    }
+
     container.appendChild(mark);
   }
 

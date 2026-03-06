@@ -149,6 +149,13 @@ function getElements() {
     btnCancelEdit: document.getElementById('btn-cancel-edit'),
     btnConfirmEdit: document.getElementById('btn-confirm-edit'),
 
+    // Edit dialog URL import
+    editImportSection: document.getElementById('edit-import-section'),
+    editImportUrl: document.getElementById('edit-import-url'),
+    btnEditImportUrl: document.getElementById('btn-edit-import-url'),
+    editImportError: document.getElementById('edit-import-error'),
+    editImportSuccess: document.getElementById('edit-import-success'),
+
     // Split dialog
     splitDialog: document.getElementById('split-dialog'),
     splitDeckId: document.getElementById('split-deck-id'),
@@ -361,6 +368,19 @@ function setupEventListeners() {
   // Edit dialog file upload (wa-file-input handles its own UI)
   if (elements.editDeckFileInput) {
     elements.editDeckFileInput.addEventListener('change', handleEditFileUpload);
+  }
+
+  // Edit dialog URL import
+  if (elements.btnEditImportUrl) {
+    elements.btnEditImportUrl.addEventListener('click', handleEditUrlImport);
+  }
+  if (elements.editImportUrl) {
+    elements.editImportUrl.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        handleEditUrlImport();
+      }
+    });
   }
 
   // Split dialog
@@ -579,6 +599,11 @@ function handleEditClick(deckId) {
     elements.editParseErrors.style.display = 'none';
     elements.editParseErrors.innerHTML = '';
   }
+
+  // Reset URL import section
+  hideEditImportMessages();
+  if (elements.editImportUrl) elements.editImportUrl.value = '';
+  if (elements.editImportSection) elements.editImportSection.open = false;
 
   elements.editDialog.open = true;
 }
@@ -1083,6 +1108,89 @@ function showMoxfieldSuccess(message) {
 function hideMoxfieldMessages() {
   if (elements.moxfieldError) elements.moxfieldError.hidden = true;
   if (elements.moxfieldSuccess) elements.moxfieldSuccess.hidden = true;
+}
+
+// Edit dialog URL import
+async function handleEditUrlImport() {
+  const urlOrId = elements.editImportUrl?.value?.trim();
+  if (!urlOrId) {
+    showEditImportError('Please enter a deck URL.');
+    return;
+  }
+
+  hideEditImportMessages();
+
+  const btn = elements.btnEditImportUrl;
+  if (btn) btn.loading = true;
+
+  try {
+    let deckData;
+    let serviceName;
+
+    if (urlOrId.includes('archidekt.com') || extractArchidektId(urlOrId)) {
+      if (urlOrId.includes('archidekt.com') || /^\d+$/.test(urlOrId)) {
+        serviceName = 'Archidekt';
+        deckData = await importFromArchidekt(urlOrId);
+      } else {
+        serviceName = 'Moxfield';
+        deckData = await importFromMoxfield(urlOrId);
+      }
+    } else if (urlOrId.includes('moxfield.com') || extractMoxfieldId(urlOrId)) {
+      serviceName = 'Moxfield';
+      deckData = await importFromMoxfield(urlOrId);
+    } else {
+      throw new Error('Could not detect deck source. Please use a Moxfield or Archidekt URL.');
+    }
+
+    // Fill in the edit form - only update the decklist by default
+    // Keep existing name/commander/color unless user changes them
+    if (elements.editDeckList) {
+      elements.editDeckList.value = toDecklistText(deckData);
+    }
+
+    showEditImportSuccess(`Imported "${deckData.name}" from ${serviceName} (${deckData.cards.length} cards). Review and click "Save Changes" to update.`);
+
+    // Clear the URL input
+    if (elements.editImportUrl) {
+      elements.editImportUrl.value = '';
+    }
+
+    // Collapse the import section
+    if (elements.editImportSection) {
+      elements.editImportSection.open = false;
+    }
+
+  } catch (err) {
+    console.error('Edit deck import error:', err);
+    showEditImportError(err.message || 'Failed to import deck.');
+  } finally {
+    if (btn) btn.loading = false;
+  }
+}
+
+function showEditImportError(message) {
+  if (elements.editImportError) {
+    elements.editImportError.textContent = message;
+    elements.editImportError.hidden = false;
+  }
+  if (elements.editImportSuccess) {
+    elements.editImportSuccess.hidden = true;
+  }
+}
+
+function showEditImportSuccess(message) {
+  if (elements.editImportSuccess) {
+    elements.editImportSuccess.textContent = message;
+    elements.editImportSuccess.hidden = false;
+  }
+  if (elements.editImportError) {
+    elements.editImportError.hidden = true;
+  }
+}
+
+function hideEditImportMessages() {
+  if (elements.editImportError) elements.editImportError.hidden = true;
+  if (elements.editImportSuccess) elements.editImportSuccess.hidden = true;
 }
 
 function handleStripeReorder(deckId, direction) {
@@ -1625,7 +1733,8 @@ function renderResults() {
     const stripesJson = JSON.stringify(card.stripes.map(s => ({
       position: s.position,
       color: s.color,
-      deckName: s.deckName
+      deckName: s.deckName,
+      side: s.side || 'a'
     }))).replace(/&/g, '&amp;').replace(/'/g, '&#39;');
 
     return `

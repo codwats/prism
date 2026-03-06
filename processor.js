@@ -579,8 +579,10 @@ export function splitDeck(prism, deckId, splitCount) {
 			childDeckIds.push(firstChild.id);
 
 			// Track used positions for subsequent children
+			// Include all other decks (not the one being split) so their positions are reserved
+			const otherDecks = prism.decks.filter((d) => d.id !== deckId);
 			const tempPrism = {
-				decks: [...updatedDecks],
+				decks: [...otherDecks, ...updatedDecks],
 				splitGroups: [...(prism.splitGroups || []), group],
 			};
 
