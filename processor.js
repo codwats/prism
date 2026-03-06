@@ -91,18 +91,23 @@ export function createDeck({
 	color,
 	stripePosition,
 	cards,
+	id,
+	splitGroupId = null,
+	createdAt,
+	updatedAt,
 }) {
 	const now = new Date().toISOString();
 	return {
-		id: generateId(),
+		id: id || generateId(),
 		name,
 		commander,
 		bracket: parseInt(bracket, 10),
 		color: color.toUpperCase(),
 		stripePosition,
+		splitGroupId,
 		cards,
-		createdAt: now,
-		updatedAt: now,
+		createdAt: createdAt || now,
+		updatedAt: updatedAt || now,
 	};
 }
 
@@ -117,6 +122,7 @@ export function createPrism(name = "") {
 		id: generateId(),
 		name: name || `PRISM ${new Date().toLocaleDateString()}`,
 		decks: [],
+		splitGroups: [], // Split group definitions for deck variants
 		markedCards: [], // Track which cards have been physically marked
 		removedCards: [], // Track cards removed from decks that need marks removed
 		createdAt: now,
@@ -130,16 +136,21 @@ export function createPrism(name = "") {
  * @returns {Array} Array of ProcessedCard objects sorted by deck count (descending) then name
  */
 export function processCards(prism) {
-	const { decks } = prism;
+	const { decks, splitGroups = [] } = prism;
 
 	if (!decks || decks.length === 0) {
 		return [];
 	}
 
+	// Build split group lookup
+	const groupMap = new Map(splitGroups.map((g) => [g.id, g]));
+
 	// Build a map of normalized card name -> card data
 	const cardMap = new Map();
 
 	for (const deck of decks) {
+		const group = deck.splitGroupId ? groupMap.get(deck.splitGroupId) : null;
+
 		for (const card of deck.cards) {
 			const normalizedName = normalizeCardName(card.name);
 
@@ -149,6 +160,8 @@ export function processCards(prism) {
 					isBasicLand: card.isBasicLand,
 					quantities: new Map(), // deckId -> quantity
 					stripes: [],
+					sideAGroups: new Set(), // Track which split groups already have a Side A stripe
+					deckIds: new Set(), // Track unique deck IDs for deckCount
 				});
 			}
 
@@ -156,16 +169,47 @@ export function processCards(prism) {
 
 			// Track quantity per deck (for basics)
 			cardData.quantities.set(deck.id, card.quantity);
+			cardData.deckIds.add(deck.id);
 
-			// Add stripe information
-			cardData.stripes.push({
-				position: deck.stripePosition,
-				color: deck.color,
-				deckName: deck.name,
-				deckId: deck.id,
-				bracket: deck.bracket,
-				quantity: card.quantity,
-			});
+			if (group) {
+				// Split deck: add Side A stripe (deduplicated per group) + Side B stripe
+				if (!cardData.sideAGroups.has(group.id)) {
+					cardData.sideAGroups.add(group.id);
+					cardData.stripes.push({
+						position: group.sideAPosition,
+						color: group.sideAColor,
+						side: "a",
+						deckName: group.name,
+						deckId: null, // Side A is a group-level mark, not deck-specific
+						groupId: group.id,
+						bracket: null,
+						quantity: null,
+					});
+				}
+				// Side B stripe for this specific split
+				cardData.stripes.push({
+					position: deck.stripePosition,
+					color: deck.color,
+					side: "b",
+					deckName: deck.name,
+					deckId: deck.id,
+					groupId: group.id,
+					bracket: deck.bracket,
+					quantity: card.quantity,
+				});
+			} else {
+				// Standalone deck: single Side A stripe
+				cardData.stripes.push({
+					position: deck.stripePosition,
+					color: deck.color,
+					side: "a",
+					deckName: deck.name,
+					deckId: deck.id,
+					groupId: null,
+					bracket: deck.bracket,
+					quantity: card.quantity,
+				});
+			}
 		}
 	}
 
@@ -179,13 +223,19 @@ export function processCards(prism) {
 			totalQuantity = Math.max(...cardData.quantities.values());
 		}
 
+		// Sort stripes: Side A first (by position), then Side B (by position)
+		const sortedStripes = cardData.stripes.sort((a, b) => {
+			if (a.side !== b.side) return a.side === "a" ? -1 : 1;
+			return a.position - b.position;
+		});
+
 		processedCards.push({
 			name: cardData.name,
 			normalizedName,
 			isBasicLand: cardData.isBasicLand,
 			totalQuantity,
-			deckCount: cardData.stripes.length,
-			stripes: cardData.stripes.sort((a, b) => a.position - b.position),
+			deckCount: cardData.deckIds.size, // Number of actual decks, not stripe count
+			stripes: sortedStripes,
 		});
 	}
 
@@ -250,25 +300,54 @@ export function calculateOverlap(prism) {
 }
 
 /**
+ * Get all used stripe positions in a PRISM (from decks AND split group Side A positions)
+ * @param {Object} prism - The PRISM object
+ * @returns {Set<number>} Set of used position numbers
+ */
+export function getUsedPositions(prism) {
+	const used = new Set();
+	if (prism.decks) {
+		for (const d of prism.decks) {
+			used.add(d.stripePosition);
+		}
+	}
+	if (prism.splitGroups) {
+		for (const g of prism.splitGroups) {
+			used.add(g.sideAPosition);
+		}
+	}
+	return used;
+}
+
+/**
  * Get the next available stripe position for a new deck
  * @param {Object} prism - The PRISM object
- * @returns {number} The next available position (1-15)
+ * @param {string} side - 'a' for Side A (1-24 preferred), 'b' for Side B (25-48 preferred)
+ * @returns {number} The next available position (1-48)
  */
-export function getNextStripePosition(prism) {
-	if (!prism.decks || prism.decks.length === 0) {
-		return 1;
-	}
+export function getNextStripePosition(prism, side = "a") {
+	const usedPositions = getUsedPositions(prism);
 
-	const usedPositions = new Set(prism.decks.map((d) => d.stripePosition));
-
-	for (let i = 1; i <= 32; i++) {
-		if (!usedPositions.has(i)) {
-			return i;
+	if (side === "b") {
+		// Side B: prefer 25-48, overflow to 1-24
+		for (let i = 25; i <= 48; i++) {
+			if (!usedPositions.has(i)) return i;
+		}
+		for (let i = 1; i <= 24; i++) {
+			if (!usedPositions.has(i)) return i;
+		}
+	} else {
+		// Side A: prefer 1-24, overflow to 25-48
+		for (let i = 1; i <= 24; i++) {
+			if (!usedPositions.has(i)) return i;
+		}
+		for (let i = 25; i <= 48; i++) {
+			if (!usedPositions.has(i)) return i;
 		}
 	}
 
-	// All positions used (shouldn't happen with 32 deck limit)
-	return prism.decks.length + 1;
+	// All 48 positions used (shouldn't happen with 32 deck limit)
+	return (prism.decks?.length || 0) + 1;
 }
 
 /**
@@ -437,4 +516,249 @@ export function isCardInOtherDecks(prism, cardName, excludeDeckId) {
 	}
 
 	return false;
+}
+
+// ============================================================================
+// Split Group Functions
+// ============================================================================
+
+/**
+ * Create a new split group
+ * @param {Object} params - Split group parameters
+ * @returns {Object} A new split group object
+ */
+export function createSplitGroup({ name, sideAPosition, sideAColor }) {
+	return {
+		id: generateId(),
+		name,
+		sideAPosition,
+		sideAColor: sideAColor.toUpperCase(),
+		childDeckIds: [],
+	};
+}
+
+/**
+ * Split a standalone deck into N variants.
+ * The original deck becomes the first child, and N-1 duplicates are created.
+ * A split group is created to hold them all.
+ * @param {Object} prism - The PRISM object
+ * @param {string} deckId - The ID of the deck to split
+ * @param {number} splitCount - Number of splits (2-8)
+ * @returns {Object} Updated PRISM with split group and child decks
+ */
+export function splitDeck(prism, deckId, splitCount) {
+	const deck = prism.decks.find((d) => d.id === deckId);
+	if (!deck || deck.splitGroupId) return prism; // Can't split a deck that's already in a group
+
+	// The original deck's position becomes the split group's Side A position
+	const group = createSplitGroup({
+		name: deck.name,
+		sideAPosition: deck.stripePosition,
+		sideAColor: deck.color,
+	});
+
+	const now = new Date().toISOString();
+	const updatedDecks = [];
+	const childDeckIds = [];
+
+	for (const d of prism.decks) {
+		if (d.id === deckId) {
+			// Convert original deck to first split child with a Side B position
+			const sideBPosition = getNextStripePosition(
+				{ ...prism, splitGroups: [...(prism.splitGroups || []), group] },
+				"b",
+			);
+			const firstChild = {
+				...d,
+				name: `${d.name} (1)`,
+				stripePosition: sideBPosition,
+				splitGroupId: group.id,
+				updatedAt: now,
+			};
+			updatedDecks.push(firstChild);
+			childDeckIds.push(firstChild.id);
+
+			// Track used positions for subsequent children
+			const tempPrism = {
+				decks: [...updatedDecks],
+				splitGroups: [...(prism.splitGroups || []), group],
+			};
+
+			// Create N-1 duplicate children
+			for (let i = 2; i <= splitCount; i++) {
+				const childPosition = getNextStripePosition(tempPrism, "b");
+				const childColor = getNextColor(tempPrism);
+				const child = createDeck({
+					name: `${deck.name} (${i})`,
+					commander: deck.commander,
+					bracket: deck.bracket,
+					color: childColor,
+					stripePosition: childPosition,
+					splitGroupId: group.id,
+					cards: deck.cards.map((c) => ({ ...c })), // Deep copy cards
+				});
+				updatedDecks.push(child);
+				childDeckIds.push(child.id);
+				tempPrism.decks.push(child);
+			}
+		} else {
+			updatedDecks.push(d);
+		}
+	}
+
+	group.childDeckIds = childDeckIds;
+
+	return {
+		...prism,
+		decks: updatedDecks,
+		splitGroups: [...(prism.splitGroups || []), group],
+		updatedAt: now,
+	};
+}
+
+/**
+ * Add a new split to an existing split group
+ * @param {Object} prism - The PRISM object
+ * @param {string} groupId - The split group ID
+ * @returns {Object} Updated PRISM with the new split child added
+ */
+export function addSplitToGroup(prism, groupId) {
+	const group = (prism.splitGroups || []).find((g) => g.id === groupId);
+	if (!group) return prism;
+
+	// Find an existing child to copy from (use the first one)
+	const templateDeck = prism.decks.find((d) => d.id === group.childDeckIds[0]);
+	if (!templateDeck) return prism;
+
+	const now = new Date().toISOString();
+	const childPosition = getNextStripePosition(prism, "b");
+	const childColor = getNextColor(prism);
+	const splitNumber = group.childDeckIds.length + 1;
+
+	const newChild = createDeck({
+		name: `${group.name} (${splitNumber})`,
+		commander: templateDeck.commander,
+		bracket: templateDeck.bracket,
+		color: childColor,
+		stripePosition: childPosition,
+		splitGroupId: group.id,
+		cards: templateDeck.cards.map((c) => ({ ...c })), // Deep copy cards
+	});
+
+	const updatedGroups = prism.splitGroups.map((g) => {
+		if (g.id !== groupId) return g;
+		return { ...g, childDeckIds: [...g.childDeckIds, newChild.id] };
+	});
+
+	return {
+		...prism,
+		decks: [...prism.decks, newChild],
+		splitGroups: updatedGroups,
+		updatedAt: now,
+	};
+}
+
+/**
+ * Unsplit a split group — merge back into a single standalone deck.
+ * Uses the first child's card list and the group's Side A position/color.
+ * @param {Object} prism - The PRISM object
+ * @param {string} groupId - The split group ID
+ * @returns {Object} Updated PRISM with the group removed and a standalone deck restored
+ */
+export function unsplitGroup(prism, groupId) {
+	const group = (prism.splitGroups || []).find((g) => g.id === groupId);
+	if (!group) return prism;
+
+	const now = new Date().toISOString();
+	const childIds = new Set(group.childDeckIds);
+	const firstChild = prism.decks.find((d) => d.id === group.childDeckIds[0]);
+
+	// Convert first child back to standalone at the group's Side A position
+	const updatedDecks = prism.decks
+		.filter((d) => !childIds.has(d.id) || d.id === group.childDeckIds[0])
+		.map((d) => {
+			if (d.id !== group.childDeckIds[0]) return d;
+			return {
+				...d,
+				name: group.name,
+				stripePosition: group.sideAPosition,
+				color: group.sideAColor,
+				splitGroupId: null,
+				updatedAt: now,
+			};
+		});
+
+	return {
+		...prism,
+		decks: updatedDecks,
+		splitGroups: prism.splitGroups.filter((g) => g.id !== groupId),
+		updatedAt: now,
+	};
+}
+
+/**
+ * Remove a single split child from a group.
+ * If only 1 child remains, auto-unsplit the group.
+ * @param {Object} prism - The PRISM object
+ * @param {string} deckId - The child deck ID to remove
+ * @returns {Object} Updated PRISM
+ */
+export function removeSplitChild(prism, deckId) {
+	const deck = prism.decks.find((d) => d.id === deckId);
+	if (!deck || !deck.splitGroupId) {
+		// Not a split child, use normal remove
+		return removeDeckFromPrism(prism, deckId);
+	}
+
+	const group = (prism.splitGroups || []).find(
+		(g) => g.id === deck.splitGroupId,
+	);
+	if (!group) return removeDeckFromPrism(prism, deckId);
+
+	const remainingChildIds = group.childDeckIds.filter((id) => id !== deckId);
+
+	// If only 1 child would remain, auto-unsplit
+	if (remainingChildIds.length === 1) {
+		// First remove the deck, then unsplit
+		const withoutDeck = {
+			...prism,
+			decks: prism.decks.filter((d) => d.id !== deckId),
+			splitGroups: prism.splitGroups.map((g) => {
+				if (g.id !== group.id) return g;
+				return { ...g, childDeckIds: remainingChildIds };
+			}),
+		};
+		return unsplitGroup(withoutDeck, group.id);
+	}
+
+	// Multiple children remain — just remove this one
+	return {
+		...prism,
+		decks: prism.decks.filter((d) => d.id !== deckId),
+		splitGroups: prism.splitGroups.map((g) => {
+			if (g.id !== group.id) return g;
+			return { ...g, childDeckIds: remainingChildIds };
+		}),
+		updatedAt: new Date().toISOString(),
+	};
+}
+
+/**
+ * Get the side label for a stripe position
+ * @param {number} position - The stripe position
+ * @returns {string} 'A' or 'B'
+ */
+export function getPositionSide(position) {
+	return position <= 24 ? "A" : "B";
+}
+
+/**
+ * Format a slot label with side information
+ * @param {number} position - The stripe position
+ * @param {string} side - Optional explicit side ('a' or 'b')
+ * @returns {string} Formatted label like "Side A - Slot 3"
+ */
+export function formatSlotLabel(position, side) {
+	const sideLabel = side ? side.toUpperCase() : getPositionSide(position);
+	return `Side ${sideLabel} - Slot ${position}`;
 }

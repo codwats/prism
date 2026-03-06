@@ -454,6 +454,33 @@
       </div>
     </wa-dialog>
 
+    <!-- Split Deck Dialog -->
+    <wa-dialog id="split-dialog" label="Split Deck" style="--width: 450px;">
+      <div class="wa-stack wa-gap-m">
+        <p class="wa-body-m">Split "<strong id="split-deck-name"></strong>" into multiple variants?</p>
+        <p class="wa-caption-m" style="color: var(--wa-color-neutral-text-subtle);">
+          Each variant gets its own Side B mark. Cards shared across variants keep the original Side A mark
+          plus each variant's Side B mark.
+        </p>
+        <input type="hidden" id="split-deck-id" />
+        <wa-number-input
+          id="split-count"
+          label="Number of variants"
+          min="2"
+          max="8"
+          value="2"
+          step="1"
+        ></wa-number-input>
+      </div>
+      <div slot="footer" class="wa-cluster wa-gap-s">
+        <wa-button id="btn-cancel-split" variant="neutral" appearance="outlined">Cancel</wa-button>
+        <wa-button id="btn-confirm-split" variant="brand">
+          <wa-icon slot="start" name="code-branch"></wa-icon>
+          Split Deck
+        </wa-button>
+      </div>
+    </wa-dialog>
+
     <!-- Card Preview Tooltip -->
     <div id="card-preview-tooltip" class="card-preview-tooltip" hidden></div>
 

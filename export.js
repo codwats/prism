@@ -3,7 +3,7 @@
  * Handles CSV and JSON export generation
  */
 
-import { processCards, getColorName } from './processor.js';
+import { processCards, getColorName, formatSlotLabel } from './processor.js';
 
 /**
  * Escape a value for CSV (handle commas, quotes, newlines)
@@ -30,7 +30,7 @@ function escapeCSV(value) {
  */
 function generateStripeSummary(stripes) {
   return stripes
-    .map(s => `Slot ${s.position}: ${getColorName(s.color)} (${s.deckName})`)
+    .map(s => `${formatSlotLabel(s.position, s.side)}: ${getColorName(s.color)} (${s.deckName})`)
     .join('; ');
 }
 
@@ -52,16 +52,19 @@ export function exportToCSV(prism) {
     'Stripe Summary'
   ];
 
-  // Determine the max stripe position used across all decks
-  const maxSlot = prism.decks.length > 0
-    ? Math.max(...prism.decks.map(d => d.stripePosition))
-    : 0;
+  // Determine all used positions (deck positions + split group Side A positions)
+  const allPositions = [
+    ...(prism.decks || []).map(d => d.stripePosition),
+    ...(prism.splitGroups || []).map(g => g.sideAPosition)
+  ];
+  const maxSlot = allPositions.length > 0 ? Math.max(...allPositions) : 0;
 
   // Add slot columns for each position up to the max used
   for (let i = 1; i <= maxSlot; i++) {
-    headers.push(`Slot ${i} Color`);
-    headers.push(`Slot ${i} Deck`);
-    headers.push(`Slot ${i} Bracket`);
+    const label = formatSlotLabel(i);
+    headers.push(`${label} Color`);
+    headers.push(`${label} Deck`);
+    headers.push(`${label} Bracket`);
   }
   
   const rows = [headers.map(escapeCSV).join(',')];
@@ -113,6 +116,14 @@ export function exportToJSON(prism) {
       name: prism.name,
       exportedAt: new Date().toISOString(),
       deckCount: prism.decks.length,
+      splitGroups: (prism.splitGroups || []).map(group => ({
+        id: group.id,
+        name: group.name,
+        sideAPosition: group.sideAPosition,
+        sideAColor: group.sideAColor,
+        sideAColorName: getColorName(group.sideAColor),
+        childDeckIds: group.childDeckIds
+      })),
       decks: prism.decks.map(deck => ({
         id: deck.id,
         name: deck.name,
@@ -121,6 +132,8 @@ export function exportToJSON(prism) {
         color: deck.color,
         colorName: getColorName(deck.color),
         stripePosition: deck.stripePosition,
+        side: deck.splitGroupId ? 'b' : 'a',
+        splitGroupId: deck.splitGroupId || null,
         cardCount: deck.cards.length,
         cards: deck.cards, // Include full cards for re-import
         createdAt: deck.createdAt,
@@ -133,10 +146,13 @@ export function exportToJSON(prism) {
         deckCount: card.deckCount,
         stripes: card.stripes.map(s => ({
           position: s.position,
+          side: s.side,
+          slotLabel: formatSlotLabel(s.position, s.side),
           color: s.color,
           colorName: getColorName(s.color),
           deckName: s.deckName,
           deckId: s.deckId,
+          groupId: s.groupId || null,
           bracket: s.bracket
         }))
       })),
@@ -235,6 +251,9 @@ export function generatePrintableGuide(prism) {
       print-color-adjust: exact !important;
       color-adjust: exact !important;
     }
+    .stripe-dot.stripe-side-b {
+      border-style: dashed;
+    }
     .stripe-empty {
       width: 16px;
       height: 16px;
@@ -269,12 +288,23 @@ export function generatePrintableGuide(prism) {
   <div class="deck-legend">
 `;
 
+  // Add split group legend entries
+  const splitGroups = prism.splitGroups || [];
+  for (const group of splitGroups.sort((a, b) => a.sideAPosition - b.sideAPosition)) {
+    html += `
+    <div class="deck-item" style="width: 100%;">
+      <div class="color-swatch" style="background: ${group.sideAColor}"></div>
+      <span><strong>${formatSlotLabel(group.sideAPosition, 'a')}:</strong> ${group.name} (split group)</span>
+    </div>`;
+  }
+
   // Add deck legend
   for (const deck of prism.decks.sort((a, b) => a.stripePosition - b.stripePosition)) {
+    const side = deck.splitGroupId ? 'b' : 'a';
     html += `
-    <div class="deck-item">
+    <div class="deck-item"${deck.splitGroupId ? ' style="padding-left: 20px;"' : ''}>
       <div class="color-swatch" style="background: ${deck.color}"></div>
-      <span><strong>Slot ${deck.stripePosition}:</strong> ${deck.name} (Bracket ${deck.bracket})</span>
+      <span><strong>${formatSlotLabel(deck.stripePosition, side)}:</strong> ${deck.name} (Bracket ${deck.bracket})</span>
     </div>`;
   }
   
@@ -294,7 +324,11 @@ export function generatePrintableGuide(prism) {
     <tbody>
 `;
 
-  const totalDecks = prism.decks.length;
+  // Collect all used positions (from decks + split group Side A positions)
+  const allPositions = [...new Set([
+    ...prism.decks.map(d => d.stripePosition),
+    ...(prism.splitGroups || []).map(g => g.sideAPosition)
+  ])].sort((a, b) => a - b);
 
   // Add card rows
   for (const card of processedCards) {
@@ -304,12 +338,12 @@ export function generatePrintableGuide(prism) {
     // Show all slots with empty placeholders
     const stripeMap = new Map(card.stripes.map(s => [s.position, s]));
     let stripeIndicators = '';
-    for (let i = 1; i <= totalDecks; i++) {
-      const stripe = stripeMap.get(i);
+    for (const pos of allPositions) {
+      const stripe = stripeMap.get(pos);
       if (stripe) {
-        stripeIndicators += `<div class="stripe-dot" style="background: ${stripe.color}" title="Slot ${stripe.position}: ${stripe.deckName}"></div>`;
+        stripeIndicators += `<div class="stripe-dot${stripe.side === 'b' ? ' stripe-side-b' : ''}" style="background: ${stripe.color}" title="${formatSlotLabel(stripe.position, stripe.side)}: ${stripe.deckName}"></div>`;
       } else {
-        stripeIndicators += `<div class="stripe-empty" title="Slot ${i}: Empty"></div>`;
+        stripeIndicators += `<div class="stripe-empty" title="${formatSlotLabel(pos)}: Empty"></div>`;
       }
     }
 
