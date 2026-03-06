@@ -1346,9 +1346,7 @@ function renderPrismHeader() {
 }
 
 function renderDeckCard(deck, showActions = true) {
-  const slotLabel = deck.splitGroupId
-    ? formatSlotLabel(deck.stripePosition, 'b')
-    : formatSlotLabel(deck.stripePosition, 'a');
+  const slotLabel = formatSlotLabel(deck.stripePosition);
   const isInGroup = !!deck.splitGroupId;
 
   return `
@@ -1697,7 +1695,7 @@ function renderResults() {
             <div
               class="stripe-indicator${stripe.side === 'b' ? ' stripe-side-b' : ''}"
               style="background-color: ${stripe.color};"
-              title="${formatSlotLabel(stripe.position, stripe.side)}: ${escapeHtml(stripe.deckName)}"
+              title="${formatSlotLabel(stripe.position)}: ${escapeHtml(stripe.deckName)}"
             ></div>`;
         } else {
           stripeIndicators += `
@@ -1713,7 +1711,7 @@ function renderResults() {
         <div
           class="stripe-indicator${s.side === 'b' ? ' stripe-side-b' : ''}"
           style="background-color: ${s.color};"
-          title="${formatSlotLabel(s.position, s.side)}: ${escapeHtml(s.deckName)}"
+          title="${formatSlotLabel(s.position)}: ${escapeHtml(s.deckName)}"
         ></div>
       `).join('');
     }
@@ -2217,7 +2215,7 @@ function renderExport() {
 
     elements.deckLegend.innerHTML = legendItems.map(item => {
       if (item.type === 'standalone') {
-        const slotLabel = formatSlotLabel(item.deck.stripePosition, 'a');
+        const slotLabel = formatSlotLabel(item.deck.stripePosition);
         return `
           <div class="wa-cluster wa-gap-xs wa-align-items-center">
             <div class="deck-color-indicator small" style="background-color: ${item.deck.color};"></div>
@@ -2235,7 +2233,7 @@ function renderExport() {
           ${children.map(child => `
             <div class="wa-cluster wa-gap-xs wa-align-items-center" style="padding-left: var(--wa-space-l);">
               <div class="deck-color-indicator small" style="background-color: ${child.color};"></div>
-              <span><strong>${formatSlotLabel(child.stripePosition, 'b')}:</strong> ${escapeHtml(child.name)}</span>
+              <span><strong>${formatSlotLabel(child.stripePosition)}:</strong> ${escapeHtml(child.name)}</span>
             </div>
           `).join('')}
         </div>`;
@@ -2245,8 +2243,7 @@ function renderExport() {
   // Stripe reorder list
   if (elements.stripeReorderList) {
     elements.stripeReorderList.innerHTML = sortedDecks.map((deck, index) => {
-      const side = deck.splitGroupId ? 'b' : 'a';
-      const slotLabel = formatSlotLabel(deck.stripePosition, side);
+      const slotLabel = formatSlotLabel(deck.stripePosition);
       return `
       <div class="reorder-item wa-split wa-align-items-center" data-deck-id="${deck.id}">
         <div class="wa-cluster wa-gap-s wa-align-items-center">

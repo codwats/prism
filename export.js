@@ -30,7 +30,7 @@ function escapeCSV(value) {
  */
 function generateStripeSummary(stripes) {
   return stripes
-    .map(s => `${formatSlotLabel(s.position, s.side)}: ${getColorName(s.color)} (${s.deckName})`)
+    .map(s => `${formatSlotLabel(s.position)}: ${getColorName(s.color)} (${s.deckName})`)
     .join('; ');
 }
 
@@ -147,7 +147,7 @@ export function exportToJSON(prism) {
         stripes: card.stripes.map(s => ({
           position: s.position,
           side: s.side,
-          slotLabel: formatSlotLabel(s.position, s.side),
+          slotLabel: formatSlotLabel(s.position),
           color: s.color,
           colorName: getColorName(s.color),
           deckName: s.deckName,
@@ -300,11 +300,10 @@ export function generatePrintableGuide(prism) {
 
   // Add deck legend
   for (const deck of prism.decks.sort((a, b) => a.stripePosition - b.stripePosition)) {
-    const side = deck.splitGroupId ? 'b' : 'a';
     html += `
     <div class="deck-item"${deck.splitGroupId ? ' style="padding-left: 20px;"' : ''}>
       <div class="color-swatch" style="background: ${deck.color}"></div>
-      <span><strong>${formatSlotLabel(deck.stripePosition, side)}:</strong> ${deck.name} (Bracket ${deck.bracket})</span>
+      <span><strong>${formatSlotLabel(deck.stripePosition)}:</strong> ${deck.name} (Bracket ${deck.bracket})</span>
     </div>`;
   }
   
@@ -341,7 +340,7 @@ export function generatePrintableGuide(prism) {
     for (const pos of allPositions) {
       const stripe = stripeMap.get(pos);
       if (stripe) {
-        stripeIndicators += `<div class="stripe-dot${stripe.side === 'b' ? ' stripe-side-b' : ''}" style="background: ${stripe.color}" title="${formatSlotLabel(stripe.position, stripe.side)}: ${stripe.deckName}"></div>`;
+        stripeIndicators += `<div class="stripe-dot${stripe.side === 'b' ? ' stripe-side-b' : ''}" style="background: ${stripe.color}" title="${formatSlotLabel(stripe.position)}: ${stripe.deckName}"></div>`;
       } else {
         stripeIndicators += `<div class="stripe-empty" title="${formatSlotLabel(pos)}: Empty"></div>`;
       }
