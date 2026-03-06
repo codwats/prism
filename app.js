@@ -2061,7 +2061,7 @@ function renderWhatIfAnalysis(deckId, container) {
       <div class="what-if-stats">
         <div class="what-if-stat">
           <div class="stat-value" style="color: var(--wa-color-success-text);">${becomeMarkFree.length}</div>
-          <div class="stat-label">Cards become mark-free</div>
+          <div class="stat-label">Cards become CORE</div>
         </div>
         <div class="what-if-stat">
           <div class="stat-value" style="color: var(--wa-color-warning-text);">${stillShared.length}</div>
@@ -2081,7 +2081,7 @@ function renderWhatIfAnalysis(deckId, container) {
         <div class="wa-stack wa-gap-xs" style="margin-bottom: var(--wa-space-m);">
           <span class="wa-caption-m" style="color: var(--wa-color-success-text);">
             <wa-icon name="circle-check" style="font-size: 0.9em;"></wa-icon>
-            Cards that would become mark-free (was in 2 decks, would drop to 1):
+            Cards that would become CORE (was in 2 decks, would drop to 1):
           </span>
           <ul class="what-if-card-list">
             ${becomeMarkFree.slice(0, showAllMarkFree ? undefined : 5).map(card => `
