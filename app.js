@@ -8,6 +8,7 @@ import {
   createDeck,
   createPrism,
   processCards,
+  calculateOverlap,
   getNextStripePosition,
   getNextColor,
   isColorUsed,
@@ -64,8 +65,6 @@ function getElements() {
     deckColor: document.getElementById('deck-color'),
     deckList: document.getElementById('deck-list'),
     deckFileInput: document.getElementById('deck-file-input'),
-    btnUploadFile: document.getElementById('btn-upload-file'),
-    fileNameDisplay: document.getElementById('file-name-display'),
     colorSwatches: document.getElementById('color-swatches'),
     colorWarning: document.getElementById('color-warning'),
     parseErrors: document.getElementById('parse-errors'),
@@ -83,6 +82,8 @@ function getElements() {
     reorderCard: document.getElementById('reorder-card'),
     
     // Results
+    overlapMatrixContainer: document.getElementById('overlap-matrix-container'),
+    overlapMatrix: document.getElementById('overlap-matrix'),
     resultsStats: document.getElementById('results-stats'),
     statTotal: document.getElementById('stat-total'),
     statShared: document.getElementById('stat-shared'),
@@ -102,9 +103,7 @@ function getElements() {
     btnExportCSV: document.getElementById('btn-export-csv'),
     btnExportJSON: document.getElementById('btn-export-json'),
     btnPrintGuide: document.getElementById('btn-print-guide'),
-    btnImportJson: document.getElementById('btn-import-json'),
     prismJsonInput: document.getElementById('prism-json-input'),
-    importStatus: document.getElementById('import-status'),
     
     // Dialogs
     deleteDialog: document.getElementById('delete-dialog'),
@@ -127,8 +126,6 @@ function getElements() {
     editDeckColor: document.getElementById('edit-deck-color'),
     editDeckList: document.getElementById('edit-deck-list'),
     editDeckFileInput: document.getElementById('edit-deck-file-input'),
-    btnEditUploadFile: document.getElementById('btn-edit-upload-file'),
-    editFileNameDisplay: document.getElementById('edit-file-name-display'),
     editParseErrors: document.getElementById('edit-parse-errors'),
     btnCancelEdit: document.getElementById('btn-cancel-edit'),
     btnConfirmEdit: document.getElementById('btn-confirm-edit')
@@ -246,22 +243,12 @@ function setupEventListeners() {
     });
   }
 
-  // File upload
-  if (elements.btnUploadFile) {
-    elements.btnUploadFile.addEventListener('click', () => {
-      elements.deckFileInput?.click();
-    });
-  }
+  // File upload (wa-file-input handles its own UI)
   if (elements.deckFileInput) {
     elements.deckFileInput.addEventListener('change', handleFileUpload);
   }
 
-  // JSON import
-  if (elements.btnImportJson) {
-    elements.btnImportJson.addEventListener('click', () => {
-      elements.prismJsonInput?.click();
-    });
-  }
+  // JSON import (wa-file-input handles its own UI)
   if (elements.prismJsonInput) {
     elements.prismJsonInput.addEventListener('change', handleJsonImport);
   }
@@ -344,12 +331,7 @@ function setupEventListeners() {
     elements.btnConfirmEdit.addEventListener('click', handleEditConfirm);
   }
 
-  // Edit dialog file upload
-  if (elements.btnEditUploadFile) {
-    elements.btnEditUploadFile.addEventListener('click', () => {
-      elements.editDeckFileInput?.click();
-    });
-  }
+  // Edit dialog file upload (wa-file-input handles its own UI)
   if (elements.editDeckFileInput) {
     elements.editDeckFileInput.addEventListener('change', handleEditFileUpload);
   }
@@ -791,11 +773,6 @@ function handleFileUpload(e) {
   const file = e.target.files?.[0];
   if (!file) return;
 
-  // Show file name
-  if (elements.fileNameDisplay) {
-    elements.fileNameDisplay.textContent = file.name;
-  }
-
   // Read file content
   const reader = new FileReader();
   reader.onload = (event) => {
@@ -824,11 +801,6 @@ function handleEditFileUpload(e) {
   const file = e.target.files?.[0];
   if (!file) return;
 
-  // Show file name
-  if (elements.editFileNameDisplay) {
-    elements.editFileNameDisplay.textContent = file.name;
-  }
-
   // Read file content
   const reader = new FileReader();
   reader.onload = (event) => {
@@ -845,9 +817,6 @@ function handleEditFileUpload(e) {
   };
 
   reader.readAsText(file);
-
-  // Reset file input so same file can be selected again
-  e.target.value = '';
 }
 
 function handleJsonImport(e) {
@@ -915,11 +884,6 @@ function handleJsonImport(e) {
       initColorSwatches();
       renderAll();
 
-      // Update status
-      if (elements.importStatus) {
-        elements.importStatus.textContent = `Imported: ${file.name}`;
-      }
-
       showSuccess(`Imported "${newPrism.name}" with ${newPrism.decks.length} decks.`);
 
     } catch (err) {
@@ -935,7 +899,7 @@ function handleJsonImport(e) {
   reader.readAsText(file);
 
   // Reset file input so same file can be selected again
-  e.target.value = '';
+  e.target.files = [];
 }
 
 async function handleMoxfieldImport() {
@@ -1213,6 +1177,18 @@ function renderDecksList() {
           </div>
         </div>
         <div class="wa-cluster wa-gap-xs">
+          ${currentPrism.decks.length >= 2 ? `
+          <wa-button
+            appearance="plain"
+            variant="neutral"
+            size="small"
+            class="btn-what-if"
+            data-deck-id="${deck.id}"
+            title="What if I remove this deck?"
+          >
+            <wa-icon name="flask"></wa-icon>
+          </wa-button>
+          ` : ''}
           <wa-button
             appearance="plain"
             variant="neutral"
@@ -1235,6 +1211,7 @@ function renderDecksList() {
           </wa-button>
         </div>
       </div>
+      <div class="what-if-container" id="what-if-${deck.id}" style="display: none;"></div>
     </wa-card>
   `).join('');
 
@@ -1246,6 +1223,11 @@ function renderDecksList() {
   // Add delete button listeners
   elements.decksList.querySelectorAll('.btn-delete-deck').forEach(btn => {
     btn.addEventListener('click', () => handleDeleteClick(btn.dataset.deckId));
+  });
+
+  // Add what-if button listeners
+  elements.decksList.querySelectorAll('.btn-what-if').forEach(btn => {
+    btn.addEventListener('click', () => toggleWhatIfAnalysis(btn.dataset.deckId));
   });
 }
 
@@ -1368,8 +1350,9 @@ function renderResults() {
     });
   }
 
-  // Render deck filter menu
+  // Render deck filter menu and overlap matrix
   renderDeckFilterMenu();
+  renderOverlapMatrix();
 
   // Apply sorting
   displayCards = sortCards(displayCards, sortState.column, sortState.direction);
@@ -1647,6 +1630,201 @@ function renderResultsHeader() {
   });
 }
 
+function renderOverlapMatrix() {
+  if (!elements.overlapMatrixContainer || !elements.overlapMatrix) return;
+
+  // Need at least 2 decks for comparison
+  if (currentPrism.decks.length < 2) {
+    elements.overlapMatrixContainer.style.display = 'none';
+    return;
+  }
+
+  elements.overlapMatrixContainer.style.display = '';
+
+  const overlap = calculateOverlap(currentPrism);
+  const decks = [...currentPrism.decks].sort((a, b) => a.stripePosition - b.stripePosition);
+
+  // Build lookup map for pairwise overlap counts
+  const overlapMap = {};
+  for (const pair of overlap.pairwiseOverlap) {
+    const key1 = `${pair.deck1}|${pair.deck2}`;
+    const key2 = `${pair.deck2}|${pair.deck1}`;
+    overlapMap[key1] = pair.overlapCount;
+    overlapMap[key2] = pair.overlapCount;
+  }
+
+  // Find max overlap for color scaling
+  const maxOverlap = Math.max(...overlap.pairwiseOverlap.map(p => p.overlapCount), 1);
+
+  // Truncate deck names for column headers
+  const truncate = (name, len = 12) => name.length > len ? name.slice(0, len) + '…' : name;
+
+  // Build the table
+  let html = `
+    <table class="overlap-matrix-table">
+      <thead>
+        <tr>
+          <th></th>
+          ${decks.map(d => `
+            <th title="${escapeHtml(d.name)}">
+              <div class="overlap-header">
+                <div class="deck-color-dot" style="background: ${d.color};"></div>
+                <span>${escapeHtml(truncate(d.name))}</span>
+              </div>
+            </th>
+          `).join('')}
+        </tr>
+      </thead>
+      <tbody>
+        ${decks.map(rowDeck => `
+          <tr>
+            <th title="${escapeHtml(rowDeck.name)}">
+              <div class="overlap-header">
+                <div class="deck-color-dot" style="background: ${rowDeck.color};"></div>
+                <span>${escapeHtml(truncate(rowDeck.name))}</span>
+              </div>
+            </th>
+            ${decks.map(colDeck => {
+              if (rowDeck.id === colDeck.id) {
+                return `<td class="overlap-cell overlap-self">
+                  <span class="wa-caption-s" style="color: var(--wa-color-neutral-text-subtle);">${rowDeck.cards.length}</span>
+                </td>`;
+              }
+              const count = overlapMap[`${rowDeck.name}|${colDeck.name}`] || 0;
+              const intensity = count / maxOverlap;
+              const bg = count > 0
+                ? `rgba(var(--wa-color-brand-60-rgb, 99, 102, 241), ${0.1 + intensity * 0.5})`
+                : 'transparent';
+              return `<td class="overlap-cell${count > 0 ? ' overlap-has-value' : ''}"
+                style="background: ${bg};"
+                title="${escapeHtml(rowDeck.name)} & ${escapeHtml(colDeck.name)}: ${count} shared cards">
+                <span>${count}</span>
+              </td>`;
+            }).join('')}
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>
+  `;
+
+  elements.overlapMatrix.innerHTML = html;
+}
+
+function toggleWhatIfAnalysis(deckId) {
+  const container = document.getElementById(`what-if-${deckId}`);
+  if (!container) return;
+
+  if (container.style.display === 'none') {
+    // Close any other open what-if panels
+    document.querySelectorAll('.what-if-container').forEach(el => {
+      el.style.display = 'none';
+      el.innerHTML = '';
+    });
+    renderWhatIfAnalysis(deckId, container);
+    container.style.display = '';
+  } else {
+    container.style.display = 'none';
+    container.innerHTML = '';
+  }
+}
+
+function renderWhatIfAnalysis(deckId, container) {
+  const deck = currentPrism.decks.find(d => d.id === deckId);
+  if (!deck) return;
+
+  const processedCards = processCards(currentPrism);
+
+  // Normalize deck card names for lookup
+  const deckCardNames = new Set(
+    deck.cards.map(c => c.name.toLowerCase())
+  );
+
+  // Categorize cards in this deck
+  const becomeMarkFree = []; // Cards that go from deckCount=2 to 1 (no longer need marks)
+  const removedEntirely = []; // Cards unique to this deck (deckCount=1), lost entirely
+  const stillShared = []; // Cards in 3+ decks, still need marks even after removal
+  let totalMarksRemoved = 0;
+
+  for (const card of processedCards) {
+    if (!deckCardNames.has(card.name.toLowerCase())) continue;
+
+    if (card.deckCount === 1) {
+      removedEntirely.push(card);
+    } else if (card.deckCount === 2) {
+      becomeMarkFree.push(card);
+      totalMarksRemoved++;
+    } else {
+      stillShared.push({ ...card, newDeckCount: card.deckCount - 1 });
+      totalMarksRemoved++;
+    }
+  }
+
+  // Sort by deck count descending (most shared first)
+  becomeMarkFree.sort((a, b) => b.deckCount - a.deckCount || a.name.localeCompare(b.name));
+  stillShared.sort((a, b) => b.deckCount - a.deckCount || a.name.localeCompare(b.name));
+
+  const showAllMarkFree = becomeMarkFree.length <= 8;
+  const showAllStillShared = stillShared.length <= 8;
+
+  container.innerHTML = `
+    <div class="what-if-panel">
+      <div class="wa-cluster wa-gap-xs wa-align-items-center" style="margin-bottom: var(--wa-space-s);">
+        <wa-icon name="flask" style="color: var(--wa-color-brand-text);"></wa-icon>
+        <span class="wa-heading-s">What if you remove "${escapeHtml(deck.name)}"?</span>
+      </div>
+
+      <div class="what-if-stats">
+        <div class="what-if-stat">
+          <div class="stat-value" style="color: var(--wa-color-success-text);">${becomeMarkFree.length}</div>
+          <div class="stat-label">Cards become mark-free</div>
+        </div>
+        <div class="what-if-stat">
+          <div class="stat-value" style="color: var(--wa-color-warning-text);">${stillShared.length}</div>
+          <div class="stat-label">Still shared with others</div>
+        </div>
+        <div class="what-if-stat">
+          <div class="stat-value" style="color: var(--wa-color-danger-text);">${removedEntirely.length}</div>
+          <div class="stat-label">Unique cards lost</div>
+        </div>
+        <div class="what-if-stat">
+          <div class="stat-value">${totalMarksRemoved}</div>
+          <div class="stat-label">Stripe marks removed</div>
+        </div>
+      </div>
+
+      ${becomeMarkFree.length > 0 ? `
+        <div class="wa-stack wa-gap-xs" style="margin-bottom: var(--wa-space-m);">
+          <span class="wa-caption-m" style="color: var(--wa-color-success-text);">
+            <wa-icon name="circle-check" style="font-size: 0.9em;"></wa-icon>
+            Cards that would become mark-free (was in 2 decks, would drop to 1):
+          </span>
+          <ul class="what-if-card-list">
+            ${becomeMarkFree.slice(0, showAllMarkFree ? undefined : 5).map(card => `
+              <li>${escapeHtml(card.name)} <span style="color: var(--wa-color-neutral-text-subtle);">— was in ${card.deckCount} decks</span></li>
+            `).join('')}
+            ${!showAllMarkFree ? `<li style="color: var(--wa-color-neutral-text-subtle);">…and ${becomeMarkFree.length - 5} more</li>` : ''}
+          </ul>
+        </div>
+      ` : ''}
+
+      ${stillShared.length > 0 ? `
+        <div class="wa-stack wa-gap-xs">
+          <span class="wa-caption-m" style="color: var(--wa-color-warning-text);">
+            <wa-icon name="triangle-exclamation" style="font-size: 0.9em;"></wa-icon>
+            Cards still needing marks (shared with other decks):
+          </span>
+          <ul class="what-if-card-list">
+            ${stillShared.slice(0, showAllStillShared ? undefined : 5).map(card => `
+              <li>${escapeHtml(card.name)} <span style="color: var(--wa-color-neutral-text-subtle);">— ${card.deckCount} decks → ${card.newDeckCount}</span></li>
+            `).join('')}
+            ${!showAllStillShared ? `<li style="color: var(--wa-color-neutral-text-subtle);">…and ${stillShared.length - 5} more</li>` : ''}
+          </ul>
+        </div>
+      ` : ''}
+    </div>
+  `;
+}
+
 function renderDeckFilterMenu() {
   if (!elements.deckFilterMenu) return;
 
@@ -1804,8 +1982,7 @@ function resetDeckForm() {
   if (elements.deckCommander) elements.deckCommander.value = '';
   if (elements.deckBracket) elements.deckBracket.value = '2';
   if (elements.deckList) elements.deckList.value = '';
-  if (elements.fileNameDisplay) elements.fileNameDisplay.textContent = '';
-  if (elements.deckFileInput) elements.deckFileInput.value = '';
+  if (elements.deckFileInput) elements.deckFileInput.files = [];
 
   // Set next available color
   const nextColor = getNextColor(currentPrism);
@@ -1877,50 +2054,11 @@ function showSuccess(message) {
   showToast(message, 'success', 'check-circle');
 }
 
-const activeToasts = [];
-
 function showToast(message, variant = 'neutral', icon = 'info-circle') {
-  // Create toast element using Web Awesome's wa-callout as toast
-  const toast = document.createElement('wa-callout');
-  toast.variant = variant;
-  toast.closable = true;
-  toast.duration = 5000;
-  toast.innerHTML = `
-    <wa-icon slot="icon" name="${icon}"></wa-icon>
-    ${message}
-  `;
-
-  // Calculate vertical offset based on active toasts
-  const offset = activeToasts.reduce((sum, t) => {
-    const rect = t.getBoundingClientRect();
-    return sum + rect.height + 8;
-  }, 0);
-
-  // Style it as a floating toast with offset
-  toast.style.cssText = `
-    position: fixed;
-    bottom: calc(var(--wa-space-xl) + ${offset}px);
-    right: var(--wa-space-xl);
-    max-width: 400px;
-    z-index: 9999;
-    animation: slideInUp 0.3s ease;
-  `;
-
-  document.body.appendChild(toast);
-  activeToasts.push(toast);
-
-  function removeToast() {
-    const index = activeToasts.indexOf(toast);
-    if (index > -1) activeToasts.splice(index, 1);
-    toast.style.animation = 'slideOutDown 0.3s ease';
-    setTimeout(() => toast.remove(), 300);
+  const toastContainer = document.querySelector('#toast-container');
+  if (toastContainer) {
+    toastContainer.create(message, { variant, duration: 5000, icon });
   }
-
-  // Auto-remove after duration
-  setTimeout(removeToast, 5000);
-
-  // Remove on close
-  toast.addEventListener('wa-hide', removeToast);
 }
 
 // ============================================================================

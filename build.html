@@ -183,17 +183,7 @@
                   </div>
 
 
-                  <div class="wa-stack wa-gap-xs">
-                    <label class="wa-caption-m">Decklist</label>
-                    <div class="wa-cluster wa-gap-s wa-align-items-center">
-                      <wa-button type="button" id="btn-upload-file" variant="neutral" appearance="outlined" size="small">
-                        <wa-icon slot="start" name="file-arrow-up"></wa-icon>
-                        Upload .txt
-                      </wa-button>
-                      <input type="file" id="deck-file-input" accept=".txt,.dec,.dek,.mwDeck" style="display: none;" />
-                      <span id="file-name-display" class="wa-caption-s" style="color: var(--wa-color-neutral-text-subtle);"></span>
-                    </div>
-                  </div>
+                  <wa-file-input id="deck-file-input" accept=".txt,.dec,.dek,.mwDeck" label="Decklist" hint="Drag & drop or click to upload a .txt, .dec, .dek, or .mwDeck file" size="small"></wa-file-input>
 
                   <wa-textarea
                     id="deck-list"
@@ -267,6 +257,15 @@
                   </div>
                 </wa-card>
               </div>
+
+              <!-- Deck Overlap Matrix -->
+              <wa-details id="overlap-matrix-container" style="display: none;">
+                <span slot="summary" class="wa-heading-s">
+                  <wa-icon name="table-cells" style="margin-right: var(--wa-space-xs);"></wa-icon>
+                  Deck Overlap Matrix
+                </span>
+                <div id="overlap-matrix" style="overflow-x: auto;"></div>
+              </wa-details>
 
               <!-- Filter -->
               <div class="wa-cluster wa-gap-m wa-align-items-center" style="flex-wrap: wrap;">
@@ -371,14 +370,7 @@
                   <p class="wa-caption-m" style="color: var(--wa-color-neutral-text-subtle);">
                     Import a previously exported PRISM JSON file to restore your decks and settings.
                   </p>
-                  <div class="wa-cluster wa-gap-s wa-align-items-center">
-                    <wa-button id="btn-import-json" variant="neutral" appearance="outlined">
-                      <wa-icon slot="start" name="file-arrow-up"></wa-icon>
-                      Import JSON
-                    </wa-button>
-                    <input type="file" id="prism-json-input" accept=".json" style="display: none;" />
-                    <span id="import-status" class="wa-caption-s" style="color: var(--wa-color-neutral-text-subtle);"></span>
-                  </div>
+                  <wa-file-input id="prism-json-input" accept=".json" label="Import File" hint="Drag & drop or click to select your exported .json file" size="small"></wa-file-input>
                 </div>
               </wa-card>
 
@@ -443,17 +435,7 @@
           <input type="color" id="edit-deck-color" style="width: 60px; height: 40px; border: none; border-radius: var(--wa-border-radius-m); cursor: pointer;" />
         </div>
 
-        <div class="wa-stack wa-gap-xs">
-          <label class="wa-caption-m">Decklist</label>
-          <div class="wa-cluster wa-gap-s wa-align-items-center">
-            <wa-button type="button" id="btn-edit-upload-file" variant="neutral" appearance="outlined" size="small">
-              <wa-icon slot="start" name="file-arrow-up"></wa-icon>
-              Upload .txt
-            </wa-button>
-            <input type="file" id="edit-deck-file-input" accept=".txt,.dec,.dek,.mwDeck" style="display: none;" />
-            <span id="edit-file-name-display" class="wa-caption-s" style="color: var(--wa-color-neutral-text-subtle);"></span>
-          </div>
-        </div>
+        <wa-file-input id="edit-deck-file-input" accept=".txt,.dec,.dek,.mwDeck" label="Decklist" hint="Drag & drop or click to upload a .txt, .dec, .dek, or .mwDeck file" size="small"></wa-file-input>
 
         <wa-textarea
           id="edit-deck-list"
@@ -482,7 +464,7 @@
       <!-- Login View -->
       <div id="auth-login-view" class="wa-stack wa-gap-m">
         <form id="login-form" class="wa-stack wa-gap-m">
-          <wa-input id="login-email" name="email" type="email" label="Email" placeholder="you@example.com" autocomplete="email" required></wa-input>
+          <wa-input id="login-email" name="username" type="email" label="Email" placeholder="you@example.com" autocomplete="username" required></wa-input>
           <wa-input id="login-password" name="password" type="password" label="Password" placeholder="Your password" autocomplete="current-password" required minlength="6"></wa-input>
           <a href="#" id="btn-forgot-password" class="wa-caption-m" style="color: var(--wa-color-brand-text);">Having trouble signing in?</a>
           <div id="login-error" hidden class="wa-caption-m" style="color: var(--wa-color-danger-text);"></div>
@@ -498,7 +480,7 @@
       <div id="auth-signup-view" class="wa-stack wa-gap-m" style="display: none;">
         <p class="wa-body-m" style="color: var(--wa-color-neutral-text-subtle);">You don't need to sign in to use PRISM, but if you want to save multiple PRISMs or sync across devices, create an account.</p>
         <form id="signup-form" class="wa-stack wa-gap-m">
-          <wa-input id="signup-email" name="email" type="email" label="Email" placeholder="you@example.com" autocomplete="email" required></wa-input>
+          <wa-input id="signup-email" name="username" type="email" label="Email" placeholder="you@example.com" autocomplete="username" required></wa-input>
           <wa-input id="signup-password" name="password" type="password" label="Password" placeholder="Create a password" autocomplete="new-password" required minlength="6"></wa-input>
           <div id="signup-error" hidden class="wa-caption-m" style="color: var(--wa-color-danger-text);"></div>
           <div id="signup-success" hidden class="wa-caption-m" style="color: var(--wa-color-success-text);"></div>
@@ -526,6 +508,9 @@
         </wa-button>
       </div>
     </wa-dialog>
+
+    <!-- Toast notification container -->
+    <wa-toast placement="bottom-end" id="toast-container"></wa-toast>
 
     <script type="module" src="app.js"></script>
   </body>
