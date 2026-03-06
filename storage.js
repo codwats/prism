@@ -102,13 +102,14 @@ async function savePrismToSupabase(prism) {
   if (!supabase || !user) return;
 
   try {
-    // Upsert the prism
+    // Upsert the prism (including split groups as JSONB)
     const { data: prismData, error: prismError } = await supabase
       .from('prisms')
       .upsert({
         id: prism.id,
         user_id: user.id,
         name: prism.name,
+        split_groups: prism.splitGroups || [],
         updated_at: new Date().toISOString()
       }, { onConflict: 'id' })
       .select()
@@ -133,7 +134,8 @@ async function savePrismToSupabase(prism) {
           color: deck.color,
           bracket: deck.bracket,
           stripe_position: deck.stripePosition,
-          sort_order: deck.stripePosition
+          sort_order: deck.stripePosition,
+          split_group_id: deck.splitGroupId || null
         })
         .select()
         .single();
@@ -209,6 +211,7 @@ export async function loadPrismsFromSupabase() {
       .select(`
         id,
         name,
+        split_groups,
         created_at,
         updated_at,
         decks (
@@ -218,6 +221,7 @@ export async function loadPrismsFromSupabase() {
           bracket,
           stripe_position,
           sort_order,
+          split_group_id,
           created_at,
           updated_at,
           deck_cards (
@@ -247,12 +251,14 @@ export async function loadPrismsFromSupabase() {
         updatedAt: prism.updated_at,
         markedCards: [],
         removedCards: [],
+        splitGroups: prism.split_groups || [],
         decks: (prism.decks || []).map(deck => ({
           id: deck.id,
           name: deck.name,
           color: deck.color,
           bracket: deck.bracket,
           stripePosition: deck.stripe_position,
+          splitGroupId: deck.split_group_id || null,
           commander: deck.deck_cards?.find(c => c.is_commander)?.card_name || null,
           createdAt: deck.created_at,
           updatedAt: deck.updated_at,

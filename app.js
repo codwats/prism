@@ -18,7 +18,12 @@ import {
   DEFAULT_COLORS,
   getColorName,
   calculateRemovedCards,
-  isCardInOtherDecks
+  isCardInOtherDecks,
+  splitDeck,
+  addSplitToGroup,
+  unsplitGroup,
+  removeSplitChild,
+  formatSlotLabel,
 } from './processor.js';
 import { 
   getCurrentPrism, 
@@ -43,6 +48,20 @@ let deckToEdit = null;
 let elements = null;
 let sortState = { column: 'deckCount', direction: 'desc' }; // Default: most shared first
 let selectedDeckIds = new Set(); // For deck filter dropdown
+
+// ============================================================================
+// Helpers
+// ============================================================================
+
+/**
+ * Get the "logical" deck count: standalone decks + split groups (each group = 1 deck).
+ * Used for the 32-deck cap and header display.
+ */
+function getLogicalDeckCount(prism) {
+  const standalone = prism.decks.filter(d => !d.splitGroupId).length;
+  const groups = (prism.splitGroups || []).length;
+  return standalone + groups;
+}
 
 // ============================================================================
 // Initialization
@@ -128,7 +147,22 @@ function getElements() {
     editDeckFileInput: document.getElementById('edit-deck-file-input'),
     editParseErrors: document.getElementById('edit-parse-errors'),
     btnCancelEdit: document.getElementById('btn-cancel-edit'),
-    btnConfirmEdit: document.getElementById('btn-confirm-edit')
+    btnConfirmEdit: document.getElementById('btn-confirm-edit'),
+
+    // Edit dialog URL import
+    editImportSection: document.getElementById('edit-import-section'),
+    editImportUrl: document.getElementById('edit-import-url'),
+    btnEditImportUrl: document.getElementById('btn-edit-import-url'),
+    editImportError: document.getElementById('edit-import-error'),
+    editImportSuccess: document.getElementById('edit-import-success'),
+
+    // Split dialog
+    splitDialog: document.getElementById('split-dialog'),
+    splitDeckId: document.getElementById('split-deck-id'),
+    splitDeckName: document.getElementById('split-deck-name'),
+    splitCount: document.getElementById('split-count'),
+    btnCancelSplit: document.getElementById('btn-cancel-split'),
+    btnConfirmSplit: document.getElementById('btn-confirm-split'),
   };
 }
 
@@ -336,6 +370,29 @@ function setupEventListeners() {
     elements.editDeckFileInput.addEventListener('change', handleEditFileUpload);
   }
 
+  // Edit dialog URL import
+  if (elements.btnEditImportUrl) {
+    elements.btnEditImportUrl.addEventListener('click', handleEditUrlImport);
+  }
+  if (elements.editImportUrl) {
+    elements.editImportUrl.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        handleEditUrlImport();
+      }
+    });
+  }
+
+  // Split dialog
+  if (elements.btnCancelSplit) {
+    elements.btnCancelSplit.addEventListener('click', () => {
+      elements.splitDialog.open = false;
+    });
+  }
+  if (elements.btnConfirmSplit) {
+    elements.btnConfirmSplit.addEventListener('click', handleSplitConfirm);
+  }
+
   // Card preview hover handlers (event delegation on results table)
   if (elements.resultsTbody) {
     elements.resultsTbody.addEventListener('mouseenter', handleCardPreviewShow, true);
@@ -401,8 +458,8 @@ function handleDeckSubmit(e) {
 
   console.log('PRISM: Form submitted');
 
-  // Check deck limit
-  if (currentPrism.decks.length >= 32) {
+  // Check deck limit (split groups count as 1 logical deck)
+  if (getLogicalDeckCount(currentPrism) >= 32) {
     showError('Maximum 32 decks per PRISM reached.');
     return;
   }
@@ -542,6 +599,11 @@ function handleEditClick(deckId) {
     elements.editParseErrors.style.display = 'none';
     elements.editParseErrors.innerHTML = '';
   }
+
+  // Reset URL import section
+  hideEditImportMessages();
+  if (elements.editImportUrl) elements.editImportUrl.value = '';
+  if (elements.editImportSection) elements.editImportSection.open = false;
 
   elements.editDialog.open = true;
 }
@@ -738,7 +800,12 @@ function handleDeleteConfirm() {
   }
 
   const deckName = deck.name;
-  currentPrism = removeDeckFromPrism(currentPrism, deckToDelete);
+  const isSplitChild = !!deck.splitGroupId;
+  if (isSplitChild) {
+    currentPrism = removeSplitChild(currentPrism, deckToDelete);
+  } else {
+    currentPrism = removeDeckFromPrism(currentPrism, deckToDelete);
+  }
   savePrism(currentPrism);
 
   deckToDelete = null;
@@ -750,6 +817,55 @@ function handleDeleteConfirm() {
   if (removedCount > 0) {
     showSuccess(`Deleted "${deckName}". ${removedCount} card${removedCount > 1 ? 's' : ''} marked for removal.`);
   }
+}
+
+function handleSplitClick(deckId) {
+  const deck = currentPrism.decks.find(d => d.id === deckId);
+  if (!deck) return;
+
+  elements.splitDeckId.value = deckId;
+  elements.splitDeckName.textContent = deck.name;
+  elements.splitCount.value = '2';
+  elements.splitDialog.open = true;
+}
+
+function handleSplitConfirm() {
+  const deckId = elements.splitDeckId.value;
+  const count = parseInt(elements.splitCount.value) || 2;
+
+  if (count < 2 || count > 8) {
+    showError('Split count must be between 2 and 8.');
+    return;
+  }
+
+  currentPrism = splitDeck(currentPrism, deckId, count);
+  savePrism(currentPrism);
+
+  elements.splitDialog.open = false;
+  renderAll();
+  showSuccess(`Split into ${count} variants.`);
+}
+
+function handleAddSplit(groupId) {
+  currentPrism = addSplitToGroup(currentPrism, groupId);
+  savePrism(currentPrism);
+  renderAll();
+
+  const group = currentPrism.splitGroups.find(g => g.id === groupId);
+  if (group) {
+    showSuccess(`Added variant ${group.childDeckIds.length} to "${group.name}".`);
+  }
+}
+
+function handleUnsplit(groupId) {
+  const group = currentPrism.splitGroups.find(g => g.id === groupId);
+  if (!group) return;
+
+  const groupName = group.name;
+  currentPrism = unsplitGroup(currentPrism, groupId);
+  savePrism(currentPrism);
+  renderAll();
+  showSuccess(`Merged "${groupName}" back into a single deck.`);
 }
 
 function handleNewPrism() {
@@ -994,6 +1110,89 @@ function hideMoxfieldMessages() {
   if (elements.moxfieldSuccess) elements.moxfieldSuccess.hidden = true;
 }
 
+// Edit dialog URL import
+async function handleEditUrlImport() {
+  const urlOrId = elements.editImportUrl?.value?.trim();
+  if (!urlOrId) {
+    showEditImportError('Please enter a deck URL.');
+    return;
+  }
+
+  hideEditImportMessages();
+
+  const btn = elements.btnEditImportUrl;
+  if (btn) btn.loading = true;
+
+  try {
+    let deckData;
+    let serviceName;
+
+    if (urlOrId.includes('archidekt.com') || extractArchidektId(urlOrId)) {
+      if (urlOrId.includes('archidekt.com') || /^\d+$/.test(urlOrId)) {
+        serviceName = 'Archidekt';
+        deckData = await importFromArchidekt(urlOrId);
+      } else {
+        serviceName = 'Moxfield';
+        deckData = await importFromMoxfield(urlOrId);
+      }
+    } else if (urlOrId.includes('moxfield.com') || extractMoxfieldId(urlOrId)) {
+      serviceName = 'Moxfield';
+      deckData = await importFromMoxfield(urlOrId);
+    } else {
+      throw new Error('Could not detect deck source. Please use a Moxfield or Archidekt URL.');
+    }
+
+    // Fill in the edit form - only update the decklist by default
+    // Keep existing name/commander/color unless user changes them
+    if (elements.editDeckList) {
+      elements.editDeckList.value = toDecklistText(deckData);
+    }
+
+    showEditImportSuccess(`Imported "${deckData.name}" from ${serviceName} (${deckData.cards.length} cards). Review and click "Save Changes" to update.`);
+
+    // Clear the URL input
+    if (elements.editImportUrl) {
+      elements.editImportUrl.value = '';
+    }
+
+    // Collapse the import section
+    if (elements.editImportSection) {
+      elements.editImportSection.open = false;
+    }
+
+  } catch (err) {
+    console.error('Edit deck import error:', err);
+    showEditImportError(err.message || 'Failed to import deck.');
+  } finally {
+    if (btn) btn.loading = false;
+  }
+}
+
+function showEditImportError(message) {
+  if (elements.editImportError) {
+    elements.editImportError.textContent = message;
+    elements.editImportError.hidden = false;
+  }
+  if (elements.editImportSuccess) {
+    elements.editImportSuccess.hidden = true;
+  }
+}
+
+function showEditImportSuccess(message) {
+  if (elements.editImportSuccess) {
+    elements.editImportSuccess.textContent = message;
+    elements.editImportSuccess.hidden = false;
+  }
+  if (elements.editImportError) {
+    elements.editImportError.hidden = true;
+  }
+}
+
+function hideEditImportMessages() {
+  if (elements.editImportError) elements.editImportError.hidden = true;
+  if (elements.editImportSuccess) elements.editImportSuccess.hidden = true;
+}
+
 function handleStripeReorder(deckId, direction) {
   const currentIndex = currentPrism.decks.findIndex(d => d.id === deckId);
   if (currentIndex === -1) return;
@@ -1132,12 +1331,13 @@ function renderPrismHeader() {
     elements.prismName.value = currentPrism.name;
   }
   if (elements.deckCountTag) {
-    elements.deckCountTag.textContent = `${currentPrism.decks.length}/32 decks`;
+    const logicalCount = getLogicalDeckCount(currentPrism);
+    elements.deckCountTag.textContent = `${logicalCount}/32 decks`;
 
     // Update tag variant based on count
-    if (currentPrism.decks.length >= 32) {
+    if (logicalCount >= 32) {
       elements.deckCountTag.variant = 'warning';
-    } else if (currentPrism.decks.length >= 20) {
+    } else if (logicalCount >= 20) {
       elements.deckCountTag.variant = 'neutral';
     } else {
       elements.deckCountTag.variant = 'success';
@@ -1145,11 +1345,62 @@ function renderPrismHeader() {
   }
 }
 
+function renderDeckCard(deck, showActions = true) {
+  const slotLabel = formatSlotLabel(deck.stripePosition);
+  const isInGroup = !!deck.splitGroupId;
+
+  return `
+    <div class="deck-card-inner ${isInGroup ? 'split-child-card' : ''}" data-deck-id="${deck.id}">
+      <div class="wa-split wa-align-items-center">
+        <div class="wa-cluster wa-gap-m wa-align-items-center">
+          <div class="deck-color-indicator" style="background-color: ${deck.color};" title="${getColorName(deck.color)}"></div>
+          <div class="wa-stack wa-gap-2xs">
+            <div class="wa-cluster wa-gap-s wa-align-items-center">
+              <span class="${isInGroup ? 'wa-heading-s' : 'wa-heading-m'}">${escapeHtml(deck.name)}</span>
+              <wa-tag size="small" variant="${isInGroup ? 'brand' : 'neutral'}">${slotLabel}</wa-tag>
+              <wa-tag size="small" variant="neutral">Bracket ${deck.bracket}</wa-tag>
+            </div>
+            <div class="wa-caption-m" style="color: var(--wa-color-neutral-text-subtle);">
+              ${escapeHtml(deck.commander)} • ${deck.cards.length} cards
+            </div>
+          </div>
+        </div>
+        ${showActions ? `
+        <div class="wa-cluster wa-gap-xs">
+          ${currentPrism.decks.length >= 2 ? `
+          <wa-button appearance="plain" variant="neutral" size="small"
+            class="btn-what-if" data-deck-id="${deck.id}" title="What if I remove this deck?">
+            <wa-icon name="flask"></wa-icon>
+          </wa-button>
+          ` : ''}
+          ${!isInGroup ? `
+          <wa-button appearance="plain" variant="neutral" size="small"
+            class="btn-split-deck" data-deck-id="${deck.id}" title="Split into variants">
+            <wa-icon name="code-branch"></wa-icon>
+          </wa-button>
+          ` : ''}
+          <wa-button appearance="plain" variant="neutral" size="small"
+            class="btn-edit-deck" data-deck-id="${deck.id}" title="Edit deck">
+            <wa-icon name="pen-to-square"></wa-icon>
+          </wa-button>
+          <wa-button appearance="plain" variant="neutral" size="small"
+            class="btn-delete-deck" data-deck-id="${deck.id}" title="Delete deck">
+            <wa-icon name="trash"></wa-icon>
+          </wa-button>
+        </div>
+        ` : ''}
+      </div>
+      <div class="what-if-container" id="what-if-${deck.id}" style="display: none;"></div>
+    </div>
+  `;
+}
+
 function renderDecksList() {
   if (!elements.decksList) return;
-  
+
   const sortedDecks = [...currentPrism.decks].sort((a, b) => a.stripePosition - b.stripePosition);
-  
+  const splitGroups = currentPrism.splitGroups || [];
+
   if (sortedDecks.length === 0) {
     elements.decksList.innerHTML = `
       <div class="wa-stack wa-gap-m wa-align-items-center" style="padding: var(--wa-space-xl); text-align: center;">
@@ -1159,75 +1410,101 @@ function renderDecksList() {
     `;
     return;
   }
-  
-  elements.decksList.innerHTML = sortedDecks.map(deck => `
-    <wa-card class="deck-card" data-deck-id="${deck.id}">
-      <div class="wa-split wa-align-items-center">
-        <div class="wa-cluster wa-gap-m wa-align-items-center">
-          <div class="deck-color-indicator" style="background-color: ${deck.color};" title="${getColorName(deck.color)}"></div>
-          <div class="wa-stack wa-gap-2xs">
-            <div class="wa-cluster wa-gap-s wa-align-items-center">
-              <span class="wa-heading-m">${escapeHtml(deck.name)}</span>
-              <wa-tag size="small" variant="neutral">Slot ${deck.stripePosition}</wa-tag>
-              <wa-tag size="small" variant="neutral">Bracket ${deck.bracket}</wa-tag>
-            </div>
-            <div class="wa-caption-m" style="color: var(--wa-color-neutral-text-subtle);">
-              ${escapeHtml(deck.commander)} • ${deck.cards.length} cards
+
+  // Separate standalone decks from split children
+  const renderedGroupIds = new Set();
+  const htmlParts = [];
+
+  // Build a render order: standalone decks by position, split groups by their Side A position
+  const renderItems = [];
+
+  for (const deck of sortedDecks) {
+    if (!deck.splitGroupId) {
+      renderItems.push({ type: 'standalone', deck, sortPosition: deck.stripePosition });
+    } else if (!renderedGroupIds.has(deck.splitGroupId)) {
+      renderedGroupIds.add(deck.splitGroupId);
+      const group = splitGroups.find(g => g.id === deck.splitGroupId);
+      if (group) {
+        renderItems.push({ type: 'group', group, sortPosition: group.sideAPosition });
+      }
+    }
+  }
+
+  renderItems.sort((a, b) => a.sortPosition - b.sortPosition);
+
+  for (const item of renderItems) {
+    if (item.type === 'standalone') {
+      htmlParts.push(`
+        <wa-card class="deck-card" data-deck-id="${item.deck.id}">
+          ${renderDeckCard(item.deck)}
+        </wa-card>
+      `);
+    } else {
+      const group = item.group;
+      const children = group.childDeckIds
+        .map(id => currentPrism.decks.find(d => d.id === id))
+        .filter(Boolean);
+
+      htmlParts.push(`
+        <wa-card class="deck-card split-group-card" data-group-id="${group.id}">
+          <div class="split-group-header">
+            <div class="wa-split wa-align-items-center">
+              <div class="wa-cluster wa-gap-m wa-align-items-center">
+                <div class="deck-color-indicator" style="background-color: ${group.sideAColor};" title="${getColorName(group.sideAColor)}"></div>
+                <div class="wa-stack wa-gap-2xs">
+                  <div class="wa-cluster wa-gap-s wa-align-items-center">
+                    <span class="wa-heading-m">${escapeHtml(group.name)}</span>
+                    <wa-tag size="small" variant="neutral">${formatSlotLabel(group.sideAPosition, 'a')}</wa-tag>
+                    <wa-tag size="small" variant="brand" appearance="outlined">
+                      <wa-icon name="code-branch" style="font-size: 0.8em;"></wa-icon>
+                      ${children.length} variants
+                    </wa-tag>
+                  </div>
+                  <div class="wa-caption-m" style="color: var(--wa-color-neutral-text-subtle);">
+                    ${escapeHtml(children[0]?.commander || '')} • Split deck group
+                  </div>
+                </div>
+              </div>
+              <div class="wa-cluster wa-gap-xs">
+                <wa-button appearance="plain" variant="neutral" size="small"
+                  class="btn-add-split" data-group-id="${group.id}" title="Add another variant">
+                  <wa-icon name="plus"></wa-icon>
+                </wa-button>
+                <wa-button appearance="plain" variant="neutral" size="small"
+                  class="btn-unsplit" data-group-id="${group.id}" title="Merge back into one deck">
+                  <wa-icon name="code-merge"></wa-icon>
+                </wa-button>
+              </div>
             </div>
           </div>
-        </div>
-        <div class="wa-cluster wa-gap-xs">
-          ${currentPrism.decks.length >= 2 ? `
-          <wa-button
-            appearance="plain"
-            variant="neutral"
-            size="small"
-            class="btn-what-if"
-            data-deck-id="${deck.id}"
-            title="What if I remove this deck?"
-          >
-            <wa-icon name="flask"></wa-icon>
-          </wa-button>
-          ` : ''}
-          <wa-button
-            appearance="plain"
-            variant="neutral"
-            size="small"
-            class="btn-edit-deck"
-            data-deck-id="${deck.id}"
-            title="Edit deck"
-          >
-            <wa-icon name="pen-to-square"></wa-icon>
-          </wa-button>
-          <wa-button
-            appearance="plain"
-            variant="neutral"
-            size="small"
-            class="btn-delete-deck"
-            data-deck-id="${deck.id}"
-            title="Delete deck"
-          >
-            <wa-icon name="trash"></wa-icon>
-          </wa-button>
-        </div>
-      </div>
-      <div class="what-if-container" id="what-if-${deck.id}" style="display: none;"></div>
-    </wa-card>
-  `).join('');
+          <div class="split-children">
+            ${children.map(child => renderDeckCard(child)).join('')}
+          </div>
+        </wa-card>
+      `);
+    }
+  }
 
-  // Add edit button listeners
+  elements.decksList.innerHTML = htmlParts.join('');
+
+  // Add event listeners
   elements.decksList.querySelectorAll('.btn-edit-deck').forEach(btn => {
     btn.addEventListener('click', () => handleEditClick(btn.dataset.deckId));
   });
-
-  // Add delete button listeners
   elements.decksList.querySelectorAll('.btn-delete-deck').forEach(btn => {
     btn.addEventListener('click', () => handleDeleteClick(btn.dataset.deckId));
   });
-
-  // Add what-if button listeners
   elements.decksList.querySelectorAll('.btn-what-if').forEach(btn => {
     btn.addEventListener('click', () => toggleWhatIfAnalysis(btn.dataset.deckId));
+  });
+  elements.decksList.querySelectorAll('.btn-split-deck').forEach(btn => {
+    btn.addEventListener('click', () => handleSplitClick(btn.dataset.deckId));
+  });
+  elements.decksList.querySelectorAll('.btn-add-split').forEach(btn => {
+    btn.addEventListener('click', () => handleAddSplit(btn.dataset.groupId));
+  });
+  elements.decksList.querySelectorAll('.btn-unsplit').forEach(btn => {
+    btn.addEventListener('click', () => handleUnsplit(btn.dataset.groupId));
   });
 }
 
@@ -1378,7 +1655,7 @@ function renderResults() {
               <div
                 class="stripe-indicator"
                 style="background-color: ${card.removedDeckColor};"
-                title="Remove from Slot ${card.removedStripePosition}"
+                title="Remove from ${formatSlotLabel(card.removedStripePosition)}"
               ></div>
               <span class="removed-deck-label">Remove from ${escapeHtml(card.removedDeckName)}</span>
             </div>
@@ -1403,23 +1680,28 @@ function renderResults() {
     let stripeIndicators;
 
     if (showAllSlots && totalDecks > 0) {
-      // Show all slots with empty placeholders
+      // Collect all used positions (deck positions + split group Side A positions)
+      const allPositions = [...new Set([
+        ...currentPrism.decks.map(d => d.stripePosition),
+        ...(currentPrism.splitGroups || []).map(g => g.sideAPosition)
+      ])].sort((a, b) => a - b);
+
       const stripeMap = new Map(card.stripes.map(s => [s.position, s]));
       stripeIndicators = '';
-      for (let i = 1; i <= totalDecks; i++) {
-        const stripe = stripeMap.get(i);
+      for (const pos of allPositions) {
+        const stripe = stripeMap.get(pos);
         if (stripe) {
           stripeIndicators += `
             <div
-              class="stripe-indicator"
+              class="stripe-indicator${stripe.side === 'b' ? ' stripe-side-b' : ''}"
               style="background-color: ${stripe.color};"
-              title="Slot ${stripe.position}: ${escapeHtml(stripe.deckName)}"
+              title="${formatSlotLabel(stripe.position)}: ${escapeHtml(stripe.deckName)}"
             ></div>`;
         } else {
           stripeIndicators += `
             <div
               class="stripe-indicator stripe-empty"
-              title="Slot ${i}: Empty"
+              title="${formatSlotLabel(pos)}: Empty"
             ></div>`;
         }
       }
@@ -1427,9 +1709,9 @@ function renderResults() {
       // Show only filled slots (default)
       stripeIndicators = card.stripes.map(s => `
         <div
-          class="stripe-indicator"
+          class="stripe-indicator${s.side === 'b' ? ' stripe-side-b' : ''}"
           style="background-color: ${s.color};"
-          title="Slot ${s.position}: ${escapeHtml(s.deckName)}"
+          title="${formatSlotLabel(s.position)}: ${escapeHtml(s.deckName)}"
         ></div>
       `).join('');
     }
@@ -1449,7 +1731,8 @@ function renderResults() {
     const stripesJson = JSON.stringify(card.stripes.map(s => ({
       position: s.position,
       color: s.color,
-      deckName: s.deckName
+      deckName: s.deckName,
+      side: s.side || 'a'
     }))).replace(/&/g, '&amp;').replace(/'/g, '&#39;');
 
     return `
@@ -1776,7 +2059,7 @@ function renderWhatIfAnalysis(deckId, container) {
       <div class="what-if-stats">
         <div class="what-if-stat">
           <div class="stat-value" style="color: var(--wa-color-success-text);">${becomeMarkFree.length}</div>
-          <div class="stat-label">Cards become mark-free</div>
+          <div class="stat-label">Cards become CORE</div>
         </div>
         <div class="what-if-stat">
           <div class="stat-value" style="color: var(--wa-color-warning-text);">${stillShared.length}</div>
@@ -1796,7 +2079,7 @@ function renderWhatIfAnalysis(deckId, container) {
         <div class="wa-stack wa-gap-xs" style="margin-bottom: var(--wa-space-m);">
           <span class="wa-caption-m" style="color: var(--wa-color-success-text);">
             <wa-icon name="circle-check" style="font-size: 0.9em;"></wa-icon>
-            Cards that would become mark-free (was in 2 decks, would drop to 1):
+            Cards that would become CORE (was in 2 decks, would drop to 1):
           </span>
           <ul class="what-if-card-list">
             ${becomeMarkFree.slice(0, showAllMarkFree ? undefined : 5).map(card => `
@@ -1914,21 +2197,58 @@ function renderExport() {
   if (elements.noDecksLegend) elements.noDecksLegend.style.display = 'none';
   
   if (elements.deckLegend) {
-    elements.deckLegend.innerHTML = sortedDecks.map(deck => `
-      <div class="wa-cluster wa-gap-xs wa-align-items-center">
-        <div class="deck-color-indicator small" style="background-color: ${deck.color};"></div>
-        <span><strong>Slot ${deck.stripePosition}:</strong> ${escapeHtml(deck.name)}</span>
-      </div>
-    `).join('');
+    // Build legend items: standalone decks + split group headers with children
+    const splitGroups = currentPrism.splitGroups || [];
+    const renderedGroupIds = new Set();
+    const legendItems = [];
+
+    for (const deck of sortedDecks) {
+      if (!deck.splitGroupId) {
+        legendItems.push({ type: 'standalone', deck, sortPos: deck.stripePosition });
+      } else if (!renderedGroupIds.has(deck.splitGroupId)) {
+        renderedGroupIds.add(deck.splitGroupId);
+        const group = splitGroups.find(g => g.id === deck.splitGroupId);
+        if (group) legendItems.push({ type: 'group', group, sortPos: group.sideAPosition });
+      }
+    }
+    legendItems.sort((a, b) => a.sortPos - b.sortPos);
+
+    elements.deckLegend.innerHTML = legendItems.map(item => {
+      if (item.type === 'standalone') {
+        const slotLabel = formatSlotLabel(item.deck.stripePosition);
+        return `
+          <div class="wa-cluster wa-gap-xs wa-align-items-center">
+            <div class="deck-color-indicator small" style="background-color: ${item.deck.color};"></div>
+            <span><strong>${slotLabel}:</strong> ${escapeHtml(item.deck.name)}</span>
+          </div>`;
+      }
+      const group = item.group;
+      const children = group.childDeckIds.map(id => currentPrism.decks.find(d => d.id === id)).filter(Boolean);
+      return `
+        <div class="wa-stack wa-gap-2xs" style="width: 100%;">
+          <div class="wa-cluster wa-gap-xs wa-align-items-center">
+            <div class="deck-color-indicator small" style="background-color: ${group.sideAColor};"></div>
+            <span><strong>${formatSlotLabel(group.sideAPosition, 'a')}:</strong> ${escapeHtml(group.name)} <span style="color:var(--wa-color-neutral-text-subtle);">(split group)</span></span>
+          </div>
+          ${children.map(child => `
+            <div class="wa-cluster wa-gap-xs wa-align-items-center" style="padding-left: var(--wa-space-l);">
+              <div class="deck-color-indicator small" style="background-color: ${child.color};"></div>
+              <span><strong>${formatSlotLabel(child.stripePosition)}:</strong> ${escapeHtml(child.name)}</span>
+            </div>
+          `).join('')}
+        </div>`;
+    }).join('');
   }
   
   // Stripe reorder list
   if (elements.stripeReorderList) {
-    elements.stripeReorderList.innerHTML = sortedDecks.map((deck, index) => `
+    elements.stripeReorderList.innerHTML = sortedDecks.map((deck, index) => {
+      const slotLabel = formatSlotLabel(deck.stripePosition);
+      return `
       <div class="reorder-item wa-split wa-align-items-center" data-deck-id="${deck.id}">
         <div class="wa-cluster wa-gap-s wa-align-items-center">
           <div class="deck-color-indicator" style="background-color: ${deck.color};"></div>
-          <span><strong>Slot ${deck.stripePosition}:</strong> ${escapeHtml(deck.name)}</span>
+          <span><strong>${slotLabel}:</strong> ${escapeHtml(deck.name)}</span>
         </div>
         <div class="wa-cluster wa-gap-2xs">
           <wa-button 
@@ -1955,8 +2275,9 @@ function renderExport() {
           </wa-button>
         </div>
       </div>
-    `).join('');
-    
+    `;
+    }).join('');
+
     // Add reorder listeners
     elements.stripeReorderList.querySelectorAll('.btn-move-up').forEach(btn => {
       btn.addEventListener('click', () => handleStripeReorder(btn.dataset.deckId, 'up'));

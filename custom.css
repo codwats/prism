@@ -431,10 +431,15 @@ wa-page[view='desktop'] [data-toggle-nav] {
 .stripe-mark {
   position: absolute;
   right: 0px;
-  width: 26px;
-  height: 8px;
+  width: 24px;
+  height: 5px;
   border-radius: 2px;
-  box-shadow: 0 0 4px rgba(1,1,1, .8);
+  box-shadow: 0 0 3px rgba(1,1,1, .8);
+}
+
+.stripe-mark-left {
+  right: auto;
+  left: 0px;
 }
 
 /* Card name hover cursor */
@@ -445,6 +450,45 @@ wa-page[view='desktop'] [data-toggle-nav] {
 .card-name-cell:hover {
   text-decoration: underline;
   text-decoration-style: dotted;
+}
+
+/* ============================================================================
+   Split Groups & Side A/B Indicators
+   ============================================================================ */
+
+.split-group-card {
+  border: 1px solid var(--wa-color-brand-stroke-subtle);
+}
+
+.split-group-header {
+  padding-bottom: var(--wa-space-s);
+  border-bottom: 1px solid var(--wa-color-neutral-stroke-subtle);
+  margin-bottom: var(--wa-space-s);
+}
+
+.split-children {
+  display: flex;
+  flex-direction: column;
+  gap: var(--wa-space-s);
+  padding-left: var(--wa-space-m);
+  border-left: 2px solid var(--wa-color-brand-stroke-subtle);
+}
+
+.split-child-card {
+  padding: var(--wa-space-s);
+  background: var(--wa-color-surface-2);
+  border-radius: var(--wa-border-radius-s);
+}
+
+/* Side B stripe indicators - dashed border to distinguish from Side A */
+.stripe-indicator.stripe-side-b {
+  border-style: dashed;
+  border-width: 2px;
+}
+
+/* Printable guide Side B dots */
+.stripe-dot.stripe-side-b {
+  border-style: dashed;
 }
 
 /* Mobile: disable hover previews */
