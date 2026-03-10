@@ -190,6 +190,118 @@ export async function prefetchCards(cardNames) {
   }
 }
 
+// Canonicalize card names via Scryfall's /cards/collection endpoint.
+// Resolves UB reprints (e.g., "Dwight Schrute, Hay King" → "Heliod, Sun-Crowned")
+// and normalizes DFC names to the Oracle name.
+// Mutates the cards array in place, setting each card's name to the Oracle name.
+const COLLECTION_BATCH_SIZE = 75; // Scryfall's max per request
+
+// Separate cache for canonical name lookups
+const CANONICAL_CACHE_KEY = 'scryfall_canonical_cache';
+
+function loadCanonicalCache() {
+  try {
+    const cached = localStorage.getItem(CANONICAL_CACHE_KEY);
+    return cached ? JSON.parse(cached) : {};
+  } catch {
+    return {};
+  }
+}
+
+function saveCanonicalCache(cache) {
+  try {
+    localStorage.setItem(CANONICAL_CACHE_KEY, JSON.stringify(cache));
+  } catch {
+    console.warn('Canonical name cache full');
+  }
+}
+
+export async function canonicalizeCards(cards) {
+  if (!cards || cards.length === 0) return cards;
+
+  const canonCache = loadCanonicalCache();
+  const uncachedCards = [];
+  const uncachedIndices = [];
+
+  // Check cache first
+  for (let i = 0; i < cards.length; i++) {
+    const key = cards[i].name.toLowerCase().trim();
+    if (canonCache[key]) {
+      cards[i].name = canonCache[key];
+    } else {
+      uncachedCards.push(cards[i]);
+      uncachedIndices.push(i);
+    }
+  }
+
+  if (uncachedCards.length === 0) return cards;
+
+  // Batch lookup uncached cards
+  for (let batch = 0; batch < uncachedCards.length; batch += COLLECTION_BATCH_SIZE) {
+    const chunk = uncachedCards.slice(batch, batch + COLLECTION_BATCH_SIZE);
+    const identifiers = chunk.map(c => ({ name: c.name }));
+
+    try {
+      // Rate limit
+      const now = Date.now();
+      if (now - lastRequestTime < REQUEST_DELAY) {
+        await sleep(REQUEST_DELAY - (now - lastRequestTime));
+      }
+
+      const response = await fetch(`${API_BASE}/cards/collection`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ identifiers }),
+      });
+
+      lastRequestTime = Date.now();
+
+      if (!response.ok) {
+        console.warn(`Scryfall collection lookup failed: ${response.status}`);
+        continue;
+      }
+
+      const data = await response.json();
+
+      // Build a lookup from the response: input name → Oracle name
+      // Scryfall returns results in data.data (found) and data.not_found (misses)
+      const oracleMap = new Map();
+      for (const card of (data.data || [])) {
+        // Map the card's full name and front face name to the Oracle name
+        const oracleName = card.name; // Scryfall always returns the Oracle name
+        oracleMap.set(card.name.toLowerCase().trim(), oracleName);
+
+        // Also map front face only for DFCs
+        if (card.name.includes(' // ')) {
+          const frontFace = card.name.split(' // ')[0].toLowerCase().trim();
+          oracleMap.set(frontFace, oracleName);
+        }
+      }
+
+      // Apply Oracle names to the chunk and update cache
+      for (let j = 0; j < chunk.length; j++) {
+        const originalKey = chunk[j].name.toLowerCase().trim();
+        const frontKey = chunk[j].name.split(' // ')[0].toLowerCase().trim();
+        const oracleName = oracleMap.get(originalKey) || oracleMap.get(frontKey);
+
+        if (oracleName) {
+          const globalIndex = uncachedIndices[batch + j];
+          cards[globalIndex].name = oracleName;
+          canonCache[originalKey] = oracleName;
+          if (frontKey !== originalKey) {
+            canonCache[frontKey] = oracleName;
+          }
+        }
+      }
+    } catch (err) {
+      console.warn('Scryfall canonicalization batch failed:', err.message);
+    }
+  }
+
+  saveCanonicalCache(canonCache);
+  return cards;
+}
+
 // Get cache stats (for debugging)
 export function getCacheStats() {
   const cache = loadCache();
