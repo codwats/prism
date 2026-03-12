@@ -214,7 +214,7 @@ function injectFooter() {
                 <span style="color: var(--wa-color-neutral-text-subtle);">Made for Commander players, by Commander players</span>
               </div>
               <div class="wa-cluster wa-gap-m" style="color: var(--wa-color-neutral-text-subtle);">
-                <a href="https://github.com" target="_blank" rel="noopener">
+                <a href="https://github.com/codwats/prism" target="_blank" rel="noopener">
                   <wa-icon name="github" family="brands"></wa-icon>
                 </a>
                 <a href="https://discord.com" target="_blank" rel="noopener">
