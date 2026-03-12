@@ -3,9 +3,9 @@
  * Handles user profile, PRISM management, and account settings
  */
 
-import { initAuth, setupAuthListeners, onAuthChange, getCurrentUser, signOut, updatePassword, updateEmail, updateAuthUI } from './auth.js';
-import { getAllPrisms, setCurrentPrism, deletePrism, savePrism, getCurrentPrism } from './storage.js';
-import { createPrism } from './processor.js';
+import { initAuth, setupAuthListeners, onAuthChange, getCurrentUser, signOut, updatePassword, updateEmail, updateAuthUI } from './modules/auth.js';
+import { getAllPrisms, setCurrentPrism, deletePrism, savePrism, getCurrentPrism } from './modules/storage.js';
+import { createPrism } from './modules/processor.js';
 
 // DOM Elements
 let elements = {};

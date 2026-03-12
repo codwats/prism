@@ -6,6 +6,7 @@ import { syncWithSupabase } from './storage.js';
 let currentUser = null;
 let authListeners = [];
 let wasLoggedOut = true; // Track if user was logged out before sign-in
+let authInitialized = false; // Guard against duplicate initialization
 
 // Subscribe to auth state changes
 export function onAuthChange(callback) {
@@ -24,6 +25,10 @@ function notifyAuthChange(user) {
 
 // Initialize auth state
 export async function initAuth() {
+  // Idempotent — safe to call from both layout.js and page-specific scripts
+  if (authInitialized) return currentUser;
+  authInitialized = true;
+
   if (!isConfigured()) {
     console.warn('Supabase not configured - auth disabled');
     return null;
@@ -198,7 +203,13 @@ function clearAuthMessages() {
 }
 
 // Setup auth event listeners for nav buttons
+let listenersSetup = false;
+
 export function setupAuthListeners() {
+  // Idempotent — safe to call from both layout.js and page-specific scripts
+  if (listenersSetup) return;
+  listenersSetup = true;
+
   // Login button - opens dialog
   const loginBtn = document.getElementById('btn-login');
   if (loginBtn) {

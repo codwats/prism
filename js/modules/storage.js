@@ -298,6 +298,18 @@ export async function syncWithSupabase() {
   }
 
   storage.prisms = merged;
+
+  // If no current PRISM is set (e.g. new device), pick the most recently updated one
+  if (!storage.currentPrismId || !storage.prisms[storage.currentPrismId]) {
+    const prismEntries = Object.entries(storage.prisms);
+    if (prismEntries.length > 0) {
+      prismEntries.sort((a, b) =>
+        new Date(b[1].updatedAt || b[1].createdAt) - new Date(a[1].updatedAt || a[1].createdAt)
+      );
+      storage.currentPrismId = prismEntries[0][0];
+    }
+  }
+
   saveStorage(storage);
 
   // Push any local-only prisms to cloud

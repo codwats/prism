@@ -162,12 +162,13 @@ export function parseDecklist(decklist, commanderName = '') {
 }
 
 /**
- * Normalize a card name for comparison purposes
+ * Normalize a card name for comparison purposes.
+ * Strips back-face names from DFCs and split cards (e.g., "Dusk // Dawn" → "dusk").
  * @param {string} cardName - The card name to normalize
- * @returns {string} Normalized (lowercase) card name
+ * @returns {string} Normalized (lowercase, front-face only) card name
  */
 export function normalizeCardName(cardName) {
-  return cardName.toLowerCase().trim();
+  return cardName.split(' // ')[0].toLowerCase().trim();
 }
 
 /**
