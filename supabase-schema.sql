@@ -8,6 +8,7 @@ CREATE TABLE prisms (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
   name TEXT NOT NULL,
+  split_groups JSONB DEFAULT '[]'::jsonb,
   created_at TIMESTAMPTZ DEFAULT now(),
   updated_at TIMESTAMPTZ DEFAULT now()
 );
@@ -23,6 +24,7 @@ CREATE TABLE decks (
   bracket INTEGER CHECK (bracket >= 1 AND bracket <= 5),
   stripe_position INTEGER CHECK (stripe_position >= 1 AND stripe_position <= 32),
   sort_order INTEGER DEFAULT 0,
+  split_group_id UUID,
   created_at TIMESTAMPTZ DEFAULT now(),
   updated_at TIMESTAMPTZ DEFAULT now()
 );
