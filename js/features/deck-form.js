@@ -71,143 +71,152 @@ export function updateColorSwatchSelection() {
 // Deck Submit
 // ============================================================================
 
+let _submitting = false;
+
 export async function handleDeckSubmit(e) {
   if (e) {
     e.preventDefault();
     e.stopPropagation();
   }
 
-  console.log("PRISM: Form submitted");
+  if (_submitting) return;
+  _submitting = true;
 
-  // Check deck limit (split groups count as 1 logical deck)
-  if (getLogicalDeckCount(state.currentPrism) >= 32) {
-    showError("Maximum 32 decks per PRISM reached.");
-    return;
-  }
-
-  // Get form values - for web components, access the native input in shadow DOM
-  const getInputValue = (element) => {
-    if (!element) return "";
-    const shadowInput = element.shadowRoot?.querySelector("input, textarea");
-    if (shadowInput && shadowInput.value) {
-      return String(shadowInput.value).trim();
-    }
-    if (
-      element.value !== undefined &&
-      element.value !== null &&
-      element.value !== ""
-    ) {
-      return String(element.value).trim();
-    }
-    return "";
-  };
-
-  const name = getInputValue(state.elements.deckName);
-  const commander = getInputValue(state.elements.deckCommander);
-  const bracket = state.elements.deckBracket?.value || "2";
-  const color = state.elements.deckColor?.value || "#FF0000";
-  const decklistText = getInputValue(state.elements.deckList);
-
-  console.log("PRISM: Form values:", {
-    name,
-    commander,
-    bracket,
-    color,
-    decklistLength: decklistText.length,
-  });
-
-  // Basic validation
-  if (!name) {
-    showError("Please enter a deck name.");
-    return;
-  }
-  if (!commander) {
-    showError("Please enter a commander name.");
-    return;
-  }
-  if (!decklistText.trim()) {
-    showError("Please paste a decklist.");
-    return;
-  }
-
-  // Parse decklist
-  const parseResult = parseDecklist(decklistText, commander);
-  const validation = validateDecklist(parseResult);
-
-  console.log("PRISM: Parse result:", {
-    cards: parseResult.cards.length,
-    errors: parseResult.errors.length,
-  });
-
-  // Show parse errors if any
-  if (parseResult.errors.length > 0) {
-    showParseErrors(parseResult.errors);
-  } else {
-    hideParseErrors();
-  }
-
-  if (!validation.isValid) {
-    showError(validation.messages.join(" "));
-    return;
-  }
-
-  // Check for duplicate deck name
-  const existingDeck = state.currentPrism.decks.find(
-    (d) => d.name.toLowerCase() === name.toLowerCase(),
-  );
-  if (existingDeck) {
-    showError(`A deck named "${name}" already exists.`);
-    return;
-  }
-
-  // Canonicalize card names via Scryfall
   try {
-    await canonicalizeCards(parseResult.cards);
-  } catch (err) {
-    console.warn("Card canonicalization failed, using raw names:", err.message);
+    console.log("PRISM: Form submitted");
+
+    // Check deck limit (split groups count as 1 logical deck)
+    if (getLogicalDeckCount(state.currentPrism) >= 32) {
+      showError("Maximum 32 decks per PRISM reached.");
+      return;
+    }
+
+    // Get form values - for web components, access the native input in shadow DOM
+    const getInputValue = (element) => {
+      if (!element) return "";
+      const shadowInput = element.shadowRoot?.querySelector("input, textarea");
+      if (shadowInput && shadowInput.value) {
+        return String(shadowInput.value).trim();
+      }
+      if (
+        element.value !== undefined &&
+        element.value !== null &&
+        element.value !== ""
+      ) {
+        return String(element.value).trim();
+      }
+      return "";
+    };
+
+    const name = getInputValue(state.elements.deckName);
+    const commander = getInputValue(state.elements.deckCommander);
+    const bracket = state.elements.deckBracket?.value || "2";
+    const color = state.elements.deckColor?.value || "#FF0000";
+    const decklistText = getInputValue(state.elements.deckList);
+
+    console.log("PRISM: Form values:", {
+      name,
+      commander,
+      bracket,
+      color,
+      decklistLength: decklistText.length,
+    });
+
+    // Basic validation
+    if (!name) {
+      showError("Please enter a deck name.");
+      return;
+    }
+    if (!commander) {
+      showError("Please enter a commander name.");
+      return;
+    }
+    if (!decklistText.trim()) {
+      showError("Please paste a decklist.");
+      return;
+    }
+
+    // Parse decklist
+    const parseResult = parseDecklist(decklistText, commander);
+    const validation = validateDecklist(parseResult);
+
+    console.log("PRISM: Parse result:", {
+      cards: parseResult.cards.length,
+      errors: parseResult.errors.length,
+    });
+
+    // Show parse errors if any
+    if (parseResult.errors.length > 0) {
+      showParseErrors(parseResult.errors);
+    } else {
+      hideParseErrors();
+    }
+
+    if (!validation.isValid) {
+      showError(validation.messages.join(" "));
+      return;
+    }
+
+    // Check for duplicate deck name
+    const existingDeck = state.currentPrism.decks.find(
+      (d) => d.name.toLowerCase() === name.toLowerCase(),
+    );
+    if (existingDeck) {
+      showError(`A deck named "${name}" already exists.`);
+      return;
+    }
+
+    // Canonicalize card names via Scryfall
+    try {
+      await canonicalizeCards(parseResult.cards);
+    } catch (err) {
+      console.warn("Card canonicalization failed, using raw names:", err.message);
+    }
+
+    // Get card names from the new deck (no processCards call)
+    const newCardNames = new Set(
+      parseResult.cards.map((c) => c.name.toLowerCase()),
+    );
+
+    // Create deck
+    const deck = createDeck({
+      name,
+      commander,
+      bracket,
+      color,
+      stripePosition: getNextStripePosition(state.currentPrism),
+      cards: parseResult.cards,
+    });
+
+    // Add to PRISM
+    state.currentPrism = addDeckToPrism(state.currentPrism, deck);
+
+    // Unmark marked cards that are now shared with this deck
+    const unmarkedCount = unmarkSharedCards(newCardNames);
+
+    // Auto-clear any removed cards that are now back
+    const autoClearedCount = autoClearRemovedCards(parseResult.cards);
+
+    savePrism(state.currentPrism);
+
+    console.log("PRISM: Deck added:", deck.name);
+
+    // Reset form and re-render
+    resetDeckForm();
+    renderAll();
+
+    // Show success feedback
+    let message = `Added "${name}" with ${parseResult.uniqueCards} cards.`;
+    if (unmarkedCount > 0) {
+      message += ` ${unmarkedCount} card${unmarkedCount > 1 ? "s" : ""} unchecked (new stripes added).`;
+    }
+    if (autoClearedCount > 0) {
+      message += ` ${autoClearedCount} card${autoClearedCount > 1 ? "s" : ""} auto-cleared from removed list.`;
+    }
+    showSuccess(message);
+  } finally {
+    _submitting = false;
   }
-
-  // Get card names from the new deck (no processCards call)
-  const newCardNames = new Set(
-    parseResult.cards.map((c) => c.name.toLowerCase()),
-  );
-
-  // Create deck
-  const deck = createDeck({
-    name,
-    commander,
-    bracket,
-    color,
-    stripePosition: getNextStripePosition(state.currentPrism),
-    cards: parseResult.cards,
-  });
-
-  // Add to PRISM
-  state.currentPrism = addDeckToPrism(state.currentPrism, deck);
-
-  // Unmark marked cards that are now shared with this deck
-  const unmarkedCount = unmarkSharedCards(newCardNames);
-
-  // Auto-clear any removed cards that are now back
-  const autoClearedCount = autoClearRemovedCards(parseResult.cards);
-
-  savePrism(state.currentPrism);
-
-  console.log("PRISM: Deck added:", deck.name);
-
-  // Reset form and re-render
-  resetDeckForm();
-  renderAll();
-
-  // Show success feedback
-  let message = `Added "${name}" with ${parseResult.uniqueCards} cards.`;
-  if (unmarkedCount > 0) {
-    message += ` ${unmarkedCount} card${unmarkedCount > 1 ? "s" : ""} unchecked (new stripes added).`;
-  }
-  if (autoClearedCount > 0) {
-    message += ` ${autoClearedCount} card${autoClearedCount > 1 ? "s" : ""} auto-cleared from removed list.`;
-  }
-  showSuccess(message);
 }
 
 // ============================================================================
