@@ -21,18 +21,9 @@ export function setupEventListeners() {
     state.elements.prismName.addEventListener('input', handlePrismNameChange);
   }
 
-  // Deck form submission - use both submit event and button click as fallback
+  // Deck form submission
   if (state.elements.deckForm) {
     state.elements.deckForm.addEventListener('submit', handleDeckSubmit);
-
-    // Also add click handler to the submit button as backup
-    const submitBtn = state.elements.deckForm.querySelector('wa-button[type="submit"]');
-    if (submitBtn) {
-      submitBtn.addEventListener('click', (e) => {
-        e.preventDefault();
-        handleDeckSubmit(e);
-      });
-    }
   }
 
   if (state.elements.btnResetForm) {
