@@ -300,9 +300,15 @@ export async function syncWithSupabase() {
 
   storage.prisms = merged;
 
-  // If no current PRISM is set (e.g. new device), pick the most recently updated one
-  if (!storage.currentPrismId || !storage.prisms[storage.currentPrismId]) {
-    const prismEntries = Object.entries(storage.prisms);
+  // Pick the best current PRISM after merge:
+  // - If no current PRISM is set or it was deleted, pick most recent
+  // - If current PRISM is empty (no decks) and cloud has data, switch to cloud PRISM
+  const currentPrism = storage.currentPrismId ? storage.prisms[storage.currentPrismId] : null;
+  const currentIsEmpty = !currentPrism || !currentPrism.decks || currentPrism.decks.length === 0;
+  const cloudHasData = Object.keys(cloudPrisms).length > 0;
+
+  if (!storage.currentPrismId || !storage.prisms[storage.currentPrismId] || (currentIsEmpty && cloudHasData)) {
+    const prismEntries = Object.entries(cloudHasData ? cloudPrisms : storage.prisms);
     if (prismEntries.length > 0) {
       prismEntries.sort((a, b) =>
         new Date(b[1].updatedAt || b[1].createdAt) - new Date(a[1].updatedAt || a[1].createdAt)
