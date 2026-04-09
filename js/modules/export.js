@@ -122,6 +122,7 @@ export function exportToJSON(prism) {
         sideAPosition: group.sideAPosition,
         sideAColor: group.sideAColor,
         sideAColorName: getColorName(group.sideAColor),
+        splitStyle: group.splitStyle || 'stripes',
         childDeckIds: group.childDeckIds
       })),
       decks: prism.decks.map(deck => ({
@@ -153,7 +154,9 @@ export function exportToJSON(prism) {
           deckName: s.deckName,
           deckId: s.deckId,
           groupId: s.groupId || null,
-          bracket: s.bracket
+          bracket: s.bracket,
+          markType: s.markType || 'stripe',
+          dotIndex: s.dotIndex
         }))
       })),
       markedCards: prism.markedCards || [],
@@ -254,6 +257,13 @@ export function generatePrintableGuide(prism) {
     .stripe-dot.stripe-side-b {
       border-style: dashed;
     }
+    .stripe-dot.stripe-variant-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      border: 2px solid #333;
+      align-self: center;
+    }
     .stripe-empty {
       width: 16px;
       height: 16px;
@@ -294,7 +304,7 @@ export function generatePrintableGuide(prism) {
     html += `
     <div class="deck-item" style="width: 100%;">
       <div class="color-swatch" style="background: ${group.sideAColor}"></div>
-      <span><strong>${formatSlotLabel(group.sideAPosition, 'a')}:</strong> ${group.name} (split group)</span>
+      <span><strong>${formatSlotLabel(group.sideAPosition, 'a')}:</strong> ${group.name} (split group · ${(group.splitStyle || 'stripes') === 'dots' ? 'dots' : 'stripes'})</span>
     </div>`;
   }
 
@@ -334,8 +344,9 @@ export function generatePrintableGuide(prism) {
     const rowClass = card.deckCount > 1 ? 'shared' : '';
     const nameClass = card.isBasicLand ? 'basic-land' : '';
 
-    // Show all slots with empty placeholders
-    const stripeMap = new Map(card.stripes.map(s => [s.position, s]));
+    // Show all slots with empty placeholders, plus dot indicators
+    const stripeMap = new Map(card.stripes.filter(s => s.markType !== 'dot').map(s => [s.position, s]));
+    const dotStripes = card.stripes.filter(s => s.markType === 'dot' && s.dotIndex > 0);
     let stripeIndicators = '';
     for (const pos of allPositions) {
       const stripe = stripeMap.get(pos);
@@ -344,6 +355,10 @@ export function generatePrintableGuide(prism) {
       } else {
         stripeIndicators += `<div class="stripe-empty" title="${formatSlotLabel(pos)}: Empty"></div>`;
       }
+    }
+    // Add dot indicators after stripes
+    for (const dot of dotStripes) {
+      stripeIndicators += `<div class="stripe-dot stripe-variant-dot" style="background: ${dot.color}" title="Dot: ${dot.deckName}"></div>`;
     }
 
     html += `

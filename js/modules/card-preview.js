@@ -1,6 +1,7 @@
 // Card preview with stripe overlay
 
 import { fetchCard } from './scryfall.js';
+import { getPreferences } from './storage.js';
 
 // Display dimensions (half of Scryfall 'normal' 488x680)
 const DISPLAY_WIDTH = 244;
@@ -8,34 +9,77 @@ const DISPLAY_HEIGHT = 340;
 const SCALE = 0.5; // Display scale factor
 
 // Stripe positioning at display scale
-// Side A (positions 1-24): right edge of card
-// Side B (positions 25-48): left edge of card
 // 24 slots per side, spanning the card art area
 const STRIPE_START_Y = 28;   // Start just below title bar
 const STRIPE_SLOT_HEIGHT = 12; // Spacing between stripe positions
 const SLOTS_PER_SIDE = 24;
+const STRIPE_END_Y = STRIPE_START_Y + (SLOTS_PER_SIDE - 1) * STRIPE_SLOT_HEIGHT;
+
+// Parse corner preference into rendering config
+function getCornerConfig() {
+  const prefs = getPreferences();
+  const corner = prefs.stripeStartCorner || 'top-right';
+  return {
+    sideARight: corner.includes('right'),  // Side A stripes on right edge
+    topDown: corner.includes('top'),        // Position 1 at top
+  };
+}
 
 // Get Y position for a stripe at display scale
-// Side A: position 1-24 → index 0-23
-// Side B: position 25-48 → index 0-23
-function getStripeY(position) {
+// Supports top-down (position 1 at top) or bottom-up (position 1 at bottom)
+function getStripeY(position, topDown = true) {
   const index = position <= SLOTS_PER_SIDE
     ? position - 1
     : position - SLOTS_PER_SIDE - 1;
-  return STRIPE_START_Y + index * STRIPE_SLOT_HEIGHT;
+  if (topDown) {
+    return STRIPE_START_Y + index * STRIPE_SLOT_HEIGHT;
+  }
+  return STRIPE_END_Y - index * STRIPE_SLOT_HEIGHT;
 }
 
 // Create stripe overlay element
 function createStripeOverlay(stripes) {
   const container = document.createElement('div');
   container.className = 'card-preview-stripes';
+  const { sideARight, topDown } = getCornerConfig();
 
   for (const stripe of stripes) {
+    // Handle dot-style variants
+    if (stripe.markType === 'dot') {
+      if (stripe.dotIndex === 0) continue; // Variant 1 has no dot
+
+      const dot = document.createElement('div');
+      // Dots go on the inside (toward center) of the Side A stripe edge
+      const dotOnLeft = sideARight; // If Side A is right, dots go left of it (inward)
+      dot.className = `stripe-dot-mark${dotOnLeft ? '' : ' stripe-dot-mark-right'}`;
+      dot.style.backgroundColor = stripe.color;
+      dot.style.top = `${getStripeY(stripe.position, topDown)}px`;
+
+      // Offset multiple dots horizontally so they don't overlap
+      const insetBase = 28; // Base inset from card edge
+      const dotSpacing = 10; // Spacing between stacked dots
+      const offset = insetBase + (stripe.dotIndex - 1) * dotSpacing;
+      if (dotOnLeft) {
+        dot.style.right = `${offset}px`;
+      } else {
+        dot.style.left = `${offset}px`;
+      }
+
+      dot.title = `${stripe.deckName} (Dot variant ${stripe.dotIndex + 1})`;
+      container.appendChild(dot);
+      continue;
+    }
+
+    // Standard stripe rendering
     const mark = document.createElement('div');
     const isSideB = stripe.side === 'b' || stripe.position > SLOTS_PER_SIDE;
-    mark.className = `stripe-mark${isSideB ? ' stripe-mark-left' : ''}`;
+
+    // Determine which edge this stripe goes on based on corner preference
+    // Side A: on the preferred edge. Side B: on the opposite edge.
+    const onRight = isSideB ? !sideARight : sideARight;
+    mark.className = `stripe-mark${onRight ? '' : ' stripe-mark-left'}`;
     mark.style.backgroundColor = stripe.color;
-    mark.style.top = `${getStripeY(stripe.position)}px`;
+    mark.style.top = `${getStripeY(stripe.position, topDown)}px`;
 
     const sideLabel = isSideB ? 'Side B' : 'Side A';
     mark.title = `${stripe.deckName} (${sideLabel} · Slot ${stripe.position})`;

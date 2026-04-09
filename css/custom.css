@@ -442,6 +442,18 @@ wa-page[view='desktop'] [data-toggle-nav] {
   left: 0px;
 }
 
+.stripe-dot-mark {
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  box-shadow: 0 0 3px rgba(1,1,1, .8);
+}
+
+.stripe-dot-mark-right {
+  right: auto;
+}
+
 /* Card name hover cursor */
 .card-name-cell {
   cursor: pointer;
@@ -484,6 +496,15 @@ wa-page[view='desktop'] [data-toggle-nav] {
 .stripe-indicator.stripe-side-b {
   border-style: dashed;
   border-width: 2px;
+}
+
+/* Dot variant indicators in results table */
+.stripe-indicator.stripe-dot-indicator {
+  border-radius: 50%;
+  width: 10px;
+  height: 10px;
+  align-self: center;
+  border: 1px solid var(--wa-color-neutral-stroke);
 }
 
 /* Printable guide Side B dots */

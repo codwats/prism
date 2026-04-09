@@ -64,7 +64,7 @@ export function renderExport() {
         <div class="wa-stack wa-gap-2xs" style="width: 100%;">
           <div class="wa-cluster wa-gap-xs wa-align-items-center">
             <div class="deck-color-indicator small" style="background-color: ${group.sideAColor};"></div>
-            <span><strong>${formatSlotLabel(group.sideAPosition, 'a')}:</strong> ${escapeHtml(group.name)} <span style="color:var(--wa-color-neutral-text-subtle);">(split group)</span></span>
+            <span><strong>${formatSlotLabel(group.sideAPosition, 'a')}:</strong> ${escapeHtml(group.name)} <span style="color:var(--wa-color-neutral-text-subtle);">(split group · ${(group.splitStyle || 'stripes') === 'dots' ? 'dots' : 'stripes'})</span></span>
           </div>
           ${children.map(child => `
             <div class="wa-cluster wa-gap-xs wa-align-items-center" style="padding-left: var(--wa-space-l);">
