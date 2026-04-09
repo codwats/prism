@@ -3,6 +3,13 @@
 import { fetchCard } from './scryfall.js';
 import { getPreferences } from './storage.js';
 
+// Strip back-face name from DFCs for Scryfall lookup
+// "Bala Ged Recovery // Bala Ged Sanctuary" → "Bala Ged Recovery"
+function frontFaceName(name) {
+  const idx = name.indexOf(' // ');
+  return idx !== -1 ? name.substring(0, idx) : name;
+}
+
 // Display dimensions (half of Scryfall 'normal' 488x680)
 const DISPLAY_WIDTH = 244;
 const DISPLAY_HEIGHT = 340;
@@ -210,7 +217,7 @@ export async function showPreview(cardName, stripes, event) {
   positionTooltip(tooltip, event);
 
   try {
-    const cardData = await fetchCard(cardName);
+    const cardData = await fetchCard(frontFaceName(cardName));
 
     // Check if we're still showing this card (user might have moved away)
     if (currentCardName !== cardName) return;
@@ -236,7 +243,7 @@ export async function showPreview(cardName, stripes, event) {
     tooltip.appendChild(createPreviewElement(cardData.image_uri, stripes));
     positionTooltip(tooltip, event);
   } catch (error) {
-    console.warn('Failed to load card preview:', error.message);
+    console.warn(`Failed to load card preview for "${cardName}":`, error.message);
 
     // Check if still showing this card
     if (currentCardName !== cardName) return;

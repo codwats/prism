@@ -81,27 +81,43 @@ export function clearCache() {
   localStorage.removeItem(CACHE_KEY);
 }
 
+// Fetch a single URL with 429 retry (one attempt after backoff)
+async function fetchWithRetry(url) {
+  const response = await fetch(url);
+
+  if (response.status === 429) {
+    await sleep(REQUEST_DELAY * 10);
+    lastRequestTime = Date.now();
+    const retry = await fetch(url);
+    if (!retry.ok) {
+      throw new Error(`Rate limited by Scryfall (retry failed: ${retry.status})`);
+    }
+    return retry;
+  }
+
+  return response;
+}
+
 // Fetch from Scryfall API
 async function fetchFromScryfall(cardName) {
   const encodedName = encodeURIComponent(cardName);
   const url = `${API_BASE}/cards/named?exact=${encodedName}`;
 
-  const response = await fetch(url);
+  const response = await fetchWithRetry(url);
 
   if (response.status === 404) {
-    // Card not found - try fuzzy search
+    // Rate-limit the fuzzy fallback request
+    await sleep(REQUEST_DELAY);
+    lastRequestTime = Date.now();
+
     const fuzzyUrl = `${API_BASE}/cards/named?fuzzy=${encodedName}`;
-    const fuzzyResponse = await fetch(fuzzyUrl);
+    const fuzzyResponse = await fetchWithRetry(fuzzyUrl);
 
     if (!fuzzyResponse.ok) {
       throw new Error(`Card not found: ${cardName}`);
     }
 
     return fuzzyResponse.json();
-  }
-
-  if (response.status === 429) {
-    throw new Error('Rate limited by Scryfall');
   }
 
   if (!response.ok) {
@@ -128,7 +144,13 @@ async function processQueue() {
     try {
       const scryfallData = await fetchFromScryfall(cardName);
       const result = extractCardData(scryfallData);
-      cacheCard(cardName, result);
+      if (result.image_uri) {
+        cacheCard(cardName, result);
+        // Also cache under Oracle name if different (e.g. front-face lookup → full DFC name)
+        if (result.name && result.name.toLowerCase().trim() !== cardName.toLowerCase().trim()) {
+          cacheCard(result.name, result);
+        }
+      }
       resolve(result);
     } catch (error) {
       reject(error);
