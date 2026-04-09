@@ -115,6 +115,11 @@ Preferences: { colorScheme, defaultColors, stripeStartCorner ('top-right'|'top-l
 
 `processCards(prism)` deduplicates cards across all decks and assigns stripe indicators. Basic lands use **max quantity** across decks (not sum). Card names are canonicalized via Scryfall API before storage. For dot-style split groups, Side B entries include `markType: 'dot'` and `dotIndex` (0 = no dot, 1+ = colored dot).
 
+### Display Counts
+
+- **Decks tab** — Each deck card shows **pool** (cards in 2+ decks) and **core** (cards unique to that deck) counts. Both include full basic land quantities per deck. Computed via `getDeckPoolCoreCounts()` in `deck-list.js`.
+- **Results tab** — Stats cards show **Total Cards** (sum of `totalQuantity` across all processed cards, including basic land copies) and **Pool Cards** (same sum but only cards in 2+ decks). These numbers help users plan sleeve purchases and storage.
+
 ## Common Debugging
 
 ### Web Awesome Components
