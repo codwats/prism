@@ -5,7 +5,7 @@
 import { state } from '../core/state.js';
 import { getLogicalDeckCount } from '../core/utils.js';
 import { createPrism } from '../modules/processor.js';
-import { getCurrentPrism, savePrism, setCurrentPrism } from '../modules/storage.js';
+import { getCurrentPrism, savePrism, setCurrentPrism, getPreferences } from '../modules/storage.js';
 import { initAuth, setupAuthListeners } from '../modules/auth.js';
 import { initColorSwatches } from './deck-form.js';
 import { renderDecksList } from './deck-list.js';
@@ -111,8 +111,12 @@ function getElements() {
     splitDeckId: document.getElementById('split-deck-id'),
     splitDeckName: document.getElementById('split-deck-name'),
     splitCount: document.getElementById('split-count'),
+    splitStyle: document.getElementById('split-style'),
     btnCancelSplit: document.getElementById('btn-cancel-split'),
     btnConfirmSplit: document.getElementById('btn-confirm-split'),
+
+    // Stripe settings
+    stripeStartCorner: document.getElementById('stripe-start-corner'),
   };
 }
 
@@ -145,6 +149,12 @@ export async function init() {
     state.currentPrism = createPrism();
     savePrism(state.currentPrism);
     setCurrentPrism(state.currentPrism.id);
+  }
+
+  // Load stripe settings preference
+  if (state.elements.stripeStartCorner) {
+    const prefs = getPreferences();
+    state.elements.stripeStartCorner.value = prefs.stripeStartCorner || 'top-right';
   }
 
   // Initialize UI

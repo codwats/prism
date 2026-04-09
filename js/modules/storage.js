@@ -21,7 +21,8 @@ function getDefaultStorage() {
     prisms: {},
     preferences: {
       colorScheme: 'auto',
-      defaultColors: [...DEFAULT_COLORS]
+      defaultColors: [...DEFAULT_COLORS],
+      stripeStartCorner: 'top-right'
     }
   };
 }
@@ -422,7 +423,8 @@ export function getPrism(prismId) {
  */
 export function getPreferences() {
   const storage = loadStorage();
-  return storage.preferences;
+  const defaults = getDefaultStorage().preferences;
+  return { ...defaults, ...storage.preferences };
 }
 
 /**

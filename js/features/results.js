@@ -10,6 +10,28 @@ import { handleMarkToggle, handleClearRemoved } from './deck-list.js';
 import { renderOverlapMatrix } from './analysis.js';
 
 // ============================================================================
+// Stripe indicator helpers
+// ============================================================================
+
+function renderStripeIndicator(s) {
+  // Dot-style variant: render circle for dotIndex > 0, skip dotIndex 0
+  if (s.markType === 'dot') {
+    if (s.dotIndex === 0) return ''; // Variant 1 has no dot indicator
+    return `<div
+      class="stripe-indicator stripe-dot-indicator"
+      style="background-color: ${s.color};"
+      title="Dot: ${escapeHtml(s.deckName)}"
+    ></div>`;
+  }
+  // Standard stripe indicator
+  return `<div
+    class="stripe-indicator${s.side === 'b' ? ' stripe-side-b' : ''}"
+    style="background-color: ${s.color};"
+    title="${formatSlotLabel(s.position)}: ${escapeHtml(s.deckName)}"
+  ></div>`;
+}
+
+// ============================================================================
 // Removed filter badge
 // ============================================================================
 
@@ -34,6 +56,7 @@ export function updateRemovedFilterBadge() {
 
 export function renderResults() {
   const processedCards = processCards(state.currentPrism);
+  state.processedCards = processedCards;
   const sharedCardCount = processedCards.filter(c => c.deckCount > 1).length;
 
   // Update stats
@@ -215,12 +238,7 @@ export function renderResults() {
       for (const pos of allPositions) {
         const stripe = stripeMap.get(pos);
         if (stripe) {
-          stripeIndicators += `
-            <div
-              class="stripe-indicator${stripe.side === 'b' ? ' stripe-side-b' : ''}"
-              style="background-color: ${stripe.color};"
-              title="${formatSlotLabel(stripe.position)}: ${escapeHtml(stripe.deckName)}"
-            ></div>`;
+          stripeIndicators += renderStripeIndicator(stripe);
         } else {
           stripeIndicators += `
             <div
@@ -231,13 +249,7 @@ export function renderResults() {
       }
     } else {
       // Show only filled slots (default)
-      stripeIndicators = card.stripes.map(s => `
-        <div
-          class="stripe-indicator${s.side === 'b' ? ' stripe-side-b' : ''}"
-          style="background-color: ${s.color};"
-          title="${formatSlotLabel(s.position)}: ${escapeHtml(s.deckName)}"
-        ></div>
-      `).join('');
+      stripeIndicators = card.stripes.map(s => renderStripeIndicator(s)).join('');
     }
 
     const rowClass = card.deckCount > 1 ? 'shared-row' : '';
@@ -256,7 +268,9 @@ export function renderResults() {
       position: s.position,
       color: s.color,
       deckName: s.deckName,
-      side: s.side || 'a'
+      side: s.side || 'a',
+      markType: s.markType,
+      dotIndex: s.dotIndex,
     }))).replace(/&/g, '&amp;').replace(/'/g, '&#39;');
 
     return `

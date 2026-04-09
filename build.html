@@ -277,6 +277,22 @@
                 </div>
               </wa-card>
 
+              <!-- Stripe Settings -->
+              <wa-card>
+                <div slot="header" class="wa-heading-m">Stripe Settings</div>
+                <div class="wa-stack wa-gap-m">
+                  <p class="wa-caption-m" style="color: var(--wa-color-neutral-text-subtle);">
+                    Choose which corner of the card stripes originate from.
+                  </p>
+                  <wa-radio-group id="stripe-start-corner" label="Starting Corner" value="top-right">
+                    <wa-radio value="top-right">Top Right (default)</wa-radio>
+                    <wa-radio value="top-left">Top Left</wa-radio>
+                    <wa-radio value="bottom-right">Bottom Right</wa-radio>
+                    <wa-radio value="bottom-left">Bottom Left</wa-radio>
+                  </wa-radio-group>
+                </div>
+              </wa-card>
+
               <!-- Export Options -->
               <wa-card>
                 <div slot="header" class="wa-heading-m">Export Options</div>
@@ -431,6 +447,10 @@
           plus each variant's Side B mark.
         </p>
         <input type="hidden" id="split-deck-id" />
+        <wa-radio-group id="split-style" label="Variant marking style" value="stripes">
+          <wa-radio value="stripes">Stripes (Side B marks on opposite edge)</wa-radio>
+          <wa-radio value="dots">Dots (colored dots next to Side A stripe)</wa-radio>
+        </wa-radio-group>
         <wa-number-input
           id="split-count"
           label="Number of variants"

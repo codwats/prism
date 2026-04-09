@@ -9,6 +9,8 @@ import { handleDeckSubmit, resetDeckForm, updateColorSwatchSelection, checkColor
 import { handleFileUpload, handleJsonImport, handleMoxfieldImport, handleEditFileUpload, handleEditUrlImport } from './deck-import.js';
 import { handleDeleteConfirm, handleEditConfirm, handleNewPrism, handleSplitConfirm } from './deck-list.js';
 import { renderResults } from './results.js';
+import { updatePreferences } from '../modules/storage.js';
+import { renderAll } from './init.js';
 
 // ============================================================================
 // Event Listeners
@@ -154,6 +156,14 @@ export function setupEventListeners() {
     state.elements.btnConfirmSplit.addEventListener('click', handleSplitConfirm);
   }
 
+  // Stripe starting corner preference
+  if (state.elements.stripeStartCorner) {
+    state.elements.stripeStartCorner.addEventListener('wa-change', (e) => {
+      updatePreferences({ stripeStartCorner: e.target.value });
+      renderAll();
+    });
+  }
+
   // Card preview hover handlers (event delegation on results table)
   if (state.elements.resultsTbody) {
     state.elements.resultsTbody.addEventListener('mouseenter', handleCardPreviewShow, true);
@@ -171,16 +181,11 @@ function handleCardPreviewShow(e) {
   if (!cell) return;
 
   const cardName = cell.dataset.cardName;
-  const stripesJson = cell.dataset.stripes;
-
   if (!cardName) return;
 
-  let stripes = [];
-  try {
-    stripes = JSON.parse(stripesJson || '[]');
-  } catch (err) {
-    console.warn('Failed to parse stripes data:', err);
-  }
+  // Look up full stripe data from processed cards (includes markType, dotIndex, etc.)
+  const card = (state.processedCards || []).find(c => c.name === cardName);
+  const stripes = card ? card.stripes : [];
 
   showPreview(cardName, stripes, e);
 }
