@@ -186,9 +186,11 @@ export function processCards(prism) {
 						quantity: null,
 					});
 				}
-				// Side B stripe for this specific split
+				// Side B mark for this specific split (stripe or dot depending on group style)
+				const isDotStyle = (group.splitStyle || 'stripes') === 'dots';
+				const dotIndex = isDotStyle ? group.childDeckIds.indexOf(deck.id) : -1;
 				cardData.stripes.push({
-					position: deck.stripePosition,
+					position: isDotStyle ? group.sideAPosition : deck.stripePosition,
 					color: deck.color,
 					side: "b",
 					deckName: deck.name,
@@ -196,6 +198,8 @@ export function processCards(prism) {
 					groupId: group.id,
 					bracket: deck.bracket,
 					quantity: card.quantity,
+					markType: isDotStyle ? 'dot' : 'stripe',
+					dotIndex: isDotStyle ? dotIndex : undefined,
 				});
 			} else {
 				// Standalone deck: single Side A stripe
@@ -527,13 +531,14 @@ export function isCardInOtherDecks(prism, cardName, excludeDeckId) {
  * @param {Object} params - Split group parameters
  * @returns {Object} A new split group object
  */
-export function createSplitGroup({ name, sideAPosition, sideAColor }) {
+export function createSplitGroup({ name, sideAPosition, sideAColor, splitStyle = 'stripes' }) {
 	return {
 		id: generateId(),
 		name,
 		sideAPosition,
 		sideAColor: sideAColor.toUpperCase(),
 		childDeckIds: [],
+		splitStyle,
 	};
 }
 
@@ -546,7 +551,7 @@ export function createSplitGroup({ name, sideAPosition, sideAColor }) {
  * @param {number} splitCount - Number of splits (2-8)
  * @returns {Object} Updated PRISM with split group and child decks
  */
-export function splitDeck(prism, deckId, splitCount) {
+export function splitDeck(prism, deckId, splitCount, splitStyle = 'stripes') {
 	const deck = prism.decks.find((d) => d.id === deckId);
 	if (!deck || deck.splitGroupId) return prism; // Can't split a deck that's already in a group
 
@@ -555,6 +560,7 @@ export function splitDeck(prism, deckId, splitCount) {
 		name: deck.name,
 		sideAPosition: deck.stripePosition,
 		sideAColor: deck.color,
+		splitStyle,
 	});
 
 	const now = new Date().toISOString();

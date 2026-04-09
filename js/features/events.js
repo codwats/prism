@@ -9,6 +9,8 @@ import { handleDeckSubmit, resetDeckForm, updateColorSwatchSelection, checkColor
 import { handleFileUpload, handleJsonImport, handleMoxfieldImport, handleEditFileUpload, handleEditUrlImport } from './deck-import.js';
 import { handleDeleteConfirm, handleEditConfirm, handleNewPrism, handleSplitConfirm } from './deck-list.js';
 import { renderResults } from './results.js';
+import { updatePreferences } from '../modules/storage.js';
+import { renderAll } from './init.js';
 
 // ============================================================================
 // Event Listeners
@@ -152,6 +154,14 @@ export function setupEventListeners() {
   }
   if (state.elements.btnConfirmSplit) {
     state.elements.btnConfirmSplit.addEventListener('click', handleSplitConfirm);
+  }
+
+  // Stripe starting corner preference
+  if (state.elements.stripeStartCorner) {
+    state.elements.stripeStartCorner.addEventListener('wa-change', (e) => {
+      updatePreferences({ stripeStartCorner: e.target.value });
+      renderAll();
+    });
   }
 
   // Card preview hover handlers (event delegation on results table)

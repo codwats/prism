@@ -448,6 +448,9 @@ export function handleSplitClick(deckId) {
   state.elements.splitDeckId.value = deckId;
   state.elements.splitDeckName.textContent = deck.name;
   state.elements.splitCount.value = "2";
+  if (state.elements.splitStyle) {
+    state.elements.splitStyle.value = "stripes";
+  }
   state.elements.splitDialog.open = true;
 }
 
@@ -460,7 +463,8 @@ export function handleSplitConfirm() {
     return;
   }
 
-  state.currentPrism = splitDeck(state.currentPrism, deckId, count);
+  const splitStyle = state.elements.splitStyle?.value || 'stripes';
+  state.currentPrism = splitDeck(state.currentPrism, deckId, count, splitStyle);
   savePrism(state.currentPrism);
 
   state.elements.splitDialog.open = false;
@@ -657,6 +661,10 @@ export function renderDecksList() {
                   <wa-tag size="small" variant="brand" appearance="outlined">
                     <wa-icon name="code-branch" style="font-size: 0.8em;"></wa-icon>
                     ${children.length} variants
+                  </wa-tag>
+                  <wa-tag size="small" variant="${(group.splitStyle || 'stripes') === 'dots' ? 'success' : 'neutral'}" appearance="outlined">
+                    <wa-icon name="${(group.splitStyle || 'stripes') === 'dots' ? 'circles-three' : 'lines-horizontal'}" style="font-size: 0.8em;"></wa-icon>
+                    ${(group.splitStyle || 'stripes') === 'dots' ? 'Dots' : 'Stripes'}
                   </wa-tag>
                 </div>
                 <div class="wa-caption-m" style="color: var(--wa-color-neutral-text-subtle);">
