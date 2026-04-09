@@ -56,6 +56,7 @@ export function updateRemovedFilterBadge() {
 
 export function renderResults() {
   const processedCards = processCards(state.currentPrism);
+  state.processedCards = processedCards;
   const sharedCardCount = processedCards.filter(c => c.deckCount > 1).length;
 
   // Update stats
@@ -267,7 +268,9 @@ export function renderResults() {
       position: s.position,
       color: s.color,
       deckName: s.deckName,
-      side: s.side || 'a'
+      side: s.side || 'a',
+      markType: s.markType,
+      dotIndex: s.dotIndex,
     }))).replace(/&/g, '&amp;').replace(/'/g, '&#39;');
 
     return `

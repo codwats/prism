@@ -10,4 +10,5 @@ export const state = {
   elements: null,
   sortState: { column: 'deckCount', direction: 'desc' },
   selectedDeckIds: new Set(),
+  processedCards: [],  // Cache of last processCards() result for hover preview
 };

@@ -181,16 +181,11 @@ function handleCardPreviewShow(e) {
   if (!cell) return;
 
   const cardName = cell.dataset.cardName;
-  const stripesJson = cell.dataset.stripes;
-
   if (!cardName) return;
 
-  let stripes = [];
-  try {
-    stripes = JSON.parse(stripesJson || '[]');
-  } catch (err) {
-    console.warn('Failed to parse stripes data:', err);
-  }
+  // Look up full stripe data from processed cards (includes markType, dotIndex, etc.)
+  const card = (state.processedCards || []).find(c => c.name === cardName);
+  const stripes = card ? card.stripes : [];
 
   showPreview(cardName, stripes, e);
 }
