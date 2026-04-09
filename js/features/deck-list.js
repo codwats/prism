@@ -532,10 +532,40 @@ export function handleStripeReorder(deckId, direction) {
 }
 
 // ============================================================================
+// Pool/Core count helpers
+// ============================================================================
+
+function getDeckPoolCoreCounts(deck, processedCards) {
+  let pool = 0;
+  let core = 0;
+
+  for (const card of processedCards) {
+    // Check if this card belongs to this deck
+    const inThisDeck = card.stripes.some(s => s.deckId === deck.id);
+    if (!inThisDeck) continue;
+
+    // For basic lands, use this deck's actual quantity
+    let qty = 1;
+    if (card.isBasicLand) {
+      const deckCard = deck.cards.find(c => c.name.toLowerCase() === card.name.toLowerCase());
+      qty = deckCard?.quantity || 1;
+    }
+
+    if (card.deckCount > 1) {
+      pool += qty;
+    } else {
+      core += qty;
+    }
+  }
+
+  return { pool, core };
+}
+
+// ============================================================================
 // Render deck card + deck list
 // ============================================================================
 
-export function renderDeckCard(deck, showActions = true) {
+export function renderDeckCard(deck, showActions = true, processedCards = null) {
   const slotLabel = formatSlotLabel(deck.stripePosition);
   const isInGroup = !!deck.splitGroupId;
 
@@ -551,7 +581,7 @@ export function renderDeckCard(deck, showActions = true) {
               <wa-tag size="small" variant="neutral">Bracket ${deck.bracket}</wa-tag>
             </div>
             <div class="wa-caption-m" style="color: var(--wa-color-neutral-text-subtle);">
-              ${escapeHtml(deck.commander)} • ${deck.cards.length} cards
+              ${escapeHtml(deck.commander)}${processedCards ? (() => { const { pool, core } = getDeckPoolCoreCounts(deck, processedCards); return ` • ${pool} pool • ${core} core`; })() : ` • ${deck.cards.length} cards`}
             </div>
           </div>
         </div>
@@ -604,6 +634,7 @@ export function renderDecksList() {
     (a, b) => a.stripePosition - b.stripePosition,
   );
   const splitGroups = state.currentPrism.splitGroups || [];
+  const processed = sortedDecks.length > 0 ? processCards(state.currentPrism) : [];
 
   if (sortedDecks.length === 0) {
     state.elements.decksList.innerHTML = `
@@ -641,7 +672,7 @@ export function renderDecksList() {
 
   const htmlParts = renderItems.map((item) => {
     if (item.type === "standalone") {
-      return `<wa-card class="deck-card" data-deck-id="${item.deck.id}">${renderDeckCard(item.deck)}</wa-card>`;
+      return `<wa-card class="deck-card" data-deck-id="${item.deck.id}">${renderDeckCard(item.deck, true, processed)}</wa-card>`;
     }
     const group = item.group;
     const children = group.childDeckIds
@@ -685,7 +716,7 @@ export function renderDecksList() {
           </div>
         </div>
         <div class="split-children">
-          ${children.map((child) => renderDeckCard(child)).join("")}
+          ${children.map((child) => renderDeckCard(child, true, processed)).join("")}
         </div>
       </wa-card>
     `;

@@ -57,10 +57,11 @@ export function updateRemovedFilterBadge() {
 export function renderResults() {
   const processedCards = processCards(state.currentPrism);
   state.processedCards = processedCards;
-  const sharedCardCount = processedCards.filter(c => c.deckCount > 1).length;
+  const totalCardCount = processedCards.reduce((sum, c) => sum + c.totalQuantity, 0);
+  const sharedCardCount = processedCards.filter(c => c.deckCount > 1).reduce((sum, c) => sum + c.totalQuantity, 0);
 
   // Update stats
-  if (state.elements.statTotal) state.elements.statTotal.textContent = processedCards.length;
+  if (state.elements.statTotal) state.elements.statTotal.textContent = totalCardCount;
   if (state.elements.statShared) state.elements.statShared.textContent = sharedCardCount;
 
   // Show/hide based on deck count

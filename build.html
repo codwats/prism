@@ -184,17 +184,37 @@
           <wa-tab-panel name="results">
             <div class="wa-stack wa-gap-l">
               <!-- Stats Summary -->
-              <div id="results-stats" class="wa-grid wa-gap-m" style="--min-column-size: 150px;">
-                <wa-card appearance="filled">
-                  <div class="wa-stack wa-gap-2xs wa-align-items-center">
-                    <span class="wa-heading-3xl" id="stat-total">0</span>
-                    <span class="wa-caption-m">Total Cards (Not counting basics)</span>
+              <div id="results-stats" class="wa-grid wa-gap-m" style="--min-column-size: 30ch">
+                <wa-card>
+                  <div class="wa-flank wa-align-items-start">
+                    <wa-avatar shape="rounded">
+                      <wa-icon slot="icon" name="box-open"></wa-icon>
+                    </wa-avatar>
+                    <div class="wa-stack wa-gap-2xs">
+                      <h3 class="wa-caption-s">Total Cards</h3>
+                      <div class="wa-cluster wa-gap-xs">
+                        <span class="wa-heading-xl" id="stat-total">0</span>
+                        <wa-badge variant="neutral" appearance="outlined" pill>
+                          Pool+Core
+                        </wa-badge>
+                      </div>
+                    </div>
                   </div>
                 </wa-card>
-                <wa-card appearance="filled">
-                  <div class="wa-stack wa-gap-2xs wa-align-items-center">
-                    <span class="wa-heading-3xl" id="stat-shared">0</span>
-                    <span class="wa-caption-m">POOL (2+ Decks)</span>
+                <wa-card>
+                  <div class="wa-flank wa-align-items-start">
+                    <wa-avatar shape="rounded">
+                      <wa-icon slot="icon" name="object-group"></wa-icon>
+                    </wa-avatar>
+                    <div class="wa-stack wa-gap-2xs">
+                      <h3 class="wa-caption-s">Pool Cards</h3>
+                      <div class="wa-cluster wa-gap-xs">
+                        <span class="wa-heading-xl" id="stat-shared">0</span>
+                        <wa-badge variant="neutral" appearance="outlined" pill>
+                          Cards in 2+ Decks
+                        </wa-badge>
+                      </div>
+                    </div>
                   </div>
                 </wa-card>
               </div>
