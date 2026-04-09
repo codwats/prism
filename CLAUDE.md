@@ -70,6 +70,7 @@ prism/
 - `elements` — cached DOM references (set during init)
 - `sortState` — `{ column, direction }` for results table
 - `selectedDeckIds` — `Set` for deck filter dropdown
+- `processedCards` — cached result of last `processCards()` call (used by hover preview)
 
 ### Layout Injection
 `js/layout.js` exports `initLayout({ activePage, headerCta })`. Every HTML page calls it to inject shared nav, header (with CTA button), footer, and auth dialog. Pages only contain their `<main>` content.
@@ -85,21 +86,25 @@ app.js → features/init.js → all feature modules
 Feature modules have circular imports (e.g., `deck-form ↔ deck-list`, `deck-list → init → deck-list`). This works because all exports are function declarations (hoisted) and only called at runtime, never during module evaluation.
 
 ### Storage
-localStorage key: `prism_data`. Structure: `{ version, currentPrismId, prisms: { [id]: prismData }, preferences }`. Version migrations supported. Supabase sync happens optionally on auth state changes.
+localStorage key: `prism_data`. Structure: `{ version, currentPrismId, prisms: { [id]: prismData }, preferences }`. Version migrations supported. Supabase sync happens optionally on auth state changes. `getPreferences()` merges with defaults so new preference keys auto-populate for existing users.
 
 ### PRISM Data Model
 ```
 Prism: { id, name, decks[], splitGroups[], markedCards[], removedCards[], createdAt, updatedAt }
 Deck:  { id, name, commander, bracket (1-5), color (hex), stripePosition (1-32), cards[], splitGroupId? }
+SplitGroup: { id, name, sideAPosition, sideAColor, childDeckIds[], splitStyle ('stripes'|'dots') }
 Card:  { name, quantity, isCommander, isBasicLand }
+Preferences: { colorScheme, defaultColors, stripeStartCorner ('top-right'|'top-left'|'bottom-right'|'bottom-left') }
 ```
 - **Stripe positions** 1–32, max 32 logical decks per PRISM
 - **Split groups** let one deck slot have 2–8 variants sharing a Side A position
+- **Split styles** — `'stripes'` (Side B marks on opposite edge) or `'dots'` (colored dots next to Side A stripe). Dot variant 1 has no dot; variant 2+ get colored dots.
+- **Stripe starting corner** — global preference controlling which card corner stripes originate from. Affects card preview, not stored data.
 - **markedCards** tracks which cards the user has physically marked (checkbox state)
 - **removedCards** tracks cards removed from decks that still need physical marks cleared
 
 ### Card Processing
-`processCards(prism)` deduplicates cards across all decks and assigns stripe indicators. Basic lands use **max quantity** across decks (not sum). Card names are canonicalized via Scryfall API before storage.
+`processCards(prism)` deduplicates cards across all decks and assigns stripe indicators. Basic lands use **max quantity** across decks (not sum). Card names are canonicalized via Scryfall API before storage. For dot-style split groups, Side B entries include `markType: 'dot'` and `dotIndex` (0 = no dot, 1+ = colored dot).
 
 ## Common Debugging
 
