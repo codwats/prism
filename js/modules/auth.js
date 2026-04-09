@@ -80,7 +80,8 @@ export async function signUp(email, password) {
 
   const { data, error } = await supabase.auth.signUp({
     email,
-    password
+    password,
+    options: { emailRedirectTo: window.location.origin }
   });
 
   if (error) throw error;
@@ -115,7 +116,9 @@ export async function resetPassword(email) {
   const supabase = getSupabase();
   if (!supabase) throw new Error('Supabase not configured');
 
-  const { error } = await supabase.auth.resetPasswordForEmail(email);
+  const { error } = await supabase.auth.resetPasswordForEmail(email, {
+    redirectTo: window.location.origin
+  });
   if (error) throw error;
 }
 
@@ -138,6 +141,8 @@ export async function updateEmail(newEmail) {
 
   const { error } = await supabase.auth.updateUser({
     email: newEmail
+  }, {
+    emailRedirectTo: window.location.origin
   });
 
   if (error) throw error;
