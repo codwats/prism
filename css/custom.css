@@ -140,7 +140,7 @@ wa-page[view='desktop'] [data-toggle-nav] {
 }
 
 /* ============================================================================
-   Reorder List Items
+   Stripe Position List Items
    ============================================================================ */
 
 .reorder-item {
@@ -148,6 +148,51 @@ wa-page[view='desktop'] [data-toggle-nav] {
   background: var(--wa-color-surface-2);
   border-radius: var(--wa-border-radius-m);
   border: 1px solid var(--wa-color-neutral-stroke-subtle);
+}
+
+.position-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--wa-space-s);
+  padding: var(--wa-space-s) var(--wa-space-m);
+  background: var(--wa-color-surface-2);
+  border-radius: var(--wa-border-radius-m);
+  border: 1px solid var(--wa-color-neutral-stroke-subtle);
+}
+
+.position-item-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.position-item-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.position-item-controls {
+  flex-shrink: 0;
+}
+
+.position-select {
+  width: 160px;
+}
+
+@media (max-width: 768px) {
+  .position-item {
+    flex-wrap: wrap;
+  }
+  .position-item-controls {
+    width: 100%;
+    justify-content: flex-end;
+  }
+  .position-select {
+    flex: 1;
+    min-width: 0;
+    width: auto;
+  }
 }
 
 /* ============================================================================

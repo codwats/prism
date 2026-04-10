@@ -48,6 +48,7 @@ function getElements() {
 
     // Decks list
     decksList: document.getElementById('decks-list'),
+    stripeSettingsCard: document.getElementById('stripe-settings-card'),
     reorderCard: document.getElementById('reorder-card'),
 
     // Results

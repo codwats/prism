@@ -4,8 +4,8 @@
 
 import { state } from '../core/state.js';
 import { escapeHtml } from '../core/utils.js';
-import { formatSlotLabel, getColorName } from '../modules/processor.js';
-import { handleStripeReorder } from './deck-list.js';
+import { formatSlotLabel, getColorName, getPositionOccupants } from '../modules/processor.js';
+import { handleStripeReorder, handlePositionChange } from './deck-list.js';
 
 // ============================================================================
 // Export rendering
@@ -14,9 +14,13 @@ import { handleStripeReorder } from './deck-list.js';
 export function renderExport() {
   const sortedDecks = [...state.currentPrism.decks].sort((a, b) => a.stripePosition - b.stripePosition);
 
-  // Show/hide reorder card based on deck count (needs 2+ decks to reorder)
+  // Show/hide stripe settings & reorder card based on deck count
+  const hasMultipleDecks = sortedDecks.length >= 2;
+  if (state.elements.stripeSettingsCard) {
+    state.elements.stripeSettingsCard.style.display = sortedDecks.length >= 1 ? '' : 'none';
+  }
   if (state.elements.reorderCard) {
-    state.elements.reorderCard.style.display = sortedDecks.length >= 2 ? '' : 'none';
+    state.elements.reorderCard.style.display = hasMultipleDecks ? '' : 'none';
   }
 
   // Deck legend
@@ -76,17 +80,42 @@ export function renderExport() {
     }).join('');
   }
 
-  // Stripe reorder list
+  // Stripe position list with slot picker
   if (state.elements.stripeReorderList) {
+    const occupants = getPositionOccupants(state.currentPrism);
+    const maxSlot = Math.max(24, ...sortedDecks.map(d => d.stripePosition));
+
     state.elements.stripeReorderList.innerHTML = sortedDecks.map((deck, index) => {
-      const slotLabel = formatSlotLabel(deck.stripePosition);
+      // Build select options for all available slots
+      const options = [];
+      for (let slot = 1; slot <= maxSlot; slot++) {
+        const occupant = occupants.get(slot);
+        const isCurrent = slot === deck.stripePosition;
+        let label = `Slot ${slot}`;
+        if (isCurrent) {
+          label += ' (current)';
+        } else if (occupant) {
+          label += ` — ${occupant.name}`;
+        }
+        options.push(`<wa-option value="${slot}" ${isCurrent ? 'selected' : ''}>${escapeHtml(label)}</wa-option>`);
+      }
+
       return `
-      <div class="reorder-item wa-split wa-align-items-center" data-deck-id="${deck.id}">
-        <div class="wa-cluster wa-gap-s wa-align-items-center">
+      <div class="position-item" data-deck-id="${deck.id}">
+        <div class="position-item-info wa-cluster wa-gap-s wa-align-items-center">
           <div class="deck-color-indicator" style="background-color: ${deck.color};"></div>
-          <span><strong>${slotLabel}:</strong> ${escapeHtml(deck.name)}</span>
+          <span class="position-item-name">${escapeHtml(deck.name)}</span>
         </div>
-        <div class="wa-cluster wa-gap-2xs">
+        <div class="position-item-controls wa-cluster wa-gap-xs wa-align-items-center">
+          <wa-select
+            class="position-select"
+            size="small"
+            value="${deck.stripePosition}"
+            data-deck-id="${deck.id}"
+            hoist
+          >
+            ${options.join('')}
+          </wa-select>
           <wa-button
             appearance="plain"
             variant="neutral"
@@ -113,6 +142,13 @@ export function renderExport() {
       </div>
     `;
     }).join('');
+
+    // Add position change listeners
+    state.elements.stripeReorderList.querySelectorAll('.position-select').forEach(select => {
+      select.addEventListener('wa-change', (e) => {
+        handlePositionChange(e.target.dataset.deckId, parseInt(e.target.value, 10));
+      });
+    });
 
     // Add reorder listeners
     state.elements.stripeReorderList.querySelectorAll('.btn-move-up').forEach(btn => {

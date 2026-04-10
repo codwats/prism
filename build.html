@@ -52,17 +52,36 @@
                 <!-- Deck cards will be inserted here -->
               </section>
 
-              <!-- Reorder Stripes -->
+              <!-- Stripe Settings -->
+              <wa-card id="stripe-settings-card" style="display: none;">
+                <div slot="header" class="wa-cluster wa-gap-s wa-align-items-center">
+                  <wa-icon name="palette" style="color: var(--wa-color-brand-fill);"></wa-icon>
+                  <span class="wa-heading-m">Stripe Settings</span>
+                </div>
+                <div class="wa-stack wa-gap-m">
+                  <p class="wa-caption-m" style="color: var(--wa-color-neutral-text-subtle);">
+                    Choose which corner of the card stripes originate from.
+                  </p>
+                  <wa-radio-group id="stripe-start-corner" label="Starting Corner" value="top-right">
+                    <wa-radio value="top-right">Top Right (default)</wa-radio>
+                    <wa-radio value="top-left">Top Left</wa-radio>
+                    <wa-radio value="bottom-right">Bottom Right</wa-radio>
+                    <wa-radio value="bottom-left">Bottom Left</wa-radio>
+                  </wa-radio-group>
+                </div>
+              </wa-card>
+
+              <!-- Stripe Positions -->
               <wa-card id="reorder-card" style="display: none;">
                 <div slot="header" class="wa-cluster wa-gap-s wa-align-items-center">
                   <wa-icon name="arrows-up-down" style="color: var(--wa-color-brand-fill);"></wa-icon>
-                  <span class="wa-heading-m">Reorder Stripe Positions</span>
+                  <span class="wa-heading-m">Stripe Positions</span>
                 </div>
                 <p class="wa-caption-m" style="margin-bottom: var(--wa-space-m);">
-                  Use the arrows to change stripe positions. Position 1 is at the top of the sleeve edge.
+                  Assign each deck to a slot on the card edge. Choose any of the 24 available positions, or use arrows for quick reordering.
                 </p>
                 <div id="stripe-reorder-list" class="wa-stack wa-gap-xs">
-                  <!-- Reorder items will be inserted here -->
+                  <!-- Position items will be inserted here -->
                 </div>
               </wa-card>
 
@@ -294,22 +313,6 @@
                 </div>
                 <div id="no-decks-legend" style="color: var(--wa-color-neutral-text-subtle);">
                   No decks added yet.
-                </div>
-              </wa-card>
-
-              <!-- Stripe Settings -->
-              <wa-card>
-                <div slot="header" class="wa-heading-m">Stripe Settings</div>
-                <div class="wa-stack wa-gap-m">
-                  <p class="wa-caption-m" style="color: var(--wa-color-neutral-text-subtle);">
-                    Choose which corner of the card stripes originate from.
-                  </p>
-                  <wa-radio-group id="stripe-start-corner" label="Starting Corner" value="top-right">
-                    <wa-radio value="top-right">Top Right (default)</wa-radio>
-                    <wa-radio value="top-left">Top Left</wa-radio>
-                    <wa-radio value="bottom-right">Bottom Right</wa-radio>
-                    <wa-radio value="bottom-left">Bottom Left</wa-radio>
-                  </wa-radio-group>
                 </div>
               </wa-card>
 
