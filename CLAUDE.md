@@ -5,7 +5,7 @@ PRISM helps Magic: The Gathering Commander players who share cards across multip
 ## Tech Stack
 
 - **Frontend:** Vanilla JavaScript with ES modules (no bundler, no build step)
-- **UI Components:** [Web Awesome 3.3.1](https://www.webawesome.com/) loaded via CDN kit
+- **UI Components:** [Web Awesome 3.5.0](https://www.webawesome.com/) loaded via CDN kit
 - **Styling:** `css/custom.css` + Web Awesome design tokens (`--wa-color-*`, `--wa-space-*`)
 - **Persistence:** localStorage-first (`prism_data` key), optional Supabase sync when authenticated
 - **Auth:** Supabase Auth (email/password), idempotent init pattern (`authInitialized` flag)
@@ -104,7 +104,7 @@ Card:  { name, quantity, isCommander, isBasicLand }
 Preferences: { colorScheme, defaultColors, stripeStartCorner ('top-right'|'top-left'|'bottom-right'|'bottom-left') }
 ```
 
-- **Stripe positions** 1–32, max 32 logical decks per PRISM
+- **Stripe positions** 1–24, max 32 logical decks per PRISM
 - **Split groups** let one deck slot have 2–8 variants sharing a Side A position
 - **Split styles** — `'stripes'` (Side B marks on opposite edge) or `'dots'` (colored dots next to Side A stripe). Dot variant 1 has no dot; variant 2+ get colored dots.
 - **Stripe starting corner** — global preference controlling which card corner stripes originate from. Affects card preview, not stored data.
