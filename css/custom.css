@@ -260,6 +260,23 @@ wa-page[view='desktop'] [data-toggle-nav] {
   background: var(--wa-color-danger-surface);
 }
 
+.btn-clear-all-removed {
+  background: none;
+  border: 1px solid var(--wa-color-neutral-border);
+  border-radius: var(--wa-border-radius-medium);
+  color: var(--wa-color-neutral-text);
+  font-size: var(--wa-font-size-x-small);
+  padding: var(--wa-space-2x-small) var(--wa-space-x-small);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.btn-clear-all-removed:hover {
+  background: var(--wa-color-danger-surface-subtle);
+  border-color: var(--wa-color-danger-border);
+  color: var(--wa-color-danger-text);
+}
+
 .removed-deck-label {
   font-size: var(--wa-font-size-s);
   color: var(--wa-color-danger-text);
