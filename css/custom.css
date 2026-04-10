@@ -140,7 +140,7 @@ wa-page[view='desktop'] [data-toggle-nav] {
 }
 
 /* ============================================================================
-   Reorder List Items
+   Stripe Position List Items
    ============================================================================ */
 
 .reorder-item {
@@ -148,6 +148,51 @@ wa-page[view='desktop'] [data-toggle-nav] {
   background: var(--wa-color-surface-2);
   border-radius: var(--wa-border-radius-m);
   border: 1px solid var(--wa-color-neutral-stroke-subtle);
+}
+
+.position-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--wa-space-s);
+  padding: var(--wa-space-s) var(--wa-space-m);
+  background: var(--wa-color-surface-2);
+  border-radius: var(--wa-border-radius-m);
+  border: 1px solid var(--wa-color-neutral-stroke-subtle);
+}
+
+.position-item-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.position-item-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.position-item-controls {
+  flex-shrink: 0;
+}
+
+.position-select {
+  width: 160px;
+}
+
+@media (max-width: 768px) {
+  .position-item {
+    flex-wrap: wrap;
+  }
+  .position-item-controls {
+    width: 100%;
+    justify-content: flex-end;
+  }
+  .position-select {
+    flex: 1;
+    min-width: 0;
+    width: auto;
+  }
 }
 
 /* ============================================================================
@@ -510,6 +555,131 @@ wa-page[view='desktop'] [data-toggle-nav] {
 /* Printable guide Side B dots */
 .stripe-dot.stripe-side-b {
   border-style: dashed;
+}
+
+/* ============================================================================
+   Stripe Reorder Dialog
+   ============================================================================ */
+
+.stripe-reorder-sleeve-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--wa-space-xs);
+}
+
+.stripe-reorder-sleeve {
+  display: flex;
+  align-items: stretch;
+  width: 100%;
+  max-width: 480px;
+  min-height: 320px;
+  border: 2px solid var(--wa-color-neutral-stroke);
+  border-radius: 12px;
+  background: var(--wa-color-surface-1);
+  overflow: hidden;
+}
+
+.stripe-reorder-edge {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 4px;
+  background: var(--wa-color-surface-3);
+  flex-shrink: 0;
+}
+
+.stripe-reorder-card-body {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--wa-color-surface-2);
+}
+
+.stripe-reorder-card-hint {
+  text-align: center;
+  color: var(--wa-color-neutral-text-subtle);
+  padding: var(--wa-space-m);
+  font-size: var(--wa-font-size-s);
+}
+
+.stripe-reorder-slot {
+  width: 28px;
+  height: 10px;
+  border-radius: 3px;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: box-shadow 0.12s ease, border-color 0.12s ease;
+}
+
+.stripe-reorder-slot--empty {
+  background: transparent;
+  border: 1.5px dashed var(--wa-color-neutral-40);
+}
+
+.stripe-reorder-slot--occupied {
+  border: 1.5px solid;
+}
+
+.stripe-reorder-slot--active {
+  border: 2px solid var(--wa-color-success-70);
+  box-shadow: 0 0 0 2px var(--wa-color-success-70);
+}
+
+.stripe-reorder-slot--disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+/* Hover state — only on non-active, non-disabled slots */
+.stripe-reorder-slot--empty:hover,
+.stripe-reorder-slot--occupied:hover {
+  border-color: var(--wa-color-warning-70) !important;
+  box-shadow: 0 0 0 2px var(--wa-color-warning-70);
+}
+
+/* Touch active state (no hover on mobile) */
+.stripe-reorder-slot--empty:active,
+.stripe-reorder-slot--occupied:active {
+  border-color: var(--wa-color-warning-70) !important;
+  box-shadow: 0 0 0 2px var(--wa-color-warning-70);
+}
+
+.stripe-reorder-edge-labels {
+  display: flex;
+  justify-content: space-between;
+  width: 100%;
+  max-width: 480px;
+  padding: 0 4px;
+  color: var(--wa-color-neutral-text-subtle);
+}
+
+.stripe-reorder-swap-confirm {
+  padding: var(--wa-space-s) var(--wa-space-m);
+  background: var(--wa-color-warning-surface);
+  border: 1px solid var(--wa-color-warning-stroke-subtle);
+  border-radius: var(--wa-border-radius-m);
+}
+
+.stripe-reorder-legend {
+  padding: var(--wa-space-s) var(--wa-space-m);
+  background: var(--wa-color-surface-2);
+  border: 1px solid var(--wa-color-neutral-stroke-subtle);
+  border-radius: var(--wa-border-radius-m);
+}
+
+/* Wider touch targets on mobile */
+@media (max-width: 768px) {
+  .stripe-reorder-slot {
+    width: 32px;
+    height: 12px;
+  }
+
+  .stripe-reorder-sleeve {
+    min-height: 360px;
+  }
 }
 
 /* Mobile: disable hover previews */

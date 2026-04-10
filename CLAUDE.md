@@ -38,9 +38,10 @@ prism/
 │   │   ├── deck-form.js    Add deck form, color swatches, validation
 │   │   ├── deck-import.js  Moxfield/Archidekt URL import, file upload, JSON import
 │   │   ├── deck-list.js    Deck card rendering, edit/delete/split/mark handlers
+│   │   ├── stripe-reorder-dialog.js  Visual slot-picker dialog for moving deck stripe positions
 │   │   ├── results.js      Results table, sorting, filtering, deck filter menu
 │   │   ├── analysis.js     Overlap matrix, what-if analysis
-│   │   └── export-view.js  Deck legend, stripe reorder list
+│   │   └── export-view.js  Deck legend, stripe reorder list (export tab)
 │   └── modules/            Reusable business logic (shared across pages)
 │       ├── processor.js    Core engine: processCards, createPrism, stripe assignment, split logic
 │       ├── parser.js       Decklist parsing (MTGO/Moxfield format), basic land detection
@@ -104,7 +105,7 @@ Card:  { name, quantity, isCommander, isBasicLand }
 Preferences: { colorScheme, defaultColors, stripeStartCorner ('top-right'|'top-left'|'bottom-right'|'bottom-left') }
 ```
 
-- **Stripe positions** 1–24, max 32 logical decks per PRISM
+- **Stripe positions** 1–24 (Side A) and 25–48 (Side B), max 32 logical decks per PRISM
 - **Split groups** let one deck slot have 2–8 variants sharing a Side A position
 - **Split styles** — `'stripes'` (Side B marks on opposite edge) or `'dots'` (colored dots next to Side A stripe). Dot variant 1 has no dot; variant 2+ get colored dots.
 - **Stripe starting corner** — global preference controlling which card corner stripes originate from. Affects card preview, not stored data.
@@ -171,3 +172,5 @@ Preview viewport should be 1280px+ wide to see the desktop layout (sidebar nav).
 - 22 paint pen colors in `DEFAULT_COLORS` (processor.js) — matched to real products
 - Bracket values 1–5 represent Commander power level
 - `formatSlotLabel(position, side?)` renders "Side A - Slot 1" style labels
+- Stripe Settings in the Decks tab is a `<wa-details>` accordion (collapsed by default)
+- The Stripe Positions reorder card was removed from the Decks tab — use the Move button (⊕) on each deck card to open the visual slot-picker dialog, or use the Export tab's dropdown list for bulk reordering

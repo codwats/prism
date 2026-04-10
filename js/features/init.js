@@ -9,6 +9,7 @@ import { getCurrentPrism, savePrism, setCurrentPrism, getPreferences } from '../
 import { initAuth, setupAuthListeners } from '../modules/auth.js';
 import { initColorSwatches } from './deck-form.js';
 import { renderDecksList } from './deck-list.js';
+import { setupStripeReorderDialog } from './stripe-reorder-dialog.js';
 import { renderResults, updateRemovedFilterBadge } from './results.js';
 import { renderExport } from './export-view.js';
 import { setupEventListeners } from './events.js';
@@ -48,7 +49,7 @@ function getElements() {
 
     // Decks list
     decksList: document.getElementById('decks-list'),
-    reorderCard: document.getElementById('reorder-card'),
+    stripeSettingsCard: document.getElementById('stripe-settings-card'),
 
     // Results
     overlapMatrixContainer: document.getElementById('overlap-matrix-container'),
@@ -117,6 +118,9 @@ function getElements() {
 
     // Stripe settings
     stripeStartCorner: document.getElementById('stripe-start-corner'),
+
+    // Stripe reorder dialog
+    stripeReorderDialog: document.getElementById('stripe-reorder-dialog'),
   };
 }
 
@@ -163,6 +167,7 @@ export async function init() {
 
   // Set up event listeners
   setupEventListeners();
+  setupStripeReorderDialog();
 
   console.log('PRISM: Initialization complete');
 }

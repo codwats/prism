@@ -324,6 +324,113 @@ export function getUsedPositions(prism) {
 }
 
 /**
+ * Get a map of all occupied stripe positions with their occupant info
+ * @param {Object} prism - The PRISM object
+ * @returns {Map<number, {type: string, id: string, name: string, color: string}>}
+ */
+export function getPositionOccupants(prism) {
+	const occupants = new Map();
+
+	// Add split group Side A positions
+	if (prism.splitGroups) {
+		for (const group of prism.splitGroups) {
+			occupants.set(group.sideAPosition, {
+				type: 'group',
+				id: group.id,
+				name: group.name,
+				color: group.sideAColor,
+			});
+		}
+	}
+
+	// Add deck positions (skip split group children for Side A — they share the group's position)
+	if (prism.decks) {
+		for (const deck of prism.decks) {
+			// Don't overwrite a group's Side A entry with a child deck
+			if (!occupants.has(deck.stripePosition)) {
+				occupants.set(deck.stripePosition, {
+					type: 'deck',
+					id: deck.id,
+					name: deck.name,
+					color: deck.color,
+				});
+			}
+		}
+	}
+
+	return occupants;
+}
+
+/**
+ * Move a deck's stripe to a specific position, swapping with any occupant
+ * @param {Object} prism - The PRISM object
+ * @param {string} deckId - The deck ID to move
+ * @param {number} targetPosition - The target slot number
+ * @returns {{prism: Object, swapped: boolean, swappedWithName: string|null}}
+ */
+export function moveStripeToPosition(prism, deckId, targetPosition) {
+	const now = new Date().toISOString();
+	const deck = prism.decks.find((d) => d.id === deckId);
+	if (!deck) return { prism, swapped: false, swappedWithName: null };
+
+	const currentPosition = deck.stripePosition;
+	if (currentPosition === targetPosition) {
+		return { prism, swapped: false, swappedWithName: null };
+	}
+
+	// Check if a split group owns this deck's current position (Side A)
+	const ownerGroup = prism.splitGroups?.find(
+		(g) => g.sideAPosition === currentPosition && g.childDeckIds.includes(deckId),
+	);
+
+	// Find what's at the target position
+	const targetDeck = prism.decks.find(
+		(d) => d.id !== deckId && d.stripePosition === targetPosition,
+	);
+	const targetGroup = prism.splitGroups?.find(
+		(g) => g.sideAPosition === targetPosition,
+	);
+
+	let swappedWithName = null;
+
+	// Update decks
+	const updatedDecks = prism.decks.map((d) => {
+		if (d.id === deckId) {
+			return { ...d, stripePosition: targetPosition, updatedAt: now };
+		}
+		// Swap: move the target occupant to the current position
+		if (targetDeck && d.id === targetDeck.id) {
+			swappedWithName = d.name;
+			return { ...d, stripePosition: currentPosition, updatedAt: now };
+		}
+		return d;
+	});
+
+	// Update split groups if needed
+	const updatedGroups = (prism.splitGroups || []).map((g) => {
+		if (ownerGroup && g.id === ownerGroup.id) {
+			return { ...g, sideAPosition: targetPosition };
+		}
+		if (targetGroup && g.id === targetGroup.id && !ownerGroup) {
+			swappedWithName = swappedWithName || g.name;
+			return { ...g, sideAPosition: currentPosition };
+		}
+		return g;
+	});
+
+	return {
+		prism: {
+			...prism,
+			decks: updatedDecks,
+			splitGroups: updatedGroups,
+			updatedAt: now,
+		},
+		swapped: swappedWithName !== null,
+		swappedWithName,
+	};
+}
+
+/**
  * Get the next available stripe position for a new deck
  * @param {Object} prism - The PRISM object
  * @param {string} side - 'a' for Side A (1-24 preferred), 'b' for Side B (25-48 preferred)

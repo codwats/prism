@@ -10,6 +10,7 @@ import {
   processCards,
   removeDeckFromPrism,
   reorderStripes,
+  moveStripeToPosition,
   getColorName,
   calculateRemovedCards,
   isCardInOtherDecks,
@@ -25,6 +26,7 @@ import { canonicalizeCards } from "../modules/scryfall.js";
 import { hideEditImportMessages } from "./deck-import.js";
 import { initColorSwatches, resetDeckForm } from "./deck-form.js";
 import { renderAll } from "./init.js";
+import { openStripeReorderDialog, isStripeVariantDeck, isDotVariantChild } from "./stripe-reorder-dialog.js";
 import { toggleWhatIfAnalysis } from "./analysis.js";
 import { renderResults, updateRemovedFilterBadge } from "./results.js";
 
@@ -509,26 +511,48 @@ export function handleNewPrism() {
 }
 
 export function handleStripeReorder(deckId, direction) {
-  const currentIndex = state.currentPrism.decks.findIndex(
-    (d) => d.id === deckId,
+  const sortedDecks = [...state.currentPrism.decks].sort(
+    (a, b) => a.stripePosition - b.stripePosition,
   );
+  const currentIndex = sortedDecks.findIndex((d) => d.id === deckId);
   if (currentIndex === -1) return;
 
-  const newIndex = direction === "up" ? currentIndex - 1 : currentIndex + 1;
-  if (newIndex < 0 || newIndex >= state.currentPrism.decks.length) return;
+  const neighborIndex =
+    direction === "up" ? currentIndex - 1 : currentIndex + 1;
+  if (neighborIndex < 0 || neighborIndex >= sortedDecks.length) return;
 
-  const deckIds = state.currentPrism.decks
-    .sort((a, b) => a.stripePosition - b.stripePosition)
-    .map((d) => d.id);
-
-  [deckIds[currentIndex], deckIds[newIndex]] = [
-    deckIds[newIndex],
-    deckIds[currentIndex],
-  ];
-
-  state.currentPrism = reorderStripes(state.currentPrism, deckIds);
+  // Swap positions with the nearest occupied neighbor
+  const targetPosition = sortedDecks[neighborIndex].stripePosition;
+  const result = moveStripeToPosition(
+    state.currentPrism,
+    deckId,
+    targetPosition,
+  );
+  state.currentPrism = result.prism;
   savePrism(state.currentPrism);
   renderAll();
+}
+
+export function handlePositionChange(deckId, newPosition) {
+  const deck = state.currentPrism.decks.find((d) => d.id === deckId);
+  if (!deck || deck.stripePosition === newPosition) return;
+
+  const result = moveStripeToPosition(
+    state.currentPrism,
+    deckId,
+    newPosition,
+  );
+  state.currentPrism = result.prism;
+  savePrism(state.currentPrism);
+  renderAll();
+
+  if (result.swapped) {
+    showSuccess(
+      `Swapped ${deck.name} with ${result.swappedWithName}`,
+    );
+  } else {
+    showSuccess(`Moved ${deck.name} to Slot ${newPosition}`);
+  }
 }
 
 // ============================================================================
@@ -565,6 +589,36 @@ function getDeckPoolCoreCounts(deck, processedCards) {
 // Render deck card + deck list
 // ============================================================================
 
+function getMoveButtonHtml(deck, isInGroup) {
+  if (!isInGroup) {
+    return `
+      <wa-button appearance="plain" variant="neutral" size="small"
+        class="btn-move-deck" data-deck-id="${deck.id}" title="Move to a different slot">
+        <wa-icon name="up-down-left-right"></wa-icon>
+      </wa-button>
+    `;
+  }
+  // Split group child — determine why it's blocked
+  const group = state.currentPrism.splitGroups?.find(g => g.id === deck.splitGroupId);
+  const splitStyle = group?.splitStyle || 'stripes';
+  if (splitStyle === 'stripes') {
+    return `
+      <wa-button appearance="plain" variant="neutral" size="small" disabled
+        title="Stripe variant decks can't be moved yet. This is coming in a future update.">
+        <wa-icon name="up-down-left-right"></wa-icon>
+      </wa-button>
+    `;
+  }
+  // Dot variant child
+  const parentName = group?.name || 'parent deck';
+  return `
+    <wa-button appearance="plain" variant="neutral" size="small" disabled
+      title="Dot variants move with their parent. Move &quot;${parentName}&quot; instead.">
+      <wa-icon name="up-down-left-right"></wa-icon>
+    </wa-button>
+  `;
+}
+
 export function renderDeckCard(deck, showActions = true, processedCards = null) {
   const slotLabel = formatSlotLabel(deck.stripePosition);
   const isInGroup = !!deck.splitGroupId;
@@ -599,6 +653,7 @@ export function renderDeckCard(deck, showActions = true, processedCards = null) 
           `
               : ""
           }
+          ${getMoveButtonHtml(deck, isInGroup)}
           ${
             !isInGroup
               ? `
@@ -725,6 +780,9 @@ export function renderDecksList() {
   state.elements.decksList.innerHTML = htmlParts.join("");
 
   // Add event listeners
+  state.elements.decksList.querySelectorAll(".btn-move-deck").forEach((btn) => {
+    btn.addEventListener("click", () => openStripeReorderDialog(btn.dataset.deckId));
+  });
   state.elements.decksList.querySelectorAll(".btn-edit-deck").forEach((btn) => {
     btn.addEventListener("click", () => handleEditClick(btn.dataset.deckId));
   });
