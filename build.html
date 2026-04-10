@@ -53,12 +53,12 @@
               </section>
 
               <!-- Stripe Settings -->
-              <wa-card id="stripe-settings-card" style="display: none;">
-                <div slot="header" class="wa-cluster wa-gap-s wa-align-items-center">
+              <wa-details id="stripe-settings-card" style="display: none;">
+                <div slot="summary" class="wa-cluster wa-gap-s wa-align-items-center">
                   <wa-icon name="palette" style="color: var(--wa-color-brand-fill);"></wa-icon>
                   <span class="wa-heading-m">Stripe Settings</span>
                 </div>
-                <div class="wa-stack wa-gap-m">
+                <div class="wa-stack wa-gap-m" style="padding-top: var(--wa-space-s);">
                   <p class="wa-caption-m" style="color: var(--wa-color-neutral-text-subtle);">
                     Choose which corner of the card stripes originate from.
                   </p>
@@ -69,21 +69,7 @@
                     <wa-radio value="bottom-left">Bottom Left</wa-radio>
                   </wa-radio-group>
                 </div>
-              </wa-card>
-
-              <!-- Stripe Positions -->
-              <wa-card id="reorder-card" style="display: none;">
-                <div slot="header" class="wa-cluster wa-gap-s wa-align-items-center">
-                  <wa-icon name="arrows-up-down" style="color: var(--wa-color-brand-fill);"></wa-icon>
-                  <span class="wa-heading-m">Stripe Positions</span>
-                </div>
-                <p class="wa-caption-m" style="margin-bottom: var(--wa-space-m);">
-                  Assign each deck to a slot on the card edge. Choose any of the 24 available positions, or use arrows for quick reordering.
-                </p>
-                <div id="stripe-reorder-list" class="wa-stack wa-gap-xs">
-                  <!-- Position items will be inserted here -->
-                </div>
-              </wa-card>
+              </wa-details>
 
               <!-- Add Deck Form -->
               <wa-card id="add-deck-card">
@@ -489,6 +475,16 @@
           <wa-icon slot="start" name="code-branch"></wa-icon>
           Split Deck
         </wa-button>
+      </div>
+    </wa-dialog>
+
+    <!-- Stripe Reorder Dialog -->
+    <wa-dialog id="stripe-reorder-dialog" label="Move Stripe Position" style="--width: 580px;">
+      <div id="stripe-reorder-content" class="wa-stack wa-gap-l">
+        <!-- Content injected by stripe-reorder-dialog.js -->
+      </div>
+      <div slot="footer">
+        <wa-button id="stripe-reorder-cancel" variant="neutral" appearance="outlined">Cancel</wa-button>
       </div>
     </wa-dialog>
 

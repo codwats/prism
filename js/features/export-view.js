@@ -14,13 +14,9 @@ import { handleStripeReorder, handlePositionChange } from './deck-list.js';
 export function renderExport() {
   const sortedDecks = [...state.currentPrism.decks].sort((a, b) => a.stripePosition - b.stripePosition);
 
-  // Show/hide stripe settings & reorder card based on deck count
-  const hasMultipleDecks = sortedDecks.length >= 2;
+  // Show/hide stripe settings based on deck count
   if (state.elements.stripeSettingsCard) {
     state.elements.stripeSettingsCard.style.display = sortedDecks.length >= 1 ? '' : 'none';
-  }
-  if (state.elements.reorderCard) {
-    state.elements.reorderCard.style.display = hasMultipleDecks ? '' : 'none';
   }
 
   // Deck legend
