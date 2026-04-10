@@ -179,6 +179,19 @@ export function handleClearRemoved(cardName, deckId) {
   showSuccess(`Cleared "${cardName}" from removed list.`);
 }
 
+export function handleClearAllRemoved() {
+  if (!state.currentPrism || !state.currentPrism.removedCards?.length) return;
+
+  const count = state.currentPrism.removedCards.length;
+  state.currentPrism.removedCards = [];
+  state.currentPrism.updatedAt = new Date().toISOString();
+  savePrism(state.currentPrism);
+
+  updateRemovedFilterBadge();
+  renderResults();
+  showSuccess(`Cleared all ${count} card(s) from removed list.`);
+}
+
 // ============================================================================
 // Edit / Delete / Split handlers
 // ============================================================================

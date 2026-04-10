@@ -6,7 +6,7 @@ import { state } from '../core/state.js';
 import { escapeHtml } from '../core/utils.js';
 import { processCards, formatSlotLabel } from '../modules/processor.js';
 import { prefetchCards } from '../modules/scryfall.js';
-import { handleMarkToggle, handleClearRemoved } from './deck-list.js';
+import { handleMarkToggle, handleClearRemoved, handleClearAllRemoved } from './deck-list.js';
 import { renderOverlapMatrix } from './analysis.js';
 
 // ============================================================================
@@ -299,6 +299,12 @@ export function renderResults() {
     });
   });
 
+  // Add event listener for "Clear All" removed button
+  const clearAllBtn = document.getElementById('clear-all-removed-btn');
+  if (clearAllBtn) {
+    clearAllBtn.addEventListener('click', handleClearAllRemoved);
+  }
+
   const colspan = filter === 'basics-by-deck' ? 4 : 3;
 
   // Handle empty states
@@ -413,7 +419,9 @@ function renderResultsHeader() {
           <wa-icon name="${getSortIcon('name')}" class="sort-icon"></wa-icon>
         </th>
         <th>Remove Mark From</th>
-        <th style="width: 60px; text-align: center;">Clear</th>
+        <th style="width: 80px; text-align: center;">
+          <button id="clear-all-removed-btn" class="btn-clear-all-removed" title="Clear all removed cards">Clear All</button>
+        </th>
       </tr>
     `;
   } else {
