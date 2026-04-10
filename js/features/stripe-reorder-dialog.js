@@ -348,9 +348,6 @@ export function openStripeReorderDialog(deckId) {
 
   content.appendChild(renderSleeveVisualization(deck, slotMap));
 
-  const legend = renderLegend(slotMap, deckId);
-  if (legend) content.appendChild(legend);
-
   dialog.open = true;
 }
 
