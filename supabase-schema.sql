@@ -9,6 +9,8 @@ CREATE TABLE prisms (
   user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
   name TEXT NOT NULL,
   split_groups JSONB DEFAULT '[]'::jsonb,
+  marked_cards JSONB DEFAULT '[]'::jsonb,
+  removed_cards JSONB DEFAULT '[]'::jsonb,
   created_at TIMESTAMPTZ DEFAULT now(),
   updated_at TIMESTAMPTZ DEFAULT now()
 );

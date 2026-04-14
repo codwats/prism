@@ -111,6 +111,8 @@ async function savePrismToSupabase(prism) {
         user_id: user.id,
         name: prism.name,
         split_groups: prism.splitGroups || [],
+        marked_cards: prism.markedCards || [],
+        removed_cards: prism.removedCards || [],
         updated_at: new Date().toISOString()
       }, { onConflict: 'id' })
       .select()
@@ -213,6 +215,8 @@ export async function loadPrismsFromSupabase() {
         id,
         name,
         split_groups,
+        marked_cards,
+        removed_cards,
         created_at,
         updated_at,
         decks (
@@ -250,8 +254,8 @@ export async function loadPrismsFromSupabase() {
         name: prism.name,
         createdAt: prism.created_at,
         updatedAt: prism.updated_at,
-        markedCards: [],
-        removedCards: [],
+        markedCards: prism.marked_cards || [],
+        removedCards: prism.removed_cards || [],
         splitGroups: prism.split_groups || [],
         decks: (prism.decks || []).map(deck => ({
           id: deck.id,
@@ -282,6 +286,38 @@ export async function loadPrismsFromSupabase() {
 }
 
 /**
+ * Merge markedCards arrays via set-union (deduplicated).
+ * If either device says a card is marked, keep it marked.
+ */
+function mergeMarkedCards(localArr, cloudArr) {
+  const set = new Set([...localArr, ...cloudArr]);
+  return [...set];
+}
+
+/**
+ * Merge removedCards arrays via union, deduplicated by (cardName, deckId).
+ * When both contain the same entry, keep the one with the later removedAt.
+ */
+function mergeRemovedCards(localArr, cloudArr) {
+  const map = new Map();
+
+  for (const entry of localArr) {
+    const key = `${entry.cardName.toLowerCase()}|${entry.deckId}`;
+    map.set(key, entry);
+  }
+
+  for (const entry of cloudArr) {
+    const key = `${entry.cardName.toLowerCase()}|${entry.deckId}`;
+    const existing = map.get(key);
+    if (!existing || new Date(entry.removedAt) > new Date(existing.removedAt)) {
+      map.set(key, entry);
+    }
+  }
+
+  return [...map.values()];
+}
+
+/**
  * Sync localStorage with Supabase (called on login)
  */
 export async function syncWithSupabase() {
@@ -292,10 +328,34 @@ export async function syncWithSupabase() {
 
   const storage = loadStorage();
 
-  // Merge: cloud prisms take precedence, but keep local-only prisms
+  // Merge: keep local-only prisms, merge shared prisms with union of card-tracking arrays
   const merged = { ...storage.prisms };
-  for (const [id, prism] of Object.entries(cloudPrisms)) {
-    merged[id] = prism;
+  for (const [id, cloudPrism] of Object.entries(cloudPrisms)) {
+    const localPrism = merged[id];
+
+    if (!localPrism) {
+      // New from cloud, use as-is
+      merged[id] = cloudPrism;
+    } else {
+      // Prism exists in both — union card-tracking arrays, newer wins for other fields
+      const mergedMarkedCards = mergeMarkedCards(
+        localPrism.markedCards || [],
+        cloudPrism.markedCards || []
+      );
+      const mergedRemovedCards = mergeRemovedCards(
+        localPrism.removedCards || [],
+        cloudPrism.removedCards || []
+      );
+
+      const cloudNewer = new Date(cloudPrism.updatedAt) >= new Date(localPrism.updatedAt);
+      const basePrism = cloudNewer ? cloudPrism : localPrism;
+
+      merged[id] = {
+        ...basePrism,
+        markedCards: mergedMarkedCards,
+        removedCards: mergedRemovedCards,
+      };
+    }
   }
 
   storage.prisms = merged;
@@ -323,6 +383,18 @@ export async function syncWithSupabase() {
   for (const [id, prism] of Object.entries(storage.prisms)) {
     if (!cloudPrisms[id]) {
       await savePrismToSupabase(prism);
+    }
+  }
+
+  // Push merged prisms back to cloud if card-tracking arrays were enriched
+  for (const [id, prism] of Object.entries(storage.prisms)) {
+    if (cloudPrisms[id]) {
+      const cloudPrism = cloudPrisms[id];
+      const markedChanged = (prism.markedCards || []).length !== (cloudPrism.markedCards || []).length;
+      const removedChanged = (prism.removedCards || []).length !== (cloudPrism.removedCards || []).length;
+      if (markedChanged || removedChanged) {
+        await savePrismToSupabase(prism);
+      }
     }
   }
 
