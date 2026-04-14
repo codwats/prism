@@ -392,3 +392,41 @@ export function openPrintableGuide(prism) {
   win.document.write(html);
   win.document.close();
 }
+
+/**
+ * Generate a plain-text list of cards not yet marked as done.
+ * Format: "QTY CardName" per line (MTGO-compatible, works with Moxfield, proxy services, etc.)
+ * @param {Object} prism - The PRISM to export
+ * @returns {string} Plain text content
+ */
+export function exportUndoneTxt(prism) {
+  const processedCards = processCards(prism);
+  const markedSet = new Set(prism.markedCards || []);
+
+  const lines = processedCards
+    .filter(card => !markedSet.has(card.name))
+    .map(card => `${card.totalQuantity} ${card.name}`);
+
+  return lines.join('\n');
+}
+
+/**
+ * Download undone cards list as a .txt file
+ * @param {Object} prism - The PRISM to export
+ */
+export function downloadUndoneTxt(prism) {
+  const txt = exportUndoneTxt(prism);
+  const safeName = prism.name.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+  downloadFile(txt, `prism_${safeName}_undone.txt`, 'text/plain');
+}
+
+/**
+ * Copy undone cards list to clipboard
+ * @param {Object} prism - The PRISM to export
+ * @returns {Promise<number>} Count of undone cards copied
+ */
+export async function copyUndoneToClipboard(prism) {
+  const txt = exportUndoneTxt(prism);
+  await navigator.clipboard.writeText(txt);
+  return txt ? txt.split('\n').length : 0;
+}
