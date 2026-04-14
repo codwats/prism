@@ -7,6 +7,7 @@ import { getLogicalDeckCount } from '../core/utils.js';
 import { createPrism } from '../modules/processor.js';
 import { getCurrentPrism, savePrism, setCurrentPrism, getPreferences } from '../modules/storage.js';
 import { initAuth, setupAuthListeners } from '../modules/auth.js';
+import { logToSupabase } from '../modules/supabase-client.js';
 import { initColorSwatches } from './deck-form.js';
 import { renderDecksList } from './deck-list.js';
 import { setupStripeReorderDialog } from './stripe-reorder-dialog.js';
@@ -139,6 +140,8 @@ export async function init() {
   // Initialize auth
   await initAuth();
   setupAuthListeners();
+
+  logToSupabase('info', 'app_loaded', { page: 'build', url: window.location.pathname });
 
   // Get element references
   state.elements = getElements();

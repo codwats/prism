@@ -4,6 +4,7 @@
 
 import { state } from "../core/state.js";
 import { showError, showSuccess } from "../core/notifications.js";
+import { logToSupabase } from "../modules/supabase-client.js";
 import { escapeHtml, getLogicalDeckCount } from "../core/utils.js";
 import { parseDecklist, validateDecklist } from "../modules/parser.js";
 import {
@@ -200,6 +201,7 @@ export async function handleDeckSubmit(e) {
     savePrism(state.currentPrism);
 
     console.log("PRISM: Deck added:", deck.name);
+    logToSupabase('info', 'deck_added', { name: deck.name, commander: deck.commander, bracket: deck.bracket, cardCount: parseResult.uniqueCards });
 
     // Reset form and re-render
     resetDeckForm();

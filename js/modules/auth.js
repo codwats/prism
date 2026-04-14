@@ -1,5 +1,5 @@
 // Authentication module for Prism
-import { getSupabase, isConfigured } from './supabase-client.js';
+import { getSupabase, isConfigured, logToSupabase } from './supabase-client.js';
 import { syncWithSupabase } from './storage.js';
 
 // Current user state
@@ -54,11 +54,13 @@ export async function initAuth() {
     // Track logout state
     if (event === 'SIGNED_OUT') {
       wasLoggedOut = true;
+      logToSupabase('info', 'user_signed_out');
     }
 
     // Sync with Supabase when user freshly logs in (not on session recovery)
     if (event === 'SIGNED_IN' && session?.user && wasLoggedOut) {
       wasLoggedOut = false;
+      logToSupabase('info', 'user_signed_in', { email: session.user.email });
       await syncWithSupabase();
       // Reload page to show synced data
       window.location.reload();

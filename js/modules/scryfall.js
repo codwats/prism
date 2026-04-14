@@ -1,4 +1,5 @@
 // Scryfall API client with caching and rate limiting
+import { logToSupabase } from './supabase-client.js';
 
 const CACHE_KEY = 'scryfall_card_cache';
 const CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours
@@ -86,6 +87,7 @@ async function fetchWithRetry(url) {
   const response = await fetch(url);
 
   if (response.status === 429) {
+    logToSupabase('warn', 'scryfall_rate_limited', { url });
     await sleep(REQUEST_DELAY * 10);
     lastRequestTime = Date.now();
     const retry = await fetch(url);
