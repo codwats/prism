@@ -150,7 +150,7 @@ CREATE POLICY "Users can view own logs"
 
 CREATE POLICY "Users can create logs"
   ON app_logs FOR INSERT
-  WITH CHECK (auth.uid() = user_id);
+  WITH CHECK (user_id IS NULL OR auth.uid() = user_id);
 
 -- ============================================
 -- HELPER FUNCTION: Update timestamp

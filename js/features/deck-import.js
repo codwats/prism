@@ -4,6 +4,7 @@
 
 import { state } from '../core/state.js';
 import { showError, showSuccess } from '../core/notifications.js';
+import { logToSupabase } from '../modules/supabase-client.js';
 import { createDeck, createPrism } from '../modules/processor.js';
 import { savePrism, setCurrentPrism } from '../modules/storage.js';
 import { importFromMoxfield, toDecklistText, extractMoxfieldId } from '../modules/moxfield.js';
@@ -107,9 +108,11 @@ export function handleJsonImport(e) {
       initColorSwatches();
       renderAll();
 
+      logToSupabase('info', 'json_import', { name: newPrism.name, deckCount: newPrism.decks.length });
       showSuccess(`Imported "${newPrism.name}" with ${newPrism.decks.length} decks.`);
     } catch (err) {
       console.error('JSON import error:', err);
+      logToSupabase('error', 'json_import_failed', { error: err.message });
       showError(err.message || 'Failed to parse JSON file. Please check the format.');
     }
   };
@@ -158,6 +161,7 @@ export async function handleMoxfieldImport() {
     if (state.elements.deckCommander) state.elements.deckCommander.value = deckData.commander || '';
     if (state.elements.deckList) state.elements.deckList.value = toDecklistText(deckData);
 
+    logToSupabase('info', 'url_import', { service: serviceName, name: deckData.name, cardCount: deckData.cards.length });
     showMoxfieldSuccess(`Imported "${deckData.name}" from ${serviceName} (${deckData.cards.length} cards). Review the form and click "Add Deck" to save.`);
 
     if (state.elements.moxfieldUrl) state.elements.moxfieldUrl.value = '';
@@ -165,6 +169,7 @@ export async function handleMoxfieldImport() {
 
   } catch (err) {
     console.error('Deck import error:', err);
+    logToSupabase('error', 'url_import_failed', { error: err.message });
     showMoxfieldError(err.message || 'Failed to import deck.');
   } finally {
     if (btn) btn.loading = false;

@@ -48,13 +48,125 @@ export function initLayout(options = {}) {
 function injectHeadResources() {
   const head = document.head;
 
-  // WebAwesome kit (skip if already loaded)
-  if (!head.querySelector('script[src*="webawesome"]')) {
+  // Web Awesome CDN — CSS links
+  const WA_BASE = 'https://ka-p.webawesome.com/kit/da021fed1e5141f2/webawesome@3.5.0';
+  const waStyles = [
+    `${WA_BASE}/styles/themes/matter.css`,
+    `${WA_BASE}/styles/color/palettes/mild.css`,
+    `${WA_BASE}/styles/native.css`,
+    `${WA_BASE}/styles/utilities.css`,
+  ];
+  waStyles.forEach(href => {
+    if (!head.querySelector(`link[href="${href}"]`)) {
+      const link = document.createElement('link');
+      link.rel = 'stylesheet';
+      link.href = href;
+      head.appendChild(link);
+    }
+  });
+
+  // Fonts
+  const fonts = [
+    'https://fonts.bunny.net/css2?family=Inter:ital,wght@0,100..900;1,100..900&display=swap',
+    'https://fonts.bunny.net/css2?family=Geist+Mono:wght@100..900&display=swap',
+    'https://fonts.bunny.net/css2?family=Crimson+Pro:ital,wght@0,200..900;1,200..900&display=swap',
+  ];
+  fonts.forEach(href => {
+    if (!head.querySelector(`link[href="${href}"]`)) {
+      const link = document.createElement('link');
+      link.rel = 'stylesheet';
+      link.href = href;
+      head.appendChild(link);
+    }
+  });
+
+  // Web Awesome autoloader (module)
+  if (!head.querySelector('script[src*="webawesome.loader"]')) {
     const wa = document.createElement('script');
-    wa.src = 'https://kit.webawesome.com/da021fed1e5141f2.js';
-    wa.crossOrigin = 'anonymous';
+    wa.type = 'module';
+    wa.src = `${WA_BASE}/webawesome.loader.js`;
     head.appendChild(wa);
   }
+
+  // Custom theme overrides (CSS variables)
+  if (!head.querySelector('style[data-prism-theme]')) {
+    const style = document.createElement('style');
+    style.setAttribute('data-prism-theme', '');
+    style.textContent = `
+      :root {
+        --wa-color-brand-05: #1d1023;
+        --wa-color-brand-10: #291b2f;
+        --wa-color-brand-20: #413348;
+        --wa-color-brand-30: #56465d;
+        --wa-color-brand-40: #68586f;
+        --wa-color-brand-50: #85758d;
+        --wa-color-brand-60: #a594ad;
+        --wa-color-brand-70: #c2b0ca;
+        --wa-color-brand-80: #d8c6e0;
+        --wa-color-brand-90: #f3e0fb;
+        --wa-color-brand-95: #ffedff;
+        --wa-color-neutral-05: #0b141a;
+        --wa-color-neutral-10: #151e25;
+        --wa-color-neutral-20: #2b343b;
+        --wa-color-neutral-30: #3d464e;
+        --wa-color-neutral-40: #4f5a61;
+        --wa-color-neutral-50: #6c767e;
+        --wa-color-neutral-60: #8c979f;
+        --wa-color-neutral-70: #a4b0b8;
+        --wa-color-neutral-80: #bec9d2;
+        --wa-color-neutral-90: #dbe6f0;
+        --wa-color-neutral-95: #e8f4fd;
+        --wa-color-success-05: #001900;
+        --wa-color-success-10: #002500;
+        --wa-color-success-20: #0b3b01;
+        --wa-color-success-30: #204f17;
+        --wa-color-success-40: #326029;
+        --wa-color-success-50: #508047;
+        --wa-color-success-60: #6e9f65;
+        --wa-color-success-70: #87b97d;
+        --wa-color-success-80: #a0d396;
+        --wa-color-success-90: #bef2b4;
+        --wa-color-success-95: #cbffc1;
+        --wa-color-warning-05: #1a1000;
+        --wa-color-warning-10: #271b00;
+        --wa-color-warning-20: #413100;
+        --wa-color-warning-30: #584400;
+        --wa-color-warning-40: #705800;
+        --wa-color-warning-50: #917600;
+        --wa-color-warning-60: #b09525;
+        --wa-color-warning-70: #c9ae44;
+        --wa-color-warning-80: #e2c65e;
+        --wa-color-warning-90: #fee27b;
+        --wa-color-warning-95: #ffef88;
+        --wa-color-danger-05: #340000;
+        --wa-color-danger-10: #490000;
+        --wa-color-danger-20: #6c0000;
+        --wa-color-danger-30: #851c10;
+        --wa-color-danger-40: #9e3527;
+        --wa-color-danger-50: #c15646;
+        --wa-color-danger-60: #e47463;
+        --wa-color-danger-70: #ff8e7b;
+        --wa-color-danger-80: #ffb1a1;
+        --wa-color-danger-90: #ffd8ce;
+        --wa-color-danger-95: #ffeae4;
+        --wa-font-family-body: Inter, sans-serif;
+        --wa-font-family-heading: Inter, sans-serif;
+        --wa-font-family-code: "Geist Mono", monospace;
+        --wa-font-family-longform: "Crimson Pro", serif;
+        --wa-font-weight-body: 400;
+        --wa-font-weight-heading: 600;
+        --wa-font-weight-code: 400;
+        --wa-font-weight-longform: 400;
+        --wa-border-radius-scale: 0.25;
+        --wa-border-width-scale: 1;
+        --wa-space-scale: 1.25;
+      }
+    `;
+    head.appendChild(style);
+  }
+
+  // Theme + palette + dark mode classes on <html>
+  document.documentElement.classList.add('wa-theme-matter', 'wa-palette-mild', 'wa-dark');
 
   // Supabase CDN (skip if already loaded)
   if (!head.querySelector('script[src*="supabase"]')) {
@@ -71,9 +183,6 @@ function injectHeadResources() {
     fav.href = './assets/Prism-Small-Icon-Invert.svg';
     head.appendChild(fav);
   }
-
-  // Dark mode
-  document.documentElement.classList.add('wa-dark');
 
   // Custom CSS (skip if already loaded)
   if (!head.querySelector('link[href*="custom.css"]')) {

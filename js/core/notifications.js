@@ -2,8 +2,11 @@
  * Toast notification helpers.
  */
 
+import { logToSupabase } from '../modules/supabase-client.js';
+
 export function showError(message) {
   console.error('PRISM Error:', message);
+  logToSupabase('error', message);
   showToast(message, 'danger', 'circle-exclamation');
 }
 
