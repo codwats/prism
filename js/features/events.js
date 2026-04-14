@@ -3,7 +3,7 @@
  */
 
 import { state } from '../core/state.js';
-import { downloadCSV, downloadJSON, openPrintableGuide } from '../modules/export.js';
+import { downloadCSV, downloadJSON, openPrintableGuide, downloadUndoneTxt, copyUndoneToClipboard } from '../modules/export.js';
 import { showPreview, hidePreview, updatePosition } from '../modules/card-preview.js';
 import { handleDeckSubmit, resetDeckForm, updateColorSwatchSelection, checkColorWarning, handlePrismNameChange } from './deck-form.js';
 import { handleFileUpload, handleJsonImport, handleMoxfieldImport, handleEditFileUpload, handleEditUrlImport } from './deck-import.js';
@@ -91,6 +91,16 @@ export function setupEventListeners() {
   }
   if (state.elements.btnPrintGuide) {
     state.elements.btnPrintGuide.addEventListener('click', () => openPrintableGuide(state.currentPrism));
+  }
+  if (state.elements.btnDownloadUndone) {
+    state.elements.btnDownloadUndone.addEventListener('click', () => downloadUndoneTxt(state.currentPrism));
+  }
+  if (state.elements.btnCopyUndone) {
+    state.elements.btnCopyUndone.addEventListener('click', async () => {
+      const count = await copyUndoneToClipboard(state.currentPrism);
+      const { showSuccess } = await import('../core/notifications.js');
+      showSuccess(`Copied ${count} undone card${count === 1 ? '' : 's'} to clipboard`);
+    });
   }
 
   // Delete dialog

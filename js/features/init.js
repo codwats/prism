@@ -73,6 +73,8 @@ function getElements() {
     btnExportCSV: document.getElementById('btn-export-csv'),
     btnExportJSON: document.getElementById('btn-export-json'),
     btnPrintGuide: document.getElementById('btn-print-guide'),
+    btnCopyUndone: document.getElementById('btn-copy-undone'),
+    btnDownloadUndone: document.getElementById('btn-download-undone'),
     prismJsonInput: document.getElementById('prism-json-input'),
 
     // Dialogs
