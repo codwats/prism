@@ -276,11 +276,11 @@ export function renderResults() {
 
     return `
       <tr class="${rowClass} ${markedClass}" data-card-key="${escapeHtml(cardKey)}">
-        <td class="${nameClass} card-name-cell" data-card-name="${escapeHtml(card.name)}" data-stripes='${stripesJson}'>${escapeHtml(card.name)}${basicTag}</td>${copiesCell}
-        <td><div class="stripe-indicators">${stripeIndicators}</div></td>
         <td style="text-align: center;">
           <input type="checkbox" class="mark-checkbox" ${isMarked ? 'checked' : ''}>
         </td>
+        <td class="${nameClass} card-name-cell" data-card-name="${escapeHtml(card.name)}" data-stripes='${stripesJson}'>${escapeHtml(card.name)}${basicTag}</td>${copiesCell}
+        <td><div class="stripe-indicators">${stripeIndicators}</div></td>
       </tr>
     `;
   }).join('');
@@ -427,6 +427,10 @@ function renderResultsHeader() {
   } else {
     thead.innerHTML = `
       <tr>
+        <th class="sortable ${getSortedClass('marked')}" data-sort="marked" style="width: 60px; text-align: center;">
+          Done
+          <wa-icon name="${getSortIcon('marked')}" class="sort-icon"></wa-icon>
+        </th>
         <th class="sortable ${getSortedClass('name')}" data-sort="name">
           Card Name
           <wa-icon name="${getSortIcon('name')}" class="sort-icon"></wa-icon>
@@ -434,10 +438,6 @@ function renderResultsHeader() {
         <th class="sortable ${getSortedClass('deckCount')}" data-sort="deckCount">
           Stripes
           <wa-icon name="${getSortIcon('deckCount')}" class="sort-icon"></wa-icon>
-        </th>
-        <th class="sortable ${getSortedClass('marked')}" data-sort="marked" style="width: 60px; text-align: center;">
-          Done
-          <wa-icon name="${getSortIcon('marked')}" class="sort-icon"></wa-icon>
         </th>
       </tr>
     `;
