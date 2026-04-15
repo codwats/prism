@@ -1,6 +1,14 @@
 <!DOCTYPE html>
 <html lang="en" class="wa-cloak">
   <head>
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-VHXCWY6VT9"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'G-VHXCWY6VT9');
+    </script>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Privacy Policy - PRISM</title>
@@ -83,8 +91,12 @@
           <p>PRISM uses minimal cookies:</p>
           <ul class="wa-stack wa-gap-xs" style="padding-left: var(--wa-space-l);">
             <li><strong>Authentication cookies</strong> - Required to keep you logged in</li>
+            <li><strong>Analytics cookies</strong> - Google Analytics sets cookies to help us understand aggregate traffic patterns (pages visited, session duration, referral source). No personally identifiable information is collected or shared.</li>
           </ul>
-          <p>We do not use third-party tracking cookies or analytics services that track individual users.</p>
+          <wa-callout variant="neutral">
+            <wa-icon slot="icon" name="chart-simple"></wa-icon>
+            Analytics data is used only to improve PRISM — for example, to understand which pages are most useful and how users navigate the app. You can opt out via <a href="https://tools.google.com/dlpage/gaoptout" target="_blank" rel="noopener">Google's opt-out browser add-on</a>.
+          </wa-callout>
         </section>
 
         <section class="wa-stack wa-gap-m">
@@ -94,6 +106,7 @@
             <li><strong>Supabase</strong> - Database and authentication (<a href="https://supabase.com/privacy" target="_blank" rel="noopener">Privacy Policy</a>)</li>
             <li><strong>Scryfall API</strong> - Card images and data (<a href="https://scryfall.com/docs/api" target="_blank" rel="noopener">Terms</a>)</li>
             <li><strong>Netlify</strong> - Website hosting (<a href="https://www.netlify.com/privacy/" target="_blank" rel="noopener">Privacy Policy</a>)</li>
+            <li><strong>Google Analytics</strong> - Aggregate traffic analytics (<a href="https://policies.google.com/privacy" target="_blank" rel="noopener">Privacy Policy</a>). Data collected includes pages visited, session duration, browser type, and approximate location (country/region). No personally identifiable information is sent to Google.</li>
           </ul>
         </section>
 
