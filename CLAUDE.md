@@ -101,6 +101,7 @@ Sync behavior is merge-first, not whole-PRISM last-write-wins:
 - `markedCards` still merge by union and `removedCards` merge by `(cardName, deckId)` with latest `removedAt`.
 - Background saves fetch the latest cloud copy, merge it with local using the stored baseline, then write the merged result back to Supabase.
 - Deck and split-group `updatedAt` timestamps are important for conflict resolution and should be preserved on mutation.
+- Split-group child ordering should be preserved from `group.childDeckIds` during merge; only orphaned child IDs should be dropped, with deck-derived order used as a fallback when the stored ordering is missing.
 
 ### PRISM Data Model
 

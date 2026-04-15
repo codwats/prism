@@ -160,7 +160,9 @@ function normalizeSplitGroups(prism, splitGroups, decks) {
   return uniqueById(splitGroups)
     .map(group => ({
       ...group,
-      childDeckIds: groupChildDeckIds.get(group.id) || [],
+      childDeckIds: Array.isArray(group.childDeckIds)
+        ? group.childDeckIds.filter(deckId => (groupChildDeckIds.get(group.id) || []).includes(deckId))
+        : (groupChildDeckIds.get(group.id) || []),
       updatedAt: group.updatedAt || prism.updatedAt || prism.createdAt || null
     }))
     .filter(group => group.childDeckIds.length > 0);
