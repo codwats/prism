@@ -132,20 +132,20 @@ function renderWhatIfAnalysis(deckId, container) {
   for (const card of processedCards) {
     if (!deckCardNames.has(card.name.toLowerCase())) continue;
 
-    if (card.deckCount === 1) {
+    if (card.logicalDeckCount === 1) {
       removedEntirely.push(card);
-    } else if (card.deckCount === 2) {
+    } else if (card.logicalDeckCount === 2) {
       becomeMarkFree.push(card);
       totalMarksRemoved++;
     } else {
-      stillShared.push({ ...card, newDeckCount: card.deckCount - 1 });
+      stillShared.push({ ...card, newDeckCount: card.logicalDeckCount - 1 });
       totalMarksRemoved++;
     }
   }
 
-  // Sort by deck count descending (most shared first)
-  becomeMarkFree.sort((a, b) => b.deckCount - a.deckCount || a.name.localeCompare(b.name));
-  stillShared.sort((a, b) => b.deckCount - a.deckCount || a.name.localeCompare(b.name));
+  // Sort by logical deck count descending (most shared first)
+  becomeMarkFree.sort((a, b) => b.logicalDeckCount - a.logicalDeckCount || a.name.localeCompare(b.name));
+  stillShared.sort((a, b) => b.logicalDeckCount - a.logicalDeckCount || a.name.localeCompare(b.name));
 
   const showAllMarkFree = becomeMarkFree.length <= 8;
   const showAllStillShared = stillShared.length <= 8;
@@ -184,7 +184,7 @@ function renderWhatIfAnalysis(deckId, container) {
           </span>
           <ul class="what-if-card-list">
             ${becomeMarkFree.slice(0, showAllMarkFree ? undefined : 5).map(card => `
-              <li>${escapeHtml(card.name)} <span style="color: var(--wa-color-neutral-text-subtle);">— was in ${card.deckCount} decks</span></li>
+              <li>${escapeHtml(card.name)} <span style="color: var(--wa-color-neutral-text-subtle);">— was in ${card.logicalDeckCount} decks</span></li>
             `).join('')}
             ${!showAllMarkFree ? `<li style="color: var(--wa-color-neutral-text-subtle);">…and ${becomeMarkFree.length - 5} more</li>` : ''}
           </ul>
@@ -199,7 +199,7 @@ function renderWhatIfAnalysis(deckId, container) {
           </span>
           <ul class="what-if-card-list">
             ${stillShared.slice(0, showAllStillShared ? undefined : 5).map(card => `
-              <li>${escapeHtml(card.name)} <span style="color: var(--wa-color-neutral-text-subtle);">— ${card.deckCount} decks → ${card.newDeckCount}</span></li>
+              <li>${escapeHtml(card.name)} <span style="color: var(--wa-color-neutral-text-subtle);">— ${card.logicalDeckCount} decks → ${card.newDeckCount}</span></li>
             `).join('')}
             ${!showAllStillShared ? `<li style="color: var(--wa-color-neutral-text-subtle);">…and ${stillShared.length - 5} more</li>` : ''}
           </ul>

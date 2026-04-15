@@ -588,7 +588,7 @@ function getDeckPoolCoreCounts(deck, processedCards) {
       qty = deckCard?.quantity || 1;
     }
 
-    if (card.deckCount > 1) {
+    if (card.logicalDeckCount > 1) {
       pool += qty;
     } else {
       core += qty;
