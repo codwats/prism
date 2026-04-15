@@ -446,23 +446,26 @@ async function savePrismToSupabase(prism) {
       return false;
     }
 
-    // Delete existing decks and cards (we'll re-insert them)
-    const { error: deleteDecksError } = await supabase
+    const { data: existingDeckRows, error: existingDecksError } = await supabase
       .from('decks')
-      .delete()
+      .select('id, created_at')
       .eq('prism_id', prism.id);
 
-    if (deleteDecksError) {
-      console.error('Error clearing decks before sync:', deleteDecksError);
+    if (existingDecksError) {
+      console.error('Error loading existing decks before sync:', existingDecksError);
       return false;
     }
 
-    // Insert decks and their cards
-    for (const deck of prism.decks || []) {
-      const deckUpdatedAt = deck.updatedAt || prismUpdatedAt;
-      const { error: deckError } = await supabase
-        .from('decks')
-        .insert({
+    const existingDeckMap = new Map((existingDeckRows || []).map(deck => [deck.id, deck]));
+    const localDeckIds = (prism.decks || []).map(deck => deck.id);
+    const localDeckIdSet = new Set(localDeckIds);
+
+    if ((prism.decks || []).length > 0) {
+      const decksToUpsert = (prism.decks || []).map(deck => {
+        const deckUpdatedAt = deck.updatedAt || prismUpdatedAt;
+        const existingDeck = existingDeckMap.get(deck.id);
+
+        return {
           id: deck.id,
           prism_id: prism.id,
           name: deck.name,
@@ -471,33 +474,107 @@ async function savePrismToSupabase(prism) {
           stripe_position: deck.stripePosition,
           sort_order: deck.stripePosition,
           split_group_id: deck.splitGroupId || null,
-          created_at: deck.createdAt || deckUpdatedAt,
+          created_at: deck.createdAt || existingDeck?.created_at || deckUpdatedAt,
           updated_at: deckUpdatedAt
-        });
+        };
+      });
 
-      if (deckError) {
-        console.error('Error saving deck to Supabase:', deckError);
+      const { error: decksUpsertError } = await supabase
+        .from('decks')
+        .upsert(decksToUpsert, { onConflict: 'id' });
+
+      if (decksUpsertError) {
+        console.error('Error upserting decks to Supabase:', decksUpsertError);
+        return false;
+      }
+    }
+
+    // Sync cards in place for each deck so a later failure doesn't wipe the whole prism.
+    for (const deck of prism.decks || []) {
+      const deckUpdatedAt = deck.updatedAt || prismUpdatedAt;
+      const { data: existingCardRows, error: existingCardsError } = await supabase
+        .from('deck_cards')
+        .select('id, card_name, created_at')
+        .eq('deck_id', deck.id);
+
+      if (existingCardsError) {
+        console.error('Error loading existing deck cards before sync:', existingCardsError);
         return false;
       }
 
-      // Insert cards for this deck
-      if (deck.cards && deck.cards.length > 0) {
-        const cardsToInsert = deck.cards.map(card => ({
-          deck_id: deck.id,
-          card_name: card.name,
-          quantity: card.quantity || 1,
-          is_commander: card.isCommander || false,
-          is_basic_land: card.isBasicLand || false
-        }));
+      const existingCardsByName = new Map(
+        (existingCardRows || []).map(card => [card.card_name.toLowerCase(), card])
+      );
+      const localCards = deck.cards || [];
+      const localCardNameSet = new Set(localCards.map(card => card.name.toLowerCase()));
 
-        const { error: cardsError } = await supabase
+      for (const card of localCards) {
+        const existingCard = existingCardsByName.get(card.name.toLowerCase());
+
+        if (existingCard) {
+          const { error: updateCardError } = await supabase
+            .from('deck_cards')
+            .update({
+              card_name: card.name,
+              quantity: card.quantity || 1,
+              is_commander: card.isCommander || false,
+              is_basic_land: card.isBasicLand || false
+            })
+            .eq('id', existingCard.id);
+
+          if (updateCardError) {
+            console.error('Error updating deck card in Supabase:', updateCardError);
+            return false;
+          }
+        } else {
+          const { error: insertCardError } = await supabase
+            .from('deck_cards')
+            .insert({
+              deck_id: deck.id,
+              card_name: card.name,
+              quantity: card.quantity || 1,
+              is_commander: card.isCommander || false,
+              is_basic_land: card.isBasicLand || false,
+              created_at: deckUpdatedAt
+            });
+
+          if (insertCardError) {
+            console.error('Error inserting deck card in Supabase:', insertCardError);
+            return false;
+          }
+        }
+      }
+
+      const staleCardIds = (existingCardRows || [])
+        .filter(card => !localCardNameSet.has(card.card_name.toLowerCase()))
+        .map(card => card.id);
+
+      if (staleCardIds.length > 0) {
+        const { error: deleteCardsError } = await supabase
           .from('deck_cards')
-          .insert(cardsToInsert);
+          .delete()
+          .in('id', staleCardIds);
 
-        if (cardsError) {
-          console.error('Error saving cards to Supabase:', cardsError);
+        if (deleteCardsError) {
+          console.error('Error deleting removed deck cards from Supabase:', deleteCardsError);
           return false;
         }
+      }
+    }
+
+    const staleDeckIds = (existingDeckRows || [])
+      .filter(deck => !localDeckIdSet.has(deck.id))
+      .map(deck => deck.id);
+
+    if (staleDeckIds.length > 0) {
+      const { error: deleteDecksError } = await supabase
+        .from('decks')
+        .delete()
+        .in('id', staleDeckIds);
+
+      if (deleteDecksError) {
+        console.error('Error deleting removed decks from Supabase:', deleteDecksError);
+        return false;
       }
     }
 
