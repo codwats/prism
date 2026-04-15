@@ -58,7 +58,7 @@ export function renderResults() {
   const processedCards = processCards(state.currentPrism);
   state.processedCards = processedCards;
   const totalCardCount = processedCards.reduce((sum, c) => sum + c.totalQuantity, 0);
-  const sharedCardCount = processedCards.filter(c => c.deckCount > 1).reduce((sum, c) => sum + c.totalQuantity, 0);
+  const sharedCardCount = processedCards.filter(c => c.logicalDeckCount > 1).reduce((sum, c) => sum + c.totalQuantity, 0);
 
   // Update stats
   if (state.elements.statTotal) state.elements.statTotal.textContent = totalCardCount;
@@ -90,10 +90,10 @@ export function renderResults() {
   let displayCards = []; // What we'll actually render
 
   if (filter === 'shared') {
-    filteredCards = filteredCards.filter(c => c.deckCount > 1);
+    filteredCards = filteredCards.filter(c => c.logicalDeckCount > 1);
     displayCards = filteredCards;
   } else if (filter === 'unique') {
-    filteredCards = filteredCards.filter(c => c.deckCount === 1);
+    filteredCards = filteredCards.filter(c => c.logicalDeckCount === 1);
     displayCards = filteredCards;
   } else if (filter === 'basics-by-deck') {
     // Show only basic lands, split into per-deck rows
@@ -253,7 +253,7 @@ export function renderResults() {
       stripeIndicators = card.stripes.map(s => renderStripeIndicator(s)).join('');
     }
 
-    const rowClass = card.deckCount > 1 ? 'shared-row' : '';
+    const rowClass = card.logicalDeckCount > 1 ? 'shared-row' : '';
     const nameClass = card.isBasicLand ? 'basic-land' : '';
     const basicTag = card.isBasicLand && !card.isBasicByDeck ? ' <span class="basic-tag">(Basic)</span>' : '';
     const copiesCell = filter === 'basics-by-deck' ? `<td>${card.totalQuantity}</td>` : '';

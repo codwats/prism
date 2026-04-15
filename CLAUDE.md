@@ -118,8 +118,14 @@ Preferences: { colorScheme, defaultColors, stripeStartCorner ('top-right'|'top-l
 
 ### Display Counts
 
-- **Decks tab** — Each deck card shows **pool** (cards in 2+ decks) and **core** (cards unique to that deck) counts. Both include full basic land quantities per deck. Computed via `getDeckPoolCoreCounts()` in `deck-list.js`.
-- **Results tab** — Stats cards show **Total Cards** (sum of `totalQuantity` across all processed cards, including basic land copies) and **Pool Cards** (same sum but only cards in 2+ decks). These numbers help users plan sleeve purchases and storage.
+- **Decks tab** — Each deck card shows **pool** (cards in 2+ *logical* decks) and **core** (cards unique to one logical deck) counts. Both include full basic land quantities per deck. Computed via `getDeckPoolCoreCounts()` in `deck-list.js`.
+- **Results tab** — Stats cards show **Total Cards** (sum of `totalQuantity` across all processed cards, including basic land copies) and **Pool Cards** (same sum but only cards in 2+ logical decks). These numbers help users plan sleeve purchases and storage.
+
+### Logical vs Physical Deck Count
+
+`processCards()` returns two count fields per card:
+- `deckCount` — raw count of individual deck IDs (includes each split variant separately). Used for sorting and display of "N decks" in the Stripes column.
+- `logicalDeckCount` — standalone decks + split groups, where all variants of the same split group count as 1. Used for all pool/shared/core classification. A card shared only among variants of the same split group has `logicalDeckCount: 1` and is treated as **core**, not pool.
 
 ## Common Debugging
 

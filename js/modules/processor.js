@@ -233,20 +233,34 @@ export function processCards(prism) {
 			return a.position - b.position;
 		});
 
+		// Logical deck count: standalone decks + split groups each count as 1.
+		// A card shared only among variants of the same split group = logicalDeckCount 1 (core, not pool).
+		const standaloneIds = new Set();
+		const splitGroupIds = new Set();
+		for (const stripe of sortedStripes) {
+			if (stripe.groupId) {
+				splitGroupIds.add(stripe.groupId);
+			} else if (stripe.deckId) {
+				standaloneIds.add(stripe.deckId);
+			}
+		}
+		const logicalDeckCount = standaloneIds.size + splitGroupIds.size;
+
 		processedCards.push({
 			name: cardData.name,
 			normalizedName,
 			isBasicLand: cardData.isBasicLand,
 			totalQuantity,
 			deckCount: cardData.deckIds.size, // Number of actual decks, not stripe count
+			logicalDeckCount, // Standalone decks + split groups (variants of same group = 1)
 			stripes: sortedStripes,
 		});
 	}
 
-	// Sort: most decks first, then alphabetically
+	// Sort: most logical decks first, then alphabetically
 	processedCards.sort((a, b) => {
-		if (b.deckCount !== a.deckCount) {
-			return b.deckCount - a.deckCount;
+		if (b.logicalDeckCount !== a.logicalDeckCount) {
+			return b.logicalDeckCount - a.logicalDeckCount;
 		}
 		return a.name.localeCompare(b.name);
 	});
@@ -263,8 +277,8 @@ export function calculateOverlap(prism) {
 	const processedCards = processCards(prism);
 
 	const totalUniqueCards = processedCards.length;
-	const sharedCards = processedCards.filter((c) => c.deckCount > 1);
-	const uniqueToOneDeck = processedCards.filter((c) => c.deckCount === 1);
+	const sharedCards = processedCards.filter((c) => c.logicalDeckCount > 1);
+	const uniqueToOneDeck = processedCards.filter((c) => c.logicalDeckCount === 1);
 
 	// Calculate pairwise overlap between decks
 	const pairwiseOverlap = [];

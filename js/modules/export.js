@@ -163,8 +163,8 @@ export function exportToJSON(prism) {
       removedCards: prism.removedCards || [],
       statistics: {
         totalUniqueCards: processedCards.length,
-        sharedCards: processedCards.filter(c => c.deckCount > 1).length,
-        uniqueCards: processedCards.filter(c => c.deckCount === 1).length,
+        sharedCards: processedCards.filter(c => c.logicalDeckCount > 1).length,
+        uniqueCards: processedCards.filter(c => c.logicalDeckCount === 1).length,
         markedCards: (prism.markedCards || []).length,
         removedCards: (prism.removedCards || []).length
       }
@@ -341,7 +341,7 @@ export function generatePrintableGuide(prism) {
 
   // Add card rows
   for (const card of processedCards) {
-    const rowClass = card.deckCount > 1 ? 'shared' : '';
+    const rowClass = card.logicalDeckCount > 1 ? 'shared' : '';
     const nameClass = card.isBasicLand ? 'basic-land' : '';
 
     // Show all slots with empty placeholders, plus dot indicators
