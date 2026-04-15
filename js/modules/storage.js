@@ -160,9 +160,13 @@ function normalizeSplitGroups(prism, splitGroups, decks) {
   return uniqueById(splitGroups)
     .map(group => ({
       ...group,
-      childDeckIds: Array.isArray(group.childDeckIds)
-        ? group.childDeckIds.filter(deckId => (groupChildDeckIds.get(group.id) || []).includes(deckId))
-        : (groupChildDeckIds.get(group.id) || []),
+      childDeckIds: (() => {
+        const stored = Array.isArray(group.childDeckIds) ? group.childDeckIds : [];
+        const derived = groupChildDeckIds.get(group.id) || [];
+        const filtered = stored.filter(id => derived.includes(id));
+        const filteredSet = new Set(filtered);
+        return [...filtered, ...derived.filter(id => !filteredSet.has(id))];
+      })(),
       updatedAt: group.updatedAt || prism.updatedAt || prism.createdAt || null
     }))
     .filter(group => group.childDeckIds.length > 0);
