@@ -221,7 +221,8 @@ export function downloadJSON(prism) {
  */
 export function generatePrintableGuide(prism) {
   const processedCards = processCards(prism);
-  
+  const splitGroups = prism.splitGroups || [];
+
   let html = `
 <!DOCTYPE html>
 <html>
@@ -230,47 +231,82 @@ export function generatePrintableGuide(prism) {
   <style>
     body { font-family: system-ui, sans-serif; padding: 20px; max-width: 800px; margin: 0 auto; }
     h1 { border-bottom: 2px solid #333; padding-bottom: 10px; }
-    .deck-legend { display: flex; flex-wrap: wrap; gap: 15px; margin-bottom: 20px; padding: 15px; background: #f5f5f5; border-radius: 8px; }
+    .deck-legend { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 20px; padding: 15px; background: #f5f5f5; border-radius: 8px; }
     .deck-item { display: flex; align-items: center; gap: 8px; }
     .color-swatch {
       width: 24px;
       height: 24px;
       border-radius: 4px;
       border: 2px solid #333;
+      flex-shrink: 0;
       -webkit-print-color-adjust: exact !important;
       print-color-adjust: exact !important;
       color-adjust: exact !important;
     }
-    table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-    th, td { padding: 8px 12px; text-align: left; border-bottom: 1px solid #ddd; }
-    th { background: #f0f0f0; }
-    .stripe-indicator { display: inline-flex; gap: 4px; }
-    .stripe-dot {
+    .color-swatch.side-b { border-style: dashed; }
+    /* ö-style slot: dot above square */
+    .stripe-slot {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+    }
+    .slot-dot-row {
+      display: flex;
+      gap: 2px;
+      min-height: 9px;
+      align-items: center;
+      justify-content: center;
+    }
+    .variant-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      border: 1.5px solid #333;
+      flex-shrink: 0;
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+      color-adjust: exact !important;
+    }
+    .stripe-square {
       width: 16px;
       height: 16px;
       border-radius: 3px;
       border: 2px solid #333;
+      flex-shrink: 0;
       -webkit-print-color-adjust: exact !important;
       print-color-adjust: exact !important;
       color-adjust: exact !important;
     }
-    .stripe-dot.stripe-side-b {
-      border-style: dashed;
-    }
-    .stripe-dot.stripe-variant-dot {
-      width: 10px;
-      height: 10px;
-      border-radius: 50%;
-      border: 2px solid #333;
-      align-self: center;
-    }
+    .stripe-square.side-b { border-style: dashed; }
     .stripe-empty {
       width: 16px;
       height: 16px;
       border-radius: 3px;
-      border: 1px dashed #999;
+      border: 1px dashed #ccc;
       background: transparent;
     }
+    /* legend mini ö swatch */
+    .legend-slot {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+      flex-shrink: 0;
+    }
+    .legend-dot-row {
+      display: flex;
+      gap: 2px;
+      min-height: 9px;
+      align-items: center;
+      justify-content: center;
+    }
+    table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+    th, td { padding: 8px 12px; text-align: left; border-bottom: 1px solid #ddd; vertical-align: middle; }
+    th { background: #f0f0f0; }
+    .stripe-indicator { display: inline-flex; gap: 4px; align-items: flex-end; }
+    .symbol-key { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; font-size: 0.85em; padding: 10px 14px; background: #f0f0f0; border-radius: 6px; margin-bottom: 12px; }
+    .key-item { display: flex; align-items: center; gap: 5px; }
     .shared { background: #fffde7; }
     .basic-land { font-style: italic; }
 
@@ -285,6 +321,7 @@ export function generatePrintableGuide(prism) {
       .no-print { display: none; }
       body { padding: 10px; }
       .deck-legend { background: #f5f5f5 !important; }
+      .symbol-key { background: #f0f0f0 !important; }
       .shared { background: #fffde7 !important; }
       th { background: #f0f0f0 !important; }
     }
@@ -293,35 +330,101 @@ export function generatePrintableGuide(prism) {
 <body>
   <h1>🔮 PRISM Marking Guide</h1>
   <p><strong>${prism.name}</strong> — ${prism.decks.length} decks, ${processedCards.length} unique cards</p>
-  
+
   <h2>Deck Legend</h2>
   <div class="deck-legend">
 `;
 
-  // Add split group legend entries
-  const splitGroups = prism.splitGroups || [];
-  for (const group of splitGroups.sort((a, b) => a.sideAPosition - b.sideAPosition)) {
+  // Split group legend entries
+  for (const group of [...splitGroups].sort((a, b) => a.sideAPosition - b.sideAPosition)) {
+    const isDots = (group.splitStyle || 'stripes') === 'dots';
     html += `
     <div class="deck-item" style="width: 100%;">
       <div class="color-swatch" style="background: ${group.sideAColor}"></div>
-      <span><strong>${formatSlotLabel(group.sideAPosition, 'a')}:</strong> ${group.name} (split group · ${(group.splitStyle || 'stripes') === 'dots' ? 'dots' : 'stripes'})</span>
+      <span><strong>${formatSlotLabel(group.sideAPosition, 'a')}:</strong> ${group.name} (split group · ${isDots ? 'dot variants' : 'stripe variants'})</span>
     </div>`;
+
+    const childDecks = prism.decks
+      .filter(d => group.childDeckIds.includes(d.id))
+      .sort((a, b) => group.childDeckIds.indexOf(a.id) - group.childDeckIds.indexOf(b.id));
+
+    if (isDots) {
+      for (let i = 0; i < childDecks.length; i++) {
+        const deck = childDecks[i];
+        const dotHtml = i === 0
+          ? '' // variant 1: no dot — empty dot-row
+          : `<div class="variant-dot" style="background: ${deck.color}" title="${deck.name}"></div>`;
+        html += `
+    <div class="deck-item" style="padding-left: 20px;">
+      <div class="legend-slot">
+        <div class="legend-dot-row">${dotHtml}</div>
+        <div class="stripe-square" style="background: ${group.sideAColor}"></div>
+      </div>
+      <span>${deck.name}${i === 0 ? ' <em>(no dot)</em>' : ''} · Bracket ${deck.bracket}</span>
+    </div>`;
+      }
+    } else {
+      for (const deck of childDecks) {
+        html += `
+    <div class="deck-item" style="padding-left: 20px;">
+      <div class="color-swatch side-b" style="background: ${deck.color}"></div>
+      <span><strong>${formatSlotLabel(deck.stripePosition, 'b')}:</strong> ${deck.name} (Side B) · Bracket ${deck.bracket}</span>
+    </div>`;
+      }
+    }
   }
 
-  // Add deck legend
-  for (const deck of prism.decks.sort((a, b) => a.stripePosition - b.stripePosition)) {
+  // Standalone deck legend entries
+  for (const deck of prism.decks.filter(d => !d.splitGroupId).sort((a, b) => a.stripePosition - b.stripePosition)) {
     html += `
-    <div class="deck-item"${deck.splitGroupId ? ' style="padding-left: 20px;"' : ''}>
+    <div class="deck-item">
       <div class="color-swatch" style="background: ${deck.color}"></div>
       <span><strong>${formatSlotLabel(deck.stripePosition)}:</strong> ${deck.name} (Bracket ${deck.bracket})</span>
     </div>`;
   }
-  
+
+  const hasDotGroups = splitGroups.some(g => (g.splitStyle || 'stripes') === 'dots');
+  const hasSideBStripes = splitGroups.some(g => (g.splitStyle || 'stripes') === 'stripes');
+
   html += `
   </div>
-  
+
   <h2>Card Marking Guide</h2>
-  <p>Cards are sorted by number of decks (most shared first), then alphabetically. For basic land quantities, use the "Basics by Deck" filter in the app.</p>
+  <p>Cards sorted by number of decks (most shared first), then alphabetically.</p>
+
+  <div class="symbol-key">
+    <strong>Key:</strong>
+    <span class="key-item">
+      <div class="stripe-slot"><div class="slot-dot-row"></div><div class="stripe-square" style="background:#888"></div></div>
+      Side A stripe
+    </span>`;
+
+  if (hasSideBStripes) {
+    html += `
+    <span class="key-item">
+      <div class="stripe-slot"><div class="slot-dot-row"></div><div class="stripe-square side-b" style="background:#888"></div></div>
+      Side B stripe
+    </span>`;
+  }
+
+  if (hasDotGroups) {
+    html += `
+    <span class="key-item">
+      <div class="stripe-slot"><div class="slot-dot-row"><div class="variant-dot" style="background:#e74c3c"></div></div><div class="stripe-square" style="background:#888"></div></div>
+      dot variant mark
+    </span>
+    <span class="key-item">
+      <div class="stripe-slot"><div class="slot-dot-row"></div><div class="stripe-square" style="background:#888"></div></div>
+      variant 1 (no dot)
+    </span>`;
+  }
+
+  html += `
+    <span class="key-item">
+      <div class="stripe-slot"><div class="slot-dot-row"></div><div class="stripe-empty"></div></div>
+      unused slot
+    </span>
+  </div>
 
   <table>
     <thead>
@@ -336,7 +439,7 @@ export function generatePrintableGuide(prism) {
   // Collect all used positions (from decks + split group Side A positions)
   const allPositions = [...new Set([
     ...prism.decks.map(d => d.stripePosition),
-    ...(prism.splitGroups || []).map(g => g.sideAPosition)
+    ...splitGroups.map(g => g.sideAPosition)
   ])].sort((a, b) => a - b);
 
   // Add card rows
@@ -344,21 +447,30 @@ export function generatePrintableGuide(prism) {
     const rowClass = card.logicalDeckCount > 1 ? 'shared' : '';
     const nameClass = card.isBasicLand ? 'basic-land' : '';
 
-    // Show all slots with empty placeholders, plus dot indicators
+    // Non-dot stripes by position
     const stripeMap = new Map(card.stripes.filter(s => s.markType !== 'dot').map(s => [s.position, s]));
-    const dotStripes = card.stripes.filter(s => s.markType === 'dot' && s.dotIndex > 0);
+    // Dots grouped by position (only dotIndex > 0 = visible dots)
+    const dotsByPos = new Map();
+    for (const s of card.stripes.filter(s => s.markType === 'dot' && s.dotIndex > 0)) {
+      if (!dotsByPos.has(s.position)) dotsByPos.set(s.position, []);
+      dotsByPos.get(s.position).push(s);
+    }
+
     let stripeIndicators = '';
     for (const pos of allPositions) {
       const stripe = stripeMap.get(pos);
+      const dots = dotsByPos.get(pos) || [];
+      const dotHtml = dots.map(d => `<div class="variant-dot" style="background: ${d.color}" title="Dot: ${d.deckName}"></div>`).join('');
+      const dotRow = `<div class="slot-dot-row">${dotHtml}</div>`;
+
+      let squareHtml;
       if (stripe) {
-        stripeIndicators += `<div class="stripe-dot${stripe.side === 'b' ? ' stripe-side-b' : ''}" style="background: ${stripe.color}" title="${formatSlotLabel(stripe.position)}: ${stripe.deckName}"></div>`;
+        squareHtml = `<div class="stripe-square${stripe.side === 'b' ? ' side-b' : ''}" style="background: ${stripe.color}" title="${formatSlotLabel(stripe.position)}: ${stripe.deckName}"></div>`;
       } else {
-        stripeIndicators += `<div class="stripe-empty" title="${formatSlotLabel(pos)}: Empty"></div>`;
+        squareHtml = `<div class="stripe-empty" title="${formatSlotLabel(pos)}: Empty"></div>`;
       }
-    }
-    // Add dot indicators after stripes
-    for (const dot of dotStripes) {
-      stripeIndicators += `<div class="stripe-dot stripe-variant-dot" style="background: ${dot.color}" title="Dot: ${dot.deckName}"></div>`;
+
+      stripeIndicators += `<div class="stripe-slot">${dotRow}${squareHtml}</div>`;
     }
 
     html += `
@@ -367,11 +479,11 @@ export function generatePrintableGuide(prism) {
         <td><div class="stripe-indicator">${stripeIndicators}</div></td>
       </tr>`;
   }
-  
+
   html += `
     </tbody>
   </table>
-  
+
   <p style="margin-top: 30px; color: #666; font-size: 0.9em;">
     Generated by PRISM on ${new Date().toLocaleString()}
   </p>
