@@ -8,7 +8,7 @@ import { getSupabase, isConfigured } from './supabase-client.js';
 import { getCurrentUser } from './auth.js';
 
 const STORAGE_KEY = 'prism_data';
-const CURRENT_VERSION = 1;
+const CURRENT_VERSION = 2;
 
 /**
  * Get the default storage structure
@@ -23,6 +23,10 @@ function getDefaultStorage() {
       colorScheme: 'auto',
       defaultColors: [...DEFAULT_COLORS],
       stripeStartCorner: 'top-right'
+    },
+    syncState: {
+      prismBaselines: {},
+      deletedPrisms: {}
     }
   };
 }
@@ -45,6 +49,7 @@ export function loadStorage() {
       return migrateStorage(data);
     }
 
+    ensureSyncState(data);
     return data;
   } catch (error) {
     console.error('Error loading PRISM data:', error);
@@ -74,12 +79,333 @@ function migrateStorage(data) {
   const migrated = {
     ...getDefaultStorage(),
     ...data,
+    syncState: {
+      ...getDefaultStorage().syncState,
+      ...(data.syncState || {})
+    },
     version: CURRENT_VERSION
   };
 
   saveStorage(migrated);
   return migrated;
 }
+
+function ensureSyncState(storage) {
+  if (!storage.syncState) {
+    storage.syncState = getDefaultStorage().syncState;
+  }
+
+  storage.syncState.prismBaselines = storage.syncState.prismBaselines || {};
+  storage.syncState.deletedPrisms = storage.syncState.deletedPrisms || {};
+
+  return storage.syncState;
+}
+
+function getPrismBaseline(storage, prismId) {
+  const syncState = ensureSyncState(storage);
+
+  if (!syncState.prismBaselines[prismId]) {
+    syncState.prismBaselines[prismId] = {
+      updatedAt: null,
+      deckUpdatedAts: {},
+      splitGroupUpdatedAts: {},
+      deletedDecks: {},
+      deletedSplitGroups: {}
+    };
+  }
+
+  const baseline = syncState.prismBaselines[prismId];
+  baseline.deckUpdatedAts = baseline.deckUpdatedAts || {};
+  baseline.splitGroupUpdatedAts = baseline.splitGroupUpdatedAts || {};
+  baseline.deletedDecks = baseline.deletedDecks || {};
+  baseline.deletedSplitGroups = baseline.deletedSplitGroups || {};
+
+  return baseline;
+}
+
+function getTimestampMs(value) {
+  const ms = value ? new Date(value).getTime() : 0;
+  return Number.isFinite(ms) ? ms : 0;
+}
+
+function getEntityUpdatedAt(entity, fallback = null) {
+  return entity?.updatedAt || fallback || null;
+}
+
+function uniqueById(items = []) {
+  const map = new Map();
+
+  for (const item of items) {
+    if (item?.id) {
+      map.set(item.id, item);
+    }
+  }
+
+  return [...map.values()];
+}
+
+function normalizeSplitGroups(prism, splitGroups, decks) {
+  const groupChildDeckIds = new Map();
+
+  for (const deck of decks || []) {
+    if (!deck?.splitGroupId) continue;
+
+    if (!groupChildDeckIds.has(deck.splitGroupId)) {
+      groupChildDeckIds.set(deck.splitGroupId, []);
+    }
+
+    groupChildDeckIds.get(deck.splitGroupId).push(deck.id);
+  }
+
+  return uniqueById(splitGroups)
+    .map(group => ({
+      ...group,
+      childDeckIds: (() => {
+        const stored = Array.isArray(group.childDeckIds) ? group.childDeckIds : [];
+        const derived = groupChildDeckIds.get(group.id) || [];
+        const filtered = stored.filter(id => derived.includes(id));
+        const filteredSet = new Set(filtered);
+        return [...filtered, ...derived.filter(id => !filteredSet.has(id))];
+      })(),
+      updatedAt: group.updatedAt || prism.updatedAt || prism.createdAt || null
+    }))
+    .filter(group => group.childDeckIds.length > 0);
+}
+
+function pickNewerEntity(localEntity, cloudEntity, localFallback, cloudFallback) {
+  const localUpdatedAt = getEntityUpdatedAt(localEntity, localFallback);
+  const cloudUpdatedAt = getEntityUpdatedAt(cloudEntity, cloudFallback);
+
+  return getTimestampMs(localUpdatedAt) >= getTimestampMs(cloudUpdatedAt)
+    ? localEntity
+    : cloudEntity;
+}
+
+function mergeEntityCollection({
+  localItems = [],
+  cloudItems = [],
+  baselineUpdatedAts = {},
+  deletedLocally = {},
+  localFallback = null,
+  cloudFallback = null
+}) {
+  const localMap = new Map(localItems.filter(item => item?.id).map(item => [item.id, item]));
+  const cloudMap = new Map(cloudItems.filter(item => item?.id).map(item => [item.id, item]));
+  const ids = new Set([...localMap.keys(), ...cloudMap.keys()]);
+  const merged = [];
+
+  for (const id of ids) {
+    const localItem = localMap.get(id);
+    const cloudItem = cloudMap.get(id);
+
+    if (localItem && cloudItem) {
+      merged.push(pickNewerEntity(localItem, cloudItem, localFallback, cloudFallback));
+      continue;
+    }
+
+    if (localItem) {
+      const baselineUpdatedAt = baselineUpdatedAts[id];
+      const localUpdatedAt = getEntityUpdatedAt(localItem, localFallback);
+
+      if (!baselineUpdatedAt || getTimestampMs(localUpdatedAt) > getTimestampMs(baselineUpdatedAt)) {
+        merged.push(localItem);
+      }
+
+      continue;
+    }
+
+    const deletedAt = deletedLocally[id];
+    const cloudUpdatedAt = getEntityUpdatedAt(cloudItem, cloudFallback);
+
+    if (!deletedAt || getTimestampMs(cloudUpdatedAt) > getTimestampMs(deletedAt)) {
+      merged.push(cloudItem);
+    }
+  }
+
+  return uniqueById(merged);
+}
+
+function recordLocalPrismChanges(storage, previousPrism, nextPrism) {
+  const syncState = ensureSyncState(storage);
+  delete syncState.deletedPrisms[nextPrism.id];
+
+  const baseline = getPrismBaseline(storage, nextPrism.id);
+  const previousDeckIds = new Set((previousPrism?.decks || []).map(deck => deck.id));
+  const nextDeckIds = new Set((nextPrism.decks || []).map(deck => deck.id));
+  const previousGroupIds = new Set((previousPrism?.splitGroups || []).map(group => group.id));
+  const nextGroupIds = new Set((nextPrism.splitGroups || []).map(group => group.id));
+  const deletedAt = nextPrism.updatedAt || new Date().toISOString();
+
+  for (const deckId of previousDeckIds) {
+    if (!nextDeckIds.has(deckId)) {
+      baseline.deletedDecks[deckId] = deletedAt;
+    }
+  }
+
+  for (const deckId of nextDeckIds) {
+    delete baseline.deletedDecks[deckId];
+  }
+
+  for (const groupId of previousGroupIds) {
+    if (!nextGroupIds.has(groupId)) {
+      baseline.deletedSplitGroups[groupId] = deletedAt;
+    }
+  }
+
+  for (const groupId of nextGroupIds) {
+    delete baseline.deletedSplitGroups[groupId];
+  }
+}
+
+function recordPrismBaseline(storage, prism) {
+  const syncState = ensureSyncState(storage);
+  delete syncState.deletedPrisms[prism.id];
+
+  const baseline = getPrismBaseline(storage, prism.id);
+  baseline.updatedAt = prism.updatedAt || prism.createdAt || null;
+  baseline.deckUpdatedAts = Object.fromEntries(
+    (prism.decks || []).map(deck => [deck.id, getEntityUpdatedAt(deck, baseline.updatedAt)])
+  );
+  baseline.splitGroupUpdatedAts = Object.fromEntries(
+    (prism.splitGroups || []).map(group => [group.id, getEntityUpdatedAt(group, baseline.updatedAt)])
+  );
+
+  for (const deckId of Object.keys(baseline.deletedDecks)) {
+    if (baseline.deckUpdatedAts[deckId]) {
+      delete baseline.deletedDecks[deckId];
+    }
+  }
+
+  for (const groupId of Object.keys(baseline.deletedSplitGroups)) {
+    if (baseline.splitGroupUpdatedAts[groupId]) {
+      delete baseline.deletedSplitGroups[groupId];
+    }
+  }
+}
+
+function pruneSyncState(storage) {
+  const syncState = ensureSyncState(storage);
+
+  for (const prismId of Object.keys(syncState.prismBaselines)) {
+    if (!storage.prisms[prismId]) {
+      delete syncState.prismBaselines[prismId];
+    }
+  }
+}
+
+function buildPrismFromRow(prism) {
+  return {
+    id: prism.id,
+    name: prism.name,
+    createdAt: prism.created_at,
+    updatedAt: prism.updated_at,
+    markedCards: prism.marked_cards || [],
+    removedCards: prism.removed_cards || [],
+    splitGroups: (prism.split_groups || []).map(group => ({
+      ...group,
+      updatedAt: group.updatedAt || prism.updated_at
+    })),
+    decks: (prism.decks || []).map(deck => ({
+      id: deck.id,
+      name: deck.name,
+      color: deck.color,
+      bracket: deck.bracket,
+      stripePosition: deck.stripe_position,
+      splitGroupId: deck.split_group_id || null,
+      commander: deck.deck_cards?.find(c => c.is_commander)?.card_name || null,
+      createdAt: deck.created_at,
+      updatedAt: deck.updated_at,
+      cards: (deck.deck_cards || []).map(card => ({
+        name: card.card_name,
+        quantity: card.quantity,
+        isCommander: card.is_commander,
+        isBasicLand: card.is_basic_land
+      }))
+    })).sort((a, b) => a.stripePosition - b.stripePosition)
+  };
+}
+
+function mergePrismVersions(localPrism, cloudPrism, prismBaseline) {
+  const baseline = prismBaseline || {
+    updatedAt: null,
+    deckUpdatedAts: {},
+    splitGroupUpdatedAts: {},
+    deletedDecks: {},
+    deletedSplitGroups: {}
+  };
+  const localUpdatedAt = localPrism.updatedAt || localPrism.createdAt || null;
+  const cloudUpdatedAt = cloudPrism.updatedAt || cloudPrism.createdAt || null;
+  const basePrism = getTimestampMs(localUpdatedAt) >= getTimestampMs(cloudUpdatedAt)
+    ? localPrism
+    : cloudPrism;
+
+  const mergedDecks = mergeEntityCollection({
+    localItems: localPrism.decks || [],
+    cloudItems: cloudPrism.decks || [],
+    baselineUpdatedAts: baseline.deckUpdatedAts || {},
+    deletedLocally: baseline.deletedDecks || {},
+    localFallback: localUpdatedAt,
+    cloudFallback: cloudUpdatedAt
+  }).sort((a, b) => a.stripePosition - b.stripePosition);
+
+  const mergedSplitGroups = normalizeSplitGroups(
+    basePrism,
+    mergeEntityCollection({
+      localItems: localPrism.splitGroups || [],
+      cloudItems: cloudPrism.splitGroups || [],
+      baselineUpdatedAts: baseline.splitGroupUpdatedAts || {},
+      deletedLocally: baseline.deletedSplitGroups || {},
+      localFallback: localUpdatedAt,
+      cloudFallback: cloudUpdatedAt
+    }),
+    mergedDecks
+  );
+
+  return {
+    ...basePrism,
+    markedCards: mergeMarkedCards(
+      localPrism.markedCards || [],
+      cloudPrism.markedCards || []
+    ),
+    removedCards: mergeRemovedCards(
+      localPrism.removedCards || [],
+      cloudPrism.removedCards || []
+    ),
+    decks: mergedDecks,
+    splitGroups: mergedSplitGroups,
+    updatedAt: getTimestampMs(localUpdatedAt) >= getTimestampMs(cloudUpdatedAt)
+      ? localUpdatedAt
+      : cloudUpdatedAt
+  };
+}
+
+const PRISM_SELECT = `
+  id,
+  name,
+  split_groups,
+  marked_cards,
+  removed_cards,
+  created_at,
+  updated_at,
+  decks (
+    id,
+    name,
+    color,
+    bracket,
+    stripe_position,
+    sort_order,
+    split_group_id,
+    created_at,
+    updated_at,
+    deck_cards (
+      id,
+      card_name,
+      quantity,
+      is_commander,
+      is_basic_land
+    )
+  )
+`;
 
 // ============================================
 // SUPABASE SYNC FUNCTIONS
@@ -100,11 +426,13 @@ function shouldSyncToSupabase() {
 async function savePrismToSupabase(prism) {
   const supabase = getSupabase();
   const user = getCurrentUser();
-  if (!supabase || !user) return;
+  if (!supabase || !user) return false;
 
   try {
+    const prismUpdatedAt = prism.updatedAt || new Date().toISOString();
+
     // Upsert the prism (including split groups as JSONB)
-    const { data: prismData, error: prismError } = await supabase
+    const { error: prismError } = await supabase
       .from('prisms')
       .upsert({
         id: prism.id,
@@ -113,24 +441,35 @@ async function savePrismToSupabase(prism) {
         split_groups: prism.splitGroups || [],
         marked_cards: prism.markedCards || [],
         removed_cards: prism.removedCards || [],
-        updated_at: new Date().toISOString()
-      }, { onConflict: 'id' })
-      .select()
-      .single();
+        created_at: prism.createdAt || prismUpdatedAt,
+        updated_at: prismUpdatedAt
+      }, { onConflict: 'id' });
 
     if (prismError) {
       console.error('Error saving prism to Supabase:', prismError);
-      return;
+      return false;
     }
 
-    // Delete existing decks and cards (we'll re-insert them)
-    await supabase.from('decks').delete().eq('prism_id', prism.id);
+    const { data: existingDeckRows, error: existingDecksError } = await supabase
+      .from('decks')
+      .select('id, created_at')
+      .eq('prism_id', prism.id);
 
-    // Insert decks and their cards
-    for (const deck of prism.decks || []) {
-      const { data: deckData, error: deckError } = await supabase
-        .from('decks')
-        .insert({
+    if (existingDecksError) {
+      console.error('Error loading existing decks before sync:', existingDecksError);
+      return false;
+    }
+
+    const existingDeckMap = new Map((existingDeckRows || []).map(deck => [deck.id, deck]));
+    const localDeckIds = (prism.decks || []).map(deck => deck.id);
+    const localDeckIdSet = new Set(localDeckIds);
+
+    if ((prism.decks || []).length > 0) {
+      const decksToUpsert = (prism.decks || []).map(deck => {
+        const deckUpdatedAt = deck.updatedAt || prismUpdatedAt;
+        const existingDeck = existingDeckMap.get(deck.id);
+
+        return {
           id: deck.id,
           prism_id: prism.id,
           name: deck.name,
@@ -138,39 +477,116 @@ async function savePrismToSupabase(prism) {
           bracket: deck.bracket,
           stripe_position: deck.stripePosition,
           sort_order: deck.stripePosition,
-          split_group_id: deck.splitGroupId || null
-        })
-        .select()
-        .single();
+          split_group_id: deck.splitGroupId || null,
+          created_at: deck.createdAt || existingDeck?.created_at || deckUpdatedAt,
+          updated_at: deckUpdatedAt
+        };
+      });
 
-      if (deckError) {
-        console.error('Error saving deck to Supabase:', deckError);
-        continue;
+      const { error: decksUpsertError } = await supabase
+        .from('decks')
+        .upsert(decksToUpsert, { onConflict: 'id' });
+
+      if (decksUpsertError) {
+        console.error('Error upserting decks to Supabase:', decksUpsertError);
+        return false;
+      }
+    }
+
+    // Sync cards in place for each deck so a later failure doesn't wipe the whole prism.
+    for (const deck of prism.decks || []) {
+      const deckUpdatedAt = deck.updatedAt || prismUpdatedAt;
+      const { data: existingCardRows, error: existingCardsError } = await supabase
+        .from('deck_cards')
+        .select('id, card_name, created_at')
+        .eq('deck_id', deck.id);
+
+      if (existingCardsError) {
+        console.error('Error loading existing deck cards before sync:', existingCardsError);
+        return false;
       }
 
-      // Insert cards for this deck
-      if (deck.cards && deck.cards.length > 0) {
-        const cardsToInsert = deck.cards.map(card => ({
-          deck_id: deck.id,
-          card_name: card.name,
-          quantity: card.quantity || 1,
-          is_commander: card.isCommander || false,
-          is_basic_land: card.isBasicLand || false
-        }));
+      const existingCardsByName = new Map(
+        (existingCardRows || []).map(card => [card.card_name.toLowerCase(), card])
+      );
+      const localCards = deck.cards || [];
+      const localCardNameSet = new Set(localCards.map(card => card.name.toLowerCase()));
 
-        const { error: cardsError } = await supabase
+      for (const card of localCards) {
+        const existingCard = existingCardsByName.get(card.name.toLowerCase());
+
+        if (existingCard) {
+          const { error: updateCardError } = await supabase
+            .from('deck_cards')
+            .update({
+              card_name: card.name,
+              quantity: card.quantity || 1,
+              is_commander: card.isCommander || false,
+              is_basic_land: card.isBasicLand || false
+            })
+            .eq('id', existingCard.id);
+
+          if (updateCardError) {
+            console.error('Error updating deck card in Supabase:', updateCardError);
+            return false;
+          }
+        } else {
+          const { error: insertCardError } = await supabase
+            .from('deck_cards')
+            .insert({
+              deck_id: deck.id,
+              card_name: card.name,
+              quantity: card.quantity || 1,
+              is_commander: card.isCommander || false,
+              is_basic_land: card.isBasicLand || false,
+              created_at: deckUpdatedAt
+            });
+
+          if (insertCardError) {
+            console.error('Error inserting deck card in Supabase:', insertCardError);
+            return false;
+          }
+        }
+      }
+
+      const staleCardIds = (existingCardRows || [])
+        .filter(card => !localCardNameSet.has(card.card_name.toLowerCase()))
+        .map(card => card.id);
+
+      if (staleCardIds.length > 0) {
+        const { error: deleteCardsError } = await supabase
           .from('deck_cards')
-          .insert(cardsToInsert);
+          .delete()
+          .in('id', staleCardIds);
 
-        if (cardsError) {
-          console.error('Error saving cards to Supabase:', cardsError);
+        if (deleteCardsError) {
+          console.error('Error deleting removed deck cards from Supabase:', deleteCardsError);
+          return false;
         }
       }
     }
 
+    const staleDeckIds = (existingDeckRows || [])
+      .filter(deck => !localDeckIdSet.has(deck.id))
+      .map(deck => deck.id);
+
+    if (staleDeckIds.length > 0) {
+      const { error: deleteDecksError } = await supabase
+        .from('decks')
+        .delete()
+        .in('id', staleDeckIds);
+
+      if (deleteDecksError) {
+        console.error('Error deleting removed decks from Supabase:', deleteDecksError);
+        return false;
+      }
+    }
+
     console.log('PRISM saved to Supabase:', prism.name);
+    return true;
   } catch (err) {
     console.error('Error syncing to Supabase:', err);
+    return false;
   }
 }
 
@@ -181,7 +597,7 @@ async function savePrismToSupabase(prism) {
 async function deletePrismFromSupabase(prismId) {
   const supabase = getSupabase();
   const user = getCurrentUser();
-  if (!supabase || !user) return;
+  if (!supabase || !user) return false;
 
   try {
     const { error } = await supabase
@@ -192,9 +608,37 @@ async function deletePrismFromSupabase(prismId) {
 
     if (error) {
       console.error('Error deleting prism from Supabase:', error);
+      return false;
     }
+    return true;
   } catch (err) {
     console.error('Error deleting from Supabase:', err);
+    return false;
+  }
+}
+
+async function loadPrismFromSupabase(prismId) {
+  const supabase = getSupabase();
+  const user = getCurrentUser();
+  if (!supabase || !user) return null;
+
+  try {
+    const { data: prism, error } = await supabase
+      .from('prisms')
+      .select(PRISM_SELECT)
+      .eq('id', prismId)
+      .eq('user_id', user.id)
+      .maybeSingle();
+
+    if (error) {
+      console.error('Error loading prism from Supabase:', error);
+      return null;
+    }
+
+    return prism ? buildPrismFromRow(prism) : null;
+  } catch (err) {
+    console.error('Error loading prism from Supabase:', err);
+    return null;
   }
 }
 
@@ -211,33 +655,7 @@ export async function loadPrismsFromSupabase() {
     // Fetch prisms with decks and cards
     const { data: prisms, error: prismsError } = await supabase
       .from('prisms')
-      .select(`
-        id,
-        name,
-        split_groups,
-        marked_cards,
-        removed_cards,
-        created_at,
-        updated_at,
-        decks (
-          id,
-          name,
-          color,
-          bracket,
-          stripe_position,
-          sort_order,
-          split_group_id,
-          created_at,
-          updated_at,
-          deck_cards (
-            id,
-            card_name,
-            quantity,
-            is_commander,
-            is_basic_land
-          )
-        )
-      `)
+      .select(PRISM_SELECT)
       .eq('user_id', user.id)
       .order('updated_at', { ascending: false });
 
@@ -249,32 +667,7 @@ export async function loadPrismsFromSupabase() {
     // Transform to app format
     const prismMap = {};
     for (const prism of prisms || []) {
-      prismMap[prism.id] = {
-        id: prism.id,
-        name: prism.name,
-        createdAt: prism.created_at,
-        updatedAt: prism.updated_at,
-        markedCards: prism.marked_cards || [],
-        removedCards: prism.removed_cards || [],
-        splitGroups: prism.split_groups || [],
-        decks: (prism.decks || []).map(deck => ({
-          id: deck.id,
-          name: deck.name,
-          color: deck.color,
-          bracket: deck.bracket,
-          stripePosition: deck.stripe_position,
-          splitGroupId: deck.split_group_id || null,
-          commander: deck.deck_cards?.find(c => c.is_commander)?.card_name || null,
-          createdAt: deck.created_at,
-          updatedAt: deck.updated_at,
-          cards: (deck.deck_cards || []).map(card => ({
-            name: card.card_name,
-            quantity: card.quantity,
-            isCommander: card.is_commander,
-            isBasicLand: card.is_basic_land
-          }))
-        })).sort((a, b) => a.stripePosition - b.stripePosition)
-      };
+      prismMap[prism.id] = buildPrismFromRow(prism);
     }
 
     console.log('Loaded', Object.keys(prismMap).length, 'prisms from Supabase');
@@ -327,38 +720,38 @@ export async function syncWithSupabase() {
   if (cloudPrisms === null) return;
 
   const storage = loadStorage();
+  const syncState = ensureSyncState(storage);
+  const merged = {};
+  const prismIds = new Set([
+    ...Object.keys(storage.prisms),
+    ...Object.keys(cloudPrisms)
+  ]);
 
-  // Merge: keep local-only prisms, merge shared prisms with union of card-tracking arrays
-  const merged = { ...storage.prisms };
-  for (const [id, cloudPrism] of Object.entries(cloudPrisms)) {
-    const localPrism = merged[id];
+  for (const prismId of prismIds) {
+    const localPrism = storage.prisms[prismId];
+    const cloudPrism = cloudPrisms[prismId];
+    const baseline = syncState.prismBaselines[prismId];
 
-    if (!localPrism) {
-      // New from cloud, use as-is
-      merged[id] = cloudPrism;
-    } else {
-      // Prism exists in both — union card-tracking arrays, newer wins for other fields
-      const mergedMarkedCards = mergeMarkedCards(
-        localPrism.markedCards || [],
-        cloudPrism.markedCards || []
-      );
-      const mergedRemovedCards = mergeRemovedCards(
-        localPrism.removedCards || [],
-        cloudPrism.removedCards || []
-      );
+    if (localPrism && cloudPrism) {
+      merged[prismId] = mergePrismVersions(localPrism, cloudPrism, baseline);
+      continue;
+    }
 
-      const cloudNewer = new Date(cloudPrism.updatedAt) >= new Date(localPrism.updatedAt);
-      const basePrism = cloudNewer ? cloudPrism : localPrism;
+    if (localPrism) {
+      if (!baseline?.updatedAt || getTimestampMs(localPrism.updatedAt) > getTimestampMs(baseline.updatedAt)) {
+        merged[prismId] = localPrism;
+      }
+      continue;
+    }
 
-      merged[id] = {
-        ...basePrism,
-        markedCards: mergedMarkedCards,
-        removedCards: mergedRemovedCards,
-      };
+    const deletedAt = syncState.deletedPrisms[prismId];
+    if (!deletedAt || getTimestampMs(cloudPrism.updatedAt || cloudPrism.createdAt) > getTimestampMs(deletedAt)) {
+      merged[prismId] = cloudPrism;
     }
   }
 
   storage.prisms = merged;
+  pruneSyncState(storage);
 
   // Pick the best current PRISM after merge:
   // - If no current PRISM is set or it was deleted, pick most recent
@@ -368,7 +761,7 @@ export async function syncWithSupabase() {
   const cloudHasData = Object.keys(cloudPrisms).length > 0;
 
   if (!storage.currentPrismId || !storage.prisms[storage.currentPrismId] || (currentIsEmpty && cloudHasData)) {
-    const prismEntries = Object.entries(cloudHasData ? cloudPrisms : storage.prisms);
+    const prismEntries = Object.entries(storage.prisms);
     if (prismEntries.length > 0) {
       prismEntries.sort((a, b) =>
         new Date(b[1].updatedAt || b[1].createdAt) - new Date(a[1].updatedAt || a[1].createdAt)
@@ -379,26 +772,44 @@ export async function syncWithSupabase() {
 
   saveStorage(storage);
 
-  // Push any local-only prisms to cloud
-  for (const [id, prism] of Object.entries(storage.prisms)) {
-    if (!cloudPrisms[id]) {
-      await savePrismToSupabase(prism);
+  for (const [prismId, prism] of Object.entries(storage.prisms)) {
+    const saved = await savePrismToSupabase(prism);
+    if (saved) {
+      recordPrismBaseline(storage, prism);
     }
   }
 
-  // Push merged prisms back to cloud if card-tracking arrays were enriched
-  for (const [id, prism] of Object.entries(storage.prisms)) {
-    if (cloudPrisms[id]) {
-      const cloudPrism = cloudPrisms[id];
-      const markedChanged = (prism.markedCards || []).length !== (cloudPrism.markedCards || []).length;
-      const removedChanged = (prism.removedCards || []).length !== (cloudPrism.removedCards || []).length;
-      if (markedChanged || removedChanged) {
-        await savePrismToSupabase(prism);
-      }
+  for (const prismId of Object.keys(cloudPrisms)) {
+    if (!storage.prisms[prismId] && syncState.deletedPrisms[prismId]) {
+      await deletePrismFromSupabase(prismId);
     }
   }
 
+  saveStorage(storage);
   console.log('Synced with Supabase');
+}
+
+async function syncPrismToSupabase(prismId) {
+  if (!shouldSyncToSupabase()) return;
+
+  const storage = loadStorage();
+  const localPrism = storage.prisms[prismId];
+  if (!localPrism) return;
+
+  const cloudPrism = await loadPrismFromSupabase(prismId);
+  const baseline = getPrismBaseline(storage, prismId);
+  const mergedPrism = cloudPrism
+    ? mergePrismVersions(localPrism, cloudPrism, baseline)
+    : localPrism;
+
+  storage.prisms[prismId] = mergedPrism;
+  saveStorage(storage);
+
+  const saved = await savePrismToSupabase(mergedPrism);
+  if (saved) {
+    recordPrismBaseline(storage, mergedPrism);
+    saveStorage(storage);
+  }
 }
 
 // ============================================
@@ -437,14 +848,17 @@ export function setCurrentPrism(prismId) {
  */
 export function savePrism(prism) {
   const storage = loadStorage();
+  const previousPrism = storage.prisms[prism.id] || null;
+  recordLocalPrismChanges(storage, previousPrism, prism);
   storage.prisms[prism.id] = prism;
+  pruneSyncState(storage);
   saveStorage(storage);
 
   // Sync to Supabase if logged in (debounced to avoid race conditions on rapid saves)
   if (shouldSyncToSupabase()) {
     clearTimeout(syncTimeout);
     syncTimeout = setTimeout(() => {
-      savePrismToSupabase(prism).catch(err => {
+      syncPrismToSupabase(prism.id).catch(err => {
         console.error('Background sync failed:', err);
       });
     }, 2000);
@@ -457,6 +871,9 @@ export function savePrism(prism) {
  */
 export function deletePrism(prismId) {
   const storage = loadStorage();
+  const syncState = ensureSyncState(storage);
+  syncState.deletedPrisms[prismId] = new Date().toISOString();
+  delete syncState.prismBaselines[prismId];
   delete storage.prisms[prismId];
 
   // Clear current if it was the deleted one
@@ -464,6 +881,7 @@ export function deletePrism(prismId) {
     storage.currentPrismId = null;
   }
 
+  pruneSyncState(storage);
   saveStorage(storage);
 
   // Sync deletion to Supabase if logged in
@@ -561,11 +979,22 @@ export function importAllData(jsonString) {
     if (!data.version || !data.prisms) {
       throw new Error('Invalid data format');
     }
-    saveStorage(data);
+    const merged = {
+      ...getDefaultStorage(),
+      ...data,
+      syncState: getDefaultStorage().syncState,
+      version: CURRENT_VERSION
+    };
+
+    for (const prism of Object.values(merged.prisms)) {
+      recordPrismBaseline(merged, prism);
+    }
+
+    saveStorage(merged);
 
     // Sync imported data to Supabase
     if (shouldSyncToSupabase()) {
-      for (const prism of Object.values(data.prisms)) {
+      for (const prism of Object.values(merged.prisms)) {
         savePrismToSupabase(prism).catch(err => {
           console.error('Failed to sync imported prism:', err);
         });

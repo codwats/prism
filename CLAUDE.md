@@ -7,7 +7,7 @@ PRISM helps Magic: The Gathering Commander players who share cards across multip
 - **Frontend:** Vanilla JavaScript with ES modules (no bundler, no build step)
 - **UI Components:** [Web Awesome 3.5.0](https://www.webawesome.com/) loaded via CDN kit
 - **Styling:** `css/custom.css` + Web Awesome design tokens (`--wa-color-*`, `--wa-space-*`)
-- **Persistence:** localStorage-first (`prism_data` key), optional Supabase sync when authenticated
+- **Persistence:** localStorage-first (`prism_data` key), optional Supabase sync when authenticated with merge-before-write conflict handling
 - **Auth:** Supabase Auth (email/password), idempotent init pattern (`authInitialized` flag)
 - **APIs:** Scryfall (card data, no key needed), Moxfield & Archidekt (deck import via edge proxies)
 - **Hosting:** Netlify — `publish = "."` (root), edge functions in Deno/TypeScript
@@ -45,7 +45,7 @@ prism/
 │   └── modules/            Reusable business logic (shared across pages)
 │       ├── processor.js    Core engine: processCards, createPrism, stripe assignment, split logic
 │       ├── parser.js       Decklist parsing (MTGO/Moxfield format), basic land detection
-│       ├── storage.js      localStorage + Supabase sync, version migrations
+│       ├── storage.js      localStorage + Supabase sync, version migrations, per-entity merge logic
 │       ├── auth.js         Supabase auth init, listeners, idempotent guard
 │       ├── supabase-client.js  Supabase client singleton (public anon key)
 │       ├── scryfall.js     Scryfall API with localStorage cache (24h TTL) + rate limiting
@@ -93,14 +93,22 @@ Feature modules have circular imports (e.g., `deck-form ↔ deck-list`, `deck-li
 
 ### Storage
 
-localStorage key: `prism_data`. Structure: `{ version, currentPrismId, prisms: { [id]: prismData }, preferences }`. Version migrations supported. Supabase sync happens optionally on auth state changes. `getPreferences()` merges with defaults so new preference keys auto-populate for existing users.
+localStorage key: `prism_data`. Structure: `{ version, currentPrismId, prisms: { [id]: prismData }, preferences, syncState }`. `syncState` stores per-prism sync baselines plus local deletion tombstones so multi-device merges can distinguish local edits from local deletes. Version migrations supported. Supabase sync happens optionally on auth state changes and on debounced saves while authenticated. `getPreferences()` merges with defaults so new preference keys auto-populate for existing users.
+
+Sync behavior is merge-first, not whole-PRISM last-write-wins:
+
+- On login/session restore, local and cloud PRISMs are merged per prism, per deck, and per split group.
+- `markedCards` still merge by union and `removedCards` merge by `(cardName, deckId)` with latest `removedAt`.
+- Background saves fetch the latest cloud copy, merge it with local using the stored baseline, then write the merged result back to Supabase.
+- Deck and split-group `updatedAt` timestamps are important for conflict resolution and should be preserved on mutation.
+- Split-group child ordering should be preserved from `group.childDeckIds` during merge; only orphaned child IDs should be dropped, with deck-derived order used as a fallback when the stored ordering is missing.
 
 ### PRISM Data Model
 
 ```
 Prism: { id, name, decks[], splitGroups[], markedCards[], removedCards[], createdAt, updatedAt }
 Deck:  { id, name, commander, bracket (1-5), color (hex), stripePosition (1-32), cards[], splitGroupId? }
-SplitGroup: { id, name, sideAPosition, sideAColor, childDeckIds[], splitStyle ('stripes'|'dots') }
+SplitGroup: { id, name, sideAPosition, sideAColor, childDeckIds[], splitStyle ('stripes'|'dots'), createdAt?, updatedAt? }
 Card:  { name, quantity, isCommander, isBasicLand }
 Preferences: { colorScheme, defaultColors, stripeStartCorner ('top-right'|'top-left'|'bottom-right'|'bottom-left') }
 ```
@@ -111,6 +119,7 @@ Preferences: { colorScheme, defaultColors, stripeStartCorner ('top-right'|'top-l
 - **Stripe starting corner** — global preference controlling which card corner stripes originate from. Affects card preview, not stored data.
 - **markedCards** tracks which cards the user has physically marked (checkbox state)
 - **removedCards** tracks cards removed from decks that still need physical marks cleared
+- **syncState** is local-only metadata used for Supabase merge reconciliation; it is not part of the PRISM domain model
 
 ### Card Processing
 
