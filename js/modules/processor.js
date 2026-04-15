@@ -423,11 +423,11 @@ export function moveStripeToPosition(prism, deckId, targetPosition) {
 	// Update split groups if needed
 	const updatedGroups = (prism.splitGroups || []).map((g) => {
 		if (ownerGroup && g.id === ownerGroup.id) {
-			return { ...g, sideAPosition: targetPosition };
+			return { ...g, sideAPosition: targetPosition, updatedAt: now };
 		}
 		if (targetGroup && g.id === targetGroup.id && !ownerGroup) {
 			swappedWithName = swappedWithName || g.name;
-			return { ...g, sideAPosition: currentPosition };
+			return { ...g, sideAPosition: currentPosition, updatedAt: now };
 		}
 		return g;
 	});
@@ -652,14 +652,25 @@ export function isCardInOtherDecks(prism, cardName, excludeDeckId) {
  * @param {Object} params - Split group parameters
  * @returns {Object} A new split group object
  */
-export function createSplitGroup({ name, sideAPosition, sideAColor, splitStyle = 'stripes' }) {
+export function createSplitGroup({
+	name,
+	sideAPosition,
+	sideAColor,
+	splitStyle = 'stripes',
+	id,
+	createdAt,
+	updatedAt,
+}) {
+	const now = new Date().toISOString();
 	return {
-		id: generateId(),
+		id: id || generateId(),
 		name,
 		sideAPosition,
 		sideAColor: sideAColor.toUpperCase(),
 		childDeckIds: [],
 		splitStyle,
+		createdAt: createdAt || now,
+		updatedAt: updatedAt || now,
 	};
 }
 
@@ -736,6 +747,7 @@ export function splitDeck(prism, deckId, splitCount, splitStyle = 'stripes') {
 	}
 
 	group.childDeckIds = childDeckIds;
+	group.updatedAt = now;
 
 	return {
 		...prism,
@@ -776,7 +788,11 @@ export function addSplitToGroup(prism, groupId) {
 
 	const updatedGroups = prism.splitGroups.map((g) => {
 		if (g.id !== groupId) return g;
-		return { ...g, childDeckIds: [...g.childDeckIds, newChild.id] };
+		return {
+			...g,
+			childDeckIds: [...g.childDeckIds, newChild.id],
+			updatedAt: now,
+		};
 	});
 
 	return {
@@ -854,7 +870,11 @@ export function removeSplitChild(prism, deckId) {
 			decks: prism.decks.filter((d) => d.id !== deckId),
 			splitGroups: prism.splitGroups.map((g) => {
 				if (g.id !== group.id) return g;
-				return { ...g, childDeckIds: remainingChildIds };
+				return {
+					...g,
+					childDeckIds: remainingChildIds,
+					updatedAt: new Date().toISOString(),
+				};
 			}),
 		};
 		return unsplitGroup(withoutDeck, group.id);
@@ -866,7 +886,11 @@ export function removeSplitChild(prism, deckId) {
 		decks: prism.decks.filter((d) => d.id !== deckId),
 		splitGroups: prism.splitGroups.map((g) => {
 			if (g.id !== group.id) return g;
-			return { ...g, childDeckIds: remainingChildIds };
+			return {
+				...g,
+				childDeckIds: remainingChildIds,
+				updatedAt: new Date().toISOString(),
+			};
 		}),
 		updatedAt: new Date().toISOString(),
 	};
