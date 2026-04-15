@@ -336,7 +336,7 @@ export function generatePrintableGuide(prism) {
 `;
 
   // Split group legend entries
-  for (const group of splitGroups.sort((a, b) => a.sideAPosition - b.sideAPosition)) {
+  for (const group of [...splitGroups].sort((a, b) => a.sideAPosition - b.sideAPosition)) {
     const isDots = (group.splitStyle || 'stripes') === 'dots';
     html += `
     <div class="deck-item" style="width: 100%;">
