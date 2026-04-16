@@ -123,7 +123,9 @@ export function exportToJSON(prism) {
         sideAColor: group.sideAColor,
         sideAColorName: getColorName(group.sideAColor),
         splitStyle: group.splitStyle || 'stripes',
-        childDeckIds: group.childDeckIds
+        childDeckIds: group.childDeckIds,
+        createdAt: group.createdAt,
+        updatedAt: group.updatedAt
       })),
       decks: prism.decks.map(deck => ({
         id: deck.id,
