@@ -507,6 +507,25 @@ export function getNextStripePosition(prism, side = "a") {
 }
 
 /**
+ * Get the next available position for a split-group variant.
+ * Variants fill the Side B range from the far end (48) downward so they
+ * cluster separately from standalone Side B overflow (which grows 25 → 48).
+ * Falls back to 1 → 24 ascending if Side B is full.
+ * @param {Object} prism - The PRISM object
+ * @returns {number} The next available variant position
+ */
+export function getNextVariantPosition(prism) {
+	const usedPositions = getUsedPositions(prism);
+	for (let i = 48; i >= 25; i--) {
+		if (!usedPositions.has(i)) return i;
+	}
+	for (let i = 1; i <= 24; i++) {
+		if (!usedPositions.has(i)) return i;
+	}
+	return (prism.decks?.length || 0) + 1;
+}
+
+/**
  * Get the next available color from the default palette
  * @param {Object} prism - The PRISM object
  * @returns {string} The next available hex color
@@ -733,9 +752,8 @@ export function splitDeck(prism, deckId, splitCount, splitStyle = 'stripes') {
 	for (const d of prism.decks) {
 		if (d.id === deckId) {
 			// Convert original deck to first split child with a Side B position
-			const sideBPosition = getNextStripePosition(
+			const sideBPosition = getNextVariantPosition(
 				{ ...prism, splitGroups: [...(prism.splitGroups || []), group] },
-				"b",
 			);
 			const firstChild = {
 				...d,
@@ -757,7 +775,7 @@ export function splitDeck(prism, deckId, splitCount, splitStyle = 'stripes') {
 
 			// Create N-1 duplicate children
 			for (let i = 2; i <= splitCount; i++) {
-				const childPosition = getNextStripePosition(tempPrism, "b");
+				const childPosition = getNextVariantPosition(tempPrism);
 				const childColor = getNextColor(tempPrism);
 				const child = createDeck({
 					name: `${deck.name} (${i})`,
@@ -803,7 +821,7 @@ export function addSplitToGroup(prism, groupId) {
 	if (!templateDeck) return prism;
 
 	const now = new Date().toISOString();
-	const childPosition = getNextStripePosition(prism, "b");
+	const childPosition = getNextVariantPosition(prism);
 	const childColor = getNextColor(prism);
 	const splitNumber = group.childDeckIds.length + 1;
 
