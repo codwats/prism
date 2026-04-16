@@ -105,7 +105,10 @@ export function handleJsonImport(e) {
       const deckIds = new Set(newPrism.decks.map(d => d.id));
       newPrism.splitGroups = (prismData.splitGroups || [])
         .map(group => {
-          const childDeckIds = (group.childDeckIds || []).filter(id => deckIds.has(id));
+          const explicit = (group.childDeckIds || []).filter(id => deckIds.has(id));
+          const childDeckIds = explicit.length > 0
+            ? explicit
+            : newPrism.decks.filter(d => d.splitGroupId === group.id).map(d => d.id);
           if (childDeckIds.length === 0) return null;
           return {
             id: group.id,
