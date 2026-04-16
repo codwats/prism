@@ -6,13 +6,14 @@
 
 import { state } from '../core/state.js';
 import { getPreferences, savePrism } from '../modules/storage.js';
-import { moveStripeToPosition, formatSlotLabel } from '../modules/processor.js';
+import { moveStripeToPosition, moveGroupToPosition, formatSlotLabel } from '../modules/processor.js';
 import { renderAll } from './init.js';
 import { showSuccess } from '../core/notifications.js';
 import { escapeHtml } from '../core/utils.js';
 
 // Module-level state for the currently open dialog session
 let activeDeckId = null;
+let activeGroupId = null;
 let pendingTargetPosition = null;
 
 // ============================================================================
@@ -35,21 +36,19 @@ function getCornerConfig() {
 function buildSlotMap(prism) {
   const map = new Map();
 
-  // Split group Side A positions — stripe-style groups are disabled
+  // Split group Side A positions — moveable (the group owns this slot)
   for (const group of (prism.splitGroups || [])) {
-    const isStripe = (group.splitStyle || 'stripes') === 'stripes';
     map.set(group.sideAPosition, {
       name: group.name,
       color: group.sideAColor,
       deckId: null,
       groupId: group.id,
-      disabled: isStripe,
+      disabled: false,
     });
   }
 
   for (const deck of prism.decks) {
     if (!deck.splitGroupId) {
-      // Standalone deck — always clickable
       map.set(deck.stripePosition, {
         name: deck.name,
         color: deck.color,
@@ -58,18 +57,18 @@ function buildSlotMap(prism) {
         disabled: false,
       });
     } else {
-      // Stripe-variant child — occupies a Side B position, always disabled
+      // Stripes-style variants own their own slot; fully moveable.
+      // Dot-style variants don't occupy a slot — they render at the group's sideAPosition.
       const group = prism.splitGroups?.find(g => g.id === deck.splitGroupId);
-      if (group && (group.splitStyle || 'stripes') === 'stripes') {
+      if (group && (group.splitStyle || 'stripes') === 'stripes' && typeof deck.stripePosition === 'number') {
         map.set(deck.stripePosition, {
           name: deck.name,
           color: deck.color,
           deckId: deck.id,
           groupId: deck.splitGroupId,
-          disabled: true,
+          disabled: false,
         });
       }
-      // Dot-variant children don't occupy a visible slot — they follow the group
     }
   }
 
@@ -141,12 +140,20 @@ function renderSlot(position, activeDeck, slotMap) {
 function handleSlotClick(position, activeDeck, slotMap) {
   const info = slotMap.get(position);
 
+  // Clicking the slot the active entity already owns — no-op, just close.
+  const clickingSelf = info && (
+    (activeGroupId && info.groupId === activeGroupId && !info.deckId) ||
+    (activeDeckId && info.deckId === activeDeckId)
+  );
+  if (clickingSelf) {
+    state.elements.stripeReorderDialog.open = false;
+    return;
+  }
+
   if (!info) {
-    // Empty slot — move immediately and close
     executeMove(activeDeck.id, position);
     state.elements.stripeReorderDialog.open = false;
   } else {
-    // Occupied non-disabled slot — show inline swap confirmation
     pendingTargetPosition = position;
     showSwapConfirmation(activeDeck, info, position);
   }
@@ -198,18 +205,23 @@ function showSwapConfirmation(activeDeck, targetInfo, targetPosition) {
 // Execute the move / swap
 // ============================================================================
 
-function executeMove(deckId, targetPosition) {
-  const result = moveStripeToPosition(state.currentPrism, deckId, targetPosition);
+function executeMove(id, targetPosition) {
+  const isGroup = !!activeGroupId;
+  const result = isGroup
+    ? moveGroupToPosition(state.currentPrism, id, targetPosition)
+    : moveStripeToPosition(state.currentPrism, id, targetPosition);
   state.currentPrism = result.prism;
   savePrism(state.currentPrism);
   renderAll();
 
-  const deck = result.prism.decks.find(d => d.id === deckId);
-  const deckName = deck?.name || 'Deck';
+  const name = isGroup
+    ? result.prism.splitGroups.find(g => g.id === id)?.name
+    : result.prism.decks.find(d => d.id === id)?.name;
+  const displayName = name || (isGroup ? 'Group' : 'Deck');
   if (result.swapped) {
-    showSuccess(`Swapped "${deckName}" with "${result.swappedWithName}"`);
+    showSuccess(`Swapped "${displayName}" with "${result.swappedWithName}"`);
   } else {
-    showSuccess(`Moved "${deckName}" to ${formatSlotLabel(targetPosition)}`);
+    showSuccess(`Moved "${displayName}" to ${formatSlotLabel(targetPosition)}`);
   }
 }
 
@@ -333,11 +345,11 @@ export function openStripeReorderDialog(deckId) {
   if (!deck) return;
 
   activeDeckId = deckId;
+  activeGroupId = null;
   pendingTargetPosition = null;
 
   const dialog = state.elements.stripeReorderDialog;
   if (!dialog) return;
-
   dialog.setAttribute('label', `Move "${deck.name}"`);
 
   const content = document.getElementById('stripe-reorder-content');
@@ -345,9 +357,36 @@ export function openStripeReorderDialog(deckId) {
   content.innerHTML = '';
 
   const slotMap = buildSlotMap(prism);
-
   content.appendChild(renderSleeveVisualization(deck, slotMap));
+  dialog.open = true;
+}
 
+export function openGroupReorderDialog(groupId) {
+  const prism = state.currentPrism;
+  const group = prism.splitGroups?.find(g => g.id === groupId);
+  if (!group) return;
+
+  activeDeckId = null;
+  activeGroupId = groupId;
+  pendingTargetPosition = null;
+
+  const dialog = state.elements.stripeReorderDialog;
+  if (!dialog) return;
+  dialog.setAttribute('label', `Move "${group.name}"`);
+
+  const content = document.getElementById('stripe-reorder-content');
+  if (!content) return;
+  content.innerHTML = '';
+
+  // Synthetic "active deck" for rendering: reuse the group's Side A position + color.
+  const syntheticActive = {
+    id: group.id,
+    name: group.name,
+    color: group.sideAColor,
+    stripePosition: group.sideAPosition,
+  };
+  const slotMap = buildSlotMap(prism);
+  content.appendChild(renderSleeveVisualization(syntheticActive, slotMap));
   dialog.open = true;
 }
 

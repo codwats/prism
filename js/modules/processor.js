@@ -355,8 +355,12 @@ export function calculateOverlap(prism) {
  */
 export function getUsedPositions(prism) {
 	const used = new Set();
+	const groupMap = new Map((prism.splitGroups || []).map((g) => [g.id, g]));
 	if (prism.decks) {
 		for (const d of prism.decks) {
+			if (typeof d.stripePosition !== 'number') continue;
+			// Dot-style variants don't own a slot — their mark lives on the group's sideAPosition.
+			if (d.splitGroupId && (groupMap.get(d.splitGroupId)?.splitStyle || 'stripes') === 'dots') continue;
 			used.add(d.stripePosition);
 		}
 	}
@@ -366,6 +370,15 @@ export function getUsedPositions(prism) {
 		}
 	}
 	return used;
+}
+
+/**
+ * Whether a deck is a dot-style split variant (no slot of its own).
+ */
+export function isDotVariant(deck, prism) {
+	if (!deck?.splitGroupId) return false;
+	const group = (prism.splitGroups || []).find((g) => g.id === deck.splitGroupId);
+	return (group?.splitStyle || 'stripes') === 'dots';
 }
 
 /**
@@ -476,6 +489,58 @@ export function moveStripeToPosition(prism, deckId, targetPosition) {
 }
 
 /**
+ * Move a split group's Side A position to a new slot, swapping with any occupant.
+ */
+export function moveGroupToPosition(prism, groupId, targetPosition) {
+	const now = new Date().toISOString();
+	const group = prism.splitGroups?.find((g) => g.id === groupId);
+	if (!group) return { prism, swapped: false, swappedWithName: null };
+
+	const currentPosition = group.sideAPosition;
+	if (currentPosition === targetPosition) {
+		return { prism, swapped: false, swappedWithName: null };
+	}
+
+	// Occupants that would be displaced
+	const targetDeck = prism.decks.find(
+		(d) => d.stripePosition === targetPosition && !d.splitGroupId,
+	) || prism.decks.find(
+		(d) => d.stripePosition === targetPosition &&
+			(prism.splitGroups?.find((g) => g.id === d.splitGroupId)?.splitStyle || 'stripes') === 'stripes',
+	);
+	const targetGroup = prism.splitGroups?.find(
+		(g) => g.id !== groupId && g.sideAPosition === targetPosition,
+	);
+
+	let swappedWithName = null;
+
+	const updatedDecks = prism.decks.map((d) => {
+		if (targetDeck && d.id === targetDeck.id) {
+			swappedWithName = d.name;
+			return { ...d, stripePosition: currentPosition, updatedAt: now };
+		}
+		return d;
+	});
+
+	const updatedGroups = (prism.splitGroups || []).map((g) => {
+		if (g.id === groupId) {
+			return { ...g, sideAPosition: targetPosition, updatedAt: now };
+		}
+		if (targetGroup && g.id === targetGroup.id) {
+			swappedWithName = swappedWithName || g.name;
+			return { ...g, sideAPosition: currentPosition, updatedAt: now };
+		}
+		return g;
+	});
+
+	return {
+		prism: { ...prism, decks: updatedDecks, splitGroups: updatedGroups, updatedAt: now },
+		swapped: swappedWithName !== null,
+		swappedWithName,
+	};
+}
+
+/**
  * Get the next available stripe position for a new deck
  * @param {Object} prism - The PRISM object
  * @param {string} side - 'a' for Side A (1-24 preferred), 'b' for Side B (25-48 preferred)
@@ -523,6 +588,55 @@ export function getNextVariantPosition(prism) {
 		if (!usedPositions.has(i)) return i;
 	}
 	return (prism.decks?.length || 0) + 1;
+}
+
+/**
+ * Remap a slot (1-48) when the starting corner changes.
+ * Physical card position of each mark is preserved; the slot *number* shifts
+ * so slot 1 always sits at the newly-chosen corner.
+ *
+ * Model: corner = { R: right-edge primary, T: top-first numbering }.
+ * A slot's physical location is (edgeRight, yFromTop): slots 1-24 live on the
+ * primary edge from `from`, slots 25-48 on the opposite edge. Index-within-side
+ * counts from top under `fromT`, from bottom under `!fromT`.
+ */
+export function remapSlot(slot, fromCorner, toCorner) {
+	const fromR = fromCorner.includes('right');
+	const fromT = fromCorner.includes('top');
+	const toR = toCorner.includes('right');
+	const toT = toCorner.includes('top');
+
+	const sideA = slot <= 24;
+	const index = sideA ? slot - 1 : slot - 25; // 0-23 along the edge
+	const physEdgeRight = sideA ? fromR : !fromR;
+	const physY = fromT ? index : 23 - index;
+
+	const newSideA = physEdgeRight === toR;
+	const newIndex = toT ? physY : 23 - physY;
+	return newSideA ? newIndex + 1 : newIndex + 25;
+}
+
+/**
+ * Rewrite every stripePosition / sideAPosition in a PRISM so slot 1 sits
+ * at the newly-chosen corner while each deck stays at the same physical
+ * location on the sleeve.
+ */
+export function remapPrismForCorner(prism, fromCorner, toCorner) {
+	if (fromCorner === toCorner) return prism;
+	const now = new Date().toISOString();
+	return {
+		...prism,
+		decks: prism.decks.map((d) => {
+			if (typeof d.stripePosition !== 'number') return d;
+			return { ...d, stripePosition: remapSlot(d.stripePosition, fromCorner, toCorner), updatedAt: now };
+		}),
+		splitGroups: (prism.splitGroups || []).map((g) => ({
+			...g,
+			sideAPosition: remapSlot(g.sideAPosition, fromCorner, toCorner),
+			updatedAt: now,
+		})),
+		updatedAt: now,
+	};
 }
 
 /**
@@ -749,38 +863,41 @@ export function splitDeck(prism, deckId, splitCount, splitStyle = 'stripes') {
 	const updatedDecks = [];
 	const childDeckIds = [];
 
+	const isDots = splitStyle === 'dots';
+
 	for (const d of prism.decks) {
 		if (d.id === deckId) {
-			// Convert original deck to first split child with a Side B position
-			const sideBPosition = getNextVariantPosition(
-				{ ...prism, splitGroups: [...(prism.splitGroups || []), group] },
-			);
-			if (sideBPosition === null) {
+			// Dot-style: variant decks have no slot of their own.
+			// Stripes-style: each variant gets a Side B slot (assigned 48 → 25).
+			const firstPosition = isDots
+				? null
+				: getNextVariantPosition({ ...prism, splitGroups: [...(prism.splitGroups || []), group] });
+			if (!isDots && firstPosition === null) {
 				throw new Error('No available stripe positions. All 48 slots are occupied.');
 			}
 			const firstChild = {
 				...d,
 				name: `${d.name} (1)`,
-				stripePosition: sideBPosition,
+				stripePosition: isDots ? null : firstPosition,
 				splitGroupId: group.id,
 				updatedAt: now,
 			};
 			updatedDecks.push(firstChild);
 			childDeckIds.push(firstChild.id);
 
-			// Track used positions for subsequent children
-			// Include all other decks (not the one being split) so their positions are reserved
 			const otherDecks = prism.decks.filter((d) => d.id !== deckId);
 			const tempPrism = {
 				decks: [...otherDecks, ...updatedDecks],
 				splitGroups: [...(prism.splitGroups || []), group],
 			};
 
-			// Create N-1 duplicate children
 			for (let i = 2; i <= splitCount; i++) {
-				const childPosition = getNextVariantPosition(tempPrism);
-				if (childPosition === null) {
-					throw new Error('No available stripe positions. All 48 slots are occupied.');
+				let childPosition = null;
+				if (!isDots) {
+					childPosition = getNextVariantPosition(tempPrism);
+					if (childPosition === null) {
+						throw new Error('No available stripe positions. All 48 slots are occupied.');
+					}
 				}
 				const childColor = getNextColor(tempPrism);
 				const child = createDeck({
@@ -790,7 +907,7 @@ export function splitDeck(prism, deckId, splitCount, splitStyle = 'stripes') {
 					color: childColor,
 					stripePosition: childPosition,
 					splitGroupId: group.id,
-					cards: deck.cards.map((c) => ({ ...c })), // Deep copy cards
+					cards: deck.cards.map((c) => ({ ...c })),
 				});
 				updatedDecks.push(child);
 				childDeckIds.push(child.id);
@@ -827,9 +944,13 @@ export function addSplitToGroup(prism, groupId) {
 	if (!templateDeck) return prism;
 
 	const now = new Date().toISOString();
-	const childPosition = getNextVariantPosition(prism);
-	if (childPosition === null) {
-		throw new Error('No available stripe positions. All 48 slots are occupied.');
+	const isDots = (group.splitStyle || 'stripes') === 'dots';
+	let childPosition = null;
+	if (!isDots) {
+		childPosition = getNextVariantPosition(prism);
+		if (childPosition === null) {
+			throw new Error('No available stripe positions. All 48 slots are occupied.');
+		}
 	}
 	const childColor = getNextColor(prism);
 	const splitNumber = group.childDeckIds.length + 1;
@@ -841,7 +962,7 @@ export function addSplitToGroup(prism, groupId) {
 		color: childColor,
 		stripePosition: childPosition,
 		splitGroupId: group.id,
-		cards: templateDeck.cards.map((c) => ({ ...c })), // Deep copy cards
+		cards: templateDeck.cards.map((c) => ({ ...c })),
 	});
 
 	const updatedGroups = prism.splitGroups.map((g) => {

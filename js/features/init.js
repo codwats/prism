@@ -121,6 +121,7 @@ function getElements() {
 
     // Stripe settings
     stripeStartCorner: document.getElementById('stripe-start-corner'),
+    stripeStartCornerApply: document.getElementById('stripe-start-corner-apply'),
 
     // Stripe reorder dialog
     stripeReorderDialog: document.getElementById('stripe-reorder-dialog'),
