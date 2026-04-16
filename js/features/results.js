@@ -21,7 +21,7 @@ function buildSlotMap(stripes) {
     if (!slotMap.has(s.position)) slotMap.set(s.position, { square: null, dots: [] });
     const slot = slotMap.get(s.position);
     if (s.markType === 'dot') slot.dots.push(s);
-    else slot.square = s;
+    else if (s.markType !== 'membership') slot.square = s;
   }
   return slotMap;
 }

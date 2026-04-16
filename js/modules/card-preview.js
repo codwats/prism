@@ -85,6 +85,9 @@ function createStripeOverlay(stripes) {
       continue;
     }
 
+    // Membership entries carry deckId for filtering only — not rendered visually
+    if (stripe.markType === 'membership') continue;
+
     // Standard stripe rendering
     const mark = document.createElement('div');
     const isSideB = stripe.side === 'b' || stripe.position > SLOTS_PER_SIDE;

@@ -229,7 +229,7 @@ export function processCards(prism) {
 		for (const [, cardData] of cardMap) {
 			if (!cardData.sideAGroups.has(group.id)) continue; // Card not in this group at all
 			const variantsWithCard = variantDecks.filter(d => cardData.quantities.has(d.id));
-			if (variantsWithCard.length === variantDecks.length) continue; // In all variants → no dot
+			const isShared = variantsWithCard.length === variantDecks.length;
 			for (const variantDeck of variantsWithCard) {
 				cardData.stripes.push({
 					position: group.sideAPosition,
@@ -240,7 +240,9 @@ export function processCards(prism) {
 					groupId: group.id,
 					bracket: variantDeck.bracket,
 					quantity: cardData.quantities.get(variantDeck.id),
-					markType: 'dot',
+					// Shared cards: membership entry only (carries deckId for filtering, not rendered visually)
+					// Subset cards: dot entry (rendered as colored dot above the Side A square)
+					markType: isShared ? 'membership' : 'dot',
 				});
 			}
 		}
