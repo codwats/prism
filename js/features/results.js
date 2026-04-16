@@ -14,9 +14,8 @@ import { renderOverlapMatrix } from './analysis.js';
 // ============================================================================
 
 function renderStripeIndicator(s) {
-  // Dot-style variant: render circle for dotIndex > 0, skip dotIndex 0
+  // Dot-style variant: always render colored circle
   if (s.markType === 'dot') {
-    if (s.dotIndex === 0) return ''; // Variant 1 has no dot indicator
     return `<div
       class="stripe-indicator stripe-dot-indicator"
       style="background-color: ${s.color};"

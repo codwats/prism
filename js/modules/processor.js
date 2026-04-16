@@ -172,7 +172,7 @@ export function processCards(prism) {
 			cardData.deckIds.add(deck.id);
 
 			if (group) {
-				// Split deck: add Side A stripe (deduplicated per group) + Side B stripe
+				// Split deck: add Side A stripe (deduplicated per group)
 				if (!cardData.sideAGroups.has(group.id)) {
 					cardData.sideAGroups.add(group.id);
 					cardData.stripes.push({
@@ -186,21 +186,22 @@ export function processCards(prism) {
 						quantity: null,
 					});
 				}
-				// Side B mark for this specific split (stripe or dot depending on group style)
+				// For stripes-style: emit Side B stripe immediately.
+				// For dots-style: deferred — emitted after the main loop based on partial membership.
 				const isDotStyle = (group.splitStyle || 'stripes') === 'dots';
-				const dotIndex = isDotStyle ? group.childDeckIds.indexOf(deck.id) : -1;
-				cardData.stripes.push({
-					position: isDotStyle ? group.sideAPosition : deck.stripePosition,
-					color: deck.color,
-					side: "b",
-					deckName: deck.name,
-					deckId: deck.id,
-					groupId: group.id,
-					bracket: deck.bracket,
-					quantity: card.quantity,
-					markType: isDotStyle ? 'dot' : 'stripe',
-					dotIndex: isDotStyle ? dotIndex : undefined,
-				});
+				if (!isDotStyle) {
+					cardData.stripes.push({
+						position: deck.stripePosition,
+						color: deck.color,
+						side: "b",
+						deckName: deck.name,
+						deckId: deck.id,
+						groupId: group.id,
+						bracket: deck.bracket,
+						quantity: card.quantity,
+						markType: 'stripe',
+					});
+				}
 			} else {
 				// Standalone deck: single Side A stripe
 				cardData.stripes.push({
@@ -212,6 +213,34 @@ export function processCards(prism) {
 					groupId: null,
 					bracket: deck.bracket,
 					quantity: card.quantity,
+				});
+			}
+		}
+	}
+
+	// Dots-style split groups: emit dot entries for cards in a strict subset of variants.
+	// Cards in ALL variants of a group → no dot (Side A stripe is enough).
+	// Cards in a subset → one dot per variant the card is in, colored with that variant's color.
+	for (const group of splitGroups) {
+		if ((group.splitStyle || 'stripes') !== 'dots') continue;
+		const variantDecks = group.childDeckIds
+			.map(id => decks.find(d => d.id === id))
+			.filter(Boolean);
+		for (const [, cardData] of cardMap) {
+			if (!cardData.sideAGroups.has(group.id)) continue; // Card not in this group at all
+			const variantsWithCard = variantDecks.filter(d => cardData.quantities.has(d.id));
+			if (variantsWithCard.length === variantDecks.length) continue; // In all variants → no dot
+			for (const variantDeck of variantsWithCard) {
+				cardData.stripes.push({
+					position: group.sideAPosition,
+					color: variantDeck.color,
+					side: 'b',
+					deckName: variantDeck.name,
+					deckId: variantDeck.id,
+					groupId: group.id,
+					bracket: variantDeck.bracket,
+					quantity: cardData.quantities.get(variantDeck.id),
+					markType: 'dot',
 				});
 			}
 		}

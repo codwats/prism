@@ -155,8 +155,7 @@ export function exportToJSON(prism) {
           deckId: s.deckId,
           groupId: s.groupId || null,
           bracket: s.bracket,
-          markType: s.markType || 'stripe',
-          dotIndex: s.dotIndex
+          markType: s.markType || 'stripe'
         }))
       })),
       markedCards: prism.markedCards || [],
@@ -449,9 +448,9 @@ export function generatePrintableGuide(prism) {
 
     // Non-dot stripes by position
     const stripeMap = new Map(card.stripes.filter(s => s.markType !== 'dot').map(s => [s.position, s]));
-    // Dots grouped by position (only dotIndex > 0 = visible dots)
+    // Dots grouped by position
     const dotsByPos = new Map();
-    for (const s of card.stripes.filter(s => s.markType === 'dot' && s.dotIndex > 0)) {
+    for (const s of card.stripes.filter(s => s.markType === 'dot')) {
       if (!dotsByPos.has(s.position)) dotsByPos.set(s.position, []);
       dotsByPos.get(s.position).push(s);
     }
