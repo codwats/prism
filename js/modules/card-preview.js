@@ -44,6 +44,14 @@ function getStripeY(position, topDown = true) {
   return STRIPE_END_Y - index * STRIPE_SLOT_HEIGHT;
 }
 
+// Resolve which edge a slot lives on, purely from position + corner preference.
+// Slots 1-24 live on the primary edge; slots 25-48 live on the opposite edge.
+function getStripeEdge(position, sideARight) {
+  const onPrimaryEdge = position <= SLOTS_PER_SIDE;
+  const onRight = onPrimaryEdge ? sideARight : !sideARight;
+  return { onRight };
+}
+
 // Create stripe overlay element
 function createStripeOverlay(stripes) {
   const container = document.createElement('div');
@@ -62,8 +70,9 @@ function createStripeOverlay(stripes) {
     // Handle dot-style variants
     if (stripe.markType === 'dot') {
       const dot = document.createElement('div');
-      // Dots go on the inside (toward center) of the Side A stripe edge
-      const dotOnLeft = sideARight; // If Side A is right, dots go left of it (inward)
+      // Dots go inward from the parent stripe's edge, wherever that edge lives
+      const { onRight: parentOnRight } = getStripeEdge(stripe.position, sideARight);
+      const dotOnLeft = parentOnRight;
       dot.className = `stripe-dot-mark${dotOnLeft ? '' : ' stripe-dot-mark-right'}`;
       dot.style.backgroundColor = stripe.color;
       dot.style.top = `${getStripeY(stripe.position, topDown)}px`;
@@ -88,26 +97,15 @@ function createStripeOverlay(stripes) {
     // Membership entries carry deckId for filtering only — not rendered visually
     if (stripe.markType === 'membership') continue;
 
-    // Standard stripe rendering
+    // Standard stripe rendering — edge derived purely from position + corner
     const mark = document.createElement('div');
-    const isSideB = stripe.side === 'b' || stripe.position > SLOTS_PER_SIDE;
-
-    // Determine which edge this stripe goes on based on corner preference
-    // Side A: on the preferred edge. Side B: on the opposite edge.
-    const onRight = isSideB ? !sideARight : sideARight;
+    const { onRight } = getStripeEdge(stripe.position, sideARight);
     mark.className = `stripe-mark${onRight ? '' : ' stripe-mark-left'}`;
     mark.style.backgroundColor = stripe.color;
     mark.style.top = `${getStripeY(stripe.position, topDown)}px`;
 
-    const sideLabel = isSideB ? 'Side B' : 'Side A';
+    const sideLabel = stripe.position > SLOTS_PER_SIDE ? 'Side B' : 'Side A';
     mark.title = `${stripe.deckName} (${sideLabel} · Slot ${stripe.position})`;
-
-    if (isSideB) {
-      mark.style.borderStyle = 'dashed';
-      mark.style.borderWidth = '1px';
-      mark.style.borderColor = stripe.color;
-      mark.style.backgroundColor = `${stripe.color}88`; // Semi-transparent for Side B
-    }
 
     container.appendChild(mark);
   }

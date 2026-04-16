@@ -479,7 +479,14 @@ export function handleSplitConfirm() {
   }
 
   const splitStyle = state.elements.splitStyle?.value || 'stripes';
-  state.currentPrism = splitDeck(state.currentPrism, deckId, count, splitStyle);
+  let updatedPrism;
+  try {
+    updatedPrism = splitDeck(state.currentPrism, deckId, count, splitStyle);
+  } catch (err) {
+    showError(err.message);
+    return;
+  }
+  state.currentPrism = updatedPrism;
   savePrism(state.currentPrism);
 
   state.elements.splitDialog.open = false;
@@ -488,7 +495,14 @@ export function handleSplitConfirm() {
 }
 
 export function handleAddSplit(groupId) {
-  state.currentPrism = addSplitToGroup(state.currentPrism, groupId);
+  let updatedPrism;
+  try {
+    updatedPrism = addSplitToGroup(state.currentPrism, groupId);
+  } catch (err) {
+    showError(err.message);
+    return;
+  }
+  state.currentPrism = updatedPrism;
   savePrism(state.currentPrism);
   renderAll();
 
