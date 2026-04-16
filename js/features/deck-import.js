@@ -94,11 +94,37 @@ export function handleJsonImport(e) {
           bracket: deck.bracket,
           color: deck.color,
           stripePosition: deck.stripePosition,
+          splitGroupId: deck.splitGroupId || null,
           cards: deckCards,
           createdAt: deck.createdAt,
           updatedAt: deck.updatedAt
         });
         newPrism.decks.push(newDeck);
+      }
+
+      const deckIds = new Set(newPrism.decks.map(d => d.id));
+      newPrism.splitGroups = (prismData.splitGroups || [])
+        .map(group => {
+          const childDeckIds = (group.childDeckIds || []).filter(id => deckIds.has(id));
+          if (childDeckIds.length === 0) return null;
+          return {
+            id: group.id,
+            name: group.name,
+            sideAPosition: group.sideAPosition,
+            sideAColor: group.sideAColor,
+            splitStyle: group.splitStyle || 'stripes',
+            childDeckIds,
+            createdAt: group.createdAt,
+            updatedAt: group.updatedAt
+          };
+        })
+        .filter(Boolean);
+
+      const validGroupIds = new Set(newPrism.splitGroups.map(g => g.id));
+      for (const deck of newPrism.decks) {
+        if (deck.splitGroupId && !validGroupIds.has(deck.splitGroupId)) {
+          deck.splitGroupId = null;
+        }
       }
 
       savePrism(newPrism);
@@ -108,8 +134,10 @@ export function handleJsonImport(e) {
       initColorSwatches();
       renderAll();
 
-      logToSupabase('info', 'json_import', { name: newPrism.name, deckCount: newPrism.decks.length });
-      showSuccess(`Imported "${newPrism.name}" with ${newPrism.decks.length} decks.`);
+      const groupCount = newPrism.splitGroups.length;
+      logToSupabase('info', 'json_import', { name: newPrism.name, deckCount: newPrism.decks.length, splitGroupCount: groupCount });
+      const suffix = groupCount > 0 ? ` (${groupCount} split group${groupCount === 1 ? '' : 's'})` : '';
+      showSuccess(`Imported "${newPrism.name}" with ${newPrism.decks.length} decks${suffix}.`);
     } catch (err) {
       console.error('JSON import error:', err);
       logToSupabase('error', 'json_import_failed', { error: err.message });
