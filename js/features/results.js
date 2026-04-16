@@ -13,21 +13,42 @@ import { renderOverlapMatrix } from './analysis.js';
 // Stripe indicator helpers
 // ============================================================================
 
-function renderStripeIndicator(s) {
-  // Dot-style variant: always render colored circle
-  if (s.markType === 'dot') {
-    return `<div
-      class="stripe-indicator stripe-dot-indicator"
-      style="background-color: ${s.color};"
-      title="Dot: ${escapeHtml(s.deckName)}"
-    ></div>`;
+// Group a card's stripes by position, separating squares from dots.
+// Returns Map<position, { square: stripe|null, dots: stripe[] }> in sorted stripe order.
+function buildSlotMap(stripes) {
+  const slotMap = new Map();
+  for (const s of stripes) {
+    if (!slotMap.has(s.position)) slotMap.set(s.position, { square: null, dots: [] });
+    const slot = slotMap.get(s.position);
+    if (s.markType === 'dot') slot.dots.push(s);
+    else slot.square = s;
   }
-  // Standard stripe indicator
+  return slotMap;
+}
+
+// Render a single stripe square (no dots).
+function renderSquare(s) {
   return `<div
     class="stripe-indicator${s.side === 'b' ? ' stripe-side-b' : ''}"
     style="background-color: ${s.color};"
     title="${formatSlotLabel(s.position)}: ${escapeHtml(s.deckName)}"
   ></div>`;
+}
+
+// Render a slot: if it has dots, use ö-style (dot row above square).
+function renderSlot(slot) {
+  if (slot.dots.length === 0) {
+    return slot.square ? renderSquare(slot.square) : '';
+  }
+  const dotsHtml = slot.dots.map(d => `<div
+    class="stripe-indicator stripe-dot-indicator"
+    style="background-color: ${d.color};"
+    title="Dot: ${escapeHtml(d.deckName)}"
+  ></div>`).join('');
+  const squareHtml = slot.square
+    ? renderSquare(slot.square)
+    : `<div class="stripe-indicator stripe-empty"></div>`;
+  return `<div class="stripe-slot"><div class="slot-dot-row">${dotsHtml}</div>${squareHtml}</div>`;
 }
 
 // ============================================================================
@@ -233,23 +254,26 @@ export function renderResults() {
         ...(state.currentPrism.splitGroups || []).map(g => g.sideAPosition)
       ])].sort((a, b) => a - b);
 
-      const stripeMap = new Map(card.stripes.map(s => [s.position, s]));
+      const slotMap = buildSlotMap(card.stripes);
       stripeIndicators = '';
       for (const pos of allPositions) {
-        const stripe = stripeMap.get(pos);
-        if (stripe) {
-          stripeIndicators += renderStripeIndicator(stripe);
+        const slot = slotMap.get(pos);
+        if (slot) {
+          stripeIndicators += renderSlot(slot);
         } else {
-          stripeIndicators += `
-            <div
-              class="stripe-indicator stripe-empty"
-              title="${formatSlotLabel(pos)}: Empty"
-            ></div>`;
+          stripeIndicators += `<div
+            class="stripe-indicator stripe-empty"
+            title="${formatSlotLabel(pos)}: Empty"
+          ></div>`;
         }
       }
     } else {
       // Show only filled slots (default)
-      stripeIndicators = card.stripes.map(s => renderStripeIndicator(s)).join('');
+      const slotMap = buildSlotMap(card.stripes);
+      stripeIndicators = '';
+      for (const [, slot] of slotMap) {
+        stripeIndicators += renderSlot(slot);
+      }
     }
 
     const rowClass = card.logicalDeckCount > 1 ? 'shared-row' : '';
