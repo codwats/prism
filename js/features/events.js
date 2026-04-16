@@ -9,7 +9,8 @@ import { handleDeckSubmit, resetDeckForm, updateColorSwatchSelection, checkColor
 import { handleFileUpload, handleJsonImport, handleMoxfieldImport, handleEditFileUpload, handleEditUrlImport } from './deck-import.js';
 import { handleDeleteConfirm, handleEditConfirm, handleNewPrism, handleSplitConfirm } from './deck-list.js';
 import { renderResults } from './results.js';
-import { updatePreferences } from '../modules/storage.js';
+import { updatePreferences, getPreferences, savePrism } from '../modules/storage.js';
+import { remapPrismForCorner } from '../modules/processor.js';
 import { renderAll } from './init.js';
 
 // ============================================================================
@@ -168,8 +169,28 @@ export function setupEventListeners() {
 
   // Stripe starting corner preference
   if (state.elements.stripeStartCorner) {
-    state.elements.stripeStartCorner.addEventListener('wa-change', (e) => {
-      updatePreferences({ stripeStartCorner: e.target.value });
+    state.elements.stripeStartCorner.addEventListener('change', (e) => {
+      const pending = e.target.value;
+      const applied = getPreferences().stripeStartCorner || 'top-right';
+      const applyBtn = state.elements.stripeStartCornerApply;
+      if (applyBtn) {
+        if (pending !== applied) applyBtn.removeAttribute('disabled');
+        else applyBtn.setAttribute('disabled', '');
+      }
+    });
+  }
+
+  if (state.elements.stripeStartCornerApply) {
+    state.elements.stripeStartCornerApply.addEventListener('click', () => {
+      const newCorner = state.elements.stripeStartCorner?.value;
+      if (!newCorner) return;
+      const currentCorner = getPreferences().stripeStartCorner || 'top-right';
+      if (newCorner !== currentCorner && state.currentPrism) {
+        state.currentPrism = remapPrismForCorner(state.currentPrism, currentCorner, newCorner);
+        savePrism(state.currentPrism);
+      }
+      updatePreferences({ stripeStartCorner: newCorner });
+      state.elements.stripeStartCornerApply.setAttribute('disabled', '');
       renderAll();
     });
   }

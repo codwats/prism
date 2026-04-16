@@ -136,6 +136,12 @@ Preferences: { colorScheme, defaultColors, stripeStartCorner ('top-right'|'top-l
 - `deckCount` — raw count of individual deck IDs (includes each split variant separately). Used for sorting and display of "N decks" in the Stripes column.
 - `logicalDeckCount` — standalone decks + split groups, where all variants of the same split group count as 1. Used for all pool/shared/core classification. A card shared only among variants of the same split group has `logicalDeckCount: 1` and is treated as **core**, not pool.
 
+### Split Position Assignment
+
+`getNextVariantPosition(prism)` scans slots 48→25 (Side B, far end) then 1→24 (Side A) and returns the first unused position. Returns **`null`** — not a fallback index — when all 48 slots are occupied.
+
+`splitDeck` and `addSplitToGroup` check for `null` and **throw** before mutating any deck or assigning any `stripePosition`/`sideAPosition`. Callers in `deck-list.js` (`handleSplitConfirm`, `handleAddSplit`) wrap these in try/catch and surface the error via `showError`, leaving `state.currentPrism` unchanged.
+
 ## Common Debugging
 
 ### Web Awesome Components

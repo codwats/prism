@@ -20,13 +20,14 @@ import {
   removeSplitChild,
   formatSlotLabel,
   createPrism,
+  isDotVariant,
 } from "../modules/processor.js";
 import { savePrism, setCurrentPrism } from "../modules/storage.js";
 import { canonicalizeCards } from "../modules/scryfall.js";
 import { hideEditImportMessages } from "./deck-import.js";
 import { initColorSwatches, resetDeckForm } from "./deck-form.js";
 import { renderAll } from "./init.js";
-import { openStripeReorderDialog, isStripeVariantDeck, isDotVariantChild } from "./stripe-reorder-dialog.js";
+import { openStripeReorderDialog, openGroupReorderDialog, isStripeVariantDeck, isDotVariantChild } from "./stripe-reorder-dialog.js";
 import { toggleWhatIfAnalysis } from "./analysis.js";
 import { renderResults, updateRemovedFilterBadge } from "./results.js";
 
@@ -617,38 +618,35 @@ function getDeckPoolCoreCounts(deck, processedCards) {
 // ============================================================================
 
 function getMoveButtonHtml(deck, isInGroup) {
-  if (!isInGroup) {
-    return `
-      <wa-button appearance="plain" variant="neutral" size="small"
-        class="btn-move-deck" data-deck-id="${deck.id}" title="Move to a different slot">
-        <wa-icon name="up-down-left-right"></wa-icon>
-      </wa-button>
-    `;
-  }
-  // Split group child — determine why it's blocked
-  const group = state.currentPrism.splitGroups?.find(g => g.id === deck.splitGroupId);
+  const group = isInGroup ? state.currentPrism.splitGroups?.find(g => g.id === deck.splitGroupId) : null;
   const splitStyle = group?.splitStyle || 'stripes';
-  if (splitStyle === 'stripes') {
+
+  // Dot variants have no slot of their own — mark lives on the parent group's slot.
+  if (isInGroup && splitStyle === 'dots') {
+    const parentName = group?.name || 'parent deck';
     return `
       <wa-button appearance="plain" variant="neutral" size="small" disabled
-        title="Stripe variant decks can't be moved yet. This is coming in a future update.">
+        title="Dot variants don't own a slot. Move &quot;${parentName}&quot; instead.">
         <wa-icon name="up-down-left-right"></wa-icon>
       </wa-button>
     `;
   }
-  // Dot variant child
-  const parentName = group?.name || 'parent deck';
+
+  // Standalone decks AND stripes-style variants: fully moveable.
   return `
-    <wa-button appearance="plain" variant="neutral" size="small" disabled
-      title="Dot variants move with their parent. Move &quot;${parentName}&quot; instead.">
+    <wa-button appearance="plain" variant="neutral" size="small"
+      class="btn-move-deck" data-deck-id="${deck.id}" title="Move to a different slot">
       <wa-icon name="up-down-left-right"></wa-icon>
     </wa-button>
   `;
 }
 
 export function renderDeckCard(deck, showActions = true, processedCards = null) {
-  const slotLabel = formatSlotLabel(deck.stripePosition);
   const isInGroup = !!deck.splitGroupId;
+  const isDot = isDotVariant(deck, state.currentPrism);
+  const slotTagHtml = isDot
+    ? `<wa-tag size="small" variant="brand">Dot variant</wa-tag>`
+    : `<wa-tag size="small" variant="${isInGroup ? "brand" : "neutral"}">${formatSlotLabel(deck.stripePosition)}</wa-tag>`;
 
   return `
     <div class="deck-card-inner ${isInGroup ? "split-child-card" : ""}" data-deck-id="${deck.id}">
@@ -658,7 +656,7 @@ export function renderDeckCard(deck, showActions = true, processedCards = null) 
           <div class="wa-stack wa-gap-2xs">
             <div class="wa-cluster wa-gap-s wa-align-items-center">
               <span class="${isInGroup ? "wa-heading-s" : "wa-heading-m"}">${escapeHtml(deck.name)}</span>
-              <wa-tag size="small" variant="${isInGroup ? "brand" : "neutral"}">${slotLabel}</wa-tag>
+              ${slotTagHtml}
               <wa-tag size="small" variant="neutral">Bracket ${deck.bracket}</wa-tag>
             </div>
             <div class="wa-caption-m" style="color: var(--wa-color-neutral-text-subtle);">
@@ -787,6 +785,10 @@ export function renderDecksList() {
             </div>
             <div class="wa-cluster wa-gap-xs">
               <wa-button appearance="plain" variant="neutral" size="small"
+                class="btn-move-group" data-group-id="${group.id}" title="Move group to a different slot">
+                <wa-icon name="up-down-left-right"></wa-icon>
+              </wa-button>
+              <wa-button appearance="plain" variant="neutral" size="small"
                 class="btn-add-split" data-group-id="${group.id}" title="Add another variant">
                 <wa-icon name="plus"></wa-icon>
               </wa-button>
@@ -809,6 +811,9 @@ export function renderDecksList() {
   // Add event listeners
   state.elements.decksList.querySelectorAll(".btn-move-deck").forEach((btn) => {
     btn.addEventListener("click", () => openStripeReorderDialog(btn.dataset.deckId));
+  });
+  state.elements.decksList.querySelectorAll(".btn-move-group").forEach((btn) => {
+    btn.addEventListener("click", () => openGroupReorderDialog(btn.dataset.groupId));
   });
   state.elements.decksList.querySelectorAll(".btn-edit-deck").forEach((btn) => {
     btn.addEventListener("click", () => handleEditClick(btn.dataset.deckId));
