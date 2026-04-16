@@ -503,7 +503,7 @@ export function getNextStripePosition(prism, side = "a") {
 	}
 
 	// All 48 positions used (shouldn't happen with 32 deck limit)
-	return (prism.decks?.length || 0) + 1;
+	return null;
 }
 
 /**
@@ -755,6 +755,9 @@ export function splitDeck(prism, deckId, splitCount, splitStyle = 'stripes') {
 			const sideBPosition = getNextVariantPosition(
 				{ ...prism, splitGroups: [...(prism.splitGroups || []), group] },
 			);
+			if (sideBPosition === null) {
+				throw new Error('No available stripe positions. All 48 slots are occupied.');
+			}
 			const firstChild = {
 				...d,
 				name: `${d.name} (1)`,
@@ -776,6 +779,9 @@ export function splitDeck(prism, deckId, splitCount, splitStyle = 'stripes') {
 			// Create N-1 duplicate children
 			for (let i = 2; i <= splitCount; i++) {
 				const childPosition = getNextVariantPosition(tempPrism);
+				if (childPosition === null) {
+					throw new Error('No available stripe positions. All 48 slots are occupied.');
+				}
 				const childColor = getNextColor(tempPrism);
 				const child = createDeck({
 					name: `${deck.name} (${i})`,
@@ -822,6 +828,9 @@ export function addSplitToGroup(prism, groupId) {
 
 	const now = new Date().toISOString();
 	const childPosition = getNextVariantPosition(prism);
+	if (childPosition === null) {
+		throw new Error('No available stripe positions. All 48 slots are occupied.');
+	}
 	const childColor = getNextColor(prism);
 	const splitNumber = group.childDeckIds.length + 1;
 
