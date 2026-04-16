@@ -50,11 +50,17 @@ function createStripeOverlay(stripes) {
   container.className = 'card-preview-stripes';
   const { sideARight, topDown } = getCornerConfig();
 
+  // Build per-group dot local indices for offset computation
+  const groupDotCounters = new Map();
+  for (const stripe of stripes) {
+    if (stripe.markType === 'dot') {
+      if (!groupDotCounters.has(stripe.groupId)) groupDotCounters.set(stripe.groupId, 0);
+    }
+  }
+
   for (const stripe of stripes) {
     // Handle dot-style variants
     if (stripe.markType === 'dot') {
-      if (stripe.dotIndex === 0) continue; // Variant 1 has no dot
-
       const dot = document.createElement('div');
       // Dots go on the inside (toward center) of the Side A stripe edge
       const dotOnLeft = sideARight; // If Side A is right, dots go left of it (inward)
@@ -62,20 +68,25 @@ function createStripeOverlay(stripes) {
       dot.style.backgroundColor = stripe.color;
       dot.style.top = `${getStripeY(stripe.position, topDown)}px`;
 
-      // Offset multiple dots horizontally so they don't overlap
-      const insetBase = 28; // Base inset from card edge
-      const dotSpacing = 10; // Spacing between stacked dots
-      const offset = insetBase + (stripe.dotIndex - 1) * dotSpacing;
+      // Offset multiple dots horizontally so they don't overlap, using local group index
+      const insetBase = 28;
+      const dotSpacing = 10;
+      const localIndex = groupDotCounters.get(stripe.groupId);
+      groupDotCounters.set(stripe.groupId, localIndex + 1);
+      const offset = insetBase + localIndex * dotSpacing;
       if (dotOnLeft) {
         dot.style.right = `${offset}px`;
       } else {
         dot.style.left = `${offset}px`;
       }
 
-      dot.title = `${stripe.deckName} (Dot variant ${stripe.dotIndex + 1})`;
+      dot.title = `${stripe.deckName} (Dot)`;
       container.appendChild(dot);
       continue;
     }
+
+    // Membership entries carry deckId for filtering only — not rendered visually
+    if (stripe.markType === 'membership') continue;
 
     // Standard stripe rendering
     const mark = document.createElement('div');

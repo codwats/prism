@@ -115,7 +115,7 @@ Preferences: { colorScheme, defaultColors, stripeStartCorner ('top-right'|'top-l
 
 - **Stripe positions** 1–24 (Side A) and 25–48 (Side B), max 32 logical decks per PRISM
 - **Split groups** let one deck slot have 2–8 variants sharing a Side A position
-- **Split styles** — `'stripes'` (Side B marks on opposite edge) or `'dots'` (colored dots next to Side A stripe). Dot variant 1 has no dot; variant 2+ get colored dots.
+- **Split styles** — `'stripes'` (Side B marks on opposite edge) or `'dots'` (colored dots above the Side A stripe square). Cards in **all** variants of a group get no dot (shared = no dot). Cards in a **subset** of variants get one dot per variant they belong to, colored with that variant's deck color.
 - **Stripe starting corner** — global preference controlling which card corner stripes originate from. Affects card preview, not stored data.
 - **markedCards** tracks which cards the user has physically marked (checkbox state)
 - **removedCards** tracks cards removed from decks that still need physical marks cleared
@@ -123,7 +123,7 @@ Preferences: { colorScheme, defaultColors, stripeStartCorner ('top-right'|'top-l
 
 ### Card Processing
 
-`processCards(prism)` deduplicates cards across all decks and assigns stripe indicators. Basic lands use **max quantity** across decks (not sum). Card names are canonicalized via Scryfall API before storage. For dot-style split groups, Side B entries include `markType: 'dot'` and `dotIndex` (0 = no dot, 1+ = colored dot).
+`processCards(prism)` deduplicates cards across all decks and assigns stripe indicators. Basic lands use **max quantity** across decks (not sum). Card names are canonicalized via Scryfall API before storage. For dot-style split groups, dot entries are emitted in a **post-loop pass** (not the main loop): if a card appears in all variants of a group, no dots are emitted; if it appears in a strict subset, one `{ markType: 'dot', side: 'b' }` entry is emitted per variant the card is in, colored with that variant's deck color. `dotIndex` is not stored — renderers compute local dot order from the stripes array at render time. Results table and printable guide both use ö-style rendering (dot row above the stripe square).
 
 ### Display Counts
 

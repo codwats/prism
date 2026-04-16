@@ -560,6 +560,22 @@ wa-page[view='desktop'] [data-toggle-nav] {
   border-width: 2px;
 }
 
+/* ö-style slot: dot row above square in results table */
+.stripe-slot {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.slot-dot-row {
+  display: flex;
+  gap: 2px;
+  min-height: 10px;
+  align-items: center;
+  justify-content: center;
+}
+
 /* Dot variant indicators in results table */
 .stripe-indicator.stripe-dot-indicator {
   border-radius: 50%;
@@ -567,6 +583,7 @@ wa-page[view='desktop'] [data-toggle-nav] {
   height: 10px;
   align-self: center;
   border: 1px solid var(--wa-color-neutral-stroke);
+  flex-shrink: 0;
 }
 
 /* Printable guide Side B dots */

@@ -145,7 +145,7 @@ export function exportToJSON(prism) {
         isBasicLand: card.isBasicLand,
         copiesNeeded: card.totalQuantity,
         deckCount: card.deckCount,
-        stripes: card.stripes.map(s => ({
+        stripes: card.stripes.filter(s => s.markType !== 'membership').map(s => ({
           position: s.position,
           side: s.side,
           slotLabel: formatSlotLabel(s.position),
@@ -155,8 +155,7 @@ export function exportToJSON(prism) {
           deckId: s.deckId,
           groupId: s.groupId || null,
           bracket: s.bracket,
-          markType: s.markType || 'stripe',
-          dotIndex: s.dotIndex
+          markType: s.markType || 'stripe'
         }))
       })),
       markedCards: prism.markedCards || [],
@@ -349,18 +348,15 @@ export function generatePrintableGuide(prism) {
       .sort((a, b) => group.childDeckIds.indexOf(a.id) - group.childDeckIds.indexOf(b.id));
 
     if (isDots) {
-      for (let i = 0; i < childDecks.length; i++) {
-        const deck = childDecks[i];
-        const dotHtml = i === 0
-          ? '' // variant 1: no dot — empty dot-row
-          : `<div class="variant-dot" style="background: ${deck.color}" title="${deck.name}"></div>`;
+      for (const deck of childDecks) {
+        const dotHtml = `<div class="variant-dot" style="background: ${deck.color}" title="${deck.name}"></div>`;
         html += `
     <div class="deck-item" style="padding-left: 20px;">
       <div class="legend-slot">
         <div class="legend-dot-row">${dotHtml}</div>
         <div class="stripe-square" style="background: ${group.sideAColor}"></div>
       </div>
-      <span>${deck.name}${i === 0 ? ' <em>(no dot)</em>' : ''} · Bracket ${deck.bracket}</span>
+      <span>${deck.name} · Bracket ${deck.bracket}</span>
     </div>`;
       }
     } else {
@@ -411,11 +407,11 @@ export function generatePrintableGuide(prism) {
     html += `
     <span class="key-item">
       <div class="stripe-slot"><div class="slot-dot-row"><div class="variant-dot" style="background:#e74c3c"></div></div><div class="stripe-square" style="background:#888"></div></div>
-      dot variant mark
+      card in this variant only
     </span>
     <span class="key-item">
       <div class="stripe-slot"><div class="slot-dot-row"></div><div class="stripe-square" style="background:#888"></div></div>
-      variant 1 (no dot)
+      card in all variants (no dot)
     </span>`;
   }
 
@@ -448,10 +444,10 @@ export function generatePrintableGuide(prism) {
     const nameClass = card.isBasicLand ? 'basic-land' : '';
 
     // Non-dot stripes by position
-    const stripeMap = new Map(card.stripes.filter(s => s.markType !== 'dot').map(s => [s.position, s]));
-    // Dots grouped by position (only dotIndex > 0 = visible dots)
+    const stripeMap = new Map(card.stripes.filter(s => s.markType !== 'dot' && s.markType !== 'membership').map(s => [s.position, s]));
+    // Dots grouped by position
     const dotsByPos = new Map();
-    for (const s of card.stripes.filter(s => s.markType === 'dot' && s.dotIndex > 0)) {
+    for (const s of card.stripes.filter(s => s.markType === 'dot')) {
       if (!dotsByPos.has(s.position)) dotsByPos.set(s.position, []);
       dotsByPos.get(s.position).push(s);
     }
