@@ -818,6 +818,25 @@ async function syncPrismToSupabase(prismId) {
 
 let syncTimeout = null;
 
+// Flush a pending debounced sync on page unload so in-flight edits don't get
+// stranded in localStorage. Listen to both beforeunload and pagehide — iOS
+// Safari fires only pagehide. Fire-and-forget is acceptable because modern
+// browsers keep in-flight fetch() POSTs alive through unload briefly.
+if (typeof window !== 'undefined') {
+  const flushPendingSync = () => {
+    if (!syncTimeout) return;
+    clearTimeout(syncTimeout);
+    syncTimeout = null;
+    if (!shouldSyncToSupabase()) return;
+    const storage = loadStorage();
+    const prismId = storage.currentPrismId;
+    if (!prismId) return;
+    syncPrismToSupabase(prismId).catch(() => {});
+  };
+  window.addEventListener('beforeunload', flushPendingSync);
+  window.addEventListener('pagehide', flushPendingSync);
+}
+
 // ============================================
 // PUBLIC API (unchanged interface)
 // ============================================

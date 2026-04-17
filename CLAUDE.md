@@ -8,7 +8,7 @@ PRISM helps Magic: The Gathering Commander players who share cards across multip
 - **UI Components:** [Web Awesome 3.5.0](https://www.webawesome.com/) loaded via CDN kit
 - **Styling:** `css/custom.css` + Web Awesome design tokens (`--wa-color-*`, `--wa-space-*`)
 - **Persistence:** localStorage-first (`prism_data` key), optional Supabase sync when authenticated with merge-before-write conflict handling
-- **Auth:** Supabase Auth (email/password), idempotent init pattern (`authInitialized` flag)
+- **Auth:** Supabase Auth (email/password), idempotent init via cached `authInitPromise` so concurrent callers share one awaitable sync
 - **APIs:** Scryfall (card data, no key needed), Moxfield & Archidekt (deck import via edge proxies)
 - **Hosting:** Netlify — `publish = "."` (root), edge functions in Deno/TypeScript
 - **Dev server:** `http-server` on port 3456, configured in `.claude/launch.json`
@@ -153,7 +153,7 @@ Preferences: { colorScheme, defaultColors, stripeStartCorner ('top-right'|'top-l
 
 ### Auth Double-Init
 
-`initAuth()` is idempotent via `authInitialized` flag. Both `layout.js` and page scripts can call it safely. `setupAuthListeners()` is separate and handles UI updates.
+`initAuth()` caches its async body as `authInitPromise`. Both `layout.js` and page scripts can call it safely and will await the same Promise — including the initial `syncWithSupabase()` — so cloud merge always completes before any caller proceeds. `setupAuthListeners()` is separate and handles UI updates.
 
 ### Circular Dependencies
 
