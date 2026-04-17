@@ -493,76 +493,25 @@ async function savePrismToSupabase(prism) {
       }
     }
 
-    // Sync cards in place for each deck so a later failure doesn't wipe the whole prism.
+    // Replace all cards per deck atomically via RPC (single transaction:
+    // DELETE + INSERT). Accepts empty array to clear cards safely.
     for (const deck of prism.decks || []) {
       const deckUpdatedAt = deck.updatedAt || prismUpdatedAt;
-      const { data: existingCardRows, error: existingCardsError } = await supabase
-        .from('deck_cards')
-        .select('id, card_name, created_at')
-        .eq('deck_id', deck.id);
-
-      if (existingCardsError) {
-        console.error('Error loading existing deck cards before sync:', existingCardsError);
-        return false;
-      }
-
-      const existingCardsByName = new Map(
-        (existingCardRows || []).map(card => [card.card_name.toLowerCase(), card])
-      );
       const localCards = deck.cards || [];
-      const localCardNameSet = new Set(localCards.map(card => card.name.toLowerCase()));
+      const { error: replaceCardsError } = await supabase.rpc('replace_deck_cards', {
+        p_deck_id: deck.id,
+        p_cards: localCards.map(card => ({
+          card_name: card.name,
+          quantity: card.quantity || 1,
+          is_commander: card.isCommander || false,
+          is_basic_land: card.isBasicLand || false
+        })),
+        p_created_at: deckUpdatedAt
+      });
 
-      for (const card of localCards) {
-        const existingCard = existingCardsByName.get(card.name.toLowerCase());
-
-        if (existingCard) {
-          const { error: updateCardError } = await supabase
-            .from('deck_cards')
-            .update({
-              card_name: card.name,
-              quantity: card.quantity || 1,
-              is_commander: card.isCommander || false,
-              is_basic_land: card.isBasicLand || false
-            })
-            .eq('id', existingCard.id);
-
-          if (updateCardError) {
-            console.error('Error updating deck card in Supabase:', updateCardError);
-            return false;
-          }
-        } else {
-          const { error: insertCardError } = await supabase
-            .from('deck_cards')
-            .insert({
-              deck_id: deck.id,
-              card_name: card.name,
-              quantity: card.quantity || 1,
-              is_commander: card.isCommander || false,
-              is_basic_land: card.isBasicLand || false,
-              created_at: deckUpdatedAt
-            });
-
-          if (insertCardError) {
-            console.error('Error inserting deck card in Supabase:', insertCardError);
-            return false;
-          }
-        }
-      }
-
-      const staleCardIds = (existingCardRows || [])
-        .filter(card => !localCardNameSet.has(card.card_name.toLowerCase()))
-        .map(card => card.id);
-
-      if (staleCardIds.length > 0) {
-        const { error: deleteCardsError } = await supabase
-          .from('deck_cards')
-          .delete()
-          .in('id', staleCardIds);
-
-        if (deleteCardsError) {
-          console.error('Error deleting removed deck cards from Supabase:', deleteCardsError);
-          return false;
-        }
+      if (replaceCardsError) {
+        console.error('Error replacing deck cards:', replaceCardsError);
+        return false;
       }
     }
 

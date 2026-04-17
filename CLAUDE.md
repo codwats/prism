@@ -8,7 +8,7 @@ PRISM helps Magic: The Gathering Commander players who share cards across multip
 - **UI Components:** [Web Awesome 3.5.0](https://www.webawesome.com/) loaded via CDN kit
 - **Styling:** `css/custom.css` + Web Awesome design tokens (`--wa-color-*`, `--wa-space-*`)
 - **Persistence:** localStorage-first (`prism_data` key), optional Supabase sync when authenticated with merge-before-write conflict handling
-- **Auth:** Supabase Auth (email/password), idempotent init via cached `authInitPromise` so concurrent callers share one awaitable sync
+- **Auth:** Supabase Auth (email/password), idempotent init via cached `authInitPromise` so concurrent callers share one awaitable sync; `initAuth()` waits for the Supabase CDN script `load` event before proceeding so slow CDN loads don't break auth
 - **APIs:** Scryfall (card data, no key needed), Moxfield & Archidekt (deck import via edge proxies)
 - **Hosting:** Netlify — `publish = "."` (root), edge functions in Deno/TypeScript
 - **Dev server:** `http-server` on port 3456, configured in `.claude/launch.json`
@@ -58,7 +58,7 @@ prism/
 │       ├── moxfield-edge.ts   POST proxy → api2.moxfield.com
 │       └── archidekt-edge.ts  POST proxy → archidekt.com/api
 ├── netlify.toml            Deployment config (publish ".", edge function routes)
-├── supabase-schema.sql     Database schema (prisms, decks, deck_cards, app_logs)
+├── supabase-schema.sql     Database schema (prisms, decks, deck_cards, app_logs, replace_deck_cards RPC)
 └── package.json            Minimal (no deps, node >=18)
 ```
 
@@ -150,10 +150,18 @@ Preferences: { colorScheme, defaultColors, stripeStartCorner ('top-right'|'top-l
 - Web Awesome inputs store values in shadow DOM. Use `element.shadowRoot?.querySelector('input')?.value` as fallback when `.value` is empty.
 - `<wa-page mobile-breakpoint="768">` controls layout. Desktop shows sidebar nav; mobile shows hamburger.
 - FOUC prevention: all HTML pages include `<style>wa-page:not(:defined){visibility:hidden}</style>`.
+- **Dialog open/close:** Use `dialog.setAttribute('open', '')` / `dialog.removeAttribute('open')` — NOT `dialog.open = true/false`. The property setter only works after WA upgrades the element; the attribute is observed via `attributeChangedCallback` and works before upgrade too.
+- **`<wa-button href>` navigation:** WA button href-navigation only works after the element is upgraded. Add a `click` listener fallback (`window.location.href = ...`) for any nav `<wa-button href>` that must work immediately on page load.
 
 ### Auth Double-Init
 
-`initAuth()` caches its async body as `authInitPromise`. Both `layout.js` and page scripts can call it safely and will await the same Promise — including the initial `syncWithSupabase()` — so cloud merge always completes before any caller proceeds. `setupAuthListeners()` is separate and handles UI updates.
+`initAuth()` caches its async body as `authInitPromise`. Both `layout.js` and page scripts can call it safely and will await the same Promise — including the initial `syncWithSupabase()` — so cloud merge always completes before any caller proceeds. `setupAuthListeners()` is separate and handles UI updates. It calls `updateAuthUI(currentUser)` at the end so the nav reflects auth state immediately, since `INITIAL_SESSION` from Supabase can fire before listeners are registered when the session is already in memory.
+
+If the Supabase CDN hasn't loaded when `initAuth()` runs, it awaits the script's `load` event (5s timeout fallback). If `getSupabase()` still returns null after the wait (CDN error/timeout), `authInitPromise` is reset to `null` so callers can retry — without this reset, a resolved-null promise would permanently block re-initialization.
+
+### Supabase Card Sync
+
+`savePrismToSupabase()` replaces all cards for each deck via the `replace_deck_cards(p_deck_id, p_cards, p_created_at)` RPC defined in `supabase-schema.sql`. The RPC runs DELETE + INSERT in a single transaction, preventing a partial-failure window where a deck could be left with no cards. Pass an empty array to clear cards safely. Uses `SECURITY INVOKER` so existing RLS on `deck_cards` applies — users cannot replace cards in decks they don't own. Run `supabase-schema.sql` in the Supabase SQL editor after any schema changes.
 
 ### Circular Dependencies
 

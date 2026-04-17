@@ -153,6 +153,39 @@ CREATE POLICY "Users can create logs"
   WITH CHECK (user_id IS NULL OR auth.uid() = user_id);
 
 -- ============================================
+-- RPC: Atomically replace all cards for a deck
+-- Accepts an empty array to clear cards safely.
+-- ============================================
+CREATE OR REPLACE FUNCTION replace_deck_cards(
+  p_deck_id UUID,
+  p_cards JSONB,
+  p_created_at TIMESTAMPTZ DEFAULT now()
+)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY INVOKER
+AS $$
+BEGIN
+  DELETE FROM deck_cards WHERE deck_id = p_deck_id;
+
+  INSERT INTO deck_cards (deck_id, card_name, quantity, is_commander, is_basic_land, created_at)
+  SELECT
+    p_deck_id,
+    (c->>'card_name')::TEXT,
+    COALESCE((c->>'quantity')::INTEGER, 1),
+    COALESCE((c->>'is_commander')::BOOLEAN, false),
+    COALESCE((c->>'is_basic_land')::BOOLEAN, false),
+    p_created_at
+  FROM jsonb_array_elements(p_cards) AS c
+  WHERE jsonb_array_length(p_cards) > 0;
+END;
+$$;
+
+-- SECURITY INVOKER: function runs as the calling user so existing RLS policies
+-- on deck_cards apply — users can only replace cards in their own decks.
+GRANT EXECUTE ON FUNCTION replace_deck_cards(UUID, JSONB, TIMESTAMPTZ) TO authenticated;
+
+-- ============================================
 -- HELPER FUNCTION: Update timestamp
 -- ============================================
 CREATE OR REPLACE FUNCTION update_updated_at()

@@ -247,6 +247,15 @@ function injectNav(activePage) {
 
   // Insert nav as first child of wa-page (before header and main)
   waPage.insertBefore(nav, waPage.firstChild);
+
+  // Fallback: <wa-button href> only navigates after WA upgrades the element.
+  // Add a click listener so navigation works even before WA loads.
+  const profileNavBtn = nav.querySelector('wa-button[href="profile.html"]');
+  if (profileNavBtn) {
+    profileNavBtn.addEventListener('click', () => {
+      window.location.href = 'profile.html';
+    });
+  }
 }
 
 // ============================================================
