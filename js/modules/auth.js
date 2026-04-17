@@ -6,7 +6,7 @@ import { syncWithSupabase } from './storage.js';
 let currentUser = null;
 let authListeners = [];
 let wasLoggedOut = true; // Track if user was logged out before sign-in
-let authInitialized = false; // Guard against duplicate initialization
+let authInitPromise = null; // Cached init promise — all callers await the same one
 
 // Subscribe to auth state changes
 export function onAuthChange(callback) {
@@ -24,50 +24,59 @@ function notifyAuthChange(user) {
 }
 
 // Initialize auth state
-export async function initAuth() {
-  // Idempotent — safe to call from both layout.js and page-specific scripts
-  if (authInitialized) return currentUser;
-  authInitialized = true;
-
-  if (!isConfigured()) {
-    console.warn('Supabase not configured - auth disabled');
-    return null;
-  }
-
-  const supabase = getSupabase();
-  if (!supabase) return null;
-
-  // Get initial session
-  const { data: { session } } = await supabase.auth.getSession();
-  if (session?.user) {
-    wasLoggedOut = false; // User already logged in, don't reload on SIGNED_IN
-    notifyAuthChange(session.user);
-    // Sync on initial load if already logged in
-    await syncWithSupabase();
-  }
-
-  // Listen for auth changes
-  supabase.auth.onAuthStateChange(async (event, session) => {
-    console.log('Auth state changed:', event);
-    notifyAuthChange(session?.user || null);
-
-    // Track logout state
-    if (event === 'SIGNED_OUT') {
-      wasLoggedOut = true;
-      logToSupabase('info', 'user_signed_out');
+// Returns a shared Promise so concurrent callers (layout.js and page scripts)
+// all await the same async init — including the awaited syncWithSupabase.
+// Previously a boolean guard was flipped synchronously before the async work,
+// causing the second caller to short-circuit before cloud sync completed and
+// read stale localStorage.
+export function initAuth() {
+  if (authInitPromise) return authInitPromise;
+  authInitPromise = (async () => {
+    if (!isConfigured()) {
+      console.warn('Supabase not configured - auth disabled');
+      return null;
     }
 
-    // Sync with Supabase when user freshly logs in (not on session recovery)
-    if (event === 'SIGNED_IN' && session?.user && wasLoggedOut) {
-      wasLoggedOut = false;
-      logToSupabase('info', 'user_signed_in', { email: session.user.email });
+    const supabase = getSupabase();
+    if (!supabase) return null;
+
+    // Get initial session
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session?.user) {
+      wasLoggedOut = false; // User already logged in, don't reload on SIGNED_IN
+      notifyAuthChange(session.user);
+      // Sync on initial load if already logged in
       await syncWithSupabase();
-      // Reload page to show synced data
-      window.location.reload();
     }
-  });
 
-  return currentUser;
+    // Listen for auth changes
+    supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log('Auth state changed:', event);
+      notifyAuthChange(session?.user || null);
+
+      // Track logout state
+      if (event === 'SIGNED_OUT') {
+        wasLoggedOut = true;
+        logToSupabase('info', 'user_signed_out');
+      }
+
+      // Sync with Supabase when user freshly logs in (not on session recovery)
+      if (event === 'SIGNED_IN' && session?.user && wasLoggedOut) {
+        wasLoggedOut = false;
+        logToSupabase('info', 'user_signed_in', { email: session.user.email });
+        await syncWithSupabase();
+        // Reload page to show synced data
+        window.location.reload();
+      }
+    });
+
+    return currentUser;
+  })().catch(err => {
+    // Reset cache so a transient failure does not permanently wedge init
+    authInitPromise = null;
+    throw err;
+  });
+  return authInitPromise;
 }
 
 // Get current user
