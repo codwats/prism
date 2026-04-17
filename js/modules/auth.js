@@ -38,7 +38,11 @@ export function initAuth() {
     }
 
     const supabase = getSupabase();
-    if (!supabase) return null;
+    if (!supabase) {
+      // CDN not loaded yet — don't cache so callers can retry
+      authInitPromise = null;
+      return null;
+    }
 
     // Get initial session
     const { data: { session } } = await supabase.auth.getSession();
@@ -379,4 +383,7 @@ export function setupAuthListeners() {
 
   // Subscribe to auth changes to update UI
   onAuthChange(updateAuthUI);
+  // Sync nav UI immediately — INITIAL_SESSION may have fired during initAuth()
+  // (before this listener was registered) when session was already in memory
+  updateAuthUI(currentUser);
 }
