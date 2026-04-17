@@ -69,7 +69,7 @@ function setupEventListeners() {
   if (elements.btnProfileLogin) {
     elements.btnProfileLogin.addEventListener('click', () => {
       if (elements.authDialog) {
-        elements.authDialog.open = true;
+        elements.authDialog.setAttribute('open', '');
       }
     });
   }

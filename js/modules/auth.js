@@ -37,12 +37,21 @@ export function initAuth() {
       return null;
     }
 
-    const supabase = getSupabase();
-    if (!supabase) {
-      // CDN not loaded yet — don't cache so callers can retry
-      authInitPromise = null;
-      return null;
+    // Wait for Supabase CDN if the script hasn't executed yet
+    if (!window.supabase) {
+      const sbScript = document.querySelector('script[src*="supabase"]');
+      if (sbScript) {
+        await new Promise(resolve => {
+          if (window.supabase) { resolve(); return; }
+          sbScript.addEventListener('load', resolve, { once: true });
+          sbScript.addEventListener('error', resolve, { once: true });
+          setTimeout(resolve, 5000);
+        });
+      }
     }
+
+    const supabase = getSupabase();
+    if (!supabase) return null;
 
     // Get initial session
     const { data: { session } } = await supabase.auth.getSession();
@@ -237,7 +246,7 @@ export function setupAuthListeners() {
       const dialog = document.getElementById('auth-dialog');
       if (dialog) {
         showAuthView('login');
-        dialog.open = true;
+        dialog.setAttribute('open', '');
       }
     });
   }
@@ -296,7 +305,7 @@ export function setupAuthListeners() {
 
         // Close dialog on successful login
         const dialog = document.getElementById('auth-dialog');
-        if (dialog) dialog.open = false;
+        if (dialog) dialog.removeAttribute('open');
       } catch (err) {
         console.error('Login error:', err);
         if (errorEl) {
