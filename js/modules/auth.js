@@ -51,7 +51,10 @@ export function initAuth() {
     }
 
     const supabase = getSupabase();
-    if (!supabase) return null;
+    if (!supabase) {
+      authInitPromise = null;
+      return null;
+    }
 
     // Get initial session
     const { data: { session } } = await supabase.auth.getSession();
