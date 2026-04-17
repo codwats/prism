@@ -817,6 +817,7 @@ async function syncPrismToSupabase(prismId) {
 // ============================================
 
 let syncTimeout = null;
+let queuedPrismId = null;
 
 // Flush a pending debounced sync on page unload so in-flight edits don't get
 // stranded in localStorage. Listen to both beforeunload and pagehide — iOS
@@ -827,10 +828,9 @@ if (typeof window !== 'undefined') {
     if (!syncTimeout) return;
     clearTimeout(syncTimeout);
     syncTimeout = null;
-    if (!shouldSyncToSupabase()) return;
-    const storage = loadStorage();
-    const prismId = storage.currentPrismId;
-    if (!prismId) return;
+    const prismId = queuedPrismId;
+    queuedPrismId = null;
+    if (!prismId || !shouldSyncToSupabase()) return;
     syncPrismToSupabase(prismId).catch(() => {});
   };
   window.addEventListener('beforeunload', flushPendingSync);
@@ -876,7 +876,10 @@ export function savePrism(prism) {
   // Sync to Supabase if logged in (debounced to avoid race conditions on rapid saves)
   if (shouldSyncToSupabase()) {
     clearTimeout(syncTimeout);
+    queuedPrismId = prism.id;
     syncTimeout = setTimeout(() => {
+      syncTimeout = null;
+      queuedPrismId = null;
       syncPrismToSupabase(prism.id).catch(err => {
         console.error('Background sync failed:', err);
       });
