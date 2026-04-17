@@ -15,7 +15,7 @@ const NAV_LINKS = [
   { href: 'index.html', label: 'Home', page: 'home' },
   { href: 'guide.html', label: 'Guide', page: 'guide' },
   { href: 'tools.html', label: 'Tools', page: 'tools' },
-  { href: 'build.html', label: 'Build PRISM', page: 'build' },
+  { href: 'build.html', label: 'My PRISM', page: 'build' },
 ];
 
 /**
