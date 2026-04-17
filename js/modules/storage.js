@@ -493,37 +493,25 @@ async function savePrismToSupabase(prism) {
       }
     }
 
-    // Replace all cards per deck in two calls (delete + bulk insert) instead of
-    // one call per card, which was O(cards) serial round-trips and took minutes.
+    // Replace all cards per deck atomically via RPC (single transaction:
+    // DELETE + INSERT). Accepts empty array to clear cards safely.
     for (const deck of prism.decks || []) {
-      const { error: deleteCardsError } = await supabase
-        .from('deck_cards')
-        .delete()
-        .eq('deck_id', deck.id);
-
-      if (deleteCardsError) {
-        console.error('Error deleting deck cards before re-insert:', deleteCardsError);
-        return false;
-      }
-
+      const deckUpdatedAt = deck.updatedAt || prismUpdatedAt;
       const localCards = deck.cards || [];
-      if (localCards.length > 0) {
-        const deckUpdatedAt = deck.updatedAt || prismUpdatedAt;
-        const { error: insertCardsError } = await supabase
-          .from('deck_cards')
-          .insert(localCards.map(card => ({
-            deck_id: deck.id,
-            card_name: card.name,
-            quantity: card.quantity || 1,
-            is_commander: card.isCommander || false,
-            is_basic_land: card.isBasicLand || false,
-            created_at: deckUpdatedAt
-          })));
+      const { error: replaceCardsError } = await supabase.rpc('replace_deck_cards', {
+        p_deck_id: deck.id,
+        p_cards: localCards.map(card => ({
+          card_name: card.name,
+          quantity: card.quantity || 1,
+          is_commander: card.isCommander || false,
+          is_basic_land: card.isBasicLand || false
+        })),
+        p_created_at: deckUpdatedAt
+      });
 
-        if (insertCardsError) {
-          console.error('Error bulk inserting deck cards:', insertCardsError);
-          return false;
-        }
+      if (replaceCardsError) {
+        console.error('Error replacing deck cards:', replaceCardsError);
+        return false;
       }
     }
 
