@@ -185,8 +185,16 @@ $$;
 -- on deck_cards apply — users can only replace cards in their own decks.
 GRANT EXECUTE ON FUNCTION replace_deck_cards(UUID, JSONB, TIMESTAMPTZ) TO authenticated;
 
--- NOTE: No updated_at triggers on prisms or decks.
--- The client always supplies updated_at on upsert; a server-side trigger that
--- overwrites it with now() causes clock-skew bugs where cloud.updated_at
--- (server time) beats local.updated_at (client time), silently reverting
--- user edits during the merge-before-write in syncPrismToSupabase.
+-- ============================================
+-- MIGRATION: Remove server-side updated_at triggers
+-- ============================================
+-- The client always supplies updated_at on upsert. A trigger that overwrites
+-- it with now() (server time) causes clock-skew bugs: cloud.updated_at ends up
+-- ahead of local.updated_at, so merge-before-write silently picks the stale
+-- cloud deck and reverts user edits on next page load.
+-- Safe to re-run (IF EXISTS). Wrap in transaction so partial failure rolls back.
+BEGIN;
+  DROP TRIGGER IF EXISTS update_decks_updated_at ON decks;
+  DROP TRIGGER IF EXISTS update_prisms_updated_at ON prisms;
+  DROP FUNCTION IF EXISTS update_updated_at();
+COMMIT;

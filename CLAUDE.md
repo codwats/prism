@@ -163,6 +163,15 @@ If the Supabase CDN hasn't loaded when `initAuth()` runs, it awaits the script's
 
 `savePrismToSupabase()` replaces all cards for each deck via the `replace_deck_cards(p_deck_id, p_cards, p_created_at)` RPC defined in `supabase-schema.sql`. The RPC runs DELETE + INSERT in a single transaction, preventing a partial-failure window where a deck could be left with no cards. Pass an empty array to clear cards safely. Uses `SECURITY INVOKER` so existing RLS on `deck_cards` applies — users cannot replace cards in decks they don't own. Run `supabase-schema.sql` in the Supabase SQL editor after any schema changes.
 
+**No `updated_at` triggers on `prisms` or `decks`.** The client always supplies `updated_at` on upsert. A server-side trigger that overwrites it with `now()` (server clock) causes clock-skew bugs: `cloud.updated_at` ends up ahead of `local.updatedAt`, so `mergeEntityCollection` in `syncPrismToSupabase` silently picks the stale cloud deck and reverts user edits on the next page load. The schema includes an idempotent `BEGIN/COMMIT` migration block to drop those triggers on existing deployments.
+
+### Merge Conflict Resolution
+
+`mergeEntityCollection` handles three cases per entity ID:
+- **Both local and cloud present:** if `local.updatedAt > baseline.updatedAt` for that entity, local wins (user edited since last sync — guards against server-clock-ahead skew). Otherwise, `pickNewerEntity` compares timestamps.
+- **Local only:** kept if `local.updatedAt > baseline.updatedAt`, otherwise treated as deleted on another device.
+- **Cloud only:** kept unless locally deleted after the cloud's `updatedAt`.
+
 ### Circular Dependencies
 
 Feature modules have circular imports. This is safe because:
