@@ -199,7 +199,17 @@ function mergeEntityCollection({
     const cloudItem = cloudMap.get(id);
 
     if (localItem && cloudItem) {
-      merged.push(pickNewerEntity(localItem, cloudItem, localFallback, cloudFallback));
+      const baselineUpdatedAt = baselineUpdatedAts[id];
+      const localUpdatedAt = getEntityUpdatedAt(localItem, localFallback);
+      // Local was edited since last known-good sync → prefer local.
+      // Guards against server-clock-ahead skew where the server trigger stamps
+      // updated_at = now() (server time), making cloud.updatedAt > local.updatedAt
+      // even though local has newer user changes.
+      if (baselineUpdatedAt && getTimestampMs(localUpdatedAt) > getTimestampMs(baselineUpdatedAt)) {
+        merged.push(localItem);
+      } else {
+        merged.push(pickNewerEntity(localItem, cloudItem, localFallback, cloudFallback));
+      }
       continue;
     }
 

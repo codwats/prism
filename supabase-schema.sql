@@ -186,21 +186,15 @@ $$;
 GRANT EXECUTE ON FUNCTION replace_deck_cards(UUID, JSONB, TIMESTAMPTZ) TO authenticated;
 
 -- ============================================
--- HELPER FUNCTION: Update timestamp
+-- MIGRATION: Remove server-side updated_at triggers
 -- ============================================
-CREATE OR REPLACE FUNCTION update_updated_at()
-RETURNS TRIGGER AS $$
-BEGIN
-  NEW.updated_at = now();
-  RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-
--- Apply to tables with updated_at
-CREATE TRIGGER update_prisms_updated_at
-  BEFORE UPDATE ON prisms
-  FOR EACH ROW EXECUTE FUNCTION update_updated_at();
-
-CREATE TRIGGER update_decks_updated_at
-  BEFORE UPDATE ON decks
-  FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+-- The client always supplies updated_at on upsert. A trigger that overwrites
+-- it with now() (server time) causes clock-skew bugs: cloud.updated_at ends up
+-- ahead of local.updated_at, so merge-before-write silently picks the stale
+-- cloud deck and reverts user edits on next page load.
+-- Safe to re-run (IF EXISTS). Wrap in transaction so partial failure rolls back.
+BEGIN;
+  DROP TRIGGER IF EXISTS update_decks_updated_at ON decks;
+  DROP TRIGGER IF EXISTS update_prisms_updated_at ON prisms;
+  DROP FUNCTION IF EXISTS update_updated_at();
+COMMIT;
