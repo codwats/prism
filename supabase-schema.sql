@@ -185,22 +185,8 @@ $$;
 -- on deck_cards apply — users can only replace cards in their own decks.
 GRANT EXECUTE ON FUNCTION replace_deck_cards(UUID, JSONB, TIMESTAMPTZ) TO authenticated;
 
--- ============================================
--- HELPER FUNCTION: Update timestamp
--- ============================================
-CREATE OR REPLACE FUNCTION update_updated_at()
-RETURNS TRIGGER AS $$
-BEGIN
-  NEW.updated_at = now();
-  RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-
--- Apply to tables with updated_at
-CREATE TRIGGER update_prisms_updated_at
-  BEFORE UPDATE ON prisms
-  FOR EACH ROW EXECUTE FUNCTION update_updated_at();
-
-CREATE TRIGGER update_decks_updated_at
-  BEFORE UPDATE ON decks
-  FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+-- NOTE: No updated_at triggers on prisms or decks.
+-- The client always supplies updated_at on upsert; a server-side trigger that
+-- overwrites it with now() causes clock-skew bugs where cloud.updated_at
+-- (server time) beats local.updated_at (client time), silently reverting
+-- user edits during the merge-before-write in syncPrismToSupabase.
