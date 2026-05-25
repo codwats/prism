@@ -186,6 +186,18 @@ $$;
 GRANT EXECUTE ON FUNCTION replace_deck_cards(UUID, JSONB, TIMESTAMPTZ) TO authenticated;
 
 -- ============================================
+-- MIGRATION: Add marked_cards_updated_at column
+-- ============================================
+-- Tracks when markedCards was last modified so merge-before-write can use
+-- last-write-wins instead of set-union. Union semantics cannot represent
+-- intentional un-marks (e.g. new deck added → shared cards cleared for re-marking).
+-- Safe to re-run (IF NOT EXISTS).
+BEGIN;
+  ALTER TABLE prisms
+    ADD COLUMN IF NOT EXISTS marked_cards_updated_at TIMESTAMPTZ DEFAULT NULL;
+COMMIT;
+
+-- ============================================
 -- MIGRATION: Remove server-side updated_at triggers
 -- ============================================
 -- The client always supplies updated_at on upsert. A trigger that overwrites

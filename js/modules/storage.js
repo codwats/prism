@@ -310,6 +310,7 @@ function buildPrismFromRow(prism) {
     createdAt: prism.created_at,
     updatedAt: prism.updated_at,
     markedCards: prism.marked_cards || [],
+    markedCardsUpdatedAt: prism.marked_cards_updated_at || null,
     removedCards: prism.removed_cards || [],
     splitGroups: (prism.split_groups || []).map(group => ({
       ...group,
@@ -371,12 +372,20 @@ function mergePrismVersions(localPrism, cloudPrism, prismBaseline) {
     mergedDecks
   );
 
+  const localMCTime = getTimestampMs(localPrism.markedCardsUpdatedAt);
+  const cloudMCTime = getTimestampMs(cloudPrism.markedCardsUpdatedAt);
+
   return {
     ...basePrism,
     markedCards: mergeMarkedCards(
       localPrism.markedCards || [],
-      cloudPrism.markedCards || []
+      localPrism.markedCardsUpdatedAt,
+      cloudPrism.markedCards || [],
+      cloudPrism.markedCardsUpdatedAt
     ),
+    markedCardsUpdatedAt: localMCTime >= cloudMCTime
+      ? localPrism.markedCardsUpdatedAt
+      : cloudPrism.markedCardsUpdatedAt,
     removedCards: mergeRemovedCards(
       localPrism.removedCards || [],
       cloudPrism.removedCards || []
@@ -394,6 +403,7 @@ const PRISM_SELECT = `
   name,
   split_groups,
   marked_cards,
+  marked_cards_updated_at,
   removed_cards,
   created_at,
   updated_at,
@@ -450,6 +460,7 @@ async function savePrismToSupabase(prism) {
         name: prism.name,
         split_groups: prism.splitGroups || [],
         marked_cards: prism.markedCards || [],
+        marked_cards_updated_at: prism.markedCardsUpdatedAt || null,
         removed_cards: prism.removedCards || [],
         created_at: prism.createdAt || prismUpdatedAt,
         updated_at: prismUpdatedAt
@@ -638,12 +649,20 @@ export async function loadPrismsFromSupabase() {
 }
 
 /**
- * Merge markedCards arrays via set-union (deduplicated).
- * If either device says a card is marked, keep it marked.
+ * Merge markedCards using last-write-wins on markedCardsUpdatedAt.
+ * Union semantics cannot represent intentional un-marks (e.g. when a new deck
+ * is added and shared cards are cleared so they can be re-marked on new sleeves).
+ * The side with the newer timestamp is authoritative for the whole array.
  */
-function mergeMarkedCards(localArr, cloudArr) {
-  const set = new Set([...localArr, ...cloudArr]);
-  return [...set];
+function mergeMarkedCards(localArr, localUpdatedAt, cloudArr, cloudUpdatedAt) {
+  const localMs = getTimestampMs(localUpdatedAt);
+  const cloudMs = getTimestampMs(cloudUpdatedAt);
+  // When neither side has a timestamp (legacy data), fall back to union so we
+  // don't silently lose marks on first sync after the upgrade.
+  if (!localMs && !cloudMs) {
+    return [...new Set([...localArr, ...cloudArr])];
+  }
+  return localMs >= cloudMs ? [...localArr] : [...cloudArr];
 }
 
 /**

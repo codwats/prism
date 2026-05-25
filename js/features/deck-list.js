@@ -51,6 +51,7 @@ export function unmarkCardsWithNewStripes(beforeCounts) {
   const afterCounts = getStripeCountMap();
   let unmarkedCount = 0;
 
+  const prevLength = state.currentPrism.markedCards.length;
   state.currentPrism.markedCards = state.currentPrism.markedCards.filter(
     (cardKey) => {
       const cardName = cardKey.includes("|") ? cardKey.split("|")[0] : cardKey;
@@ -65,6 +66,10 @@ export function unmarkCardsWithNewStripes(beforeCounts) {
     },
   );
 
+  if (state.currentPrism.markedCards.length < prevLength) {
+    state.currentPrism.markedCardsUpdatedAt = new Date().toISOString();
+  }
+
   return unmarkedCount;
 }
 
@@ -75,6 +80,7 @@ export function unmarkSharedCards(newCardNames) {
   const cardMap = new Map(processed.map((c) => [c.name.toLowerCase(), c]));
 
   let unmarkedCount = 0;
+  const prevCount = state.currentPrism.markedCards.length;
 
   state.currentPrism.markedCards = state.currentPrism.markedCards.filter(
     (cardKey) => {
@@ -92,6 +98,10 @@ export function unmarkSharedCards(newCardNames) {
       return true;
     },
   );
+
+  if (state.currentPrism.markedCards.length < prevCount) {
+    state.currentPrism.markedCardsUpdatedAt = new Date().toISOString();
+  }
 
   return unmarkedCount;
 }
@@ -144,7 +154,9 @@ export function handleMarkToggle(event) {
     row.classList.remove("marked-row");
   }
 
-  state.currentPrism.updatedAt = new Date().toISOString();
+  const now = new Date().toISOString();
+  state.currentPrism.updatedAt = now;
+  state.currentPrism.markedCardsUpdatedAt = now;
   savePrism(state.currentPrism);
 
   console.log(
