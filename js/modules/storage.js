@@ -6,6 +6,7 @@
 import { DEFAULT_COLORS } from './processor.js';
 import { getSupabase, isConfigured } from './supabase-client.js';
 import { getCurrentUser } from './auth.js';
+import { showToast } from '../core/notifications.js';
 
 const STORAGE_KEY = 'prism_data';
 const CURRENT_VERSION = 2;
@@ -110,7 +111,8 @@ function getPrismBaseline(storage, prismId) {
       deckUpdatedAts: {},
       splitGroupUpdatedAts: {},
       deletedDecks: {},
-      deletedSplitGroups: {}
+      deletedSplitGroups: {},
+      unmarkedCards: {}
     };
   }
 
@@ -119,6 +121,7 @@ function getPrismBaseline(storage, prismId) {
   baseline.splitGroupUpdatedAts = baseline.splitGroupUpdatedAts || {};
   baseline.deletedDecks = baseline.deletedDecks || {};
   baseline.deletedSplitGroups = baseline.deletedSplitGroups || {};
+  baseline.unmarkedCards = baseline.unmarkedCards || {};
 
   return baseline;
 }
@@ -291,6 +294,18 @@ function recordPrismBaseline(storage, prism) {
       delete baseline.deletedSplitGroups[groupId];
     }
   }
+
+  // Prune un-mark tombstones that were already reflected in this sync baseline.
+  // Tombstones older than or equal to the new baseline were baked into the saved
+  // prism and no longer need to be applied on the next merge.
+  const newBaselineMs = getTimestampMs(baseline.updatedAt);
+  if (newBaselineMs > 0) {
+    for (const [key, unmarkedAt] of Object.entries(baseline.unmarkedCards || {})) {
+      if (getTimestampMs(unmarkedAt) <= newBaselineMs) {
+        delete baseline.unmarkedCards[key];
+      }
+    }
+  }
 }
 
 function pruneSyncState(storage) {
@@ -342,7 +357,8 @@ function mergePrismVersions(localPrism, cloudPrism, prismBaseline) {
     deckUpdatedAts: {},
     splitGroupUpdatedAts: {},
     deletedDecks: {},
-    deletedSplitGroups: {}
+    deletedSplitGroups: {},
+    unmarkedCards: {}
   };
   const localUpdatedAt = localPrism.updatedAt || localPrism.createdAt || null;
   const cloudUpdatedAt = cloudPrism.updatedAt || cloudPrism.createdAt || null;
@@ -379,9 +395,9 @@ function mergePrismVersions(localPrism, cloudPrism, prismBaseline) {
     ...basePrism,
     markedCards: mergeMarkedCards(
       localPrism.markedCards || [],
-      localPrism.markedCardsUpdatedAt,
       cloudPrism.markedCards || [],
-      cloudPrism.markedCardsUpdatedAt
+      baseline.unmarkedCards,
+      baseline.updatedAt
     ),
     markedCardsUpdatedAt: localMCTime >= cloudMCTime
       ? localPrism.markedCardsUpdatedAt
@@ -426,6 +442,81 @@ const PRISM_SELECT = `
     )
   )
 `;
+
+// ============================================
+// RPC MIGRATION FALLBACK
+// ============================================
+
+// When the Supabase project is missing the `replace_deck_cards` RPC (schema
+// migration never run), we fall back to a non-atomic DELETE + INSERT so the
+// app keeps syncing. Per-session flags avoid retrying the missing RPC and
+// spamming the user with toasts.
+let rpcUnavailable = false;
+let migrationToastShown = false;
+
+function isFunctionNotFoundError(error) {
+  if (!error) return false;
+  if (error.code === 'PGRST202') return true;
+  const msg = (error.message || '').toLowerCase();
+  return msg.includes('could not find the function')
+    || msg.includes('function') && msg.includes('does not exist');
+}
+
+function notifyMigrationMissing() {
+  if (migrationToastShown) return;
+  migrationToastShown = true;
+  console.warn(
+    'replace_deck_cards RPC not found in Supabase project. ' +
+    'Falling back to manual DELETE + INSERT on deck_cards. ' +
+    'Run supabase-schema.sql in the Supabase SQL Editor to restore atomic card sync.'
+  );
+  showToast(
+    'Sync is using a fallback. Run supabase-schema.sql in your Supabase SQL Editor to enable atomic card sync.',
+    'warning',
+    'triangle-exclamation'
+  );
+}
+
+async function replaceDeckCardsFallback(supabase, deckId, localCards, deckUpdatedAt) {
+  const { error: delError } = await supabase
+    .from('deck_cards')
+    .delete()
+    .eq('deck_id', deckId);
+
+  if (delError) return delError;
+
+  if (localCards.length === 0) return null;
+
+  const { error: insError } = await supabase
+    .from('deck_cards')
+    .insert(localCards.map(card => ({
+      deck_id: deckId,
+      card_name: card.name,
+      quantity: card.quantity || 1,
+      is_commander: !!card.isCommander,
+      is_basic_land: !!card.isBasicLand,
+      created_at: deckUpdatedAt
+    })));
+
+  return insError || null;
+}
+
+// ============================================
+// SYNC STATUS EVENTS
+// ============================================
+
+let syncStatusListeners = [];
+
+export function onSyncStatusChange(cb) {
+  syncStatusListeners.push(cb);
+  return () => { syncStatusListeners = syncStatusListeners.filter(l => l !== cb); };
+}
+
+function emitSyncStatus(status, detail) {
+  syncStatusListeners.forEach(cb => {
+    try { cb(status, detail); } catch (_) {}
+  });
+}
 
 // ============================================
 // SUPABASE SYNC FUNCTIONS
@@ -514,25 +605,47 @@ async function savePrismToSupabase(prism) {
       }
     }
 
-    // Replace all cards per deck atomically via RPC (single transaction:
-    // DELETE + INSERT). Accepts empty array to clear cards safely.
+    // Replace all cards per deck atomically via RPC. Continue on per-deck failure
+    // so a single failing deck doesn't leave all subsequent decks without cards.
+    // If the RPC is missing from the project (schema migration not yet run),
+    // fall back to a non-atomic DELETE + INSERT for the rest of this session.
+    let anyCardFailed = false;
     for (const deck of prism.decks || []) {
       const deckUpdatedAt = deck.updatedAt || prismUpdatedAt;
       const localCards = deck.cards || [];
-      const { error: replaceCardsError } = await supabase.rpc('replace_deck_cards', {
-        p_deck_id: deck.id,
-        p_cards: localCards.map(card => ({
-          card_name: card.name,
-          quantity: card.quantity || 1,
-          is_commander: card.isCommander || false,
-          is_basic_land: card.isBasicLand || false
-        })),
-        p_created_at: deckUpdatedAt
-      });
 
-      if (replaceCardsError) {
-        console.error('Error replacing deck cards:', replaceCardsError);
-        return false;
+      let cardError = null;
+
+      if (!rpcUnavailable) {
+        const { error: replaceCardsError } = await supabase.rpc('replace_deck_cards', {
+          p_deck_id: deck.id,
+          p_cards: localCards.map(card => ({
+            card_name: card.name,
+            quantity: card.quantity || 1,
+            is_commander: card.isCommander || false,
+            is_basic_land: card.isBasicLand || false
+          })),
+          p_created_at: deckUpdatedAt
+        });
+
+        if (replaceCardsError) {
+          if (isFunctionNotFoundError(replaceCardsError)) {
+            rpcUnavailable = true;
+            notifyMigrationMissing();
+          } else {
+            cardError = replaceCardsError;
+          }
+        }
+      }
+
+      if (rpcUnavailable && !cardError) {
+        cardError = await replaceDeckCardsFallback(supabase, deck.id, localCards, deckUpdatedAt);
+      }
+
+      if (cardError) {
+        console.error('Error replacing cards for deck', deck.name, ':', cardError);
+        anyCardFailed = true;
+        // Continue rather than bailing — other decks should still be saved.
       }
     }
 
@@ -550,6 +663,11 @@ async function savePrismToSupabase(prism) {
         console.error('Error deleting removed decks from Supabase:', deleteDecksError);
         return false;
       }
+    }
+
+    if (anyCardFailed) {
+      console.warn('PRISM saved with some card sync failures:', prism.name);
+      return false;
     }
 
     console.log('PRISM saved to Supabase:', prism.name);
@@ -649,20 +767,21 @@ export async function loadPrismsFromSupabase() {
 }
 
 /**
- * Merge markedCards using last-write-wins on markedCardsUpdatedAt.
- * Union semantics cannot represent intentional un-marks (e.g. when a new deck
- * is added and shared cards are cleared so they can be re-marked on new sleeves).
- * The side with the newer timestamp is authoritative for the whole array.
+ * Merge markedCards arrays via set-union (deduplicated), then remove any cards
+ * that were intentionally un-marked after the last sync (tombstone > baseline).
  */
-function mergeMarkedCards(localArr, localUpdatedAt, cloudArr, cloudUpdatedAt) {
-  const localMs = getTimestampMs(localUpdatedAt);
-  const cloudMs = getTimestampMs(cloudUpdatedAt);
-  // When neither side has a timestamp (legacy data), fall back to union so we
-  // don't silently lose marks on first sync after the upgrade.
-  if (!localMs && !cloudMs) {
-    return [...new Set([...localArr, ...cloudArr])];
+function mergeMarkedCards(localArr, cloudArr, unmarkedTombstones, baselineUpdatedAt) {
+  const tombstones = unmarkedTombstones || {};
+  const baselineMs = getTimestampMs(baselineUpdatedAt);
+  const set = new Set([...localArr, ...cloudArr]);
+
+  for (const [key, unmarkedAt] of Object.entries(tombstones)) {
+    if (getTimestampMs(unmarkedAt) > baselineMs) {
+      set.delete(key);
+    }
   }
-  return localMs >= cloudMs ? [...localArr] : [...cloudArr];
+
+  return [...set];
 }
 
 /**
@@ -700,6 +819,7 @@ export async function syncWithSupabase() {
   const storage = loadStorage();
   const syncState = ensureSyncState(storage);
   const merged = {};
+  const needsCloudWrite = new Set();
   const prismIds = new Set([
     ...Object.keys(storage.prisms),
     ...Object.keys(cloudPrisms)
@@ -712,12 +832,23 @@ export async function syncWithSupabase() {
 
     if (localPrism && cloudPrism) {
       merged[prismId] = mergePrismVersions(localPrism, cloudPrism, baseline);
+      needsCloudWrite.add(prismId);
       continue;
     }
 
     if (localPrism) {
+      // Skip auto-created default prisms: no decks, no cards, no prior sync history.
+      // These were created as a UI placeholder before the user's cloud data loaded,
+      // and should not be uploaded as phantom empty PRISMs.
+      const hasContent = (localPrism.decks?.length > 0) ||
+                         (localPrism.markedCards?.length > 0) ||
+                         (localPrism.removedCards?.length > 0);
+      const hasBaseline = !!(baseline?.updatedAt);
+      if (!hasContent && !hasBaseline) continue;
+
       if (!baseline?.updatedAt || getTimestampMs(localPrism.updatedAt) > getTimestampMs(baseline.updatedAt)) {
         merged[prismId] = localPrism;
+        needsCloudWrite.add(prismId);
       }
       continue;
     }
@@ -725,6 +856,7 @@ export async function syncWithSupabase() {
     const deletedAt = syncState.deletedPrisms[prismId];
     if (!deletedAt || getTimestampMs(cloudPrism.updatedAt || cloudPrism.createdAt) > getTimestampMs(deletedAt)) {
       merged[prismId] = cloudPrism;
+      // cloud-only: no local write needed, just record baseline
     }
   }
 
@@ -751,8 +883,15 @@ export async function syncWithSupabase() {
   saveStorage(storage);
 
   for (const [prismId, prism] of Object.entries(storage.prisms)) {
-    const saved = await savePrismToSupabase(prism);
-    if (saved) {
+    if (needsCloudWrite.has(prismId)) {
+      // This prism has local changes — push merged result to cloud.
+      const saved = await savePrismToSupabase(prism);
+      if (saved) {
+        recordPrismBaseline(storage, prism);
+      }
+    } else {
+      // Cloud-only prism: no write needed, just record the baseline so future
+      // debounced syncs have correct reference timestamps.
       recordPrismBaseline(storage, prism);
     }
   }
@@ -770,9 +909,14 @@ export async function syncWithSupabase() {
 async function syncPrismToSupabase(prismId) {
   if (!shouldSyncToSupabase()) return;
 
+  emitSyncStatus('syncing');
+
   const storage = loadStorage();
   const localPrism = storage.prisms[prismId];
-  if (!localPrism) return;
+  if (!localPrism) {
+    emitSyncStatus('failed');
+    return;
+  }
 
   const cloudPrism = await loadPrismFromSupabase(prismId);
   const baseline = getPrismBaseline(storage, prismId);
@@ -787,6 +931,9 @@ async function syncPrismToSupabase(prismId) {
   if (saved) {
     recordPrismBaseline(storage, mergedPrism);
     saveStorage(storage);
+    emitSyncStatus('synced');
+  } else {
+    emitSyncStatus('failed');
   }
 }
 
@@ -863,6 +1010,40 @@ export function savePrism(prism) {
       });
     }, 2000);
   }
+}
+
+/**
+ * Record that cards were intentionally un-marked (tombstone for merge).
+ * Call this BEFORE savePrism() when removing entries from markedCards so
+ * the next sync does not re-apply cloud marks that were intentionally cleared.
+ * @param {string} prismId
+ * @param {string[]} cardKeys - The markedCards keys that were removed
+ */
+export function recordUnmarkedCards(prismId, cardKeys) {
+  if (!cardKeys || cardKeys.length === 0) return;
+  const storage = loadStorage();
+  const baseline = getPrismBaseline(storage, prismId);
+  const now = new Date().toISOString();
+  for (const key of cardKeys) {
+    baseline.unmarkedCards[key] = now;
+  }
+  saveStorage(storage);
+}
+
+/**
+ * Force an immediate sync of the current PRISM, bypassing the debounce.
+ */
+export async function forceSyncCurrentPrism() {
+  if (!shouldSyncToSupabase()) return;
+  const storage = loadStorage();
+  const prismId = storage.currentPrismId;
+  if (!prismId) return;
+  clearTimeout(syncTimeout);
+  syncTimeout = null;
+  queuedPrismId = null;
+  await syncPrismToSupabase(prismId).catch(err => {
+    console.error('Force sync failed:', err);
+  });
 }
 
 /**

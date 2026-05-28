@@ -1,10 +1,11 @@
 -- Prism MTG Database Schema
 -- Run this in Supabase SQL Editor (SQL Editor > New Query)
+-- This script is fully idempotent — safe to re-run on an existing database.
 
 -- ============================================
--- PRISMS TABLE - saved prism configurations
+-- PRISMS TABLE
 -- ============================================
-CREATE TABLE prisms (
+CREATE TABLE IF NOT EXISTS prisms (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
   name TEXT NOT NULL,
@@ -16,15 +17,15 @@ CREATE TABLE prisms (
 );
 
 -- ============================================
--- DECKS TABLE - deck metadata within a prism
+-- DECKS TABLE
 -- ============================================
-CREATE TABLE decks (
+CREATE TABLE IF NOT EXISTS decks (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   prism_id UUID REFERENCES prisms(id) ON DELETE CASCADE NOT NULL,
   name TEXT NOT NULL,
   color TEXT NOT NULL DEFAULT '#888888',
   bracket INTEGER CHECK (bracket >= 1 AND bracket <= 5),
-  stripe_position INTEGER CHECK (stripe_position >= 1 AND stripe_position <= 32),
+  stripe_position INTEGER CHECK (stripe_position >= 1 AND stripe_position <= 48),
   sort_order INTEGER DEFAULT 0,
   split_group_id UUID,
   created_at TIMESTAMPTZ DEFAULT now(),
@@ -32,9 +33,9 @@ CREATE TABLE decks (
 );
 
 -- ============================================
--- DECK_CARDS TABLE - cards in each deck
+-- DECK_CARDS TABLE
 -- ============================================
-CREATE TABLE deck_cards (
+CREATE TABLE IF NOT EXISTS deck_cards (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   deck_id UUID REFERENCES decks(id) ON DELETE CASCADE NOT NULL,
   card_name TEXT NOT NULL,
@@ -44,71 +45,77 @@ CREATE TABLE deck_cards (
   created_at TIMESTAMPTZ DEFAULT now()
 );
 
--- Index for fast card lookups
-CREATE INDEX idx_deck_cards_name ON deck_cards(card_name);
-CREATE INDEX idx_deck_cards_deck ON deck_cards(deck_id);
+CREATE INDEX IF NOT EXISTS idx_deck_cards_name ON deck_cards(card_name);
+CREATE INDEX IF NOT EXISTS idx_deck_cards_deck ON deck_cards(deck_id);
 
 -- ============================================
--- APP_LOGS TABLE - for debugging
+-- APP_LOGS TABLE
 -- ============================================
-CREATE TABLE app_logs (
+CREATE TABLE IF NOT EXISTS app_logs (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
-  level TEXT NOT NULL DEFAULT 'info', -- 'debug', 'info', 'warn', 'error'
+  level TEXT NOT NULL DEFAULT 'info',
   message TEXT NOT NULL,
   metadata JSONB,
   created_at TIMESTAMPTZ DEFAULT now()
 );
 
--- Index for querying logs
-CREATE INDEX idx_app_logs_level ON app_logs(level);
-CREATE INDEX idx_app_logs_created ON app_logs(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_app_logs_level ON app_logs(level);
+CREATE INDEX IF NOT EXISTS idx_app_logs_created ON app_logs(created_at DESC);
 
 -- ============================================
--- ROW LEVEL SECURITY POLICIES
+-- ROW LEVEL SECURITY
 -- ============================================
 
--- PRISMS: Users can only see/modify their own prisms
 ALTER TABLE prisms ENABLE ROW LEVEL SECURITY;
+ALTER TABLE decks ENABLE ROW LEVEL SECURITY;
+ALTER TABLE deck_cards ENABLE ROW LEVEL SECURITY;
+ALTER TABLE app_logs ENABLE ROW LEVEL SECURITY;
 
+-- PRISMS
+DROP POLICY IF EXISTS "Users can view own prisms" ON prisms;
 CREATE POLICY "Users can view own prisms"
   ON prisms FOR SELECT
   USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can create own prisms" ON prisms;
 CREATE POLICY "Users can create own prisms"
   ON prisms FOR INSERT
   WITH CHECK (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can update own prisms" ON prisms;
 CREATE POLICY "Users can update own prisms"
   ON prisms FOR UPDATE
   USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can delete own prisms" ON prisms;
 CREATE POLICY "Users can delete own prisms"
   ON prisms FOR DELETE
   USING (auth.uid() = user_id);
 
--- DECKS: Access through prism ownership
-ALTER TABLE decks ENABLE ROW LEVEL SECURITY;
-
+-- DECKS
+DROP POLICY IF EXISTS "Users can view decks in own prisms" ON decks;
 CREATE POLICY "Users can view decks in own prisms"
   ON decks FOR SELECT
   USING (prism_id IN (SELECT id FROM prisms WHERE user_id = auth.uid()));
 
+DROP POLICY IF EXISTS "Users can create decks in own prisms" ON decks;
 CREATE POLICY "Users can create decks in own prisms"
   ON decks FOR INSERT
   WITH CHECK (prism_id IN (SELECT id FROM prisms WHERE user_id = auth.uid()));
 
+DROP POLICY IF EXISTS "Users can update decks in own prisms" ON decks;
 CREATE POLICY "Users can update decks in own prisms"
   ON decks FOR UPDATE
   USING (prism_id IN (SELECT id FROM prisms WHERE user_id = auth.uid()));
 
+DROP POLICY IF EXISTS "Users can delete decks in own prisms" ON decks;
 CREATE POLICY "Users can delete decks in own prisms"
   ON decks FOR DELETE
   USING (prism_id IN (SELECT id FROM prisms WHERE user_id = auth.uid()));
 
--- DECK_CARDS: Access through deck -> prism ownership
-ALTER TABLE deck_cards ENABLE ROW LEVEL SECURITY;
-
+-- DECK_CARDS
+DROP POLICY IF EXISTS "Users can view cards in own decks" ON deck_cards;
 CREATE POLICY "Users can view cards in own decks"
   ON deck_cards FOR SELECT
   USING (deck_id IN (
@@ -117,6 +124,7 @@ CREATE POLICY "Users can view cards in own decks"
     WHERE p.user_id = auth.uid()
   ));
 
+DROP POLICY IF EXISTS "Users can create cards in own decks" ON deck_cards;
 CREATE POLICY "Users can create cards in own decks"
   ON deck_cards FOR INSERT
   WITH CHECK (deck_id IN (
@@ -125,6 +133,7 @@ CREATE POLICY "Users can create cards in own decks"
     WHERE p.user_id = auth.uid()
   ));
 
+DROP POLICY IF EXISTS "Users can update cards in own decks" ON deck_cards;
 CREATE POLICY "Users can update cards in own decks"
   ON deck_cards FOR UPDATE
   USING (deck_id IN (
@@ -133,6 +142,7 @@ CREATE POLICY "Users can update cards in own decks"
     WHERE p.user_id = auth.uid()
   ));
 
+DROP POLICY IF EXISTS "Users can delete cards in own decks" ON deck_cards;
 CREATE POLICY "Users can delete cards in own decks"
   ON deck_cards FOR DELETE
   USING (deck_id IN (
@@ -141,13 +151,13 @@ CREATE POLICY "Users can delete cards in own decks"
     WHERE p.user_id = auth.uid()
   ));
 
--- APP_LOGS: Users can view/create their own logs
-ALTER TABLE app_logs ENABLE ROW LEVEL SECURITY;
-
+-- APP_LOGS
+DROP POLICY IF EXISTS "Users can view own logs" ON app_logs;
 CREATE POLICY "Users can view own logs"
   ON app_logs FOR SELECT
   USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can create logs" ON app_logs;
 CREATE POLICY "Users can create logs"
   ON app_logs FOR INSERT
   WITH CHECK (user_id IS NULL OR auth.uid() = user_id);
@@ -186,12 +196,23 @@ $$;
 GRANT EXECUTE ON FUNCTION replace_deck_cards(UUID, JSONB, TIMESTAMPTZ) TO authenticated;
 
 -- ============================================
+-- MIGRATION: Widen decks.stripe_position from 1..32 to 1..48
+-- ============================================
+-- Stripe positions span 1..48 (Side A: 1..24, Side B: 25..48). An older
+-- version of this schema constrained positions to 1..32, which rejects any
+-- Side-B deck (typically split-group variants) with a 23514 error on upsert.
+-- This block drops the old constraint and re-adds the correct one. Idempotent.
+BEGIN;
+  ALTER TABLE decks DROP CONSTRAINT IF EXISTS decks_stripe_position_check;
+  ALTER TABLE decks ADD CONSTRAINT decks_stripe_position_check
+    CHECK (stripe_position >= 1 AND stripe_position <= 48);
+COMMIT;
+
+-- ============================================
 -- MIGRATION: Add marked_cards_updated_at column
 -- ============================================
--- Tracks when markedCards was last modified so merge-before-write can use
--- last-write-wins instead of set-union. Union semantics cannot represent
--- intentional un-marks (e.g. new deck added → shared cards cleared for re-marking).
--- Safe to re-run (IF NOT EXISTS).
+-- Tracks when markedCards was last modified; stored on the prism row for
+-- potential future use. Safe to re-run (IF NOT EXISTS).
 BEGIN;
   ALTER TABLE prisms
     ADD COLUMN IF NOT EXISTS marked_cards_updated_at TIMESTAMPTZ DEFAULT NULL;
@@ -204,7 +225,7 @@ COMMIT;
 -- it with now() (server time) causes clock-skew bugs: cloud.updated_at ends up
 -- ahead of local.updated_at, so merge-before-write silently picks the stale
 -- cloud deck and reverts user edits on next page load.
--- Safe to re-run (IF EXISTS). Wrap in transaction so partial failure rolls back.
+-- Safe to re-run (IF EXISTS). Wrapped in a transaction so partial failure rolls back.
 BEGIN;
   DROP TRIGGER IF EXISTS update_decks_updated_at ON decks;
   DROP TRIGGER IF EXISTS update_prisms_updated_at ON prisms;

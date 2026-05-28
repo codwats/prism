@@ -4,6 +4,25 @@
  */
 
 /* ============================================================================
+   Sync Status Indicator
+   ============================================================================ */
+
+.sync-status-indicator {
+  font-size: var(--wa-font-size-s);
+  color: var(--wa-color-neutral-text-subtle);
+  white-space: nowrap;
+}
+
+.sync-status-indicator.sync-status-ok {
+  color: var(--wa-color-success-text);
+}
+
+.sync-status-indicator.sync-status-failed {
+  color: var(--wa-color-warning-text);
+  font-weight: 600;
+}
+
+/* ============================================================================
    Mobile Navigation Toggle
    ============================================================================ */
 

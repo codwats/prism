@@ -22,7 +22,7 @@ import {
   createPrism,
   isDotVariant,
 } from "../modules/processor.js";
-import { savePrism, setCurrentPrism } from "../modules/storage.js";
+import { savePrism, setCurrentPrism, recordUnmarkedCards } from "../modules/storage.js";
 import { canonicalizeCards } from "../modules/scryfall.js";
 import { hideEditImportMessages } from "./deck-import.js";
 import { initColorSwatches, resetDeckForm } from "./deck-form.js";
@@ -46,12 +46,11 @@ export function getStripeCountMap() {
 }
 
 export function unmarkCardsWithNewStripes(beforeCounts) {
-  if (!state.currentPrism?.markedCards?.length) return 0;
+  if (!state.currentPrism?.markedCards?.length) return [];
 
   const afterCounts = getStripeCountMap();
-  let unmarkedCount = 0;
+  const unmarkedKeys = [];
 
-  const prevLength = state.currentPrism.markedCards.length;
   state.currentPrism.markedCards = state.currentPrism.markedCards.filter(
     (cardKey) => {
       const cardName = cardKey.includes("|") ? cardKey.split("|")[0] : cardKey;
@@ -59,28 +58,23 @@ export function unmarkCardsWithNewStripes(beforeCounts) {
       const after = afterCounts.get(cardName) || 0;
 
       if (after > before) {
-        unmarkedCount++;
+        unmarkedKeys.push(cardKey);
         return false;
       }
       return true;
     },
   );
 
-  if (state.currentPrism.markedCards.length < prevLength) {
-    state.currentPrism.markedCardsUpdatedAt = new Date().toISOString();
-  }
-
-  return unmarkedCount;
+  return unmarkedKeys;
 }
 
 export function unmarkSharedCards(newCardNames) {
-  if (!state.currentPrism?.markedCards?.length) return 0;
+  if (!state.currentPrism?.markedCards?.length) return [];
 
   const processed = processCards(state.currentPrism);
   const cardMap = new Map(processed.map((c) => [c.name.toLowerCase(), c]));
 
-  let unmarkedCount = 0;
-  const prevCount = state.currentPrism.markedCards.length;
+  const unmarkedKeys = [];
 
   state.currentPrism.markedCards = state.currentPrism.markedCards.filter(
     (cardKey) => {
@@ -91,7 +85,7 @@ export function unmarkSharedCards(newCardNames) {
       if (newCardNames.has(cardName)) {
         const card = cardMap.get(cardName);
         if (card && card.stripes.length > 1) {
-          unmarkedCount++;
+          unmarkedKeys.push(cardKey);
           return false;
         }
       }
@@ -99,11 +93,7 @@ export function unmarkSharedCards(newCardNames) {
     },
   );
 
-  if (state.currentPrism.markedCards.length < prevCount) {
-    state.currentPrism.markedCardsUpdatedAt = new Date().toISOString();
-  }
-
-  return unmarkedCount;
+  return unmarkedKeys;
 }
 
 export function autoClearRemovedCards(newCards) {
@@ -152,6 +142,7 @@ export function handleMarkToggle(event) {
       (c) => c !== cardKey,
     );
     row.classList.remove("marked-row");
+    recordUnmarkedCards(state.currentPrism.id, [cardKey]);
   }
 
   const now = new Date().toISOString();
@@ -377,7 +368,11 @@ export async function handleEditConfirm() {
   deck.cards = parseResult.cards;
   deck.updatedAt = now;
 
-  const unmarkedCount = unmarkCardsWithNewStripes(beforeCounts);
+  const unmarkedKeys = unmarkCardsWithNewStripes(beforeCounts);
+  const unmarkedCount = unmarkedKeys.length;
+  if (unmarkedKeys.length > 0) {
+    recordUnmarkedCards(state.currentPrism.id, unmarkedKeys);
+  }
 
   state.currentPrism.updatedAt = now;
   savePrism(state.currentPrism);

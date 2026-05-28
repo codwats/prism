@@ -5,8 +5,8 @@
 import { state } from '../core/state.js';
 import { getLogicalDeckCount } from '../core/utils.js';
 import { createPrism } from '../modules/processor.js';
-import { getCurrentPrism, savePrism, setCurrentPrism, getPreferences } from '../modules/storage.js';
-import { initAuth, setupAuthListeners } from '../modules/auth.js';
+import { getCurrentPrism, savePrism, setCurrentPrism, getPreferences, onSyncStatusChange, forceSyncCurrentPrism } from '../modules/storage.js';
+import { initAuth, setupAuthListeners, getCurrentUser } from '../modules/auth.js';
 import { logToSupabase } from '../modules/supabase-client.js';
 import { initColorSwatches } from './deck-form.js';
 import { renderDecksList } from './deck-list.js';
@@ -125,6 +125,10 @@ function getElements() {
 
     // Stripe reorder dialog
     stripeReorderDialog: document.getElementById('stripe-reorder-dialog'),
+
+    // Sync status
+    syncStatus: document.getElementById('sync-status'),
+    btnSyncNow: document.getElementById('btn-sync-now'),
   };
 }
 
@@ -174,6 +178,7 @@ export async function init() {
   // Set up event listeners
   setupEventListeners();
   setupStripeReorderDialog();
+  setupSyncStatus();
 
   console.log('PRISM: Initialization complete');
 }
@@ -207,4 +212,63 @@ function renderPrismHeader() {
       state.elements.deckCountTag.variant = 'success';
     }
   }
+}
+
+// ============================================================================
+// Sync status indicator
+// ============================================================================
+
+function setupSyncStatus() {
+  const { syncStatus, btnSyncNow } = state.elements;
+  if (!syncStatus || !btnSyncNow) return;
+
+  // Only show for logged-in users
+  if (!getCurrentUser()) return;
+
+  syncStatus.style.display = '';
+  btnSyncNow.style.display = '';
+
+  let lastSyncedAt = null;
+  let statusInterval = null;
+
+  function updateStatusText() {
+    if (!lastSyncedAt) return;
+    const mins = Math.floor((Date.now() - lastSyncedAt) / 60000);
+    if (mins < 1) {
+      syncStatus.textContent = 'Synced just now';
+    } else {
+      syncStatus.textContent = `Synced ${mins}m ago`;
+    }
+  }
+
+  onSyncStatusChange((status) => {
+    clearInterval(statusInterval);
+    if (status === 'syncing') {
+      syncStatus.textContent = 'Syncing…';
+      syncStatus.className = 'sync-status-indicator';
+    } else if (status === 'synced') {
+      lastSyncedAt = Date.now();
+      updateStatusText();
+      syncStatus.className = 'sync-status-indicator sync-status-ok';
+      statusInterval = setInterval(updateStatusText, 60000);
+    } else if (status === 'failed') {
+      syncStatus.textContent = 'Sync failed — Retry';
+      syncStatus.className = 'sync-status-indicator sync-status-failed';
+    }
+  });
+
+  syncStatus.addEventListener('click', () => {
+    if (syncStatus.classList.contains('sync-status-failed')) {
+      forceSyncCurrentPrism();
+    }
+  });
+
+  btnSyncNow.addEventListener('click', async () => {
+    btnSyncNow.loading = true;
+    try {
+      await forceSyncCurrentPrism();
+    } finally {
+      btnSyncNow.loading = false;
+    }
+  });
 }

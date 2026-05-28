@@ -33,7 +33,7 @@ prism/
 │   │   ├── notifications.js  showError, showSuccess, showToast
 │   │   └── utils.js        escapeHtml, getLogicalDeckCount
 │   ├── features/           Build page feature modules
-│   │   ├── init.js         getElements, init(), renderAll(), renderPrismHeader
+│   │   ├── init.js         getElements, init(), renderAll(), renderPrismHeader, setupSyncStatus
 │   │   ├── events.js       setupEventListeners, card preview handlers
 │   │   ├── deck-form.js    Add deck form, color swatches, validation
 │   │   ├── deck-import.js  Moxfield/Archidekt URL import, file upload, JSON import
@@ -93,15 +93,19 @@ Feature modules have circular imports (e.g., `deck-form ↔ deck-list`, `deck-li
 
 ### Storage
 
-localStorage key: `prism_data`. Structure: `{ version, currentPrismId, prisms: { [id]: prismData }, preferences, syncState }`. `syncState` stores per-prism sync baselines plus local deletion tombstones so multi-device merges can distinguish local edits from local deletes. Version migrations supported. Supabase sync happens optionally on auth state changes and on debounced saves while authenticated. `getPreferences()` merges with defaults so new preference keys auto-populate for existing users.
+localStorage key: `prism_data`. Structure: `{ version, currentPrismId, prisms: { [id]: prismData }, preferences, syncState }`. `syncState` stores per-prism sync baselines plus local deletion tombstones and un-mark tombstones so multi-device merges can distinguish local edits from local deletes and intentional un-marks. Version migrations supported. Supabase sync happens optionally on auth state changes and on debounced saves while authenticated. `getPreferences()` merges with defaults so new preference keys auto-populate for existing users.
 
 Sync behavior is merge-first, not whole-PRISM last-write-wins:
 
 - On login/session restore, local and cloud PRISMs are merged per prism, per deck, and per split group.
-- `markedCards` still merge by union and `removedCards` merge by `(cardName, deckId)` with latest `removedAt`.
+- `markedCards` merge by union minus any keys with an `unmarkedCards` tombstone newer than the last sync baseline — this ensures intentional un-marks (manual checkbox or auto-unmark when a new deck shares a card) are not reverted by the cloud copy.
+- `removedCards` merge by `(cardName, deckId)` with latest `removedAt`.
 - Background saves fetch the latest cloud copy, merge it with local using the stored baseline, then write the merged result back to Supabase.
 - Deck and split-group `updatedAt` timestamps are important for conflict resolution and should be preserved on mutation.
 - Split-group child ordering should be preserved from `group.childDeckIds` during merge; only orphaned child IDs should be dropped, with deck-derived order used as a fallback when the stored ordering is missing.
+- Auto-created empty PRISMs (no decks, no cards, no prior baseline) are **not** uploaded to Supabase during the login sync — they exist only as a pre-login UI placeholder and are discarded when real cloud data is available.
+- `syncWithSupabase` tracks which prisms have genuine local changes (`needsCloudWrite` set) and only writes those. Cloud-only prisms (fresh device load) have their baseline recorded without re-uploading, preventing redundant `replace_deck_cards` calls.
+- `savePrismToSupabase` continues past per-deck RPC failures so one failing deck does not leave all subsequent decks without cards. It returns `false` when any deck fails so the baseline is not recorded and the sync retries.
 
 ### PRISM Data Model
 
@@ -119,7 +123,7 @@ Preferences: { colorScheme, defaultColors, stripeStartCorner ('top-right'|'top-l
 - **Stripe starting corner** — global preference controlling which card corner stripes originate from. Affects card preview, not stored data.
 - **markedCards** tracks which cards the user has physically marked (checkbox state)
 - **removedCards** tracks cards removed from decks that still need physical marks cleared
-- **syncState** is local-only metadata used for Supabase merge reconciliation; it is not part of the PRISM domain model
+- **syncState** is local-only metadata used for Supabase merge reconciliation; it is not part of the PRISM domain model. Baseline shape per prism: `{ updatedAt, deckUpdatedAts, splitGroupUpdatedAts, deletedDecks, deletedSplitGroups, unmarkedCards: { [cardKey]: isoTimestamp } }`
 
 ### Card Processing
 
@@ -163,6 +167,8 @@ If the Supabase CDN hasn't loaded when `initAuth()` runs, it awaits the script's
 
 `savePrismToSupabase()` replaces all cards for each deck via the `replace_deck_cards(p_deck_id, p_cards, p_created_at)` RPC defined in `supabase-schema.sql`. The RPC runs DELETE + INSERT in a single transaction, preventing a partial-failure window where a deck could be left with no cards. Pass an empty array to clear cards safely. Uses `SECURITY INVOKER` so existing RLS on `deck_cards` applies — users cannot replace cards in decks they don't own. Run `supabase-schema.sql` in the Supabase SQL editor after any schema changes.
 
+The deck-card loop uses **continue-on-error**: a failing RPC for one deck is logged but does not abort the loop. All decks are attempted. If any deck failed, `savePrismToSupabase` returns `false` so `recordPrismBaseline` is not called and the next debounced save retries.
+
 **No `updated_at` triggers on `prisms` or `decks`.** The client always supplies `updated_at` on upsert. A server-side trigger that overwrites it with `now()` (server clock) causes clock-skew bugs: `cloud.updated_at` ends up ahead of `local.updatedAt`, so `mergeEntityCollection` in `syncPrismToSupabase` silently picks the stale cloud deck and reverts user edits on the next page load. The schema includes an idempotent `BEGIN/COMMIT` migration block to drop those triggers on existing deployments.
 
 ### Merge Conflict Resolution
@@ -171,6 +177,8 @@ If the Supabase CDN hasn't loaded when `initAuth()` runs, it awaits the script's
 - **Both local and cloud present:** if `local.updatedAt > baseline.updatedAt` for that entity, local wins (user edited since last sync — guards against server-clock-ahead skew). Otherwise, `pickNewerEntity` compares timestamps.
 - **Local only:** kept if `local.updatedAt > baseline.updatedAt`, otherwise treated as deleted on another device.
 - **Cloud only:** kept unless locally deleted after the cloud's `updatedAt`.
+
+**markedCards tombstones:** `mergeMarkedCards(local, cloud, unmarkedTombstones, baselineUpdatedAt)` starts from the union of local+cloud marks, then removes any key whose tombstone timestamp is strictly greater than `baselineUpdatedAt`. `recordPrismBaseline` prunes tombstones with `unmarkedAt <= newBaseline.updatedAt` after each successful sync (they've been baked in). `recordUnmarkedCards(prismId, cardKeys)` writes the tombstones; call it immediately before `savePrism()` whenever cards are removed from `markedCards` — in `handleMarkToggle` (un-check), `unmarkSharedCards` (new deck shares a card), and `unmarkCardsWithNewStripes` (deck edit adds stripes). `unmarkSharedCards` and `unmarkCardsWithNewStripes` now return the array of removed keys (was: count); callers compute `.length` for the success message.
 
 ### Circular Dependencies
 
@@ -206,9 +214,11 @@ Preview viewport should be 1280px+ wide to see the desktop layout (sidebar nav).
 - Use `state.currentPrism` instead of a local variable — it's the single source of truth
 - `renderAll()` is the safe way to re-render everything after state changes
 - `savePrism(state.currentPrism)` persists to localStorage after mutations
+- When removing cards from `markedCards`, call `recordUnmarkedCards(prismId, keys)` **before** `savePrism()` to record tombstones that survive the next cloud merge
 - Feature modules import from `../core/`, `../modules/`, and sibling `./` files
 - 22 paint pen colors in `DEFAULT_COLORS` (processor.js) — matched to real products
 - Bracket values 1–5 represent Commander power level
 - `formatSlotLabel(position, side?)` renders "Side A - Slot 1" style labels
 - Stripe Settings in the Decks tab is a `<wa-details>` accordion (collapsed by default)
 - The Stripe Positions reorder card was removed from the Decks tab — use the Move button (⊕) on each deck card to open the visual slot-picker dialog, or use the Export tab's dropdown list for bulk reordering
+- `build.html` has a sync status indicator (`#sync-status`) and a Sync Now button (`#btn-sync-now`) near the PRISM name; both are hidden until the user is logged in. `setupSyncStatus()` in `init.js` wires these to `onSyncStatusChange` / `forceSyncCurrentPrism` from `storage.js`. Storage exports: `onSyncStatusChange(cb)` (returns unsubscribe fn), `forceSyncCurrentPrism()`, `recordUnmarkedCards(prismId, keys)`

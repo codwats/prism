@@ -16,7 +16,7 @@ import {
   DEFAULT_COLORS,
   getColorName,
 } from "../modules/processor.js";
-import { savePrism } from "../modules/storage.js";
+import { savePrism, recordUnmarkedCards } from "../modules/storage.js";
 import { canonicalizeCards } from "../modules/scryfall.js";
 import {
   getStripeCountMap,
@@ -193,7 +193,11 @@ export async function handleDeckSubmit(e) {
     state.currentPrism = addDeckToPrism(state.currentPrism, deck);
 
     // Unmark marked cards that are now shared with this deck
-    const unmarkedCount = unmarkSharedCards(newCardNames);
+    const unmarkedKeys = unmarkSharedCards(newCardNames);
+    const unmarkedCount = unmarkedKeys.length;
+    if (unmarkedKeys.length > 0) {
+      recordUnmarkedCards(state.currentPrism.id, unmarkedKeys);
+    }
 
     // Auto-clear any removed cards that are now back
     const autoClearedCount = autoClearRemovedCards(parseResult.cards);
