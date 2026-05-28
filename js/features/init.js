@@ -265,7 +265,10 @@ function setupSyncStatus() {
 
   btnSyncNow.addEventListener('click', async () => {
     btnSyncNow.loading = true;
-    await forceSyncCurrentPrism();
-    btnSyncNow.loading = false;
+    try {
+      await forceSyncCurrentPrism();
+    } finally {
+      btnSyncNow.loading = false;
+    }
   });
 }
