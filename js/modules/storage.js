@@ -6,6 +6,7 @@
 import { DEFAULT_COLORS } from './processor.js';
 import { getSupabase, isConfigured } from './supabase-client.js';
 import { getCurrentUser } from './auth.js';
+import { showToast } from '../core/notifications.js';
 
 const STORAGE_KEY = 'prism_data';
 const CURRENT_VERSION = 2;
@@ -435,6 +436,64 @@ const PRISM_SELECT = `
 `;
 
 // ============================================
+// RPC MIGRATION FALLBACK
+// ============================================
+
+// When the Supabase project is missing the `replace_deck_cards` RPC (schema
+// migration never run), we fall back to a non-atomic DELETE + INSERT so the
+// app keeps syncing. Per-session flags avoid retrying the missing RPC and
+// spamming the user with toasts.
+let rpcUnavailable = false;
+let migrationToastShown = false;
+
+function isFunctionNotFoundError(error) {
+  if (!error) return false;
+  if (error.code === 'PGRST202') return true;
+  const msg = (error.message || '').toLowerCase();
+  return msg.includes('could not find the function')
+    || msg.includes('function') && msg.includes('does not exist');
+}
+
+function notifyMigrationMissing() {
+  if (migrationToastShown) return;
+  migrationToastShown = true;
+  console.warn(
+    'replace_deck_cards RPC not found in Supabase project. ' +
+    'Falling back to manual DELETE + INSERT on deck_cards. ' +
+    'Run supabase-schema.sql in the Supabase SQL Editor to restore atomic card sync.'
+  );
+  showToast(
+    'Sync is using a fallback. Run supabase-schema.sql in your Supabase SQL Editor to enable atomic card sync.',
+    'warning',
+    'triangle-exclamation'
+  );
+}
+
+async function replaceDeckCardsFallback(supabase, deckId, localCards, deckUpdatedAt) {
+  const { error: delError } = await supabase
+    .from('deck_cards')
+    .delete()
+    .eq('deck_id', deckId);
+
+  if (delError) return delError;
+
+  if (localCards.length === 0) return null;
+
+  const { error: insError } = await supabase
+    .from('deck_cards')
+    .insert(localCards.map(card => ({
+      deck_id: deckId,
+      card_name: card.name,
+      quantity: card.quantity || 1,
+      is_commander: !!card.isCommander,
+      is_basic_land: !!card.isBasicLand,
+      created_at: deckUpdatedAt
+    })));
+
+  return insError || null;
+}
+
+// ============================================
 // SYNC STATUS EVENTS
 // ============================================
 
@@ -539,23 +598,43 @@ async function savePrismToSupabase(prism) {
 
     // Replace all cards per deck atomically via RPC. Continue on per-deck failure
     // so a single failing deck doesn't leave all subsequent decks without cards.
+    // If the RPC is missing from the project (schema migration not yet run),
+    // fall back to a non-atomic DELETE + INSERT for the rest of this session.
     let anyCardFailed = false;
     for (const deck of prism.decks || []) {
       const deckUpdatedAt = deck.updatedAt || prismUpdatedAt;
       const localCards = deck.cards || [];
-      const { error: replaceCardsError } = await supabase.rpc('replace_deck_cards', {
-        p_deck_id: deck.id,
-        p_cards: localCards.map(card => ({
-          card_name: card.name,
-          quantity: card.quantity || 1,
-          is_commander: card.isCommander || false,
-          is_basic_land: card.isBasicLand || false
-        })),
-        p_created_at: deckUpdatedAt
-      });
 
-      if (replaceCardsError) {
-        console.error('Error replacing cards for deck', deck.name, ':', replaceCardsError);
+      let cardError = null;
+
+      if (!rpcUnavailable) {
+        const { error: replaceCardsError } = await supabase.rpc('replace_deck_cards', {
+          p_deck_id: deck.id,
+          p_cards: localCards.map(card => ({
+            card_name: card.name,
+            quantity: card.quantity || 1,
+            is_commander: card.isCommander || false,
+            is_basic_land: card.isBasicLand || false
+          })),
+          p_created_at: deckUpdatedAt
+        });
+
+        if (replaceCardsError) {
+          if (isFunctionNotFoundError(replaceCardsError)) {
+            rpcUnavailable = true;
+            notifyMigrationMissing();
+          } else {
+            cardError = replaceCardsError;
+          }
+        }
+      }
+
+      if (rpcUnavailable && !cardError) {
+        cardError = await replaceDeckCardsFallback(supabase, deck.id, localCards, deckUpdatedAt);
+      }
+
+      if (cardError) {
+        console.error('Error replacing cards for deck', deck.name, ':', cardError);
         anyCardFailed = true;
         // Continue rather than bailing — other decks should still be saved.
       }
