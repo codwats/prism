@@ -145,7 +145,9 @@ export function handleMarkToggle(event) {
     recordUnmarkedCards(state.currentPrism.id, [cardKey]);
   }
 
-  state.currentPrism.updatedAt = new Date().toISOString();
+  const now = new Date().toISOString();
+  state.currentPrism.updatedAt = now;
+  state.currentPrism.markedCardsUpdatedAt = now;
   savePrism(state.currentPrism);
 
   console.log(

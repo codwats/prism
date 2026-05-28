@@ -124,6 +124,7 @@ export function createPrism(name = "") {
 		decks: [],
 		splitGroups: [], // Split group definitions for deck variants
 		markedCards: [], // Track which cards have been physically marked
+		markedCardsUpdatedAt: now,
 		removedCards: [], // Track cards removed from decks that need marks removed
 		createdAt: now,
 		updatedAt: now,

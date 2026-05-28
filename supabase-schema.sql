@@ -209,6 +209,16 @@ BEGIN;
 COMMIT;
 
 -- ============================================
+-- MIGRATION: Add marked_cards_updated_at column
+-- ============================================
+-- Tracks when markedCards was last modified; stored on the prism row for
+-- potential future use. Safe to re-run (IF NOT EXISTS).
+BEGIN;
+  ALTER TABLE prisms
+    ADD COLUMN IF NOT EXISTS marked_cards_updated_at TIMESTAMPTZ DEFAULT NULL;
+COMMIT;
+
+-- ============================================
 -- MIGRATION: Remove server-side updated_at triggers
 -- ============================================
 -- The client always supplies updated_at on upsert. A trigger that overwrites

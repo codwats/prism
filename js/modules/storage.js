@@ -325,6 +325,7 @@ function buildPrismFromRow(prism) {
     createdAt: prism.created_at,
     updatedAt: prism.updated_at,
     markedCards: prism.marked_cards || [],
+    markedCardsUpdatedAt: prism.marked_cards_updated_at || null,
     removedCards: prism.removed_cards || [],
     splitGroups: (prism.split_groups || []).map(group => ({
       ...group,
@@ -387,6 +388,9 @@ function mergePrismVersions(localPrism, cloudPrism, prismBaseline) {
     mergedDecks
   );
 
+  const localMCTime = getTimestampMs(localPrism.markedCardsUpdatedAt);
+  const cloudMCTime = getTimestampMs(cloudPrism.markedCardsUpdatedAt);
+
   return {
     ...basePrism,
     markedCards: mergeMarkedCards(
@@ -395,6 +399,9 @@ function mergePrismVersions(localPrism, cloudPrism, prismBaseline) {
       baseline.unmarkedCards,
       baseline.updatedAt
     ),
+    markedCardsUpdatedAt: localMCTime >= cloudMCTime
+      ? localPrism.markedCardsUpdatedAt
+      : cloudPrism.markedCardsUpdatedAt,
     removedCards: mergeRemovedCards(
       localPrism.removedCards || [],
       cloudPrism.removedCards || []
@@ -412,6 +419,7 @@ const PRISM_SELECT = `
   name,
   split_groups,
   marked_cards,
+  marked_cards_updated_at,
   removed_cards,
   created_at,
   updated_at,
@@ -543,6 +551,7 @@ async function savePrismToSupabase(prism) {
         name: prism.name,
         split_groups: prism.splitGroups || [],
         marked_cards: prism.markedCards || [],
+        marked_cards_updated_at: prism.markedCardsUpdatedAt || null,
         removed_cards: prism.removedCards || [],
         created_at: prism.createdAt || prismUpdatedAt,
         updated_at: prismUpdatedAt
