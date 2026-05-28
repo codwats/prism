@@ -25,7 +25,7 @@ CREATE TABLE IF NOT EXISTS decks (
   name TEXT NOT NULL,
   color TEXT NOT NULL DEFAULT '#888888',
   bracket INTEGER CHECK (bracket >= 1 AND bracket <= 5),
-  stripe_position INTEGER CHECK (stripe_position >= 1 AND stripe_position <= 32),
+  stripe_position INTEGER CHECK (stripe_position >= 1 AND stripe_position <= 48),
   sort_order INTEGER DEFAULT 0,
   split_group_id UUID,
   created_at TIMESTAMPTZ DEFAULT now(),
@@ -194,6 +194,19 @@ $$;
 -- SECURITY INVOKER: function runs as the calling user so existing RLS policies
 -- on deck_cards apply — users can only replace cards in their own decks.
 GRANT EXECUTE ON FUNCTION replace_deck_cards(UUID, JSONB, TIMESTAMPTZ) TO authenticated;
+
+-- ============================================
+-- MIGRATION: Widen decks.stripe_position from 1..32 to 1..48
+-- ============================================
+-- Stripe positions span 1..48 (Side A: 1..24, Side B: 25..48). An older
+-- version of this schema constrained positions to 1..32, which rejects any
+-- Side-B deck (typically split-group variants) with a 23514 error on upsert.
+-- This block drops the old constraint and re-adds the correct one. Idempotent.
+BEGIN;
+  ALTER TABLE decks DROP CONSTRAINT IF EXISTS decks_stripe_position_check;
+  ALTER TABLE decks ADD CONSTRAINT decks_stripe_position_check
+    CHECK (stripe_position >= 1 AND stripe_position <= 48);
+COMMIT;
 
 -- ============================================
 -- MIGRATION: Remove server-side updated_at triggers
