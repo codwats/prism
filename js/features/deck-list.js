@@ -35,12 +35,20 @@ import { renderResults, updateRemovedFilterBadge } from "./results.js";
 // Stripe count helpers (for marked cards regression fix)
 // ============================================================================
 
+// Count only stripes that map to a physical mark the user applies to a sleeve.
+// markType === 'membership' entries are invisible filter anchors (dot-style split
+// groups, card in ALL variants) and carry no paint mark, so they must not inflate
+// the stripe count used to decide whether a Done card gained a new mark.
+function countVisibleStripes(stripes) {
+  return stripes.filter((s) => s.markType !== "membership").length;
+}
+
 export function getStripeCountMap() {
   if (!state.currentPrism || !state.currentPrism.decks.length) return new Map();
   const processed = processCards(state.currentPrism);
   const map = new Map();
   for (const card of processed) {
-    map.set(card.name, card.stripes.length);
+    map.set(card.name, countVisibleStripes(card.stripes));
   }
   return map;
 }
@@ -84,7 +92,7 @@ export function unmarkSharedCards(newCardNames) {
 
       if (newCardNames.has(cardName)) {
         const card = cardMap.get(cardName);
-        if (card && card.stripes.length > 1) {
+        if (card && countVisibleStripes(card.stripes) > 1) {
           unmarkedKeys.push(cardKey);
           return false;
         }
