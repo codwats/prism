@@ -588,7 +588,7 @@ export function getNextVariantPosition(prism) {
 	for (let i = 1; i <= 24; i++) {
 		if (!usedPositions.has(i)) return i;
 	}
-	return (prism.decks?.length || 0) + 1;
+	return null;
 }
 
 /**
