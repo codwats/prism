@@ -12,6 +12,7 @@
     "globals": "^15.0.0"
   },
   "scripts": {
-    "lint": "eslint js/"
+    "lint": "eslint js/",
+    "test": "node --test \"tests/**/*.test.js\""
   }
 }
