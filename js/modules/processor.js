@@ -578,7 +578,8 @@ export function getNextStripePosition(prism, side = "a") {
  * cluster separately from standalone Side B overflow (which grows 25 → 48).
  * Falls back to 1 → 24 ascending if Side B is full.
  * @param {Object} prism - The PRISM object
- * @returns {number} The next available variant position
+ * @returns {number|null} The next available variant position, or null when
+ *   all 48 slots are occupied.
  */
 export function getNextVariantPosition(prism) {
 	const usedPositions = getUsedPositions(prism);
