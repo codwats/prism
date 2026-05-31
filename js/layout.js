@@ -10,17 +10,7 @@
 
 import { initAuth, setupAuthListeners } from './modules/auth.js';
 import { getColorScheme } from './modules/storage.js';
-
-/**
- * Apply a color scheme by toggling the `wa-dark` class on <html>.
- * 'auto' follows the OS prefers-color-scheme; 'light'/'dark' force it.
- * @param {string} scheme - 'auto' | 'light' | 'dark'
- */
-export function applyColorScheme(scheme) {
-  const dark = scheme === 'dark'
-    || (scheme !== 'light' && window.matchMedia('(prefers-color-scheme: dark)').matches);
-  document.documentElement.classList.toggle('wa-dark', dark);
-}
+import { applyColorScheme } from './modules/theme.js';
 
 // Re-apply when the OS theme changes, but only while preference is 'auto'
 window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
@@ -345,8 +335,8 @@ function injectFooter() {
           <div class="wa-stack wa-gap-m">
             <div class="wa-split">
               <div class="wa-cluster wa-gap-s wa-align-items-center">
-                <img src="./assets/Prism-Small-Icon-Invert.svg" style="height:1em;" class="wa-border-radius-square theme-logo-dark">
-                <img src="./assets/Prism-Icon-Main.svg" style="height:1em;" class="wa-border-radius-square theme-logo-light">
+                <img src="./assets/Prism-Small-Icon-Invert.svg" alt="" style="height:1em;" class="wa-border-radius-square theme-logo-dark">
+                <img src="./assets/Prism-Icon-Main.svg" alt="" style="height:1em;" class="wa-border-radius-square theme-logo-light">
                 <span>PRISM</span>
                 <span style="color: var(--wa-color-neutral-text-subtle);">&bull;</span>
                 <span style="color: var(--wa-color-neutral-text-subtle);">Made for Commander players, by Commander players</span>

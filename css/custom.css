@@ -254,9 +254,9 @@ wa-page[view='desktop'] [data-toggle-nav] {
 .wa-dark .theme-logo-light { display: none; }
 
 /* Ensure white swatches stay visible against the surface in both themes */
-.color-swatch[data-color="#FFFFFF"],
-.deck-color-indicator[style*="#FFFFFF"],
-.stripe-indicator[style*="#FFFFFF"] {
+.color-swatch[data-color="#FFFFFF" i],
+.deck-color-indicator[style*="#FFFFFF" i],
+.stripe-indicator[style*="#FFFFFF" i] {
   border-color: var(--wa-color-neutral-stroke);
 }
 

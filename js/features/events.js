@@ -12,7 +12,7 @@ import { renderResults } from './results.js';
 import { renderOverlapMatrix } from './analysis.js';
 import { debounce } from '../core/utils.js';
 import { updatePreferences, getPreferences, savePrism, setColorScheme } from '../modules/storage.js';
-import { applyColorScheme } from '../layout.js';
+import { applyColorScheme } from '../modules/theme.js';
 import { remapPrismForCorner } from '../modules/processor.js';
 import { renderAll } from './init.js';
 
