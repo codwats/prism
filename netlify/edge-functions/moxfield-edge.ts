@@ -3,18 +3,24 @@
  * Runs on Deno at the edge - different infrastructure than regular functions
  */
 
-const CORS_HEADERS = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'Content-Type',
-  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS'
-};
+function getCorsHeaders(request: Request): Record<string, string> {
+  const origin = request.headers.get('origin') || 'https://prismmtg.com';
+  const allowedOrigin = Deno.env.get('CONTEXT') === 'production'
+    ? 'https://prismmtg.com'
+    : origin;
+  return {
+    'Access-Control-Allow-Origin': allowedOrigin,
+    'Access-Control-Allow-Headers': 'Content-Type',
+    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+  };
+}
 
 export default async function handler(request: Request): Promise<Response> {
   // Handle CORS preflight
   if (request.method === 'OPTIONS') {
     return new Response(null, {
       status: 204,
-      headers: CORS_HEADERS
+      headers: getCorsHeaders(request)
     });
   }
 
@@ -22,7 +28,7 @@ export default async function handler(request: Request): Promise<Response> {
   if (request.method !== 'POST') {
     return new Response(JSON.stringify({ error: 'Method not allowed' }), {
       status: 405,
-      headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' }
+      headers: { ...getCorsHeaders(request), 'Content-Type': 'application/json' }
     });
   }
 
@@ -33,7 +39,7 @@ export default async function handler(request: Request): Promise<Response> {
     if (!publicId) {
       return new Response(JSON.stringify({ error: 'Missing publicId' }), {
         status: 400,
-        headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' }
+        headers: { ...getCorsHeaders(request), 'Content-Type': 'application/json' }
       });
     }
 
@@ -41,7 +47,7 @@ export default async function handler(request: Request): Promise<Response> {
     if (!/^[a-zA-Z0-9_-]+$/.test(publicId)) {
       return new Response(JSON.stringify({ error: 'Invalid deck ID format' }), {
         status: 400,
-        headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' }
+        headers: { ...getCorsHeaders(request), 'Content-Type': 'application/json' }
       });
     }
 
@@ -75,13 +81,13 @@ export default async function handler(request: Request): Promise<Response> {
       if (response.status === 404) {
         return new Response(JSON.stringify({ error: 'Deck not found. Make sure the deck is public.' }), {
           status: 404,
-          headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' }
+          headers: { ...getCorsHeaders(request), 'Content-Type': 'application/json' }
         });
       }
 
       return new Response(JSON.stringify({ error: `Moxfield API error: ${response.status}` }), {
         status: response.status,
-        headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' }
+        headers: { ...getCorsHeaders(request), 'Content-Type': 'application/json' }
       });
     }
 
@@ -90,7 +96,7 @@ export default async function handler(request: Request): Promise<Response> {
     return new Response(JSON.stringify(data), {
       status: 200,
       headers: {
-        ...CORS_HEADERS,
+        ...getCorsHeaders(request),
         'Content-Type': 'application/json',
         'Cache-Control': 'public, max-age=3600'
       }
@@ -100,7 +106,7 @@ export default async function handler(request: Request): Promise<Response> {
     console.error('Moxfield edge proxy error:', error);
     return new Response(JSON.stringify({ error: 'Failed to fetch deck from Moxfield' }), {
       status: 500,
-      headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' }
+      headers: { ...getCorsHeaders(request), 'Content-Type': 'application/json' }
     });
   }
 }
