@@ -14,7 +14,7 @@ export function getLogicalDeckCount(prism) {
 
 export function debounce(fn, ms = 150) {
   let t;
-  return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), ms); };
+  return function(...args) { const ctx = this; clearTimeout(t); t = setTimeout(() => fn.apply(ctx, args), ms); };
 }
 
 export function escapeHtml(text) {
