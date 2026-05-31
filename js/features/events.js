@@ -11,7 +11,8 @@ import { handleDeleteConfirm, handleEditConfirm, handleNewPrism, handleSplitConf
 import { renderResults } from './results.js';
 import { renderOverlapMatrix } from './analysis.js';
 import { debounce } from '../core/utils.js';
-import { updatePreferences, getPreferences, savePrism } from '../modules/storage.js';
+import { updatePreferences, getPreferences, savePrism, setColorScheme } from '../modules/storage.js';
+import { applyColorScheme } from '../modules/theme.js';
 import { remapPrismForCorner } from '../modules/processor.js';
 import { renderAll } from './init.js';
 
@@ -204,6 +205,14 @@ export function setupEventListeners() {
       updatePreferences({ showStripePositionNumbers: e.target.checked });
       renderResults();
       refreshOpenPreview();
+    });
+  }
+
+  // Color scheme preference — persist and apply live
+  if (state.elements.colorScheme) {
+    state.elements.colorScheme.addEventListener('change', (e) => {
+      setColorScheme(e.target.value);
+      applyColorScheme(e.target.value);
     });
   }
 

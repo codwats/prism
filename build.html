@@ -21,7 +21,8 @@
         <section class="wa-stack wa-gap-s">
           <div class="wa-split wa-align-items-center">
             <div class="wa-cluster wa-gap-s wa-align-items-center">
-            <img src="./assets/Prism-Small-Icon-Invert.svg" alt="Prism Logo" style="height:1.5em;" class="wa-border-radius-square">
+            <img src="./assets/Prism-Small-Icon-Invert.svg" alt="Prism Logo" style="height:1.5em;" class="wa-border-radius-square theme-logo-dark">
+            <img src="./assets/Prism-Icon-Main.svg" alt="Prism Logo" style="height:1.5em;" class="wa-border-radius-square theme-logo-light">
               <wa-input
                 id="prism-name"
                 placeholder="My PRISM"
@@ -65,6 +66,21 @@
               <section id="decks-list" class="wa-stack wa-gap-m">
                 <!-- Deck cards will be inserted here -->
               </section>
+
+              <!-- Display Settings (always visible — not gated on deck count) -->
+              <wa-details id="display-settings-card">
+                <div slot="summary" class="wa-cluster wa-gap-s wa-align-items-center">
+                  <wa-icon name="circle-half-stroke" style="color: var(--wa-color-brand-fill);"></wa-icon>
+                  <span class="wa-heading-m">Display Settings</span>
+                </div>
+                <div class="wa-stack wa-gap-m" style="padding-top: var(--wa-space-s);">
+                  <wa-select id="color-scheme" label="Color Scheme" value="auto" size="small">
+                    <wa-option value="auto">Auto (match system)</wa-option>
+                    <wa-option value="light">Light</wa-option>
+                    <wa-option value="dark">Dark</wa-option>
+                  </wa-select>
+                </div>
+              </wa-details>
 
               <!-- Stripe Settings -->
               <wa-details id="stripe-settings-card" style="display: none;">

@@ -5,7 +5,7 @@
 import { state } from '../core/state.js';
 import { getLogicalDeckCount } from '../core/utils.js';
 import { createPrism } from '../modules/processor.js';
-import { getCurrentPrism, savePrism, setCurrentPrism, getPreferences, onSyncStatusChange, forceSyncCurrentPrism } from '../modules/storage.js';
+import { getCurrentPrism, savePrism, setCurrentPrism, getPreferences, getColorScheme, onSyncStatusChange, forceSyncCurrentPrism } from '../modules/storage.js';
 import { initAuth, setupAuthListeners, getCurrentUser } from '../modules/auth.js';
 import { logToSupabase } from '../modules/supabase-client.js';
 import { initColorSwatches } from './deck-form.js';
@@ -123,6 +123,7 @@ function getElements() {
     stripeStartCorner: document.getElementById('stripe-start-corner'),
     stripeStartCornerApply: document.getElementById('stripe-start-corner-apply'),
     showStripePositionNumbers: document.getElementById('show-stripe-position-numbers'),
+    colorScheme: document.getElementById('color-scheme'),
 
     // Stripe reorder dialog
     stripeReorderDialog: document.getElementById('stripe-reorder-dialog'),
@@ -173,6 +174,9 @@ export async function init() {
   }
   if (state.elements.showStripePositionNumbers) {
     state.elements.showStripePositionNumbers.checked = !!getPreferences().showStripePositionNumbers;
+  }
+  if (state.elements.colorScheme) {
+    state.elements.colorScheme.value = getColorScheme();
   }
 
   // Initialize UI

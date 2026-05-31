@@ -248,10 +248,15 @@ wa-page[view='desktop'] [data-toggle-nav] {
   border-color: var(--wa-color-brand-fill);
 }
 
-/* Ensure white swatches are visible in dark mode */
-.wa-dark .color-swatch[data-color="#FFFFFF"],
-.wa-dark .deck-color-indicator[style*="#FFFFFF"],
-.wa-dark .stripe-indicator[style*="#FFFFFF"] {
+/* Theme-aware logo swap: -Invert (white facets) for dark, -Main (dark facets) for light */
+.theme-logo-dark { display: none; }
+.wa-dark .theme-logo-dark { display: inline-block; }
+.wa-dark .theme-logo-light { display: none; }
+
+/* Ensure white swatches stay visible against the surface in both themes */
+.color-swatch[data-color="#FFFFFF" i],
+.deck-color-indicator[style*="#FFFFFF" i],
+.stripe-indicator[style*="#FFFFFF" i] {
   border-color: var(--wa-color-neutral-stroke);
 }
 
