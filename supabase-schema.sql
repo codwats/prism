@@ -231,3 +231,16 @@ BEGIN;
   DROP TRIGGER IF EXISTS update_prisms_updated_at ON prisms;
   DROP FUNCTION IF EXISTS update_updated_at();
 COMMIT;
+
+-- ============================================
+-- MIGRATION: Restrict app_logs INSERT to authenticated users
+-- ============================================
+-- Rejects inserts where caller is unauthenticated or supplies a mismatched
+-- user_id. Unauthenticated analytics are covered by existing GA (gtag) setup.
+-- Does not touch the SELECT policy or any other table's policies.
+BEGIN;
+  DROP POLICY IF EXISTS "Users can create logs" ON app_logs;
+  CREATE POLICY "Users can create logs"
+    ON app_logs FOR INSERT
+    WITH CHECK (auth.uid() = user_id);
+COMMIT;
