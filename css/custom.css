@@ -147,10 +147,32 @@ wa-page[view='desktop'] [data-toggle-nav] {
 }
 
 .stripe-indicator {
+  position: relative;
   width: 18px;
   height: 18px;
   border-radius: var(--wa-border-radius-s);
   border: 1px solid var(--wa-color-neutral-stroke);
+}
+
+/* Counting-aid slot number overlaid on an anchor stripe (every 5th slot/side) */
+.stripe-pos-num {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+  color: #fff;
+  text-shadow: 0 0 2px #000, 0 0 2px #000;
+  pointer-events: none;
+}
+
+/* On empty/unfilled anchor slots there is no colored fill — use neutral text */
+.stripe-pos-num.stripe-pos-num-muted {
+  color: var(--wa-color-neutral-text);
+  text-shadow: none;
 }
 
 .stripe-empty {
@@ -521,6 +543,19 @@ wa-page[view='desktop'] [data-toggle-nav] {
 .stripe-mark-left {
   right: auto;
   left: 0px;
+}
+
+/* Counting-aid slot number beside a card-preview stripe */
+.stripe-mark-num {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 1;
+  color: #fff;
+  text-shadow: 0 0 2px #000, 0 0 3px #000;
+  pointer-events: none;
 }
 
 .stripe-dot-mark {

@@ -4,6 +4,8 @@
  */
 
 import { processCards, getColorName, formatSlotLabel } from './processor.js';
+import { stripePositionLabel } from '../core/utils.js';
+import { getPreferences } from './storage.js';
 
 /**
  * Escape a value for CSV (handle commas, quotes, newlines)
@@ -229,6 +231,13 @@ export function downloadJSON(prism) {
 export function generatePrintableGuide(prism) {
   const processedCards = processCards(prism);
   const splitGroups = prism.splitGroups || [];
+  // Read the counting-aid pref at generation time (no live re-render needed).
+  const showNums = !!getPreferences().showStripePositionNumbers;
+  const posNum = (position) => {
+    if (!showNums) return '';
+    const label = stripePositionLabel(position);
+    return label ? `<div class="stripe-pos-num">${label}</div>` : '';
+  };
 
   let html = `
 <!DOCTYPE html>
@@ -286,6 +295,14 @@ export function generatePrintableGuide(prism) {
       color-adjust: exact !important;
     }
     .stripe-square.side-b { border-style: dashed; }
+    /* Counting-aid slot number — black text, legible at print size, no color reliance */
+    .stripe-pos-num {
+      font-size: 9px;
+      font-weight: 700;
+      line-height: 1;
+      color: #000;
+      text-align: center;
+    }
     .stripe-empty {
       width: 16px;
       height: 16px;
@@ -474,7 +491,7 @@ export function generatePrintableGuide(prism) {
         squareHtml = `<div class="stripe-empty" title="${formatSlotLabel(pos)}: Empty"></div>`;
       }
 
-      stripeIndicators += `<div class="stripe-slot">${dotRow}${squareHtml}</div>`;
+      stripeIndicators += `<div class="stripe-slot">${dotRow}${squareHtml}${posNum(pos)}</div>`;
     }
 
     html += `

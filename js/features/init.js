@@ -122,6 +122,7 @@ function getElements() {
     // Stripe settings
     stripeStartCorner: document.getElementById('stripe-start-corner'),
     stripeStartCornerApply: document.getElementById('stripe-start-corner-apply'),
+    showStripePositionNumbers: document.getElementById('show-stripe-position-numbers'),
 
     // Stripe reorder dialog
     stripeReorderDialog: document.getElementById('stripe-reorder-dialog'),
@@ -169,6 +170,9 @@ export async function init() {
   if (state.elements.stripeStartCorner) {
     const prefs = getPreferences();
     state.elements.stripeStartCorner.value = prefs.stripeStartCorner || 'top-right';
+  }
+  if (state.elements.showStripePositionNumbers) {
+    state.elements.showStripePositionNumbers.checked = !!getPreferences().showStripePositionNumbers;
   }
 
   // Initialize UI
