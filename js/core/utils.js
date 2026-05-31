@@ -12,6 +12,11 @@ export function getLogicalDeckCount(prism) {
   return standalone + groups;
 }
 
+export function debounce(fn, ms = 150) {
+  let t;
+  return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), ms); };
+}
+
 export function escapeHtml(text) {
   const div = document.createElement('div');
   div.textContent = text;

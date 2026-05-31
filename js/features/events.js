@@ -9,6 +9,8 @@ import { handleDeckSubmit, resetDeckForm, updateColorSwatchSelection, checkColor
 import { handleFileUpload, handleJsonImport, handleMoxfieldImport, handleEditFileUpload, handleEditUrlImport } from './deck-import.js';
 import { handleDeleteConfirm, handleEditConfirm, handleNewPrism, handleSplitConfirm } from './deck-list.js';
 import { renderResults } from './results.js';
+import { renderOverlapMatrix } from './analysis.js';
+import { debounce } from '../core/utils.js';
 import { updatePreferences, getPreferences, savePrism } from '../modules/storage.js';
 import { remapPrismForCorner } from '../modules/processor.js';
 import { renderAll } from './init.js';
@@ -70,7 +72,7 @@ export function setupEventListeners() {
     state.elements.resultsFilter.addEventListener('change', renderResults);
   }
   if (state.elements.resultsSearch) {
-    state.elements.resultsSearch.addEventListener('input', renderResults);
+    state.elements.resultsSearch.addEventListener('input', debounce(renderResults, 150));
   }
   if (state.elements.showAllSlots) {
     state.elements.showAllSlots.addEventListener('change', renderResults);
@@ -193,6 +195,11 @@ export function setupEventListeners() {
       state.elements.stripeStartCornerApply.setAttribute('disabled', '');
       renderAll();
     });
+  }
+
+  // Overlap matrix — build content the first time the accordion is opened
+  if (state.elements.overlapMatrixContainer) {
+    state.elements.overlapMatrixContainer.addEventListener('wa-show', renderOverlapMatrix);
   }
 
   // Card preview hover handlers (event delegation on results table)
