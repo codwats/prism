@@ -248,10 +248,10 @@ wa-page[view='desktop'] [data-toggle-nav] {
   border-color: var(--wa-color-brand-fill);
 }
 
-/* Ensure white swatches are visible in dark mode */
-.wa-dark .color-swatch[data-color="#FFFFFF"],
-.wa-dark .deck-color-indicator[style*="#FFFFFF"],
-.wa-dark .stripe-indicator[style*="#FFFFFF"] {
+/* Ensure white swatches stay visible against the surface in both themes */
+.color-swatch[data-color="#FFFFFF"],
+.deck-color-indicator[style*="#FFFFFF"],
+.stripe-indicator[style*="#FFFFFF"] {
   border-color: var(--wa-color-neutral-stroke);
 }
 

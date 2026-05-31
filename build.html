@@ -70,9 +70,15 @@
               <wa-details id="stripe-settings-card" style="display: none;">
                 <div slot="summary" class="wa-cluster wa-gap-s wa-align-items-center">
                   <wa-icon name="palette" style="color: var(--wa-color-brand-fill);"></wa-icon>
-                  <span class="wa-heading-m">Stripe Settings</span>
+                  <span class="wa-heading-m">Display Settings</span>
                 </div>
                 <div class="wa-stack wa-gap-m" style="padding-top: var(--wa-space-s);">
+                  <wa-select id="color-scheme" label="Color Scheme" value="auto" size="small">
+                    <wa-option value="auto">Auto (match system)</wa-option>
+                    <wa-option value="light">Light</wa-option>
+                    <wa-option value="dark">Dark</wa-option>
+                  </wa-select>
+                  <wa-divider></wa-divider>
                   <p class="wa-caption-m" style="color: var(--wa-color-neutral-text-subtle);">
                     Choose which corner of the card stripes originate from.
                   </p>

@@ -9,6 +9,23 @@
  */
 
 import { initAuth, setupAuthListeners } from './modules/auth.js';
+import { getColorScheme } from './modules/storage.js';
+
+/**
+ * Apply a color scheme by toggling the `wa-dark` class on <html>.
+ * 'auto' follows the OS prefers-color-scheme; 'light'/'dark' force it.
+ * @param {string} scheme - 'auto' | 'light' | 'dark'
+ */
+export function applyColorScheme(scheme) {
+  const dark = scheme === 'dark'
+    || (scheme !== 'light' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+  document.documentElement.classList.toggle('wa-dark', dark);
+}
+
+// Re-apply when the OS theme changes, but only while preference is 'auto'
+window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+  if (getColorScheme() === 'auto') applyColorScheme('auto');
+});
 
 // Navigation links
 const NAV_LINKS = [
@@ -165,8 +182,9 @@ function injectHeadResources() {
     head.appendChild(style);
   }
 
-  // Theme + palette + dark mode classes on <html>
-  document.documentElement.classList.add('wa-theme-matter', 'wa-palette-mild', 'wa-dark');
+  // Theme + palette always; dark mode honors the stored colorScheme preference
+  document.documentElement.classList.add('wa-theme-matter', 'wa-palette-mild');
+  applyColorScheme(getColorScheme());
 
   // Supabase CDN (skip if already loaded)
   if (!head.querySelector('script[src*="supabase"]')) {
