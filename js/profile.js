@@ -6,6 +6,7 @@
 import { initAuth, setupAuthListeners, onAuthChange, getCurrentUser, signOut, updatePassword, updateEmail, updateAuthUI } from './modules/auth.js';
 import { getAllPrisms, setCurrentPrism, deletePrism, savePrism, getCurrentPrism } from './modules/storage.js';
 import { createPrism } from './modules/processor.js';
+import { escapeHtml } from './core/utils.js';
 
 // DOM Elements
 let elements = {};
@@ -342,12 +343,6 @@ async function handleChangePassword(e) {
 }
 
 // Utility functions
-function escapeHtml(text) {
-  const div = document.createElement('div');
-  div.textContent = text;
-  return div.innerHTML;
-}
-
 function formatDate(dateString) {
   if (!dateString) return 'Unknown';
   const date = new Date(dateString);

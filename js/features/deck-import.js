@@ -78,6 +78,10 @@ export function handleJsonImport(e) {
         throw new Error('No decks found in the imported file.');
       }
 
+      // Untrusted file: clamp colors to strict hex before they reach
+      // style="background-color: ${color}" in render code. Invalid → grey fallback.
+      const validHex = (c) => (/^#[0-9A-Fa-f]{6}$/.test(c) ? c : '#888888');
+
       const newPrism = createPrism(prismData.name || 'Imported PRISM');
       newPrism.id = prismData.id || newPrism.id;
       newPrism.createdAt = prismData.createdAt || newPrism.createdAt;
@@ -92,7 +96,7 @@ export function handleJsonImport(e) {
           name: deck.name,
           commander: deck.commander,
           bracket: deck.bracket,
-          color: deck.color,
+          color: validHex(deck.color),
           stripePosition: deck.stripePosition,
           splitGroupId: deck.splitGroupId || null,
           cards: deckCards,
@@ -114,7 +118,7 @@ export function handleJsonImport(e) {
             id: group.id,
             name: group.name,
             sideAPosition: group.sideAPosition,
-            sideAColor: group.sideAColor,
+            sideAColor: validHex(group.sideAColor),
             splitStyle: group.splitStyle || 'stripes',
             childDeckIds,
             createdAt: group.createdAt,

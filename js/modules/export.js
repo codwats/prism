@@ -13,13 +13,19 @@ import { processCards, getColorName, formatSlotLabel } from './processor.js';
 function escapeCSV(value) {
   if (value === null || value === undefined) return '';
   
-  const str = String(value);
-  
+  let str = String(value);
+
+  // Formula injection defense: cells starting with = + - @ execute as formulas
+  // in Excel/Sheets. Leading apostrophe forces text interpretation (not displayed).
+  if (/^[=+\-@]/.test(str)) {
+    str = `'${str}`;
+  }
+
   // If the value contains comma, quote, or newline, wrap in quotes and escape internal quotes
   if (str.includes(',') || str.includes('"') || str.includes('\n')) {
     return `"${str.replace(/"/g, '""')}"`;
   }
-  
+
   return str;
 }
 
