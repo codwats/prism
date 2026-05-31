@@ -32,7 +32,7 @@ const STRIPE_POSITION_ANCHOR_INTERVAL = 5;
  * @returns {string|null} Label string (e.g. "10") or null
  */
 export function stripePositionLabel(position) {
-  if (!Number.isFinite(position) || position < 1) return null;
+  if (!Number.isFinite(position) || position < 1 || position > SLOTS_PER_SIDE * 2) return null;
   const sideRelative = position > SLOTS_PER_SIDE ? position - SLOTS_PER_SIDE : position;
   return sideRelative % STRIPE_POSITION_ANCHOR_INTERVAL === 0 ? String(sideRelative) : null;
 }
