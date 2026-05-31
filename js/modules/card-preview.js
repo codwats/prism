@@ -2,6 +2,7 @@
 
 import { fetchCard } from './scryfall.js';
 import { getPreferences } from './storage.js';
+import { stripePositionLabel } from '../core/utils.js';
 
 // Strip back-face name from DFCs for Scryfall lookup
 // "Bala Ged Recovery // Bala Ged Sanctuary" → "Bala Ged Recovery"
@@ -57,6 +58,7 @@ function createStripeOverlay(stripes) {
   const container = document.createElement('div');
   container.className = 'card-preview-stripes';
   const { sideARight, topDown } = getCornerConfig();
+  const showNums = !!getPreferences().showStripePositionNumbers;
 
   // Build per-group dot local indices for offset computation
   const groupDotCounters = new Map();
@@ -106,6 +108,19 @@ function createStripeOverlay(stripes) {
 
     const sideLabel = stripe.position > SLOTS_PER_SIDE ? 'Side B' : 'Side A';
     mark.title = `${stripe.deckName} (${sideLabel} · Slot ${stripe.position})`;
+
+    if (showNums) {
+      const label = stripePositionLabel(stripe.position);
+      if (label) {
+        const num = document.createElement('span');
+        num.className = 'stripe-mark-num';
+        num.textContent = label;
+        // Sit just inboard of the stripe's edge.
+        if (onRight) num.style.right = '26px';
+        else num.style.left = '26px';
+        mark.appendChild(num);
+      }
+    }
 
     container.appendChild(mark);
   }
@@ -198,6 +213,8 @@ function positionTooltip(tooltip, event) {
 // Tooltip element reference
 let tooltipElement = null;
 let currentCardName = null;
+let currentStripes = null;
+let currentImageUri = null;
 
 // Get or create tooltip element
 function getTooltip() {
@@ -248,6 +265,8 @@ export async function showPreview(cardName, stripes, event) {
     if (currentCardName !== cardName) return;
 
     // Show preview with stripes
+    currentImageUri = cardData.image_uri;
+    currentStripes = stripes;
     tooltip.innerHTML = '';
     tooltip.appendChild(createPreviewElement(cardData.image_uri, stripes));
     positionTooltip(tooltip, event);
@@ -270,6 +289,15 @@ export function hidePreview() {
     tooltip.hidden = true;
     currentCardName = null;
   }
+}
+
+// Re-render the open preview in place (e.g. after the position-numbers pref
+// toggles) using the cached image + stripes — no refetch.
+export function refreshOpenPreview() {
+  const tooltip = getTooltip();
+  if (!tooltip || tooltip.hidden || !currentImageUri || !currentStripes) return;
+  tooltip.innerHTML = '';
+  tooltip.appendChild(createPreviewElement(currentImageUri, currentStripes));
 }
 
 // Update tooltip position (for mousemove)

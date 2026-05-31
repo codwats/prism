@@ -3,7 +3,8 @@
  */
 
 import { state } from '../core/state.js';
-import { escapeHtml } from '../core/utils.js';
+import { escapeHtml, stripePositionLabel } from '../core/utils.js';
+import { getPreferences } from '../modules/storage.js';
 import { processCards, formatSlotLabel } from '../modules/processor.js';
 import { prefetchCards } from '../modules/scryfall.js';
 import { handleMarkToggle, handleClearRemoved, handleClearAllRemoved } from './deck-list.js';
@@ -26,28 +27,37 @@ function buildSlotMap(stripes) {
   return slotMap;
 }
 
+// Position-number overlay for an anchor slot (every 5th slot per side), or ''.
+function positionNumHtml(position, showNums, muted = false) {
+  if (!showNums) return '';
+  const label = stripePositionLabel(position);
+  if (!label) return '';
+  return `<span class="stripe-pos-num${muted ? ' stripe-pos-num-muted' : ''}">${label}</span>`;
+}
+
 // Render a single stripe square (no dots).
-function renderSquare(s) {
+function renderSquare(s, showNums) {
   return `<div
     class="stripe-indicator${s.side === 'b' ? ' stripe-side-b' : ''}"
     style="background-color: ${s.color};"
     title="${formatSlotLabel(s.position)}: ${escapeHtml(s.deckName)}"
-  ></div>`;
+  >${positionNumHtml(s.position, showNums)}</div>`;
 }
 
 // Render a slot: if it has dots, use ö-style (dot row above square).
-function renderSlot(slot) {
+function renderSlot(slot, showNums) {
   if (slot.dots.length === 0) {
-    return slot.square ? renderSquare(slot.square) : '';
+    return slot.square ? renderSquare(slot.square, showNums) : '';
   }
   const dotsHtml = slot.dots.map(d => `<div
     class="stripe-indicator stripe-dot-indicator"
     style="background-color: ${d.color};"
     title="Dot: ${escapeHtml(d.deckName)}"
   ></div>`).join('');
+  const slotPos = slot.square ? slot.square.position : slot.dots[0]?.position;
   const squareHtml = slot.square
-    ? renderSquare(slot.square)
-    : `<div class="stripe-indicator stripe-empty"></div>`;
+    ? renderSquare(slot.square, showNums)
+    : `<div class="stripe-indicator stripe-empty">${positionNumHtml(slotPos, showNums, true)}</div>`;
   return `<div class="stripe-slot"><div class="slot-dot-row">${dotsHtml}</div>${squareHtml}</div>`;
 }
 
@@ -209,6 +219,7 @@ export function renderResults() {
   if (!state.elements.resultsTbody) return;
 
   const showAllSlots = state.elements.showAllSlots?.checked || false;
+  const showNums = !!getPreferences().showStripePositionNumbers;
   const totalDecks = state.currentPrism?.decks?.length || 0;
 
   state.elements.resultsTbody.innerHTML = displayCards.map(card => {
@@ -259,12 +270,12 @@ export function renderResults() {
       for (const pos of allPositions) {
         const slot = slotMap.get(pos);
         if (slot) {
-          stripeIndicators += renderSlot(slot);
+          stripeIndicators += renderSlot(slot, showNums);
         } else {
           stripeIndicators += `<div
             class="stripe-indicator stripe-empty"
             title="${formatSlotLabel(pos)}: Empty"
-          ></div>`;
+          >${positionNumHtml(pos, showNums, true)}</div>`;
         }
       }
     } else {
@@ -272,7 +283,7 @@ export function renderResults() {
       const slotMap = buildSlotMap(card.stripes);
       stripeIndicators = '';
       for (const [, slot] of slotMap) {
-        stripeIndicators += renderSlot(slot);
+        stripeIndicators += renderSlot(slot, showNums);
       }
     }
 

@@ -4,7 +4,7 @@
 
 import { state } from '../core/state.js';
 import { downloadCSV, downloadJSON, openPrintableGuide, downloadUndoneTxt, copyUndoneToClipboard } from '../modules/export.js';
-import { showPreview, hidePreview, updatePosition } from '../modules/card-preview.js';
+import { showPreview, hidePreview, updatePosition, refreshOpenPreview } from '../modules/card-preview.js';
 import { handleDeckSubmit, resetDeckForm, updateColorSwatchSelection, checkColorWarning, handlePrismNameChange } from './deck-form.js';
 import { handleFileUpload, handleJsonImport, handleMoxfieldImport, handleEditFileUpload, handleEditUrlImport } from './deck-import.js';
 import { handleDeleteConfirm, handleEditConfirm, handleNewPrism, handleSplitConfirm } from './deck-list.js';
@@ -194,6 +194,16 @@ export function setupEventListeners() {
       updatePreferences({ stripeStartCorner: newCorner });
       state.elements.stripeStartCornerApply.setAttribute('disabled', '');
       renderAll();
+    });
+  }
+
+  // Show stripe position numbers preference (counting aid overlay).
+  // Read at render time + re-render the visible surfaces immediately on change.
+  if (state.elements.showStripePositionNumbers) {
+    state.elements.showStripePositionNumbers.addEventListener('change', (e) => {
+      updatePreferences({ showStripePositionNumbers: e.target.checked });
+      renderResults();
+      refreshOpenPreview();
     });
   }
 

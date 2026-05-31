@@ -23,7 +23,8 @@ function getDefaultStorage() {
     preferences: {
       colorScheme: 'auto',
       defaultColors: [...DEFAULT_COLORS],
-      stripeStartCorner: 'top-right'
+      stripeStartCorner: 'top-right',
+      showStripePositionNumbers: false
     },
     syncState: {
       prismBaselines: {},
