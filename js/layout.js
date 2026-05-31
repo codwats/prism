@@ -307,7 +307,8 @@ function injectHeader(ctaConfig) {
             <wa-icon name="bars"></wa-icon>
           </wa-button>
           <a href="index.html" class="wa-cluster wa-gap-xs wa-align-items-center" style="text-decoration: none; color: inherit;">
-            <img src="./assets/Prism-Small-Icon-Invert.svg" alt="Prism Logo" style="height:1.5em;" class="wa-border-radius-square">
+            <img src="./assets/Prism-Small-Icon-Invert.svg" alt="Prism Logo" style="height:1.5em;" class="wa-border-radius-square theme-logo-dark">
+            <img src="./assets/Prism-Icon-Main.svg" alt="Prism Logo" style="height:1.5em;" class="wa-border-radius-square theme-logo-light">
             <span class="wa-heading-m wa-desktop-only">PRISM</span>
           </a>
         </div>
@@ -344,7 +345,8 @@ function injectFooter() {
           <div class="wa-stack wa-gap-m">
             <div class="wa-split">
               <div class="wa-cluster wa-gap-s wa-align-items-center">
-                <img src="./assets/Prism-Small-Icon-Invert.svg" style="height:1em;" class="wa-border-radius-square">
+                <img src="./assets/Prism-Small-Icon-Invert.svg" style="height:1em;" class="wa-border-radius-square theme-logo-dark">
+                <img src="./assets/Prism-Icon-Main.svg" style="height:1em;" class="wa-border-radius-square theme-logo-light">
                 <span>PRISM</span>
                 <span style="color: var(--wa-color-neutral-text-subtle);">&bull;</span>
                 <span style="color: var(--wa-color-neutral-text-subtle);">Made for Commander players, by Commander players</span>

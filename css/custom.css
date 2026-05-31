@@ -248,6 +248,11 @@ wa-page[view='desktop'] [data-toggle-nav] {
   border-color: var(--wa-color-brand-fill);
 }
 
+/* Theme-aware logo swap: -Invert (white facets) for dark, -Main (dark facets) for light */
+.theme-logo-dark { display: none; }
+.wa-dark .theme-logo-dark { display: inline-block; }
+.wa-dark .theme-logo-light { display: none; }
+
 /* Ensure white swatches stay visible against the surface in both themes */
 .color-swatch[data-color="#FFFFFF"],
 .deck-color-indicator[style*="#FFFFFF"],
