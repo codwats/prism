@@ -5,7 +5,7 @@ PRISM helps Magic: The Gathering Commander players who share cards across multip
 ## Tech Stack
 
 - **Frontend:** Vanilla JavaScript with ES modules (no bundler, no build step)
-- **UI Components:** [Web Awesome 3.5.0](https://www.webawesome.com/) loaded via CDN kit
+- **UI Components:** [Web Awesome 3.7.0](https://www.webawesome.com/) loaded via CDN kit
 - **Styling:** `css/custom.css` + Web Awesome design tokens (`--wa-color-*`, `--wa-space-*`)
 - **Persistence:** localStorage-first (`prism_data` key), optional Supabase sync when authenticated with merge-before-write conflict handling
 - **Auth:** Supabase Auth (email/password), idempotent init via cached `authInitPromise` so concurrent callers share one awaitable sync; `initAuth()` waits for the Supabase CDN script `load` event before proceeding so slow CDN loads don't break auth

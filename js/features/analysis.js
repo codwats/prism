@@ -21,6 +21,9 @@ export function renderOverlapMatrix() {
 
   state.elements.overlapMatrixContainer.style.display = '';
 
+  // Skip the expensive build when the accordion is collapsed — wa-show triggers it on open.
+  if (!state.elements.overlapMatrixContainer.hasAttribute('open')) return;
+
   const overlap = calculateOverlap(state.currentPrism);
   const decks = [...state.currentPrism.decks].sort((a, b) => a.stripePosition - b.stripePosition);
 
