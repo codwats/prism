@@ -522,8 +522,10 @@ export function generatePrintableGuide(prism) {
 export function openPrintableGuide(prism) {
   const html = generatePrintableGuide(prism);
   const win = window.open('', '_blank');
+  if (!win) return false;
   win.document.write(html);
   win.document.close();
+  return true;
 }
 
 /**

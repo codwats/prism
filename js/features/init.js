@@ -3,7 +3,7 @@
  */
 
 import { state } from '../core/state.js';
-import { getLogicalDeckCount } from '../core/utils.js';
+import { getLogicalDeckCount, debugLog } from '../core/utils.js';
 import { createPrism } from '../modules/processor.js';
 import { getCurrentPrism, savePrism, setCurrentPrism, getPreferences, getColorScheme, onSyncStatusChange, forceSyncCurrentPrism } from '../modules/storage.js';
 import { initAuth, setupAuthListeners, getCurrentUser } from '../modules/auth.js';
@@ -139,7 +139,7 @@ function getElements() {
 // ============================================================================
 
 export async function init() {
-  console.log('PRISM: Initializing...');
+  debugLog('PRISM: Initializing...');
 
   // Wait a tick for Web Awesome components to upgrade
   await new Promise(resolve => setTimeout(resolve, 100));
@@ -188,7 +188,7 @@ export async function init() {
   setupStripeReorderDialog();
   setupSyncStatus();
 
-  console.log('PRISM: Initialization complete');
+  debugLog('PRISM: Initialization complete');
 }
 
 // ============================================================================

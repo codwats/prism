@@ -6,7 +6,7 @@
 import { initAuth, setupAuthListeners, onAuthChange, getCurrentUser, signOut, updatePassword, updateEmail, updateAuthUI } from './modules/auth.js';
 import { getAllPrisms, setCurrentPrism, deletePrism, savePrism, getCurrentPrism } from './modules/storage.js';
 import { createPrism } from './modules/processor.js';
-import { escapeHtml } from './core/utils.js';
+import { escapeHtml, getLogicalDeckCount } from './core/utils.js';
 
 // DOM Elements
 let elements = {};
@@ -40,9 +40,18 @@ function getElements() {
     // Auth
     btnProfileLogin: document.getElementById('btn-profile-login'),
     btnProfileLogout: document.getElementById('btn-profile-logout'),
-    authDialog: document.getElementById('auth-dialog')
+    authDialog: document.getElementById('auth-dialog'),
+
+    // Delete PRISM dialog
+    deletePrismDialog: document.getElementById('delete-prism-dialog'),
+    deletePrismName: document.getElementById('delete-prism-name'),
+    btnCancelDeletePrism: document.getElementById('btn-cancel-delete-prism'),
+    btnConfirmDeletePrism: document.getElementById('btn-confirm-delete-prism')
   };
 }
+
+// PRISM id pending deletion while the confirm dialog is open.
+let pendingDeleteId = null;
 
 async function init() {
   // Wait for Web Awesome components
@@ -101,6 +110,24 @@ function setupEventListeners() {
   if (elements.changePasswordForm) {
     elements.changePasswordForm.addEventListener('submit', handleChangePassword);
   }
+
+  // Delete PRISM dialog
+  if (elements.btnCancelDeletePrism) {
+    elements.btnCancelDeletePrism.addEventListener('click', () => {
+      pendingDeleteId = null;
+      elements.deletePrismDialog?.removeAttribute('open');
+    });
+  }
+  if (elements.btnConfirmDeletePrism) {
+    elements.btnConfirmDeletePrism.addEventListener('click', () => {
+      if (pendingDeleteId) {
+        deletePrism(pendingDeleteId);
+        renderPrismsList();
+      }
+      pendingDeleteId = null;
+      elements.deletePrismDialog?.removeAttribute('open');
+    });
+  }
 }
 
 function handleAuthChange(user) {
@@ -156,7 +183,7 @@ function renderPrismsList() {
         <div class="wa-stack wa-gap-2xs">
           <div class="wa-cluster wa-gap-s wa-align-items-center">
             <span class="wa-heading-m">${escapeHtml(prism.name)}</span>
-            <wa-tag size="small" variant="neutral">${prism.decks?.length || 0} decks</wa-tag>
+            <wa-tag size="small" variant="neutral">${getLogicalDeckCount(prism)} decks</wa-tag>
             ${isActive ? '<wa-tag size="small" variant="brand">Active</wa-tag>' : ''}
           </div>
           <span class="wa-caption-m" style="color: var(--wa-color-neutral-text-subtle);">
@@ -232,10 +259,9 @@ function handleDeletePrism(prismId) {
 
   if (!prism) return;
 
-  if (confirm(`Are you sure you want to delete "${prism.name}"? This cannot be undone.`)) {
-    deletePrism(prismId);
-    renderPrismsList();
-  }
+  pendingDeleteId = prismId;
+  if (elements.deletePrismName) elements.deletePrismName.textContent = prism.name;
+  elements.deletePrismDialog?.setAttribute('open', '');
 }
 
 function handleNewPrism() {

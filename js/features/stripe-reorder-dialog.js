@@ -146,13 +146,13 @@ function handleSlotClick(position, activeDeck, slotMap) {
     (activeDeckId && info.deckId === activeDeckId)
   );
   if (clickingSelf) {
-    state.elements.stripeReorderDialog.open = false;
+    state.elements.stripeReorderDialog.removeAttribute('open');
     return;
   }
 
   if (!info) {
     executeMove(activeDeck.id, position);
-    state.elements.stripeReorderDialog.open = false;
+    state.elements.stripeReorderDialog.removeAttribute('open');
   } else {
     pendingTargetPosition = position;
     showSwapConfirmation(activeDeck, info, position);
@@ -193,7 +193,7 @@ function showSwapConfirmation(activeDeck, targetInfo, targetPosition) {
   bar.querySelector('.btn-swap-confirm').addEventListener('click', () => {
     if (pendingTargetPosition !== null) {
       executeMove(activeDeck.id, pendingTargetPosition);
-      state.elements.stripeReorderDialog.open = false;
+      state.elements.stripeReorderDialog.removeAttribute('open');
       pendingTargetPosition = null;
     }
   });
@@ -358,7 +358,7 @@ export function openStripeReorderDialog(deckId) {
 
   const slotMap = buildSlotMap(prism);
   content.appendChild(renderSleeveVisualization(deck, slotMap));
-  dialog.open = true;
+  dialog.setAttribute('open', '');
 }
 
 export function openGroupReorderDialog(groupId) {
@@ -387,7 +387,7 @@ export function openGroupReorderDialog(groupId) {
   };
   const slotMap = buildSlotMap(prism);
   content.appendChild(renderSleeveVisualization(syntheticActive, slotMap));
-  dialog.open = true;
+  dialog.setAttribute('open', '');
 }
 
 // ============================================================================
@@ -400,7 +400,7 @@ export function setupStripeReorderDialog() {
     cancelBtn.addEventListener('click', () => {
       pendingTargetPosition = null;
       if (state.elements.stripeReorderDialog) {
-        state.elements.stripeReorderDialog.open = false;
+        state.elements.stripeReorderDialog.removeAttribute('open');
       }
     });
   }

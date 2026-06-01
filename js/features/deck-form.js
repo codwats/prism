@@ -5,7 +5,7 @@
 import { state } from "../core/state.js";
 import { showError, showSuccess } from "../core/notifications.js";
 import { logToSupabase } from "../modules/supabase-client.js";
-import { escapeHtml, getLogicalDeckCount } from "../core/utils.js";
+import { escapeHtml, getLogicalDeckCount, debugLog } from "../core/utils.js";
 import { parseDecklist, validateDecklist } from "../modules/parser.js";
 import {
   createDeck,
@@ -19,7 +19,6 @@ import {
 import { savePrism, recordUnmarkedCards } from "../modules/storage.js";
 import { canonicalizeCards } from "../modules/scryfall.js";
 import {
-  getStripeCountMap,
   unmarkSharedCards,
   autoClearRemovedCards,
 } from "./deck-list.js";
@@ -84,7 +83,7 @@ export async function handleDeckSubmit(e) {
   _submitting = true;
 
   try {
-    console.log("PRISM: Form submitted");
+    debugLog("PRISM: Form submitted");
 
     // Check deck limit (split groups count as 1 logical deck)
     if (getLogicalDeckCount(state.currentPrism) >= 32) {
@@ -115,7 +114,7 @@ export async function handleDeckSubmit(e) {
     const color = state.elements.deckColor?.value || "#FF0000";
     const decklistText = getInputValue(state.elements.deckList);
 
-    console.log("PRISM: Form values:", {
+    debugLog("PRISM: Form values:", {
       name,
       commander,
       bracket,
@@ -141,7 +140,7 @@ export async function handleDeckSubmit(e) {
     const parseResult = parseDecklist(decklistText, commander);
     const validation = validateDecklist(parseResult);
 
-    console.log("PRISM: Parse result:", {
+    debugLog("PRISM: Parse result:", {
       cards: parseResult.cards.length,
       errors: parseResult.errors.length,
     });
@@ -204,7 +203,7 @@ export async function handleDeckSubmit(e) {
 
     savePrism(state.currentPrism);
 
-    console.log("PRISM: Deck added:", deck.name);
+    debugLog("PRISM: Deck added:", deck.name);
     logToSupabase('info', 'deck_added', { name: deck.name, commander: deck.commander, bracket: deck.bracket, cardCount: parseResult.uniqueCards });
 
     // Reset form and re-render

@@ -684,35 +684,6 @@ export function isColorUsed(prism, color, excludeDeckId = null) {
 }
 
 /**
- * Reorder stripe positions for all decks
- * @param {Object} prism - The PRISM object
- * @param {Array} newOrder - Array of deck IDs in the new order
- * @returns {Object} Updated PRISM with new stripe positions
- */
-export function reorderStripes(prism, newOrder) {
-	const deckMap = new Map(prism.decks.map((d) => [d.id, d]));
-
-	const updatedDecks = newOrder
-		.map((deckId, index) => {
-			const deck = deckMap.get(deckId);
-			if (!deck) return null;
-
-			return {
-				...deck,
-				stripePosition: index + 1,
-				updatedAt: new Date().toISOString(),
-			};
-		})
-		.filter(Boolean);
-
-	return {
-		...prism,
-		decks: updatedDecks,
-		updatedAt: new Date().toISOString(),
-	};
-}
-
-/**
  * Add a deck to a PRISM
  * @param {Object} prism - The PRISM object
  * @param {Object} deck - The deck to add

@@ -126,6 +126,18 @@
       </main>
     </wa-page>
 
+    <!-- Delete PRISM confirmation dialog -->
+    <wa-dialog id="delete-prism-dialog" label="Delete PRISM">
+      <p>Are you sure you want to delete "<strong id="delete-prism-name"></strong>"? This cannot be undone.</p>
+      <div slot="footer" class="wa-cluster wa-gap-s">
+        <wa-button id="btn-cancel-delete-prism" variant="neutral" appearance="outlined">Cancel</wa-button>
+        <wa-button id="btn-confirm-delete-prism" variant="danger">Delete</wa-button>
+      </div>
+    </wa-dialog>
+
+    <!-- Toast notification container -->
+    <wa-toast placement="bottom-end" id="toast-container"></wa-toast>
+
     <script type="module">
       import { initLayout } from './js/layout.js';
       initLayout({ activePage: 'profile', headerCta: { href: 'build.html', label: 'Build PRISM', icon: 'wand-magic-sparkles' } });

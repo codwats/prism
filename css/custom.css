@@ -184,13 +184,6 @@ wa-page[view='desktop'] [data-toggle-nav] {
    Stripe Position List Items
    ============================================================================ */
 
-.reorder-item {
-  padding: var(--wa-space-s) var(--wa-space-m);
-  background: var(--wa-color-surface-2);
-  border-radius: var(--wa-border-radius-m);
-  border: 1px solid var(--wa-color-neutral-stroke-subtle);
-}
-
 .position-item {
   display: flex;
   align-items: center;
