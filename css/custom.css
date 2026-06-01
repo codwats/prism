@@ -265,9 +265,40 @@ wa-page[view='desktop'] [data-toggle-nav] {
   box-shadow: var(--wa-shadow-m);
 }
 
+/* Deck action buttons: inline cluster on desktop, kebab dropdown on mobile */
+.deck-actions-kebab {
+  display: none;
+}
+
+.deck-actions-kebab-menu {
+  min-width: 12rem;
+  padding: var(--wa-space-2xs);
+}
+
+.deck-actions-kebab-menu .kebab-item::part(base) {
+  width: 100%;
+  justify-content: flex-start;
+}
+
+@media (max-width: 768px) {
+  .deck-actions-inline {
+    display: none;
+  }
+  .deck-actions-kebab {
+    display: inline-flex;
+  }
+}
+
 /* ============================================================================
    Responsive Adjustments
    ============================================================================ */
+
+@media (max-width: 768px) {
+  /* Tighten main content gutters on mobile (WA default padding is desktop-sized) */
+  wa-page > main {
+    padding-inline: var(--wa-space-s);
+  }
+}
 
 @media (max-width: 600px) {
   .results-table th,
@@ -756,20 +787,6 @@ wa-page[view='desktop'] [data-toggle-nav] {
   border-radius: var(--wa-border-radius-m);
 }
 
-/* Deck-card actions: inline row on desktop, kebab overflow menu on mobile */
-.deck-actions-menu {
-  display: none;
-}
-
-@media (max-width: 768px) {
-  .deck-actions-inline {
-    display: none;
-  }
-
-  .deck-actions-menu {
-    display: inline-flex;
-  }
-}
 
 /* Wider touch targets on mobile */
 @media (max-width: 768px) {

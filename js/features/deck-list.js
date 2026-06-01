@@ -655,42 +655,54 @@ function getMoveButtonHtml(deck, isInGroup) {
   `;
 }
 
-// Mobile overflow menu mirroring the inline action buttons. Menu items carry the
-// same btn-* classes + data-deck-id, so the existing click wiring in
-// setupDeckListeners catches them — no duplicate handler logic.
-function getDeckActionsMenuHtml(deck, isInGroup) {
-  const canWhatIf = state.currentPrism.decks.length >= 2;
-  const group = isInGroup ? state.currentPrism.splitGroups?.find(g => g.id === deck.splitGroupId) : null;
-  const isDotVariantDeck = isInGroup && (group?.splitStyle || 'stripes') === 'dots';
-
+// Mobile kebab: same actions as the inline cluster, reusing the same btn-*
+// classes + data-deck-id so existing listeners attach automatically.
+// Uses plain wa-buttons (not wa-menu) because wa-menu/wa-menu-item autoload
+// flakily from the CDN kit (see CLAUDE.md); wa-button is always registered.
+function kebabItem(deck, cls, icon, label) {
   return `
-    <wa-dropdown class="deck-actions-menu" placement="bottom-end">
-      <wa-button slot="trigger" appearance="plain" variant="neutral" size="small" title="More actions">
+    <wa-button class="kebab-item ${cls}" data-deck-id="${deck.id}"
+      appearance="plain" variant="neutral" size="small">
+      <wa-icon slot="start" name="${icon}"></wa-icon>${label}
+    </wa-button>
+  `;
+}
+
+function getMoveKebabItemHtml(deck, isInGroup) {
+  if (!isInGroup) {
+    return kebabItem(deck, "btn-move-deck", "up-down-left-right", "Move to slot");
+  }
+  const group = state.currentPrism.splitGroups?.find(g => g.id === deck.splitGroupId);
+  const splitStyle = group?.splitStyle || 'stripes';
+  const reason = splitStyle === 'stripes'
+    ? "Stripe variant decks can't be moved yet. This is coming in a future update."
+    : `Dot variants move with their parent. Move &quot;${group?.name || 'parent deck'}&quot; instead.`;
+  return `
+    <wa-button class="kebab-item" appearance="plain" variant="neutral" size="small" disabled title="${reason}">
+      <wa-icon slot="start" name="up-down-left-right"></wa-icon>Move to slot
+    </wa-button>
+  `;
+}
+
+function getDeckActionsKebabHtml(deck, isInGroup) {
+  const whatIf = state.currentPrism.decks.length >= 2
+    ? kebabItem(deck, "btn-what-if", "flask", "What if I remove this?")
+    : "";
+  const split = !isInGroup
+    ? kebabItem(deck, "btn-split-deck", "code-branch", "Split into variants")
+    : "";
+  return `
+    <wa-dropdown class="deck-actions-kebab">
+      <wa-button slot="trigger" appearance="plain" variant="neutral" size="small" title="Actions">
         <wa-icon name="ellipsis-vertical"></wa-icon>
       </wa-button>
-      <wa-menu>
-        ${canWhatIf ? `
-        <wa-menu-item class="btn-what-if" data-deck-id="${deck.id}">
-          <wa-icon slot="start" name="flask"></wa-icon>What if I remove this?
-        </wa-menu-item>` : ""}
-        ${isDotVariantDeck ? `
-        <wa-menu-item disabled>
-          <wa-icon slot="start" name="up-down-left-right"></wa-icon>Move (use parent group)
-        </wa-menu-item>` : `
-        <wa-menu-item class="btn-move-deck" data-deck-id="${deck.id}">
-          <wa-icon slot="start" name="up-down-left-right"></wa-icon>Move to slot
-        </wa-menu-item>`}
-        ${!isInGroup ? `
-        <wa-menu-item class="btn-split-deck" data-deck-id="${deck.id}">
-          <wa-icon slot="start" name="code-branch"></wa-icon>Split into variants
-        </wa-menu-item>` : ""}
-        <wa-menu-item class="btn-edit-deck" data-deck-id="${deck.id}">
-          <wa-icon slot="start" name="pen-to-square"></wa-icon>Edit deck
-        </wa-menu-item>
-        <wa-menu-item class="btn-delete-deck" data-deck-id="${deck.id}" variant="danger">
-          <wa-icon slot="start" name="trash"></wa-icon>Delete deck
-        </wa-menu-item>
-      </wa-menu>
+      <div class="wa-stack wa-gap-0 deck-actions-kebab-menu">
+        ${whatIf}
+        ${getMoveKebabItemHtml(deck, isInGroup)}
+        ${split}
+        ${kebabItem(deck, "btn-edit-deck", "pen-to-square", "Edit deck")}
+        ${kebabItem(deck, "btn-delete-deck", "trash", "Delete deck")}
+      </div>
     </wa-dropdown>
   `;
 }
@@ -752,7 +764,7 @@ export function renderDeckCard(deck, showActions = true, processedCards = null) 
             <wa-icon name="trash"></wa-icon>
           </wa-button>
         </div>
-        ${getDeckActionsMenuHtml(deck, isInGroup)}
+        ${getDeckActionsKebabHtml(deck, isInGroup)}
         `
             : ""
         }
@@ -900,5 +912,12 @@ export function renderDecksList() {
   });
   state.elements.decksList.querySelectorAll(".btn-unsplit").forEach((btn) => {
     btn.addEventListener("click", () => handleUnsplit(btn.dataset.groupId));
+  });
+  // Close the mobile kebab dropdown after picking an action (plain buttons
+  // don't auto-close the way wa-menu-items would).
+  state.elements.decksList.querySelectorAll(".kebab-item").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      btn.closest("wa-dropdown")?.removeAttribute("open");
+    });
   });
 }
