@@ -655,6 +655,46 @@ function getMoveButtonHtml(deck, isInGroup) {
   `;
 }
 
+// Mobile overflow menu mirroring the inline action buttons. Menu items carry the
+// same btn-* classes + data-deck-id, so the existing click wiring in
+// setupDeckListeners catches them — no duplicate handler logic.
+function getDeckActionsMenuHtml(deck, isInGroup) {
+  const canWhatIf = state.currentPrism.decks.length >= 2;
+  const group = isInGroup ? state.currentPrism.splitGroups?.find(g => g.id === deck.splitGroupId) : null;
+  const isDotVariantDeck = isInGroup && (group?.splitStyle || 'stripes') === 'dots';
+
+  return `
+    <wa-dropdown class="deck-actions-menu" placement="bottom-end">
+      <wa-button slot="trigger" appearance="plain" variant="neutral" size="small" title="More actions">
+        <wa-icon name="ellipsis-vertical"></wa-icon>
+      </wa-button>
+      <wa-menu>
+        ${canWhatIf ? `
+        <wa-menu-item class="btn-what-if" data-deck-id="${deck.id}">
+          <wa-icon slot="start" name="flask"></wa-icon>What if I remove this?
+        </wa-menu-item>` : ""}
+        ${isDotVariantDeck ? `
+        <wa-menu-item disabled>
+          <wa-icon slot="start" name="up-down-left-right"></wa-icon>Move (use parent group)
+        </wa-menu-item>` : `
+        <wa-menu-item class="btn-move-deck" data-deck-id="${deck.id}">
+          <wa-icon slot="start" name="up-down-left-right"></wa-icon>Move to slot
+        </wa-menu-item>`}
+        ${!isInGroup ? `
+        <wa-menu-item class="btn-split-deck" data-deck-id="${deck.id}">
+          <wa-icon slot="start" name="code-branch"></wa-icon>Split into variants
+        </wa-menu-item>` : ""}
+        <wa-menu-item class="btn-edit-deck" data-deck-id="${deck.id}">
+          <wa-icon slot="start" name="pen-to-square"></wa-icon>Edit deck
+        </wa-menu-item>
+        <wa-menu-item class="btn-delete-deck" data-deck-id="${deck.id}" variant="danger">
+          <wa-icon slot="start" name="trash"></wa-icon>Delete deck
+        </wa-menu-item>
+      </wa-menu>
+    </wa-dropdown>
+  `;
+}
+
 export function renderDeckCard(deck, showActions = true, processedCards = null) {
   const isInGroup = !!deck.splitGroupId;
   const isDot = isDotVariant(deck, state.currentPrism);
@@ -681,7 +721,7 @@ export function renderDeckCard(deck, showActions = true, processedCards = null) 
         ${
           showActions
             ? `
-        <div class="wa-cluster wa-gap-xs">
+        <div class="wa-cluster wa-gap-xs deck-actions-inline">
           ${
             state.currentPrism.decks.length >= 2
               ? `
@@ -712,6 +752,7 @@ export function renderDeckCard(deck, showActions = true, processedCards = null) 
             <wa-icon name="trash"></wa-icon>
           </wa-button>
         </div>
+        ${getDeckActionsMenuHtml(deck, isInGroup)}
         `
             : ""
         }

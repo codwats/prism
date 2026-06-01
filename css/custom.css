@@ -756,6 +756,21 @@ wa-page[view='desktop'] [data-toggle-nav] {
   border-radius: var(--wa-border-radius-m);
 }
 
+/* Deck-card actions: inline row on desktop, kebab overflow menu on mobile */
+.deck-actions-menu {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .deck-actions-inline {
+    display: none;
+  }
+
+  .deck-actions-menu {
+    display: inline-flex;
+  }
+}
+
 /* Wider touch targets on mobile */
 @media (max-width: 768px) {
   .stripe-reorder-slot {
@@ -768,17 +783,9 @@ wa-page[view='desktop'] [data-toggle-nav] {
   }
 }
 
-/* Mobile: disable hover previews */
+/* Mobile: tap a card name to open the preview overlay (no hover on touch) */
 @media (max-width: 768px) {
-  .card-preview-tooltip {
-    display: none !important;
-  }
-
   .card-name-cell {
-    cursor: default;
-  }
-
-  .card-name-cell:hover {
-    text-decoration: none;
+    cursor: pointer;
   }
 }

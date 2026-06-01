@@ -369,7 +369,7 @@ function injectAuthDialog() {
 
   const dialog = document.createElement('wa-dialog');
   dialog.id = 'auth-dialog';
-  dialog.style.setProperty('--width', '45ch');
+  dialog.style.setProperty('--width', 'min(45ch, 92vw)');
   dialog.innerHTML = `
       <span slot="label" id="auth-dialog-title">Login</span>
 
