@@ -12,6 +12,19 @@ export function getLogicalDeckCount(prism) {
   return standalone + groups;
 }
 
+/**
+ * Debug logger. No-ops unless localStorage 'PRISM_DEBUG' is set (any truthy value).
+ * Keeps developer trace logs out of the production console while leaving them
+ * one localStorage flag away. Genuine console.error/warn are left untouched.
+ */
+export function debugLog(...args) {
+  try {
+    if (localStorage.getItem('PRISM_DEBUG')) console.log(...args);
+  } catch {
+    // localStorage unavailable (private mode / blocked) — stay silent.
+  }
+}
+
 export function debounce(fn, ms = 150) {
   let t;
   return function(...args) { const ctx = this; clearTimeout(t); t = setTimeout(() => fn.apply(ctx, args), ms); };

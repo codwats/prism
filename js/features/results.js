@@ -122,9 +122,6 @@ export function renderResults() {
   if (filter === 'shared') {
     filteredCards = filteredCards.filter(c => c.logicalDeckCount > 1);
     displayCards = filteredCards;
-  } else if (filter === 'unique') {
-    filteredCards = filteredCards.filter(c => c.logicalDeckCount === 1);
-    displayCards = filteredCards;
   } else if (filter === 'basics-by-deck') {
     // Show only basic lands, split into per-deck rows
     displayCards = [];
@@ -297,23 +294,12 @@ export function renderResults() {
     const isMarked = state.currentPrism.markedCards?.includes(cardKey) || false;
     const markedClass = isMarked ? 'marked-row' : '';
 
-    // Prepare stripes data for preview (exclude position-only data for cleaner JSON)
-    // Escape for use in HTML attribute (escape single quotes and ampersands)
-    const stripesJson = JSON.stringify(card.stripes.map(s => ({
-      position: s.position,
-      color: s.color,
-      deckName: s.deckName,
-      side: s.side || 'a',
-      markType: s.markType,
-      dotIndex: s.dotIndex,
-    }))).replace(/&/g, '&amp;').replace(/'/g, '&#39;');
-
     return `
       <tr class="${rowClass} ${markedClass}" data-card-key="${escapeHtml(cardKey)}">
         <td style="text-align: center;">
           <input type="checkbox" class="mark-checkbox" aria-label="Mark ${escapeHtml(card.name)} done" ${isMarked ? 'checked' : ''}>
         </td>
-        <td class="${nameClass} card-name-cell" data-card-name="${escapeHtml(card.name)}" data-stripes='${stripesJson}'>${escapeHtml(card.name)}${basicTag}</td>${copiesCell}
+        <td class="${nameClass} card-name-cell" data-card-name="${escapeHtml(card.name)}">${escapeHtml(card.name)}${basicTag}</td>${copiesCell}
         <td><div class="stripe-indicators">${stripeIndicators}</div></td>
       </tr>
     `;

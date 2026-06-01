@@ -94,7 +94,12 @@ export function setupEventListeners() {
     state.elements.btnExportJSON.addEventListener('click', () => downloadJSON(state.currentPrism));
   }
   if (state.elements.btnPrintGuide) {
-    state.elements.btnPrintGuide.addEventListener('click', () => openPrintableGuide(state.currentPrism));
+    state.elements.btnPrintGuide.addEventListener('click', async () => {
+      if (!openPrintableGuide(state.currentPrism)) {
+        const { showError } = await import('../core/notifications.js');
+        showError('Could not open the printable guide. Please allow popups for this site and try again.');
+      }
+    });
   }
   if (state.elements.btnDownloadUndone) {
     state.elements.btnDownloadUndone.addEventListener('click', () => downloadUndoneTxt(state.currentPrism));
@@ -110,7 +115,7 @@ export function setupEventListeners() {
   // Delete dialog
   if (state.elements.btnCancelDelete) {
     state.elements.btnCancelDelete.addEventListener('click', () => {
-      state.elements.deleteDialog.open = false;
+      state.elements.deleteDialog.removeAttribute('open');
     });
   }
   if (state.elements.btnConfirmDelete) {
@@ -120,12 +125,12 @@ export function setupEventListeners() {
   // New PRISM dialog
   if (state.elements.btnNewPrism) {
     state.elements.btnNewPrism.addEventListener('click', () => {
-      state.elements.newPrismDialog.open = true;
+      state.elements.newPrismDialog.setAttribute('open', '');
     });
   }
   if (state.elements.btnCancelNew) {
     state.elements.btnCancelNew.addEventListener('click', () => {
-      state.elements.newPrismDialog.open = false;
+      state.elements.newPrismDialog.removeAttribute('open');
     });
   }
   if (state.elements.btnConfirmNew) {
@@ -135,7 +140,7 @@ export function setupEventListeners() {
   // Edit dialog
   if (state.elements.btnCancelEdit) {
     state.elements.btnCancelEdit.addEventListener('click', () => {
-      state.elements.editDialog.open = false;
+      state.elements.editDialog.removeAttribute('open');
     });
   }
   if (state.elements.btnConfirmEdit) {
@@ -163,7 +168,7 @@ export function setupEventListeners() {
   // Split dialog
   if (state.elements.btnCancelSplit) {
     state.elements.btnCancelSplit.addEventListener('click', () => {
-      state.elements.splitDialog.open = false;
+      state.elements.splitDialog.removeAttribute('open');
     });
   }
   if (state.elements.btnConfirmSplit) {

@@ -4,12 +4,11 @@
 
 import { state } from "../core/state.js";
 import { showError, showSuccess } from "../core/notifications.js";
-import { escapeHtml } from "../core/utils.js";
+import { escapeHtml, debugLog } from "../core/utils.js";
 import { parseDecklist, validateDecklist } from "../modules/parser.js";
 import {
   processCards,
   removeDeckFromPrism,
-  reorderStripes,
   moveStripeToPosition,
   getColorName,
   calculateRemovedCards,
@@ -27,7 +26,7 @@ import { canonicalizeCards } from "../modules/scryfall.js";
 import { hideEditImportMessages } from "./deck-import.js";
 import { initColorSwatches, resetDeckForm } from "./deck-form.js";
 import { renderAll } from "./init.js";
-import { openStripeReorderDialog, openGroupReorderDialog, isStripeVariantDeck, isDotVariantChild } from "./stripe-reorder-dialog.js";
+import { openStripeReorderDialog, openGroupReorderDialog } from "./stripe-reorder-dialog.js";
 import { toggleWhatIfAnalysis } from "./analysis.js";
 import { renderResults, updateRemovedFilterBadge } from "./results.js";
 
@@ -158,7 +157,7 @@ export function handleMarkToggle(event) {
   state.currentPrism.markedCardsUpdatedAt = now;
   savePrism(state.currentPrism);
 
-  console.log(
+  debugLog(
     "Card marked:",
     cardKey,
     "checked:",
@@ -214,7 +213,7 @@ export function handleDeleteClick(deckId) {
 
   state.deckToDelete = deckId;
   state.elements.deleteDeckName.textContent = deck.name;
-  state.elements.deleteDialog.open = true;
+  state.elements.deleteDialog.setAttribute('open', '');
 }
 
 export function handleEditClick(deckId) {
@@ -250,7 +249,7 @@ export function handleEditClick(deckId) {
   if (state.elements.editImportSection)
     state.elements.editImportSection.open = false;
 
-  state.elements.editDialog.open = true;
+  state.elements.editDialog.setAttribute('open', '');
 }
 
 export async function handleEditConfirm() {
@@ -385,7 +384,7 @@ export async function handleEditConfirm() {
   state.currentPrism.updatedAt = now;
   savePrism(state.currentPrism);
   state.deckToEdit = null;
-  state.elements.editDialog.open = false;
+  state.elements.editDialog.removeAttribute('open');
 
   renderAll();
 
@@ -461,7 +460,7 @@ export function handleDeleteConfirm() {
   savePrism(state.currentPrism);
 
   state.deckToDelete = null;
-  state.elements.deleteDialog.open = false;
+  state.elements.deleteDialog.removeAttribute('open');
 
   renderAll();
 
@@ -482,7 +481,7 @@ export function handleSplitClick(deckId) {
   if (state.elements.splitStyle) {
     state.elements.splitStyle.value = "stripes";
   }
-  state.elements.splitDialog.open = true;
+  state.elements.splitDialog.setAttribute('open', '');
 }
 
 export function handleSplitConfirm() {
@@ -505,7 +504,7 @@ export function handleSplitConfirm() {
   state.currentPrism = updatedPrism;
   savePrism(state.currentPrism);
 
-  state.elements.splitDialog.open = false;
+  state.elements.splitDialog.removeAttribute('open');
   renderAll();
   showSuccess(`Split into ${count} variants.`);
 }
@@ -546,7 +545,7 @@ export function handleNewPrism() {
   savePrism(state.currentPrism);
   setCurrentPrism(state.currentPrism.id);
 
-  state.elements.newPrismDialog.open = false;
+  state.elements.newPrismDialog.removeAttribute('open');
 
   resetDeckForm();
   initColorSwatches();
@@ -730,6 +729,11 @@ export function renderDecksList() {
   );
   const splitGroups = state.currentPrism.splitGroups || [];
   const processed = sortedDecks.length > 0 ? processCards(state.currentPrism) : [];
+
+  // Stripe Settings card lives in this (Decks) panel, so its visibility is owned here.
+  if (state.elements.stripeSettingsCard) {
+    state.elements.stripeSettingsCard.style.display = sortedDecks.length >= 1 ? '' : 'none';
+  }
 
   if (sortedDecks.length === 0) {
     state.elements.decksList.innerHTML = `
