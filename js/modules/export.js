@@ -516,8 +516,9 @@ export function generatePrintableGuide(prism) {
 }
 
 /**
- * Open printable guide in new window
+ * Open printable guide in a new window.
  * @param {Object} prism - The PRISM to export
+ * @returns {boolean} false if the popup was blocked, true otherwise
  */
 export function openPrintableGuide(prism) {
   const html = generatePrintableGuide(prism);

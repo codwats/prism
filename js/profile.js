@@ -253,6 +253,11 @@ function handleOpenPrism(prismId) {
   window.location.href = 'build.html';
 }
 
+/**
+ * Stage a PRISM for deletion and open the confirmation dialog. The actual
+ * delete runs from the dialog's confirm button (see setupEventListeners).
+ * @param {string} prismId - ID of the PRISM to delete
+ */
 function handleDeletePrism(prismId) {
   const prisms = getAllPrisms();
   const prism = prisms.find(p => p.id === prismId);
