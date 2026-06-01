@@ -437,7 +437,7 @@
     </wa-dialog>
 
     <!-- Edit Deck Dialog -->
-    <wa-dialog id="edit-dialog" label="Edit Deck" style="--width: 600px;">
+    <wa-dialog id="edit-dialog" label="Edit Deck" style="--width: min(600px, 92vw);">
       <form id="edit-deck-form" class="wa-stack wa-gap-l">
         <input type="hidden" id="edit-deck-id" />
 
@@ -520,7 +520,7 @@
     </wa-dialog>
 
     <!-- Split Deck Dialog -->
-    <wa-dialog id="split-dialog" label="Split Deck" style="--width: 450px;">
+    <wa-dialog id="split-dialog" label="Split Deck" style="--width: min(450px, 92vw);">
       <div class="wa-stack wa-gap-m">
         <p class="wa-body-m">Split "<strong id="split-deck-name"></strong>" into multiple variants?</p>
         <p class="wa-caption-m" style="color: var(--wa-color-neutral-text-subtle);">
@@ -551,7 +551,7 @@
     </wa-dialog>
 
     <!-- Stripe Reorder Dialog -->
-    <wa-dialog id="stripe-reorder-dialog" label="Move Stripe Position" style="--width: 580px;">
+    <wa-dialog id="stripe-reorder-dialog" label="Move Stripe Position" style="--width: min(580px, 92vw);">
       <div id="stripe-reorder-content" class="wa-stack wa-gap-l">
         <!-- Content injected by stripe-reorder-dialog.js -->
       </div>
