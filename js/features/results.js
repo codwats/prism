@@ -311,7 +311,7 @@ export function renderResults() {
     return `
       <tr class="${rowClass} ${markedClass}" data-card-key="${escapeHtml(cardKey)}">
         <td style="text-align: center;">
-          <input type="checkbox" class="mark-checkbox" ${isMarked ? 'checked' : ''}>
+          <input type="checkbox" class="mark-checkbox" aria-label="Mark ${escapeHtml(card.name)} done" ${isMarked ? 'checked' : ''}>
         </td>
         <td class="${nameClass} card-name-cell" data-card-name="${escapeHtml(card.name)}" data-stripes='${stripesJson}'>${escapeHtml(card.name)}${basicTag}</td>${copiesCell}
         <td><div class="stripe-indicators">${stripeIndicators}</div></td>
