@@ -162,6 +162,25 @@ export function handleJsonImport(e) {
 // Moxfield / Archidekt URL Import
 // ============================================================================
 
+/**
+ * Detect a deck URL/ID's source and fetch it. Shared by the add-deck and
+ * edit-deck URL importers so the detection rules stay in one place.
+ * @returns {Promise<{serviceName: string, deckData: Object}>}
+ * @throws if the source can't be detected.
+ */
+async function resolveDeckSource(urlOrId) {
+  if (urlOrId.includes('archidekt.com') || extractArchidektId(urlOrId)) {
+    if (urlOrId.includes('archidekt.com') || /^\d+$/.test(urlOrId)) {
+      return { serviceName: 'Archidekt', deckData: await importFromArchidekt(urlOrId) };
+    }
+    return { serviceName: 'Moxfield', deckData: await importFromMoxfield(urlOrId) };
+  }
+  if (urlOrId.includes('moxfield.com') || extractMoxfieldId(urlOrId)) {
+    return { serviceName: 'Moxfield', deckData: await importFromMoxfield(urlOrId) };
+  }
+  throw new Error('Could not detect deck source. Please use a Moxfield or Archidekt URL.');
+}
+
 export async function handleMoxfieldImport() {
   const urlOrId = state.elements.moxfieldUrl?.value?.trim();
   if (!urlOrId) {
@@ -174,23 +193,7 @@ export async function handleMoxfieldImport() {
   if (btn) btn.loading = true;
 
   try {
-    let deckData;
-    let serviceName;
-
-    if (urlOrId.includes('archidekt.com') || extractArchidektId(urlOrId)) {
-      if (urlOrId.includes('archidekt.com') || /^\d+$/.test(urlOrId)) {
-        serviceName = 'Archidekt';
-        deckData = await importFromArchidekt(urlOrId);
-      } else {
-        serviceName = 'Moxfield';
-        deckData = await importFromMoxfield(urlOrId);
-      }
-    } else if (urlOrId.includes('moxfield.com') || extractMoxfieldId(urlOrId)) {
-      serviceName = 'Moxfield';
-      deckData = await importFromMoxfield(urlOrId);
-    } else {
-      throw new Error('Could not detect deck source. Please use a Moxfield or Archidekt URL.');
-    }
+    const { serviceName, deckData } = await resolveDeckSource(urlOrId);
 
     if (state.elements.deckName) state.elements.deckName.value = deckData.name || '';
     if (state.elements.deckCommander) state.elements.deckCommander.value = deckData.commander || '';
@@ -224,23 +227,7 @@ export async function handleEditUrlImport() {
   if (btn) btn.loading = true;
 
   try {
-    let deckData;
-    let serviceName;
-
-    if (urlOrId.includes('archidekt.com') || extractArchidektId(urlOrId)) {
-      if (urlOrId.includes('archidekt.com') || /^\d+$/.test(urlOrId)) {
-        serviceName = 'Archidekt';
-        deckData = await importFromArchidekt(urlOrId);
-      } else {
-        serviceName = 'Moxfield';
-        deckData = await importFromMoxfield(urlOrId);
-      }
-    } else if (urlOrId.includes('moxfield.com') || extractMoxfieldId(urlOrId)) {
-      serviceName = 'Moxfield';
-      deckData = await importFromMoxfield(urlOrId);
-    } else {
-      throw new Error('Could not detect deck source. Please use a Moxfield or Archidekt URL.');
-    }
+    const { serviceName, deckData } = await resolveDeckSource(urlOrId);
 
     if (state.elements.editDeckList) state.elements.editDeckList.value = toDecklistText(deckData);
 
