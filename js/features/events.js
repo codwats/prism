@@ -226,11 +226,15 @@ export function setupEventListeners() {
     state.elements.overlapMatrixContainer.addEventListener('wa-show', renderOverlapMatrix);
   }
 
-  // Card preview hover handlers (event delegation on results table)
+  // Card preview handlers (event delegation on results table).
+  // Desktop: hover to show / leave to hide. Mobile (≤768px): tap a card name
+  // to open, tap outside to dismiss — there is no mouseleave on touch.
   if (state.elements.resultsTbody) {
     state.elements.resultsTbody.addEventListener('mouseenter', handleCardPreviewShow, true);
     state.elements.resultsTbody.addEventListener('mouseleave', handleCardPreviewHide, true);
     state.elements.resultsTbody.addEventListener('mousemove', handleCardPreviewMove);
+    state.elements.resultsTbody.addEventListener('click', handleCardPreviewTap);
+    document.addEventListener('click', handleCardPreviewDismiss);
   }
 }
 
@@ -238,7 +242,12 @@ export function setupEventListeners() {
 // Card preview handlers
 // ============================================================================
 
+// Single source of truth for the tap-vs-hover split. Matches the 768px
+// breakpoint custom.css uses for the rest of the mobile layout.
+const previewIsMobile = () => window.matchMedia('(max-width: 768px)').matches;
+
 function handleCardPreviewShow(e) {
+  if (previewIsMobile()) return; // mobile opens on tap, not hover
   const cell = e.target.closest('.card-name-cell');
   if (!cell) return;
 
@@ -253,6 +262,7 @@ function handleCardPreviewShow(e) {
 }
 
 function handleCardPreviewHide(e) {
+  if (previewIsMobile()) return;
   const cell = e.target.closest('.card-name-cell');
   if (!cell) return;
 
@@ -264,8 +274,33 @@ function handleCardPreviewHide(e) {
 }
 
 function handleCardPreviewMove(e) {
+  if (previewIsMobile()) return;
   const cell = e.target.closest('.card-name-cell');
   if (!cell) return;
 
   updatePosition(e);
+}
+
+// Mobile tap-to-open: reuse the same state lookup as the hover path.
+function handleCardPreviewTap(e) {
+  if (!previewIsMobile()) return;
+  const cell = e.target.closest('.card-name-cell');
+  if (!cell) return;
+
+  const cardName = cell.dataset.cardName;
+  if (!cardName) return;
+
+  const card = (state.processedCards || []).find(c => c.name === cardName);
+  const stripes = card ? card.stripes : [];
+
+  showPreview(cardName, stripes, e);
+}
+
+// Mobile dismiss: tap anywhere that isn't a card name or the open preview.
+function handleCardPreviewDismiss(e) {
+  if (!previewIsMobile()) return;
+  if (e.target.closest('.card-name-cell')) return; // opening tap, handled above
+  const tooltip = document.getElementById('card-preview-tooltip');
+  if (!tooltip || tooltip.hidden || tooltip.contains(e.target)) return;
+  hidePreview();
 }

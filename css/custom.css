@@ -783,17 +783,9 @@ wa-page[view='desktop'] [data-toggle-nav] {
   }
 }
 
-/* Mobile: disable hover previews */
+/* Mobile: tap a card name to open the preview overlay (no hover on touch) */
 @media (max-width: 768px) {
-  .card-preview-tooltip {
-    display: none !important;
-  }
-
   .card-name-cell {
-    cursor: default;
-  }
-
-  .card-name-cell:hover {
-    text-decoration: none;
+    cursor: pointer;
   }
 }
