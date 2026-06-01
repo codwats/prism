@@ -31,7 +31,7 @@ prism/
 │   ├── core/
 │   │   ├── state.js        Singleton mutable state (ES module = same reference everywhere)
 │   │   ├── notifications.js  showError, showSuccess, showToast
-│   │   └── utils.js        escapeHtml, getLogicalDeckCount
+│   │   └── utils.js        escapeHtml, getLogicalDeckCount, stripePositionLabel, debugLog
 │   ├── features/           Build page feature modules
 │   │   ├── init.js         getElements, init(), renderAll(), renderPrismHeader, setupSyncStatus
 │   │   ├── events.js       setupEventListeners, card preview handlers
@@ -216,6 +216,10 @@ Preview viewport should be 1280px+ wide to see the desktop layout (sidebar nav).
 - `savePrism(state.currentPrism)` persists to localStorage after mutations
 - When removing cards from `markedCards`, call `recordUnmarkedCards(prismId, keys)` **before** `savePrism()` to record tombstones that survive the next cloud merge
 - Feature modules import from `../core/`, `../modules/`, and sibling `./` files
+- Developer trace logs go through `debugLog(...)` (core/utils.js), which no-ops unless the `PRISM_DEBUG` localStorage flag is set — do not use bare `console.log("PRISM: ...")`. Genuine `console.error`/`console.warn` are left ungated
+- Dialogs (`<wa-dialog>`) are opened/closed with `setAttribute('open','')` / `removeAttribute('open')`, never `dialog.open = true/false` (see Common Debugging). `<wa-details>` accordions still use the `.open` property
+- URL deck imports (add + edit) share `resolveDeckSource(urlOrId)` in deck-import.js for Moxfield/Archidekt detection — extend that one helper rather than duplicating detection logic
+- First-run onboarding callout on build.html persists its dismissal in the `prism_onboarding_dismissed` localStorage flag
 - 22 paint pen colors in `DEFAULT_COLORS` (processor.js) — matched to real products
 - Bracket values 1–5 represent Commander power level
 - `formatSlotLabel(position, side?)` renders "Side A - Slot 1" style labels
