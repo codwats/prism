@@ -27,15 +27,17 @@ function buildSlotMap(stripes) {
   return slotMap;
 }
 
-// Stable signature of a card's physical stripe set: the sorted list of
-// occupied slot positions (each slot = one fixed deck color), so two cards
-// with the identical set of colored marks share a signature. The invisible
-// 'membership' anchors are excluded so only real marks count.
+// Stable signature of a card's physical stripe set: one token per visible mark
+// capturing its slot, mark type, and color, so two cards share a signature only
+// when they need the exact same pens in the exact same places. Color/markType
+// matter because dot-style split variants stack several differently-colored
+// marks at one Side A position (a position-only key would collide them). The
+// invisible 'membership' anchors are excluded so only real marks count.
 function stripeSignature(card) {
   return (card.stripes || [])
     .filter(s => s.markType !== 'membership')
-    .map(s => s.position)
-    .sort((a, b) => a - b)
+    .map(s => `${s.position}:${s.markType || 'stripe'}:${s.color}`)
+    .sort()
     .join(',');
 }
 
