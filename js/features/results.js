@@ -27,6 +27,18 @@ function buildSlotMap(stripes) {
   return slotMap;
 }
 
+// Stable signature of a card's physical stripe set: the sorted list of
+// occupied slot positions (each slot = one fixed deck color), so two cards
+// with the identical set of colored marks share a signature. The invisible
+// 'membership' anchors are excluded so only real marks count.
+function stripeSignature(card) {
+  return (card.stripes || [])
+    .filter(s => s.markType !== 'membership')
+    .map(s => s.position)
+    .sort((a, b) => a - b)
+    .join(',');
+}
+
 // Position-number overlay for an anchor slot (every 5th slot per side), or ''.
 function positionNumHtml(position, showNums, muted = false) {
   if (!showNums) return '';
@@ -378,8 +390,14 @@ function sortCards(cards, column, direction) {
         comparison = a.totalQuantity - b.totalQuantity;
         break;
       case 'deckCount':
-        // Sort by deck count (most shared first by default)
+        // 1. Sort by deck count (most shared first by default)
         comparison = a.deckCount - b.deckCount;
+        // 2. Cluster cards that carry the identical set of stripes together,
+        //    so the user marks all of them without swapping pens.
+        if (comparison === 0) {
+          comparison = stripeSignature(a).localeCompare(stripeSignature(b));
+        }
+        // 3. Alphabetical within a matching set
         if (comparison === 0) {
           comparison = a.name.localeCompare(b.name);
         }
