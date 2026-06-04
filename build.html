@@ -296,13 +296,13 @@
 
                 <!-- Deck Filter Dropdown -->
                 <wa-dropdown id="deck-filter-dropdown" stay-open-on-select>
-                  <wa-button slot="trigger" variant="neutral" size="small" caret>
+                  <wa-button slot="trigger" appearance="plain" variant="neutral" size="small" caret>
                     <wa-icon slot="start" name="filter"></wa-icon>
                     Filter by Deck
                   </wa-button>
-                  <wa-menu id="deck-filter-menu">
-                    <!-- Deck checkboxes will be dynamically inserted here -->
-                  </wa-menu>
+                  <div class="wa-stack wa-gap-0 deck-filter-menu" id="deck-filter-menu">
+                    <!-- Deck filter buttons will be dynamically inserted here -->
+                  </div>
                 </wa-dropdown>
 
                 <wa-switch id="show-all-slots" size="small">Show all slots</wa-switch>

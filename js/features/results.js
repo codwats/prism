@@ -522,43 +522,50 @@ function renderDeckFilterMenu() {
     return;
   }
 
-  // Build menu with checkboxes using native inputs for performance
+  // Plain wa-buttons (not wa-menu-item) to match the deck-actions kebab menu
+  // styling and dodge the flaky wa-menu CDN autoload (see CLAUDE.md).
   state.elements.deckFilterMenu.innerHTML = `
-    <wa-menu-item class="deck-filter-clear" style="border-bottom: 1px solid var(--wa-color-neutral-stroke-subtle);">
+    <wa-button class="deck-filter-clear" appearance="plain" variant="neutral" size="small">
       <wa-icon slot="start" name="xmark"></wa-icon>
       Clear All Filters
-    </wa-menu-item>
-    ${sortedDecks.map(deck => `
-      <wa-menu-item class="deck-filter-item" data-deck-id="${deck.id}">
-        <input type="checkbox" class="deck-filter-checkbox" data-deck-id="${deck.id}"
-          ${state.selectedDeckIds.has(deck.id) ? 'checked' : ''}
-          style="margin-right: 8px;">
-        <div class="deck-color-indicator small" style="background-color: ${deck.color}; margin-right: 8px;"></div>
+    </wa-button>
+    <wa-divider></wa-divider>
+    ${sortedDecks.map(deck => {
+      const selected = state.selectedDeckIds.has(deck.id);
+      return `
+      <wa-button class="deck-filter-item" data-deck-id="${deck.id}"
+        appearance="plain" variant="neutral" size="small">
+        <wa-icon slot="start" name="check" style="visibility: ${selected ? 'visible' : 'hidden'};"></wa-icon>
+        <span class="deck-color-indicator small" style="background-color: ${deck.color};"></span>
         ${escapeHtml(deck.name)}
-      </wa-menu-item>
-    `).join('')}
+      </wa-button>
+    `;
+    }).join('')}
   `;
 
-  // Add event listeners for checkboxes
-  state.elements.deckFilterMenu.querySelectorAll('.deck-filter-checkbox').forEach(checkbox => {
-    checkbox.addEventListener('change', (e) => {
-      e.stopPropagation(); // Prevent menu item click
-      const deckId = checkbox.dataset.deckId;
-      if (checkbox.checked) {
-        state.selectedDeckIds.add(deckId);
-      } else {
+  // Toggle selection on item click; plain buttons keep the dropdown open.
+  state.elements.deckFilterMenu.querySelectorAll('.deck-filter-item').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const deckId = btn.dataset.deckId;
+      if (state.selectedDeckIds.has(deckId)) {
         state.selectedDeckIds.delete(deckId);
+      } else {
+        state.selectedDeckIds.add(deckId);
       }
+      const icon = btn.querySelector('wa-icon[slot="start"]');
+      if (icon) icon.style.visibility = state.selectedDeckIds.has(deckId) ? 'visible' : 'hidden';
       updateDeckFilterButtonLabel();
       renderResults();
     });
   });
 
-  // Add clear all listener
+  // Clear all listener
   const clearBtn = state.elements.deckFilterMenu.querySelector('.deck-filter-clear');
   if (clearBtn) {
     clearBtn.addEventListener('click', () => {
       state.selectedDeckIds.clear();
+      state.elements.deckFilterMenu.querySelectorAll('.deck-filter-item wa-icon[slot="start"]')
+        .forEach(icon => { icon.style.visibility = 'hidden'; });
       updateDeckFilterButtonLabel();
       renderResults();
     });
