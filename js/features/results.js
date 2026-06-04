@@ -95,6 +95,24 @@ export function updateRemovedFilterBadge() {
 }
 
 // ============================================================================
+// Marked progress (sleeves done)
+// ============================================================================
+
+// Sums totalQuantity for marked vs all rows — matches Total Cards stat.
+// Uses cached state.processedCards so it can run on mark toggle without reprocessing.
+export function updateMarkedProgress() {
+  const cards = state.processedCards || [];
+  const markedSet = new Set(state.currentPrism?.markedCards || []);
+  const totalCount = cards.reduce((sum, c) => sum + c.totalQuantity, 0);
+  const markedCount = cards.reduce((sum, c) => sum + (markedSet.has(c.name) ? c.totalQuantity : 0), 0);
+
+  if (state.elements.statMarked) state.elements.statMarked.textContent = `${markedCount}/${totalCount}`;
+  if (state.elements.markedProgress) {
+    state.elements.markedProgress.value = totalCount > 0 ? Math.round((markedCount / totalCount) * 100) : 0;
+  }
+}
+
+// ============================================================================
 // Results rendering
 // ============================================================================
 
@@ -107,6 +125,7 @@ export function renderResults() {
   // Update stats
   if (state.elements.statTotal) state.elements.statTotal.textContent = totalCardCount;
   if (state.elements.statShared) state.elements.statShared.textContent = sharedCardCount;
+  updateMarkedProgress();
 
   // Show/hide based on deck count
   if (state.currentPrism.decks.length === 0) {
