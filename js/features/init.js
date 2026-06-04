@@ -58,6 +58,8 @@ function getElements() {
     resultsStats: document.getElementById('results-stats'),
     statTotal: document.getElementById('stat-total'),
     statShared: document.getElementById('stat-shared'),
+    statMarked: document.getElementById('stat-marked'),
+    markedProgress: document.getElementById('marked-progress'),
     resultsFilter: document.getElementById('results-filter'),
     resultsSearch: document.getElementById('results-search'),
     showAllSlots: document.getElementById('show-all-slots'),
