@@ -157,6 +157,12 @@ export function handleMarkToggle(event) {
   state.currentPrism.markedCardsUpdatedAt = now;
   savePrism(state.currentPrism);
 
+  // With the undone-only filter active, a card just marked done should drop
+  // out of the list immediately.
+  if (state.elements.undoneFilter?.checked) {
+    renderResults();
+  }
+
   debugLog(
     "Card marked:",
     cardKey,

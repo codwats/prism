@@ -285,6 +285,11 @@
                 <div id="overlap-matrix" style="overflow-x: auto;"></div>
               </wa-details>
 
+              <!-- Persistent undone-only filter 
+              <div class="wa-cluster wa-gap-s wa-align-items-center" style="flex-wrap: wrap;">
+                <wa-switch id="undone-filter" size="small">Show undone only</wa-switch>
+              </div> -->
+
               <!-- Filter -->
               <div class="wa-cluster wa-gap-m wa-align-items-center" style="flex-wrap: wrap;">
                 <wa-radio-group id="results-filter" orientation="horizontal" value="all">
@@ -296,16 +301,19 @@
 
                 <!-- Deck Filter Dropdown -->
                 <wa-dropdown id="deck-filter-dropdown" stay-open-on-select>
-                  <wa-button slot="trigger" variant="neutral" size="small" caret>
+                  <wa-button slot="trigger" appearance="plain" variant="neutral" size="small" caret>
                     <wa-icon slot="start" name="filter"></wa-icon>
-                    Filter by Deck
+                    Filters
                   </wa-button>
-                  <wa-menu id="deck-filter-menu">
-                    <!-- Deck checkboxes will be dynamically inserted here -->
-                  </wa-menu>
+                <div class="wa-stack wa-gap-0 deck-filter-menu">
+<wa-switch id="undone-filter" size="small">Undone only</wa-switch>
+                <wa-switch id="show-all-slots" size="small">All slots</wa-switch>
+                  </div>
+                  <div class="wa-stack wa-gap-0 deck-filter-menu" id="deck-filter-menu">
+                    <!-- Deck filter buttons will be dynamically inserted here -->
+                  </div>
                 </wa-dropdown>
 
-                <wa-switch id="show-all-slots" size="small">Show all slots</wa-switch>
               </div>
 
               <!-- Search -->

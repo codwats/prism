@@ -61,6 +61,7 @@ function getElements() {
     resultsFilter: document.getElementById('results-filter'),
     resultsSearch: document.getElementById('results-search'),
     showAllSlots: document.getElementById('show-all-slots'),
+    undoneFilter: document.getElementById('undone-filter'),
     deckFilterDropdown: document.getElementById('deck-filter-dropdown'),
     deckFilterMenu: document.getElementById('deck-filter-menu'),
     resultsTbody: document.getElementById('results-tbody'),
@@ -177,6 +178,9 @@ export async function init() {
   }
   if (state.elements.colorScheme) {
     state.elements.colorScheme.value = getColorScheme();
+  }
+  if (state.elements.undoneFilter) {
+    state.elements.undoneFilter.checked = !!getPreferences().undoneOnly;
   }
 
   // Initialize UI

@@ -343,24 +343,26 @@ wa-page[view='desktop'] [data-toggle-nav] {
    Deck Filter Dropdown
    ============================================================================ */
 
-#deck-filter-menu {
-  min-width: 220px;
+/* Deck filter menu mirrors the deck-actions kebab menu styling */
+.deck-filter-menu {
+  min-width: 14rem;
+  padding: var(--wa-space-2xs);
 }
 
-#deck-filter-menu wa-menu-item {
-  display: flex;
-  align-items: center;
+.deck-filter-menu wa-button::part(base) {
+  width: 100%;
+  justify-content: flex-start;
 }
 
-#deck-filter-menu .deck-filter-checkbox {
-  width: 16px;
-  height: 16px;
-  margin: 0;
+.deck-filter-menu wa-divider {
+  margin: var(--wa-space-2xs) 0;
+}
+
+.deck-filter-menu .deck-color-indicator {
+  display: inline-block;
+  vertical-align: middle;
   flex-shrink: 0;
-}
-
-#deck-filter-menu .deck-color-indicator {
-  flex-shrink: 0;
+  margin-inline-end: var(--wa-space-2xs);
 }
 
 /* ============================================================================
