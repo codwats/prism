@@ -418,18 +418,24 @@ wa-page[view='desktop'] [data-toggle-nav] {
 }
 
 .overlap-matrix-table thead th {
-  background: var(--wa-color-surface-2);
+  background: var(--wa-color-surface-raised);
   font-weight: var(--wa-font-weight-semibold);
   position: sticky;
   top: 0;
+  z-index: 2;
 }
 
 .overlap-matrix-table tbody th {
-  background: var(--wa-color-surface-2);
+  background: var(--wa-color-surface-raised);
   font-weight: var(--wa-font-weight-semibold);
   text-align: left;
   position: sticky;
   left: 0;
+  z-index: 1;
+}
+
+.overlap-matrix-table thead th:first-child {
+  z-index: 3;
 }
 
 .overlap-cell {
