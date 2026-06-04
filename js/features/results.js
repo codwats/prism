@@ -98,17 +98,17 @@ export function updateRemovedFilterBadge() {
 // Marked progress (sleeves done)
 // ============================================================================
 
-// Counts markable card rows (cardKey = card.name) that are marked, vs total.
+// Sums totalQuantity for marked vs all rows — matches Total Cards stat.
 // Uses cached state.processedCards so it can run on mark toggle without reprocessing.
 export function updateMarkedProgress() {
   const cards = state.processedCards || [];
   const markedSet = new Set(state.currentPrism?.markedCards || []);
-  const markableCount = cards.length;
-  const markedCount = cards.reduce((sum, c) => sum + (markedSet.has(c.name) ? 1 : 0), 0);
+  const totalCount = cards.reduce((sum, c) => sum + c.totalQuantity, 0);
+  const markedCount = cards.reduce((sum, c) => sum + (markedSet.has(c.name) ? c.totalQuantity : 0), 0);
 
-  if (state.elements.statMarked) state.elements.statMarked.textContent = `${markedCount}/${markableCount}`;
+  if (state.elements.statMarked) state.elements.statMarked.textContent = `${markedCount}/${totalCount}`;
   if (state.elements.markedProgress) {
-    state.elements.markedProgress.value = markableCount > 0 ? Math.round((markedCount / markableCount) * 100) : 0;
+    state.elements.markedProgress.value = totalCount > 0 ? Math.round((markedCount / totalCount) * 100) : 0;
   }
 }
 

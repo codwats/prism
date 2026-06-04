@@ -157,9 +157,9 @@ export function handleMarkToggle(event) {
   state.currentPrism.markedCardsUpdatedAt = now;
   savePrism(state.currentPrism);
 
-  // With the undone-only filter active, a card just marked done should drop
-  // out of the list immediately.
-  if (state.elements.undoneFilter?.checked) {
+  // Full re-render when: undone filter active (marked row must disappear) OR
+  // sort is by "marked" column (row order needs to update).
+  if (state.elements.undoneFilter?.checked || state.sortState?.column === 'marked') {
     renderResults();
   } else {
     updateMarkedProgress();
