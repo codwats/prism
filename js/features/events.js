@@ -78,6 +78,9 @@ export function setupEventListeners() {
   if (state.elements.showAllSlots) {
     state.elements.showAllSlots.addEventListener('change', renderResults);
   }
+  if (state.elements.undoneFilter) {
+    state.elements.undoneFilter.addEventListener('change', renderResults);
+  }
 
   // Navigation button
   if (state.elements.btnGoToDecks) {

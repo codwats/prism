@@ -61,6 +61,7 @@ function getElements() {
     resultsFilter: document.getElementById('results-filter'),
     resultsSearch: document.getElementById('results-search'),
     showAllSlots: document.getElementById('show-all-slots'),
+    undoneFilter: document.getElementById('undone-filter'),
     deckFilterDropdown: document.getElementById('deck-filter-dropdown'),
     deckFilterMenu: document.getElementById('deck-filter-menu'),
     resultsTbody: document.getElementById('results-tbody'),

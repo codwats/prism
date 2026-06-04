@@ -216,6 +216,15 @@ export function renderResults() {
     });
   }
 
+  // Persistent undone-only filter: keep cards the user hasn't marked done.
+  if (state.elements.undoneFilter?.checked) {
+    const markedSet = new Set(state.currentPrism.markedCards || []);
+    displayCards = displayCards.filter(card => {
+      const cardKey = card.isBasicByDeck ? `${card.displayName}|${card.deckName}` : card.name;
+      return !markedSet.has(cardKey);
+    });
+  }
+
   // Render deck filter menu and overlap matrix
   renderDeckFilterMenu();
   renderOverlapMatrix();
