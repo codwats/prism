@@ -79,7 +79,10 @@ export function setupEventListeners() {
     state.elements.showAllSlots.addEventListener('change', renderResults);
   }
   if (state.elements.undoneFilter) {
-    state.elements.undoneFilter.addEventListener('change', renderResults);
+    state.elements.undoneFilter.addEventListener('change', () => {
+      updatePreferences({ undoneOnly: state.elements.undoneFilter.checked });
+      renderResults();
+    });
   }
 
   // Navigation button

@@ -585,12 +585,20 @@ function renderDeckFilterMenu() {
 }
 
 function updateDeckFilterButtonLabel() {
-  const btn = state.elements.deckFilterDropdown?.querySelector('wa-button');
+  const btn = state.elements.deckFilterDropdown?.querySelector('wa-button[slot="trigger"]');
   if (!btn) return;
 
-  if (state.selectedDeckIds.size === 0) {
-    btn.innerHTML = '<wa-icon slot="start" name="filter"></wa-icon>Filter by Deck';
-  } else {
-    btn.innerHTML = `<wa-icon slot="start" name="filter"></wa-icon>Decks (${state.selectedDeckIds.size})`;
-  }
+  // Compose the trigger label from every filter the dropdown owns: deck
+  // selection plus the undone-only and all-slots switches.
+  const facets = [];
+  if (state.selectedDeckIds.size > 0) facets.push(`Decks (${state.selectedDeckIds.size})`);
+  if (state.elements.undoneFilter?.checked) facets.push('Undone');
+  if (state.elements.showAllSlots?.checked) facets.push('All slots');
+
+  let label;
+  if (facets.length === 0) label = 'Filters';
+  else if (facets.length === 1) label = facets[0];
+  else label = `Filters (${facets.length})`;
+
+  btn.innerHTML = `<wa-icon slot="start" name="filter"></wa-icon>${label}`;
 }

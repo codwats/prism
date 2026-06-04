@@ -179,6 +179,9 @@ export async function init() {
   if (state.elements.colorScheme) {
     state.elements.colorScheme.value = getColorScheme();
   }
+  if (state.elements.undoneFilter) {
+    state.elements.undoneFilter.checked = !!getPreferences().undoneOnly;
+  }
 
   // Initialize UI
   initColorSwatches();
