@@ -21,13 +21,13 @@ export function renderOverlapMatrix() {
 
   state.elements.overlapMatrixContainer.style.display = '';
 
-  // Skip the expensive build when the accordion is collapsed — wa-show triggers it on open.
+  // Skip the expensive build when the accordion is collapsed — wa-after-show triggers it on open.
   if (!state.elements.overlapMatrixContainer.hasAttribute('open')) return;
 
   const overlap = calculateOverlap(state.currentPrism);
   const decks = [...state.currentPrism.decks].sort((a, b) => a.stripePosition - b.stripePosition);
 
-  // Build lookup map for pairwise overlap counts
+  // Build lookup map for pairwise overlap counts (keyed by deck ID pairs)
   const overlapMap = {};
   for (const pair of overlap.pairwiseOverlap) {
     const key1 = `${pair.deck1}|${pair.deck2}`;
@@ -73,7 +73,7 @@ export function renderOverlapMatrix() {
                   <span class="wa-caption-s" style="color: var(--wa-color-neutral-text-subtle);">${rowDeck.cards.length}</span>
                 </td>`;
               }
-              const count = overlapMap[`${rowDeck.name}|${colDeck.name}`] || 0;
+              const count = overlapMap[`${rowDeck.id}|${colDeck.id}`] || 0;
               const intensity = count / maxOverlap;
               const bg = count > 0
                 ? `rgba(var(--wa-color-brand-60-rgb, 99, 102, 241), ${0.1 + intensity * 0.5})`

@@ -331,8 +331,8 @@ export function calculateOverlap(prism) {
 			}
 
 			pairwiseOverlap.push({
-				deck1: decks[i].name,
-				deck2: decks[j].name,
+				deck1: decks[i].id,
+				deck2: decks[j].id,
 				overlapCount: overlap,
 			});
 		}
