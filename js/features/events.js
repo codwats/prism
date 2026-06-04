@@ -229,7 +229,7 @@ export function setupEventListeners() {
 
   // Overlap matrix — build content the first time the accordion is opened
   if (state.elements.overlapMatrixContainer) {
-    state.elements.overlapMatrixContainer.addEventListener('wa-show', renderOverlapMatrix);
+    state.elements.overlapMatrixContainer.addEventListener('wa-after-show', renderOverlapMatrix);
   }
 
   // Card preview handlers (event delegation on results table).
