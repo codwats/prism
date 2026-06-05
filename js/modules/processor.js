@@ -798,6 +798,25 @@ export function calculateRemovedCards(oldCards, newCards) {
 }
 
 /**
+ * Update a split group's name and/or sideAColor in a PRISM
+ * @param {Object} prism - The PRISM object
+ * @param {string} groupId - The split group ID
+ * @param {Object} updates - Fields to update (name, sideAColor)
+ * @returns {Object} Updated PRISM
+ */
+export function updateSplitGroupInPrism(prism, groupId, updates) {
+	const now = new Date().toISOString();
+	return {
+		...prism,
+		splitGroups: (prism.splitGroups || []).map((g) => {
+			if (g.id !== groupId) return g;
+			return { ...g, ...updates, updatedAt: now };
+		}),
+		updatedAt: now,
+	};
+}
+
+/**
  * Check if a card is still used in any other deck besides the specified one
  * @param {Object} prism - The PRISM object
  * @param {string} cardName - The card name to check

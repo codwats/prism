@@ -20,6 +20,7 @@ import {
   formatSlotLabel,
   createPrism,
   isDotVariant,
+  updateSplitGroupInPrism,
 } from "../modules/processor.js";
 import { savePrism, setCurrentPrism, recordUnmarkedCards } from "../modules/storage.js";
 import { canonicalizeCards } from "../modules/scryfall.js";
@@ -550,6 +551,35 @@ export function handleUnsplit(groupId) {
   showSuccess(`Merged "${groupName}" back into a single deck.`);
 }
 
+export function handleEditGroupClick(groupId) {
+  const group = state.currentPrism.splitGroups?.find((g) => g.id === groupId);
+  if (!group) return;
+  state.elements.editGroupId.value = groupId;
+  state.elements.editGroupName.value = group.name;
+  state.elements.editGroupColor.value = group.sideAColor;
+  state.elements.editGroupDialog.setAttribute('open', '');
+}
+
+export function handleEditGroupConfirm() {
+  const groupId = state.elements.editGroupId.value;
+  const name = (state.elements.editGroupName?.value || '').trim();
+  const color = state.elements.editGroupColor?.value || '';
+
+  if (!name) {
+    showError('Group name is required.');
+    return;
+  }
+
+  state.currentPrism = updateSplitGroupInPrism(state.currentPrism, groupId, {
+    name,
+    sideAColor: color.toUpperCase(),
+  });
+  savePrism(state.currentPrism);
+  state.elements.editGroupDialog.removeAttribute('open');
+  renderAll();
+  showSuccess(`Updated group "${name}".`);
+}
+
 export function handleNewPrism() {
   savePrism(state.currentPrism);
   state.currentPrism = createPrism();
@@ -872,6 +902,10 @@ export function renderDecksList() {
                 <wa-icon name="up-down-left-right"></wa-icon>
               </wa-button>
               <wa-button appearance="plain" variant="neutral" size="small"
+                class="btn-edit-group" data-group-id="${group.id}" title="Edit group name and color">
+                <wa-icon name="pen-to-square"></wa-icon>
+              </wa-button>
+              <wa-button appearance="plain" variant="neutral" size="small"
                 class="btn-add-split" data-group-id="${group.id}" title="Add another variant"
                 ${(group.splitStyle || 'stripes') === 'dots' && group.childDeckIds.length >= 2 ? 'disabled' : ''}>
                 <wa-icon name="plus"></wa-icon>
@@ -898,6 +932,9 @@ export function renderDecksList() {
   });
   state.elements.decksList.querySelectorAll(".btn-move-group").forEach((btn) => {
     btn.addEventListener("click", () => openGroupReorderDialog(btn.dataset.groupId));
+  });
+  state.elements.decksList.querySelectorAll(".btn-edit-group").forEach((btn) => {
+    btn.addEventListener("click", () => handleEditGroupClick(btn.dataset.groupId));
   });
   state.elements.decksList.querySelectorAll(".btn-edit-deck").forEach((btn) => {
     btn.addEventListener("click", () => handleEditClick(btn.dataset.deckId));

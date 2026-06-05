@@ -571,6 +571,22 @@
       </div>
     </wa-dialog>
 
+    <!-- Edit Group Dialog -->
+    <wa-dialog id="edit-group-dialog" label="Edit Group" style="--width: min(420px, 92vw);">
+      <div class="wa-stack wa-gap-l">
+        <input type="hidden" id="edit-group-id" />
+        <wa-input id="edit-group-name" label="Group Name" required></wa-input>
+        <div class="wa-stack wa-gap-xs">
+          <label class="wa-caption-m">Shared Stripe Color</label>
+          <input type="color" id="edit-group-color" style="width: 60px; height: 40px; border: none; border-radius: var(--wa-border-radius-m); cursor: pointer;" />
+        </div>
+      </div>
+      <div slot="footer" class="wa-cluster wa-gap-s">
+        <wa-button id="btn-cancel-edit-group" variant="neutral" appearance="outlined">Cancel</wa-button>
+        <wa-button id="btn-confirm-edit-group" variant="brand">Save Changes</wa-button>
+      </div>
+    </wa-dialog>
+
     <!-- Stripe Reorder Dialog -->
     <wa-dialog id="stripe-reorder-dialog" label="Move Stripe Position" style="--width: min(580px, 92vw);">
       <div id="stripe-reorder-content" class="wa-stack wa-gap-l">

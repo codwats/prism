@@ -7,7 +7,7 @@ import { downloadCSV, downloadJSON, openPrintableGuide, downloadUndoneTxt, copyU
 import { showPreview, hidePreview, updatePosition, refreshOpenPreview } from '../modules/card-preview.js';
 import { handleDeckSubmit, resetDeckForm, updateColorSwatchSelection, checkColorWarning, handlePrismNameChange } from './deck-form.js';
 import { handleFileUpload, handleJsonImport, handleMoxfieldImport, handleEditFileUpload, handleEditUrlImport } from './deck-import.js';
-import { handleDeleteConfirm, handleEditConfirm, handleNewPrism, handleSplitConfirm } from './deck-list.js';
+import { handleDeleteConfirm, handleEditConfirm, handleNewPrism, handleSplitConfirm, handleEditGroupConfirm } from './deck-list.js';
 import { renderResults } from './results.js';
 import { renderOverlapMatrix } from './analysis.js';
 import { debounce } from '../core/utils.js';
@@ -169,6 +169,16 @@ export function setupEventListeners() {
         handleEditUrlImport();
       }
     });
+  }
+
+  // Edit group dialog
+  if (state.elements.btnCancelEditGroup) {
+    state.elements.btnCancelEditGroup.addEventListener('click', () => {
+      state.elements.editGroupDialog.removeAttribute('open');
+    });
+  }
+  if (state.elements.btnConfirmEditGroup) {
+    state.elements.btnConfirmEditGroup.addEventListener('click', handleEditGroupConfirm);
   }
 
   // Split dialog
