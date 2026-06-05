@@ -307,12 +307,7 @@
 
               <!-- Filter -->
               <div class="wa-cluster wa-gap-m wa-align-items-center" style="flex-wrap: wrap;">
-                <wa-radio-group id="results-filter" orientation="horizontal" value="all" size="s">
-                  <wa-radio appearance="button" value="all" size="s">All Cards</wa-radio>
-                  <wa-radio appearance="button" value="shared" size="s">POOL</wa-radio>
-                  <wa-radio appearance="button" value="basics-by-deck" size="s">Basics by Deck</wa-radio>
-                  <wa-radio appearance="button" value="removed" id="removed-filter-btn" size="s">Removed</wa-radio>
-                </wa-radio-group>
+                
 
                 <!-- Deck Filter Dropdown -->
                 <wa-dropdown id="deck-filter-dropdown" stay-open-on-select>
@@ -320,22 +315,28 @@
                     <wa-icon slot="start" name="filter"></wa-icon>
                     Filters
                   </wa-button>
-                <div class="wa-stack wa-gap-0 deck-filter-menu">
-<wa-switch id="undone-filter" size="small">Undone only</wa-switch>
+                <div class="wa-stack wa-gap-2xs deck-filter-menu">
+                <wa-switch id="undone-filter" size="small">Undone only</wa-switch>
                 <wa-switch id="show-all-slots" size="small">All slots</wa-switch>
                   </div>
                   <div class="wa-stack wa-gap-0 deck-filter-menu" id="deck-filter-menu">
                     <!-- Deck filter buttons will be dynamically inserted here -->
                   </div>
                 </wa-dropdown>
-
+                <!--Results-->
+                <wa-radio-group id="results-filter" orientation="horizontal" value="all" size="s">
+                  <wa-radio appearance="button" value="all" size="s">All Cards</wa-radio>
+                  <wa-radio appearance="button" value="shared" size="s">POOL</wa-radio>
+                  <wa-radio appearance="button" value="basics-by-deck" size="s">Basics by Deck</wa-radio>
+                  <wa-radio appearance="button" value="removed" id="removed-filter-btn" size="s">Removed</wa-radio>
+                </wa-radio-group>
+                <!-- Search -->
+                <wa-input id="results-search" placeholder="Search cards..." size="medium" style="max-width: 400px;">
+                  <wa-icon slot="start" name="search"></wa-icon>
+                </wa-input>
               </div>
 
-              <!-- Search -->
-              <wa-input id="results-search" placeholder="Search cards..." size="medium" style="max-width: 400px;">
-                <wa-icon slot="start" name="search"></wa-icon>
-              </wa-input>
-
+             
               <!-- Results Table -->
               <div id="results-table-container" style="overflow-x: auto;">
                 <table id="results-table" class="results-table">
