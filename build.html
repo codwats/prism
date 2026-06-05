@@ -62,13 +62,6 @@
           <!-- Decks Panel -->
           <wa-tab-panel name="decks">
             <div class="wa-stack wa-gap-xl">
-              <!-- First-run onboarding callout (dismissible, persisted in localStorage) -->
-              <wa-callout id="onboarding-callout" variant="brand" appearance="outlined" style="display: none;">
-                <wa-icon slot="icon" name="circle-info"></wa-icon>
-                <strong>New here? Mark the inner sleeve.</strong><br />
-                PRISM marks go on the <strong>inner Perfect Fit sleeve</strong> (card-fit), double-sleeved inside an outer sleeve (e.g. Dragon Shields) that protects the mark — never mark the outer. Add your decks below, then export a marking guide. New to it? Read the <a href="guide.html">marking guide</a> first.
-                <wa-button slot="action" id="onboarding-dismiss" appearance="plain" size="small">Dismiss</wa-button>
-              </wa-callout>
 
               <!-- Existing Decks List -->
               <section id="decks-list" class="wa-stack wa-gap-m">
@@ -240,6 +233,21 @@
           <!-- Results Panel -->
           <wa-tab-panel name="results">
             <div class="wa-stack wa-gap-l">
+              <!-- Marking prerequisites at the point of action -->
+              <wa-card id="marking-prereq-callout" >
+              <div class="wa-flank:end"   >
+                  <div class="wa-stack wa-gap-xs">
+                <strong>Finalize your decks before you start marking.</strong>Mid-session edits lead to confusion, so make changes after your marking pass.
+                <br />
+                <strong>Remember:</strong>Marks go on the inner Perfect Fit sleeve, double-sleeved inside an outer sleeve which protects the mark.<br />
+                    <span>Read the <a href="guide.html">marking guide</a> first.</span>
+                    </div>
+                <wa-button slot="action" id="marking-prereq-dismiss" appearance="filled-outlined" size="small">
+                    <wa-icon slot="start" name="xmark"></wa-icon>
+                    Dismiss
+                </wa-button>
+              </div>
+              </wa-card>
               <!-- Stats Summary -->
               <div id="results-stats" class="wa-grid wa-gap-m" style="--min-column-size: 30ch">
                 <wa-card>
@@ -307,12 +315,7 @@
 
               <!-- Filter -->
               <div class="wa-cluster wa-gap-m wa-align-items-center" style="flex-wrap: wrap;">
-                <wa-radio-group id="results-filter" orientation="horizontal" value="all">
-                  <wa-radio appearance="button" value="all">All Cards</wa-radio>
-                  <wa-radio appearance="button" value="shared">POOL</wa-radio>
-                  <wa-radio appearance="button" value="basics-by-deck">Basics by Deck</wa-radio>
-                  <wa-radio appearance="button" value="removed" id="removed-filter-btn">Removed</wa-radio>
-                </wa-radio-group>
+                
 
                 <!-- Deck Filter Dropdown -->
                 <wa-dropdown id="deck-filter-dropdown" stay-open-on-select>
@@ -320,22 +323,28 @@
                     <wa-icon slot="start" name="filter"></wa-icon>
                     Filters
                   </wa-button>
-                <div class="wa-stack wa-gap-0 deck-filter-menu">
-<wa-switch id="undone-filter" size="small">Undone only</wa-switch>
+                <div class="wa-stack wa-gap-2xs deck-filter-menu">
+                <wa-switch id="undone-filter" size="small">Undone only</wa-switch>
                 <wa-switch id="show-all-slots" size="small">All slots</wa-switch>
                   </div>
                   <div class="wa-stack wa-gap-0 deck-filter-menu" id="deck-filter-menu">
                     <!-- Deck filter buttons will be dynamically inserted here -->
                   </div>
                 </wa-dropdown>
-
+                <!--Results-->
+                <wa-radio-group id="results-filter" orientation="horizontal" value="all" size="s">
+                  <wa-radio appearance="button" value="all" size="s">All Cards</wa-radio>
+                  <wa-radio appearance="button" value="shared" size="s">POOL</wa-radio>
+                  <wa-radio appearance="button" value="basics-by-deck" size="s">Basics by Deck</wa-radio>
+                  <wa-radio appearance="button" value="removed" id="removed-filter-btn" size="s">Removed</wa-radio>
+                </wa-radio-group>
+                <!-- Search -->
+                <wa-input id="results-search" placeholder="Search cards..." size="medium" style="max-width: 400px;">
+                  <wa-icon slot="start" name="search"></wa-icon>
+                </wa-input>
               </div>
 
-              <!-- Search -->
-              <wa-input id="results-search" placeholder="Search cards..." size="medium" style="max-width: 400px;">
-                <wa-icon slot="start" name="search"></wa-icon>
-              </wa-input>
-
+             
               <!-- Results Table -->
               <div id="results-table-container" style="overflow-x: auto;">
                 <table id="results-table" class="results-table">
@@ -366,28 +375,17 @@
           <!-- Export Panel -->
           <wa-tab-panel name="export">
             <div class="wa-stack wa-gap-xl">
-              <!-- Marking prerequisites at the point of action -->
-              <wa-callout variant="info">
-                <wa-icon slot="icon" name="circle-info"></wa-icon>
-                <strong>Mark the inner Perfect Fit sleeve, not the outer.</strong><br />
-                Marks go on the inner Perfect Fit (card-fit) sleeve, double-sleeved inside an outer sleeve (e.g. Dragon Shields) that protects the mark.
-              </wa-callout>
-              <wa-callout variant="warning">
-                <wa-icon slot="icon" name="triangle-exclamation"></wa-icon>
-                <strong>Finalize your decks before you start marking.</strong><br />
-                Adding or editing a deck only un-checks cards whose stripe markings changed — not everything. Still, mid-session edits lead to confusion, so make changes after your marking pass.
-              </wa-callout>
+              
 
               <!-- Deck Legend -->
-              <wa-card>
-                <div slot="header" class="wa-heading-m">Deck Legend</div>
+              <wa-details summary="Deck Legend">
                 <div id="deck-legend" class="wa-cluster wa-gap-m">
                   <!-- Deck legend items will be inserted here -->
                 </div>
                 <div id="no-decks-legend" style="color: var(--wa-color-neutral-text-subtle);">
                   No decks added yet.
                 </div>
-              </wa-card>
+              </wa-details>
 
               <!-- Export Options -->
               <wa-card>
@@ -607,6 +605,19 @@
         document.getElementById('onboarding-dismiss')?.addEventListener('click', () => {
           localStorage.setItem(KEY, '1');
           callout.style.display = 'none';
+        });
+      })();
+    </script>
+    <script>
+      (function () {
+        const KEY = 'prism_marking_prereq_dismissed';
+        const callout = document.getElementById('marking-prereq-callout');
+        if (callout && !sessionStorage.getItem(KEY)) callout.style.display = '';
+        document.addEventListener('click', (e) => {
+          if (!e.target.closest('#marking-prereq-dismiss')) return;
+          sessionStorage.setItem(KEY, '1');
+          const c = document.getElementById('marking-prereq-callout');
+          if (c) c.style.display = 'none';
         });
       })();
     </script>
