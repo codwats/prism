@@ -187,22 +187,8 @@ export function processCards(prism) {
 						quantity: null,
 					});
 				}
-				// For stripes-style: emit Side B stripe immediately.
-				// For dots-style: deferred — emitted after the main loop based on partial membership.
-				const isDotStyle = (group.splitStyle || 'stripes') === 'dots';
-				if (!isDotStyle) {
-					cardData.stripes.push({
-						position: deck.stripePosition,
-						color: deck.color,
-						side: "b",
-						deckName: deck.name,
-						deckId: deck.id,
-						groupId: group.id,
-						bracket: deck.bracket,
-						quantity: card.quantity,
-						markType: 'stripe',
-					});
-				}
+				// Child variant marks are deferred to the post-loop pass below,
+				// where shared-vs-subset membership is known for the whole group.
 			} else {
 				// Standalone deck: single Side A stripe
 				cardData.stripes.push({
@@ -219,32 +205,86 @@ export function processCards(prism) {
 		}
 	}
 
-	// Dots-style split groups: emit dot entries for cards in a strict subset of variants.
-	// Cards in ALL variants of a group → no dot (Side A stripe is enough).
-	// Cards in a subset → one dot per variant the card is in, colored with that variant's color.
+	// Post-loop: emit child variant marks with full shared-vs-subset analysis.
+	// Both stripes-style and dots-style handled here (main loop only set Side A).
+	//
+	// Rules:
+	//   card in ALL children (isShared)   → parent stripe only; membership anchor per variant for deck-filter
+	//   subset, stripes-style             → child stripe (Side B, variant's own slot) per variant with card
+	//   subset, dots-style, 1 variant     → 1 dot (Side B at group's sideAPosition, variant color)
+	//   subset, dots-style, 2+ variants   → dot conflict (1-hole physical limit); membership per variant, parent only
 	for (const group of splitGroups) {
-		if ((group.splitStyle || 'stripes') !== 'dots') continue;
 		const variantDecks = group.childDeckIds
 			.map(id => decks.find(d => d.id === id))
 			.filter(Boolean);
+		const isDotStyle = (group.splitStyle || 'stripes') === 'dots';
+
 		for (const [, cardData] of cardMap) {
 			if (!cardData.sideAGroups.has(group.id)) continue; // Card not in this group at all
 			const variantsWithCard = variantDecks.filter(d => cardData.quantities.has(d.id));
 			const isShared = variantsWithCard.length === variantDecks.length;
-			for (const variantDeck of variantsWithCard) {
-				cardData.stripes.push({
-					position: group.sideAPosition,
-					color: variantDeck.color,
-					side: 'b',
-					deckName: variantDeck.name,
-					deckId: variantDeck.id,
-					groupId: group.id,
-					bracket: variantDeck.bracket,
-					quantity: cardData.quantities.get(variantDeck.id),
-					// Shared cards: membership entry only (carries deckId for filtering, not rendered visually)
-					// Subset cards: dot entry (rendered as colored dot above the Side A square)
-					markType: isShared ? 'membership' : 'dot',
-				});
+
+			if (isShared) {
+				// All children have this card — parent stripe only; membership anchors carry deckId for filtering
+				for (const variantDeck of variantsWithCard) {
+					cardData.stripes.push({
+						position: group.sideAPosition,
+						color: variantDeck.color,
+						side: 'b',
+						deckName: variantDeck.name,
+						deckId: variantDeck.id,
+						groupId: group.id,
+						bracket: variantDeck.bracket,
+						quantity: cardData.quantities.get(variantDeck.id),
+						markType: 'membership',
+					});
+				}
+			} else if (isDotStyle) {
+				if (variantsWithCard.length === 1) {
+					// Exactly one variant — emit dot
+					const variantDeck = variantsWithCard[0];
+					cardData.stripes.push({
+						position: group.sideAPosition,
+						color: variantDeck.color,
+						side: 'b',
+						deckName: variantDeck.name,
+						deckId: variantDeck.id,
+						groupId: group.id,
+						bracket: variantDeck.bracket,
+						quantity: cardData.quantities.get(variantDeck.id),
+						markType: 'dot',
+					});
+				} else {
+					// 2+ variants have this card — dot conflict; fall back to parent stripe only
+					for (const variantDeck of variantsWithCard) {
+						cardData.stripes.push({
+							position: group.sideAPosition,
+							color: variantDeck.color,
+							side: 'b',
+							deckName: variantDeck.name,
+							deckId: variantDeck.id,
+							groupId: group.id,
+							bracket: variantDeck.bracket,
+							quantity: cardData.quantities.get(variantDeck.id),
+							markType: 'membership',
+						});
+					}
+				}
+			} else {
+				// Stripes-style subset — child stripe per variant that has this card
+				for (const variantDeck of variantsWithCard) {
+					cardData.stripes.push({
+						position: variantDeck.stripePosition,
+						color: variantDeck.color,
+						side: 'b',
+						deckName: variantDeck.name,
+						deckId: variantDeck.id,
+						groupId: group.id,
+						bracket: variantDeck.bracket,
+						quantity: cardData.quantities.get(variantDeck.id),
+						markType: 'stripe',
+					});
+				}
 			}
 		}
 	}
@@ -824,6 +864,10 @@ export function splitDeck(prism, deckId, splitCount, splitStyle = 'stripes') {
 	const deck = prism.decks.find((d) => d.id === deckId);
 	if (!deck || deck.splitGroupId) return prism; // Can't split a deck that's already in a group
 
+	if (splitStyle === 'dots' && splitCount > 2) {
+		throw new Error('Dot groups support a maximum of 2 variants (one dot hole per card).');
+	}
+
 	// The original deck's position becomes the split group's Side A position
 	const group = createSplitGroup({
 		name: deck.name,
@@ -911,6 +955,10 @@ export function splitDeck(prism, deckId, splitCount, splitStyle = 'stripes') {
 export function addSplitToGroup(prism, groupId) {
 	const group = (prism.splitGroups || []).find((g) => g.id === groupId);
 	if (!group) return prism;
+
+	if ((group.splitStyle || 'stripes') === 'dots' && group.childDeckIds.length >= 2) {
+		throw new Error('Dot groups support a maximum of 2 variants (one dot hole per card).');
+	}
 
 	// Find an existing child to copy from (use the first one)
 	const templateDeck = prism.decks.find((d) => d.id === group.childDeckIds[0]);

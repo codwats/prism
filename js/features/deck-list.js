@@ -496,12 +496,15 @@ export function handleSplitConfirm() {
   const deckId = state.elements.splitDeckId.value;
   const count = parseInt(state.elements.splitCount.value) || 2;
 
-  if (count < 2 || count > 8) {
-    showError("Split count must be between 2 and 8.");
+  const splitStyle = state.elements.splitStyle?.value || 'stripes';
+  const maxCount = splitStyle === 'dots' ? 2 : 8;
+
+  if (count < 2 || count > maxCount) {
+    showError(splitStyle === 'dots'
+      ? "Dot groups support a maximum of 2 variants (one dot hole per card)."
+      : "Split count must be between 2 and 8.");
     return;
   }
-
-  const splitStyle = state.elements.splitStyle?.value || 'stripes';
   let updatedPrism;
   try {
     updatedPrism = splitDeck(state.currentPrism, deckId, count, splitStyle);
@@ -869,7 +872,8 @@ export function renderDecksList() {
                 <wa-icon name="up-down-left-right"></wa-icon>
               </wa-button>
               <wa-button appearance="plain" variant="neutral" size="small"
-                class="btn-add-split" data-group-id="${group.id}" title="Add another variant">
+                class="btn-add-split" data-group-id="${group.id}" title="Add another variant"
+                ${(group.splitStyle || 'stripes') === 'dots' && group.childDeckIds.length >= 2 ? 'disabled' : ''}>
                 <wa-icon name="plus"></wa-icon>
               </wa-button>
               <wa-button appearance="plain" variant="neutral" size="small"

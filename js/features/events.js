@@ -180,6 +180,19 @@ export function setupEventListeners() {
   if (state.elements.btnConfirmSplit) {
     state.elements.btnConfirmSplit.addEventListener('click', handleSplitConfirm);
   }
+  // When style switches to dots, cap count at 2
+  if (state.elements.splitStyle) {
+    state.elements.splitStyle.addEventListener('change', () => {
+      const isDots = state.elements.splitStyle.value === 'dots';
+      if (state.elements.splitCount) {
+        state.elements.splitCount.setAttribute('max', isDots ? '2' : '8');
+        if (isDots) {
+          const current = parseInt(state.elements.splitCount.value) || 2;
+          if (current > 2) state.elements.splitCount.value = '2';
+        }
+      }
+    });
+  }
 
   // Stripe starting corner preference
   if (state.elements.stripeStartCorner) {
