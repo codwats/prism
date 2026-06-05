@@ -490,6 +490,9 @@ export function handleSplitClick(deckId) {
   if (state.elements.splitStyle) {
     state.elements.splitStyle.value = "stripes";
   }
+  if (state.elements.splitCount) {
+    state.elements.splitCount.setAttribute('max', '8');
+  }
   state.elements.splitDialog.setAttribute('open', '');
 }
 
