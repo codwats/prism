@@ -62,13 +62,6 @@
           <!-- Decks Panel -->
           <wa-tab-panel name="decks">
             <div class="wa-stack wa-gap-xl">
-              <!-- First-run onboarding callout (dismissible, persisted in localStorage) -->
-              <wa-callout id="onboarding-callout" variant="brand" appearance="outlined" style="display: none;">
-                <wa-icon slot="icon" name="circle-info"></wa-icon>
-                <strong>New here? Mark the inner sleeve.</strong><br />
-                PRISM marks go on the <strong>inner Perfect Fit sleeve</strong> (card-fit), double-sleeved inside an outer sleeve (e.g. Dragon Shields) that protects the mark — never mark the outer. Add your decks below, then export a marking guide. New to it? Read the <a href="guide.html">marking guide</a> first.
-                <wa-button slot="action" id="onboarding-dismiss" appearance="plain" size="small">Dismiss</wa-button>
-              </wa-callout>
 
               <!-- Existing Decks List -->
               <section id="decks-list" class="wa-stack wa-gap-m">
@@ -241,15 +234,20 @@
           <wa-tab-panel name="results">
             <div class="wa-stack wa-gap-l">
               <!-- Marking prerequisites at the point of action -->
-              <wa-callout id="marking-prereq-callout" variant="warning" style="display: none;">
-                <wa-icon slot="icon" name="triangle-exclamation"></wa-icon>
-                <strong>Finalize your decks before you start marking.</strong><br />
-                Mid-session edits lead to confusion, so make changes after your marking pass.
+              <wa-card id="marking-prereq-callout" >
+              <div class="wa-flank:end"   >
+                  <div class="wa-stack wa-gap-xs">
+                <strong>Finalize your decks before you start marking.</strong>Mid-session edits lead to confusion, so make changes after your marking pass.
                 <br />
-                <strong>Remember:</strong>
-                Marks go on the inner Perfect Fit sleeve, double-sleeved inside an outer sleeve which protects the mark.
-                <wa-button slot="action" id="marking-prereq-dismiss" appearance="plain" size="small">Dismiss</wa-button>
-              </wa-callout>
+                <strong>Remember:</strong>Marks go on the inner Perfect Fit sleeve, double-sleeved inside an outer sleeve which protects the mark.<br />
+                    <span>Read the <a href="guide.html">marking guide</a> first.</span>
+                    </div>
+                <wa-button slot="action" id="marking-prereq-dismiss" appearance="filled-outlined" size="small">
+                    <wa-icon slot="start" name="xmark"></wa-icon>
+                    Dismiss
+                </wa-button>
+              </div>
+              </wa-card>
               <!-- Stats Summary -->
               <div id="results-stats" class="wa-grid wa-gap-m" style="--min-column-size: 30ch">
                 <wa-card>
