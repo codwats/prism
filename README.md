@@ -24,14 +24,14 @@ Commander players often own 5-30+ decks, and staples like Sol Ring, Mana Crypt, 
 
 PRISM assigns each deck a unique color and stripe position. Mark your sleeves with paint pens, and any card can live in multiple decks. Fan your cards to instantly see which decks a card belongs to.
 
-**One Sol Ring. One Mana Crypt. Up to 32 decks.**
+**One Sol Ring. One Mana Crypt. Up to 48 decks (96 with dot splits).**
 
 ---
 
 ## How It Works
 
 1. **Import** — Paste your decklists (MTGO/Moxfield format)
-2. **Assign** — Each deck gets a color + stripe position (1-32)
+2. **Assign** — Each deck gets a color + stripe position (1-48)
 3. **Analyze** — PRISM finds shared cards across decks
 4. **Export** — Download your marking guide (CSV, JSON, or printable)
 5. **Mark** — Apply colored stripes to sleeve edges with paint pens
@@ -40,7 +40,7 @@ PRISM assigns each deck a unique color and stripe position. Mark your sleeves wi
 
 ## Features
 
-- **Up to 32 decks** per PRISM
+- **Up to 48 decks** per PRISM (96 with dot splits)
 - **Smart basic land handling** — calculates max needed, not sum
 - **Track changes** — add decks later, only mark new cards
 - **Multiple export formats** — CSV, JSON, printable guide
@@ -64,7 +64,7 @@ Based on average EDHREC decklists for top commanders:
 |------------|---------------------|--------------|
 | 5 decks    | 166 cards           | ~$919        |
 | 10 decks   | 358 cards           | ~$1,637      |
-| 32 decks   | 1,530 cards         | ~$6,453      |
+| 48 decks   | 2,295 cards         | ~$9,680      |
 
 Sell your duplicates. Fund more decks. 💰
 

@@ -390,6 +390,13 @@ export function calculateOverlap(prism) {
 }
 
 /**
+ * Total physical stripe slots available per PRISM (Side A: 1-24, Side B: 25-48).
+ * This is the real capacity limit: stripe-only decks/variants each consume one
+ * slot (48 max), while dot variants share a Side A slot (up to 96 decks).
+ */
+export const MAX_STRIPE_SLOTS = 48;
+
+/**
  * Get all used stripe positions in a PRISM (from decks AND split group Side A positions)
  * @param {Object} prism - The PRISM object
  * @returns {Set<number>} Set of used position numbers
@@ -608,7 +615,7 @@ export function getNextStripePosition(prism, side = "a") {
 		}
 	}
 
-	// All 48 positions used (shouldn't happen with 32 deck limit)
+	// All 48 stripe slots are occupied — no position available.
 	return null;
 }
 

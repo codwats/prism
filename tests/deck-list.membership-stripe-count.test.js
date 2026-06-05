@@ -56,9 +56,10 @@ function dotGroupPrism(variantCardLists) {
 //    that shares the card genuinely adds a real second stripe (visible 1 -> 2),
 //    so both old and fixed code correctly unmark it — that does not isolate the
 //    membership bug. Adding a same-group variant is the scenario where the old
-//    raw-length count (3 -> 4) spuriously unmarked while no mark was added.
+//    raw-length count (2 -> 3) spuriously unmarked while no mark was added.
+//    Dot groups cap at 2 variants, so we start with one and grow to two.
 test('membership entries do not trigger unmark (card shared across all dot variants)', () => {
-	const { prism, group } = dotGroupPrism([[card('Shared')], [card('Shared')]]);
+	const { prism, group } = dotGroupPrism([[card('Shared')]]);
 	state.currentPrism = prism;
 
 	// Card in all variants: exactly ONE visible mark (the Side A stripe).
