@@ -614,11 +614,12 @@
       (function () {
         const KEY = 'prism_marking_prereq_dismissed';
         const callout = document.getElementById('marking-prereq-callout');
-        if (!callout) return;
-        if (!sessionStorage.getItem(KEY)) callout.style.display = '';
-        document.getElementById('marking-prereq-dismiss')?.addEventListener('click', () => {
+        if (callout && !sessionStorage.getItem(KEY)) callout.style.display = '';
+        document.addEventListener('click', (e) => {
+          if (!e.target.closest('#marking-prereq-dismiss')) return;
           sessionStorage.setItem(KEY, '1');
-          callout.style.display = 'none';
+          const c = document.getElementById('marking-prereq-callout');
+          if (c) c.style.display = 'none';
         });
       })();
     </script>
