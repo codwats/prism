@@ -5,7 +5,7 @@
 import { state } from "../core/state.js";
 import { showError, showSuccess } from "../core/notifications.js";
 import { logToSupabase } from "../modules/supabase-client.js";
-import { escapeHtml, getLogicalDeckCount, debugLog } from "../core/utils.js";
+import { escapeHtml, debugLog } from "../core/utils.js";
 import { parseDecklist, validateDecklist } from "../modules/parser.js";
 import {
   createDeck,
@@ -13,6 +13,8 @@ import {
   getNextColor,
   isColorUsed,
   addDeckToPrism,
+  getUsedPositions,
+  MAX_STRIPE_SLOTS,
   DEFAULT_COLORS,
   getColorName,
 } from "../modules/processor.js";
@@ -85,9 +87,10 @@ export async function handleDeckSubmit(e) {
   try {
     debugLog("PRISM: Form submitted");
 
-    // Check deck limit (split groups count as 1 logical deck)
-    if (getLogicalDeckCount(state.currentPrism) >= 32) {
-      showError("Maximum 32 decks per PRISM reached.");
+    // Check slot limit — a new standalone deck consumes one of the 48 physical
+    // stripe slots (dot variants don't own a slot, so they're excluded here).
+    if (getUsedPositions(state.currentPrism).size >= MAX_STRIPE_SLOTS) {
+      showError(`All ${MAX_STRIPE_SLOTS} stripe slots are full. Free a slot or start a new PRISM.`);
       return;
     }
 

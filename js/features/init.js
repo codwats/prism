@@ -4,7 +4,7 @@
 
 import { state } from '../core/state.js';
 import { getLogicalDeckCount, debugLog } from '../core/utils.js';
-import { createPrism } from '../modules/processor.js';
+import { createPrism, getUsedPositions, MAX_STRIPE_SLOTS } from '../modules/processor.js';
 import { getCurrentPrism, savePrism, setCurrentPrism, getPreferences, getColorScheme, onSyncStatusChange, forceSyncCurrentPrism } from '../modules/storage.js';
 import { initAuth, setupAuthListeners, getCurrentUser } from '../modules/auth.js';
 import { logToSupabase } from '../modules/supabase-client.js';
@@ -223,12 +223,14 @@ function renderPrismHeader() {
   }
   if (state.elements.deckCountTag) {
     const logicalCount = getLogicalDeckCount(state.currentPrism);
-    state.elements.deckCountTag.textContent = `${logicalCount}/32 decks`;
+    state.elements.deckCountTag.textContent = `${logicalCount} ${logicalCount === 1 ? 'deck' : 'decks'}`;
 
-    // Update tag variant based on count
-    if (logicalCount >= 32) {
+    // Variant reflects physical slot fullness (capacity is 48 stripe slots),
+    // not the logical deck count — dot variants pack 2 decks into one slot.
+    const usedSlots = getUsedPositions(state.currentPrism).size;
+    if (usedSlots >= MAX_STRIPE_SLOTS) {
       state.elements.deckCountTag.variant = 'warning';
-    } else if (logicalCount >= 20) {
+    } else if (usedSlots >= 40) {
       state.elements.deckCountTag.variant = 'neutral';
     } else {
       state.elements.deckCountTag.variant = 'success';

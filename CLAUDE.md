@@ -111,13 +111,13 @@ Sync behavior is merge-first, not whole-PRISM last-write-wins:
 
 ```
 Prism: { id, name, decks[], splitGroups[], markedCards[], removedCards[], createdAt, updatedAt }
-Deck:  { id, name, commander, bracket (1-5), color (hex), stripePosition (1-32), cards[], splitGroupId? }
+Deck:  { id, name, commander, bracket (1-5), color (hex), stripePosition (1-48), cards[], splitGroupId? }
 SplitGroup: { id, name, sideAPosition, sideAColor, childDeckIds[], splitStyle ('stripes'|'dots'), createdAt?, updatedAt? }
 Card:  { name, quantity, isCommander, isBasicLand }
 Preferences: { colorScheme, defaultColors, stripeStartCorner ('top-right'|'top-left'|'bottom-right'|'bottom-left') }
 ```
 
-- **Stripe positions** 1–24 (Side A) and 25–48 (Side B), max 32 logical decks per PRISM
+- **Stripe positions** 1–24 (Side A) and 25–48 (Side B) — 48 physical slots, the real capacity limit (`MAX_STRIPE_SLOTS` in `processor.js`). Stripe-only decks/variants each consume one slot (up to 48 decks); dot variants share a Side A slot (up to 96 decks). There is no fixed "logical deck" cap — adding a standalone deck is gated on slot availability (`getUsedPositions(prism).size >= MAX_STRIPE_SLOTS`).
 - **Split groups** let one deck slot have 2–8 (stripes) or exactly 2 (dots) variants sharing a Side A position. The group itself holds `name`, `sideAColor`, and `sideAPosition` — editable via the ✎ button on the group card header (`handleEditGroupClick`/`handleEditGroupConfirm` in `deck-list.js`, `updateSplitGroupInPrism` in `processor.js`).
 - **Split styles** — `'stripes'` (Side B marks on opposite edge) or `'dots'` (one colored dot next to the Side A stripe square). Dots groups are capped at 2 variants (physical 1-hole limit). Child variant marks are determined in a **post-loop pass** using shared-vs-subset analysis:
   - Card in **all** children → parent Side A stripe only; membership anchors emitted per variant for deck-filter (not rendered)

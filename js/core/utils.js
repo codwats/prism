@@ -4,7 +4,8 @@
 
 /**
  * Get the "logical" deck count: standalone decks + split groups (each group = 1 deck).
- * Used for the 32-deck cap and header display.
+ * Used for the header live count. Physical capacity is gated separately on the 48
+ * stripe slots (see MAX_STRIPE_SLOTS / getUsedPositions in processor.js).
  */
 export function getLogicalDeckCount(prism) {
   const standalone = prism.decks.filter(d => !d.splitGroupId).length;
