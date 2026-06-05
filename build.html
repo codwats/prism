@@ -545,8 +545,8 @@
       <div class="wa-stack wa-gap-m">
         <p class="wa-body-m">Split "<strong id="split-deck-name"></strong>" into multiple variants?</p>
         <p class="wa-caption-m" style="color: var(--wa-color-neutral-text-subtle);">
-          Each variant gets its own Side B mark. Cards shared across variants keep the original Side A mark
-          plus each variant's Side B mark.
+          Cards in all variants keep only the shared Side A mark. Cards in a subset of variants
+          get the variant's child mark (stripe or dot) in addition to the Side A mark.
         </p>
         <input type="hidden" id="split-deck-id" />
         <wa-radio-group id="split-style" label="Variant marking style" value="stripes">
@@ -568,6 +568,22 @@
           <wa-icon slot="start" name="code-branch"></wa-icon>
           Split Deck
         </wa-button>
+      </div>
+    </wa-dialog>
+
+    <!-- Edit Group Dialog -->
+    <wa-dialog id="edit-group-dialog" label="Edit Group" style="--width: min(420px, 92vw);">
+      <div class="wa-stack wa-gap-l">
+        <input type="hidden" id="edit-group-id" />
+        <wa-input id="edit-group-name" label="Group Name" required></wa-input>
+        <div class="wa-stack wa-gap-xs">
+          <label class="wa-caption-m">Shared Stripe Color</label>
+          <wa-color-picker id="edit-group-color" format="hex" no-format-toggle></wa-color-picker>
+        </div>
+      </div>
+      <div slot="footer" class="wa-cluster wa-gap-s">
+        <wa-button id="btn-cancel-edit-group" variant="neutral" appearance="outlined">Cancel</wa-button>
+        <wa-button id="btn-confirm-edit-group" variant="brand">Save Changes</wa-button>
       </div>
     </wa-dialog>
 

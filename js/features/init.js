@@ -113,6 +113,14 @@ function getElements() {
     editImportError: document.getElementById('edit-import-error'),
     editImportSuccess: document.getElementById('edit-import-success'),
 
+    // Edit group dialog
+    editGroupDialog: document.getElementById('edit-group-dialog'),
+    editGroupId: document.getElementById('edit-group-id'),
+    editGroupName: document.getElementById('edit-group-name'),
+    editGroupColor: document.getElementById('edit-group-color'),
+    btnCancelEditGroup: document.getElementById('btn-cancel-edit-group'),
+    btnConfirmEditGroup: document.getElementById('btn-confirm-edit-group'),
+
     // Split dialog
     splitDialog: document.getElementById('split-dialog'),
     splitDeckId: document.getElementById('split-deck-id'),

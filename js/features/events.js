@@ -7,7 +7,7 @@ import { downloadCSV, downloadJSON, openPrintableGuide, downloadUndoneTxt, copyU
 import { showPreview, hidePreview, updatePosition, refreshOpenPreview } from '../modules/card-preview.js';
 import { handleDeckSubmit, resetDeckForm, updateColorSwatchSelection, checkColorWarning, handlePrismNameChange } from './deck-form.js';
 import { handleFileUpload, handleJsonImport, handleMoxfieldImport, handleEditFileUpload, handleEditUrlImport } from './deck-import.js';
-import { handleDeleteConfirm, handleEditConfirm, handleNewPrism, handleSplitConfirm } from './deck-list.js';
+import { handleDeleteConfirm, handleEditConfirm, handleNewPrism, handleSplitConfirm, handleEditGroupConfirm } from './deck-list.js';
 import { renderResults } from './results.js';
 import { renderOverlapMatrix } from './analysis.js';
 import { debounce } from '../core/utils.js';
@@ -171,6 +171,16 @@ export function setupEventListeners() {
     });
   }
 
+  // Edit group dialog
+  if (state.elements.btnCancelEditGroup) {
+    state.elements.btnCancelEditGroup.addEventListener('click', () => {
+      state.elements.editGroupDialog.removeAttribute('open');
+    });
+  }
+  if (state.elements.btnConfirmEditGroup) {
+    state.elements.btnConfirmEditGroup.addEventListener('click', handleEditGroupConfirm);
+  }
+
   // Split dialog
   if (state.elements.btnCancelSplit) {
     state.elements.btnCancelSplit.addEventListener('click', () => {
@@ -179,6 +189,19 @@ export function setupEventListeners() {
   }
   if (state.elements.btnConfirmSplit) {
     state.elements.btnConfirmSplit.addEventListener('click', handleSplitConfirm);
+  }
+  // When style switches to dots, cap count at 2
+  if (state.elements.splitStyle) {
+    state.elements.splitStyle.addEventListener('change', () => {
+      const isDots = state.elements.splitStyle.value === 'dots';
+      if (state.elements.splitCount) {
+        state.elements.splitCount.setAttribute('max', isDots ? '2' : '8');
+        if (isDots) {
+          const current = parseInt(state.elements.splitCount.value) || 2;
+          if (current > 2) state.elements.splitCount.value = '2';
+        }
+      }
+    });
   }
 
   // Stripe starting corner preference
