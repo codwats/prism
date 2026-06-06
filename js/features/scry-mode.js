@@ -77,7 +77,8 @@ async function renderCurrentScryCard() {
     const { outer, inner } = makeScaledWrapper(scale);
     inner.appendChild(el);
     scryContent.appendChild(outer);
-  } catch (_err) {
+  } catch (err) {
+    console.warn(`SCRY: failed to load card image for "${card.isBasicByDeck ? card.displayName : card.name}":`, err);
     if (scryIndex !== capturedIndex) return;
 
     scryContent.innerHTML = '';
