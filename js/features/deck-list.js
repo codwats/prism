@@ -123,6 +123,27 @@ export function autoClearRemovedCards(newCards) {
 // Mark toggle
 // ============================================================================
 
+export function setCardMarked(cardKey, marked) {
+  if (!cardKey || !state.currentPrism) return;
+  if (!state.currentPrism.markedCards) state.currentPrism.markedCards = [];
+
+  if (marked) {
+    if (!state.currentPrism.markedCards.includes(cardKey)) {
+      state.currentPrism.markedCards.push(cardKey);
+    }
+  } else {
+    state.currentPrism.markedCards = state.currentPrism.markedCards.filter(
+      (c) => c !== cardKey,
+    );
+    recordUnmarkedCards(state.currentPrism.id, [cardKey]);
+  }
+
+  const now = new Date().toISOString();
+  state.currentPrism.updatedAt = now;
+  state.currentPrism.markedCardsUpdatedAt = now;
+  savePrism(state.currentPrism);
+}
+
 export function handleMarkToggle(event) {
   const checkbox = event.currentTarget;
   const row = checkbox.closest("tr");
@@ -136,27 +157,15 @@ export function handleMarkToggle(event) {
     return;
   }
 
-  if (!state.currentPrism.markedCards) state.currentPrism.markedCards = [];
-
   const isChecked = checkbox.checked;
 
   if (isChecked) {
-    if (!state.currentPrism.markedCards.includes(cardKey)) {
-      state.currentPrism.markedCards.push(cardKey);
-    }
     row.classList.add("marked-row");
   } else {
-    state.currentPrism.markedCards = state.currentPrism.markedCards.filter(
-      (c) => c !== cardKey,
-    );
     row.classList.remove("marked-row");
-    recordUnmarkedCards(state.currentPrism.id, [cardKey]);
   }
 
-  const now = new Date().toISOString();
-  state.currentPrism.updatedAt = now;
-  state.currentPrism.markedCardsUpdatedAt = now;
-  savePrism(state.currentPrism);
+  setCardMarked(cardKey, isChecked);
 
   // Full re-render when: undone filter active (marked row must disappear) OR
   // sort is by "marked" column (row order needs to update).

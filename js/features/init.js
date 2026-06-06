@@ -11,6 +11,7 @@ import { logToSupabase } from '../modules/supabase-client.js';
 import { initColorSwatches } from './deck-form.js';
 import { renderDecksList } from './deck-list.js';
 import { setupStripeReorderDialog } from './stripe-reorder-dialog.js';
+import { setupScryMode } from './scry-mode.js';
 import { renderResults, updateRemovedFilterBadge } from './results.js';
 import { renderExport } from './export-view.js';
 import { setupEventListeners } from './events.js';
@@ -139,6 +140,14 @@ function getElements() {
     // Stripe reorder dialog
     stripeReorderDialog: document.getElementById('stripe-reorder-dialog'),
 
+    // SCRY-Mode
+    btnScry: document.getElementById('btn-scry'),
+    scryDialog: document.getElementById('scry-dialog'),
+    scryContent: document.getElementById('scry-content'),
+    scryProgress: document.getElementById('scry-progress'),
+    btnScrySkip: document.getElementById('btn-scry-skip'),
+    btnScryDone: document.getElementById('btn-scry-done'),
+
     // Sync status
     syncStatus: document.getElementById('sync-status'),
     btnSyncNow: document.getElementById('btn-sync-now'),
@@ -200,6 +209,7 @@ export async function init() {
   // Set up event listeners
   setupEventListeners();
   setupStripeReorderDialog();
+  setupScryMode();
   setupSyncStatus();
 
   debugLog('PRISM: Initialization complete');

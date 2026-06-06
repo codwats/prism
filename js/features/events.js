@@ -9,6 +9,7 @@ import { handleDeckSubmit, resetDeckForm, updateColorSwatchSelection, checkColor
 import { handleFileUpload, handleJsonImport, handleMoxfieldImport, handleEditFileUpload, handleEditUrlImport } from './deck-import.js';
 import { handleDeleteConfirm, handleEditConfirm, handleNewPrism, handleSplitConfirm, handleEditGroupConfirm } from './deck-list.js';
 import { renderResults } from './results.js';
+import { openScryMode } from './scry-mode.js';
 import { renderOverlapMatrix } from './analysis.js';
 import { debounce } from '../core/utils.js';
 import { updatePreferences, getPreferences, savePrism, setColorScheme } from '../modules/storage.js';
@@ -68,9 +69,21 @@ export function setupEventListeners() {
     });
   }
 
+  // SCRY-Mode launch
+  if (state.elements.btnScry) {
+    state.elements.btnScry.addEventListener('click', openScryMode);
+  }
+
   // Results filter - use 'change' event for wa-radio-group
   if (state.elements.resultsFilter) {
-    state.elements.resultsFilter.addEventListener('change', renderResults);
+    state.elements.resultsFilter.addEventListener('change', () => {
+      // Hide SCRY button in Removed view (removed rows have no Done semantics)
+      if (state.elements.btnScry) {
+        const filter = state.elements.resultsFilter.value;
+        state.elements.btnScry.style.display = filter === 'removed' ? 'none' : '';
+      }
+      renderResults();
+    });
   }
   if (state.elements.resultsSearch) {
     state.elements.resultsSearch.addEventListener('input', debounce(renderResults, 150));

@@ -342,6 +342,11 @@
                 <wa-input id="results-search" placeholder="Search cards..." size="medium" style="max-width: 400px;">
                   <wa-icon slot="start" name="search"></wa-icon>
                 </wa-input>
+                <!-- SCRY-Mode launcher (hidden in Removed view) -->
+                <wa-button id="btn-scry" appearance="filled" variant="brand" size="small">
+                  <wa-icon slot="start" name="expand"></wa-icon>
+                  Scry-Mode
+                </wa-button>
               </div>
 
              
@@ -594,6 +599,16 @@
       </div>
       <div slot="footer">
         <wa-button id="stripe-reorder-cancel" variant="neutral" appearance="outlined">Cancel</wa-button>
+      </div>
+    </wa-dialog>
+
+    <!-- SCRY-Mode Dialog -->
+    <wa-dialog id="scry-dialog" label="Scry-Mode" style="--width: 100vw; --height: 100vh;">
+      <div id="scry-progress" class="wa-caption-m" style="text-align:center;padding-bottom:var(--wa-space-s);"></div>
+      <div id="scry-content" class="wa-stack wa-align-items-center" style="justify-content:center;min-height:200px;"></div>
+      <div slot="footer" class="wa-split" style="width:100%;">
+        <wa-button id="btn-scry-skip" appearance="outlined" variant="neutral">Skip</wa-button>
+        <wa-button id="btn-scry-done" appearance="filled" variant="success">Done</wa-button>
       </div>
     </wa-dialog>
 

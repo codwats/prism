@@ -128,8 +128,16 @@ function createStripeOverlay(stripes) {
   return container;
 }
 
+// Build a card preview element (image + stripe overlay) by fetching from Scryfall.
+// Returns a 244×340 .card-preview-container — caller is responsible for scaling.
+export async function buildCardWithStripes(cardName, stripes) {
+  const data = await fetchCard(frontFaceName(cardName));
+  if (!data.image_uri) throw new Error('No image available');
+  return createPreviewElement(data.image_uri, stripes);
+}
+
 // Create loading placeholder
-function createLoadingElement() {
+export function createLoadingElement() {
   const container = document.createElement('div');
   container.className = 'card-preview-container card-preview-loading';
 
@@ -141,7 +149,7 @@ function createLoadingElement() {
 }
 
 // Create error placeholder
-function createErrorElement(message) {
+export function createErrorElement(message) {
   const container = document.createElement('div');
   container.className = 'card-preview-container card-preview-error';
 
