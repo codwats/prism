@@ -17,12 +17,13 @@ function getScryCardKey(card) {
 }
 
 function computeScale() {
-  // Reserve ~160px for progress line + footer buttons + dialog chrome
+  // Reserve ~160px for progress line + footer buttons + dialog chrome.
+  // 0.85 factor prevents overflow inside WA dialog's own padding on mobile.
   const availH = window.innerHeight - 160;
   const availW = window.innerWidth - 48;
   const scaleH = availH / 340;
   const scaleW = availW / 244;
-  return Math.min(2.0, Math.max(0.8, Math.min(scaleH, scaleW)));
+  return Math.min(2.0, Math.max(0.8, Math.min(scaleH, scaleW))) * 0.85;
 }
 
 function makeScaledWrapper(scale) {
