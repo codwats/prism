@@ -251,6 +251,9 @@ export function renderResults() {
   // Apply sorting
   displayCards = sortCards(displayCards, state.sortState.column, state.sortState.direction);
 
+  // Snapshot for SCRY-Mode — reflects exact list visible to user (all filters/sort applied)
+  state.resultsView = displayCards;
+
   // Render table header with sort indicators
   renderResultsHeader();
 
