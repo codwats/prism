@@ -134,6 +134,10 @@ function handleAuthChange(user) {
   // Update nav auth UI
   updateAuthUI(user);
 
+  // The PRISM list is localStorage-backed and works without an account, so it
+  // renders for everyone — only the account sections below it are auth-gated.
+  renderPrismsList();
+
   if (user) {
     // Show logged in state - use style.display for reliability with Web Awesome CSS
     if (elements.profileLoggedOut) elements.profileLoggedOut.style.display = 'none';
@@ -142,9 +146,6 @@ function handleAuthChange(user) {
       elements.profileLoggedIn.style.display = '';
     }
     if (elements.profileEmail) elements.profileEmail.textContent = user.email;
-
-    // Load PRISMs
-    renderPrismsList();
   } else {
     // Show logged out state
     if (elements.profileLoggedOut) elements.profileLoggedOut.style.display = '';

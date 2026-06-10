@@ -18,12 +18,33 @@
   <body>
     <wa-page mobile-breakpoint="768">
       <main style="max-width: 800px; margin: 0 auto; padding: var(--wa-space-xl);">
+        <!-- My PRISMs Section (always visible — PRISMs live in localStorage
+             and switching works without an account) -->
+        <section class="wa-stack wa-gap-m" style="padding-block: var(--wa-space-xl);">
+          <div class="wa-split wa-align-items-center">
+            <h1 class="wa-heading-xl">My PRISMs</h1>
+            <wa-button id="btn-new-prism" variant="neutral" appearance="outlined" size="small">
+              <wa-icon slot="start" name="plus"></wa-icon>
+              New PRISM
+            </wa-button>
+          </div>
+
+          <div id="prisms-list" class="wa-stack wa-gap-m">
+            <div class="wa-stack wa-gap-m wa-align-items-center" style="padding: var(--wa-space-xl); color: var(--wa-color-neutral-text-subtle);">
+              <wa-icon name="layer-group" style="font-size: 2rem;"></wa-icon>
+              <p>Loading your PRISMs...</p>
+            </div>
+          </div>
+        </section>
+
+        <wa-divider></wa-divider>
+
         <!-- Not Logged In State -->
         <div id="profile-logged-out" class="wa-stack wa-gap-l wa-align-items-center" style="padding: var(--wa-space-2xl);">
           <wa-icon name="circle-user" style="font-size: 4rem; color: var(--wa-color-neutral-text-subtle);"></wa-icon>
-          <h1 class="wa-heading-xl">Profile</h1>
+          <h2 class="wa-heading-xl">Account</h2>
           <p style="text-align: center; color: var(--wa-color-neutral-text-subtle);">
-            Sign in to manage your PRISMs across devices and access your account settings.
+            Your PRISMs are saved in this browser. Sign in to sync them across devices and access your account settings.
           </p>
           <wa-button id="btn-profile-login" variant="brand" size="large">
             <wa-icon slot="start" name="right-to-bracket"></wa-icon>
@@ -34,35 +55,15 @@
         <!-- Logged In State -->
         <div id="profile-logged-in" hidden>
           <!-- Profile Header -->
-          <div class="wa-stack wa-gap-m" style="padding-bottom: var(--wa-space-xl);">
+          <div class="wa-stack wa-gap-m" style="padding-block: var(--wa-space-xl);">
             <div class="wa-cluster wa-gap-m wa-align-items-center">
               <wa-icon name="circle-user" style="font-size: 3rem; color: var(--wa-color-brand-fill);"></wa-icon>
               <div class="wa-stack wa-gap-2xs">
-                <h1 class="wa-heading-xl">Profile</h1>
+                <h2 class="wa-heading-xl">Profile</h2>
                 <span id="profile-email" class="wa-body-m" style="color: var(--wa-color-neutral-text-subtle);"></span>
               </div>
             </div>
           </div>
-
-          <wa-divider></wa-divider>
-
-          <!-- My PRISMs Section -->
-          <section class="wa-stack wa-gap-m" style="padding-block: var(--wa-space-xl);">
-            <div class="wa-split wa-align-items-center">
-              <h2 class="wa-heading-l">My PRISMs</h2>
-              <wa-button id="btn-new-prism" variant="neutral" appearance="outlined" size="small">
-                <wa-icon slot="start" name="plus"></wa-icon>
-                New PRISM
-              </wa-button>
-            </div>
-
-            <div id="prisms-list" class="wa-stack wa-gap-m">
-              <div class="wa-stack wa-gap-m wa-align-items-center" style="padding: var(--wa-space-xl); color: var(--wa-color-neutral-text-subtle);">
-                <wa-icon name="layer-group" style="font-size: 2rem;"></wa-icon>
-                <p>Loading your PRISMs...</p>
-              </div>
-            </div>
-          </section>
 
           <wa-divider></wa-divider>
 

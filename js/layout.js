@@ -23,6 +23,9 @@ const NAV_LINKS = [
   { href: 'guide.html', label: 'Guide', page: 'guide' },
   { href: 'tools.html', label: 'Tools', page: 'tools' },
   { href: 'build.html', label: 'My PRISM', page: 'build' },
+  // PRISM switching is localStorage-backed and works without an account,
+  // so the list page is reachable for everyone (not just logged-in users).
+  { href: 'profile.html', label: 'My PRISMs', page: 'profile' },
 ];
 
 /**
