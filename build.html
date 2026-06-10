@@ -154,11 +154,12 @@
                   </wa-radio-group>
 
                   <div class="wa-flank wa-align-items-start">
-                    <div class="wa-stack wa-gap-xs style="--flank-size:175px;">
+                    <div class="wa-stack wa-gap-xs" style="--flank-size:175px;">
                       <label class="wa-caption-m">Current Marker</label>
                         <input type="color" id="deck-color" value="#ecc933" title="Pick a custom color" style="width: 40px; height: 32px; border: 2px dashed var(--wa-color-neutral-stroke); border-radius: var(--wa-border-radius-m); cursor: pointer;" />
                         <div id="color-warning" class="wa-caption-s" style="color: var(--wa-color-warning-text); display: none;">
                           <wa-icon name="triangle-exclamation" style="font-size: 0.9em;"></wa-icon>
+                          <span></span>
                         </div>
                     </div>
                     <div class="wa-stack wa-gap-xs">
@@ -234,12 +235,12 @@
           <wa-tab-panel name="results">
             <div class="wa-stack wa-gap-l">
               <!-- Marking prerequisites at the point of action -->
-              <wa-card id="marking-prereq-callout" >
+              <wa-card id="marking-prereq-callout" style="display: none;">
               <div class="wa-flank:end"   >
                   <div class="wa-stack wa-gap-xs">
-                <strong>Finalize your decks before you start marking.</strong>Mid-session edits lead to confusion, so make changes after your marking pass.
+                <strong>Finalize your decks before you start marking.</strong> Mid-session edits lead to confusion, so make changes after your marking pass.
                 <br />
-                <strong>Remember:</strong>Marks go on the inner Perfect Fit sleeve, double-sleeved inside an outer sleeve which protects the mark.<br />
+                <strong>Remember:</strong> Marks go on the inner Perfect Fit sleeve, double-sleeved inside an outer sleeve which protects the mark.<br />
                     <span>Read the <a href="guide.html">marking guide</a> first.</span>
                     </div>
                 <wa-button slot="action" id="marking-prereq-dismiss" appearance="filled-outlined" size="small">
@@ -332,11 +333,11 @@
                   </div>
                 </wa-dropdown>
                 <!--Results-->
-                <wa-radio-group id="results-filter" orientation="horizontal" value="all" size="s">
-                  <wa-radio appearance="button" value="all" size="s">All Cards</wa-radio>
-                  <wa-radio appearance="button" value="shared" size="s">POOL</wa-radio>
-                  <wa-radio appearance="button" value="basics-by-deck" size="s">Basics by Deck</wa-radio>
-                  <wa-radio appearance="button" value="removed" id="removed-filter-btn" size="s">Removed</wa-radio>
+                <wa-radio-group id="results-filter" orientation="horizontal" value="all" size="small">
+                  <wa-radio appearance="button" value="all" size="small">All Cards</wa-radio>
+                  <wa-radio appearance="button" value="shared" size="small">POOL</wa-radio>
+                  <wa-radio appearance="button" value="basics-by-deck" size="small">Basics by Deck</wa-radio>
+                  <wa-radio appearance="button" value="removed" id="removed-filter-btn" size="small">Removed</wa-radio>
                 </wa-radio-group>
                 <!-- Search -->
                 <wa-input id="results-search" placeholder="Search cards..." size="medium" style="max-width: 400px;">
@@ -345,7 +346,7 @@
                 <!-- SCRY-Mode launcher (hidden in Removed view) -->
                 <wa-button id="btn-scry" appearance="filled" variant="brand" size="small">
                   <wa-icon slot="start" name="expand"></wa-icon>
-                  Scry-Mode
+                  SCRY-Mode
                 </wa-button>
               </div>
 
@@ -603,7 +604,7 @@
     </wa-dialog>
 
     <!-- SCRY-Mode Dialog -->
-    <wa-dialog id="scry-dialog" label="Scry-Mode" style="--width: 100vw; --height: 100vh;">
+    <wa-dialog id="scry-dialog" label="SCRY-Mode" style="--width: 100vw; --height: 100vh;">
       <div id="scry-progress" class="wa-caption-m" style="text-align:center;padding-bottom:var(--wa-space-s);"></div>
       <div id="scry-content" class="wa-stack wa-align-items-center" style="justify-content:center;min-height:200px;"></div>
       <div slot="footer" class="wa-split" style="width:100%;">
