@@ -4,7 +4,7 @@
  */
 
 import { processCards, getColorName, formatSlotLabel } from './processor.js';
-import { stripePositionLabel } from '../core/utils.js';
+import { stripeNumberLabel, countVisibleMarks, STRIPE_SPARSE_MAX } from '../core/utils.js';
 import { getPreferences } from './storage.js';
 
 /**
@@ -233,9 +233,10 @@ export function generatePrintableGuide(prism) {
   const splitGroups = prism.splitGroups || [];
   // Read the counting-aid pref at generation time (no live re-render needed).
   const showNums = !!getPreferences().showStripePositionNumbers;
-  const posNum = (position) => {
-    if (!showNums) return '';
-    const label = stripePositionLabel(position);
+  // Sparse cards (`exact`) number every mark with its exact slot, always-on;
+  // dense cards only show the anchor numbers when the pref is on.
+  const posNum = (position, exact) => {
+    const label = (exact || showNums) ? stripeNumberLabel(position, { exact }) : null;
     return label ? `<div class="stripe-pos-num">${label}</div>` : '';
   };
 
@@ -477,6 +478,10 @@ export function generatePrintableGuide(prism) {
       dotsByPos.get(s.position).push(s);
     }
 
+    // Sparse cards number every mark with its exact slot; only the card's own
+    // marked positions get the exact treatment (empty reference slots don't).
+    const cardIsSparse = countVisibleMarks(card.stripes) <= STRIPE_SPARSE_MAX;
+
     let stripeIndicators = '';
     for (const pos of allPositions) {
       const stripe = stripeMap.get(pos);
@@ -491,7 +496,8 @@ export function generatePrintableGuide(prism) {
         squareHtml = `<div class="stripe-empty" title="${formatSlotLabel(pos)}: Empty"></div>`;
       }
 
-      stripeIndicators += `<div class="stripe-slot">${dotRow}${squareHtml}${posNum(pos)}</div>`;
+      const isCardMark = !!stripe || dots.length > 0;
+      stripeIndicators += `<div class="stripe-slot">${dotRow}${squareHtml}${posNum(pos, cardIsSparse && isCardMark)}</div>`;
     }
 
     html += `

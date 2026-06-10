@@ -3,7 +3,7 @@
  */
 
 import { state } from '../core/state.js';
-import { escapeHtml, stripePositionLabel } from '../core/utils.js';
+import { escapeHtml, stripeNumberLabel, countVisibleMarks, STRIPE_SPARSE_MAX } from '../core/utils.js';
 import { getPreferences } from '../modules/storage.js';
 import { processCards, formatSlotLabel } from '../modules/processor.js';
 import { prefetchCards } from '../modules/scryfall.js';
@@ -41,27 +41,27 @@ function stripeSignature(card) {
     .join(',');
 }
 
-// Position-number overlay for an anchor slot (every 5th slot per side), or ''.
-function positionNumHtml(position, showNums, muted = false) {
-  if (!showNums) return '';
-  const label = stripePositionLabel(position);
+// Slot-number overlay. Sparse cards (`exact`) number every mark with its exact
+// slot; otherwise only anchor slots (5/10/15/20) show, gated on `showNums`.
+function positionNumHtml(position, { showNums, exact }, muted = false) {
+  const label = (exact || showNums) ? stripeNumberLabel(position, { exact }) : null;
   if (!label) return '';
   return `<span class="stripe-pos-num${muted ? ' stripe-pos-num-muted' : ''}">${label}</span>`;
 }
 
 // Render a single stripe square (no dots).
-function renderSquare(s, showNums) {
+function renderSquare(s, opts) {
   return `<div
     class="stripe-indicator${s.side === 'b' ? ' stripe-side-b' : ''}"
     style="background-color: ${s.color};"
     title="${formatSlotLabel(s.position)}: ${escapeHtml(s.deckName)}"
-  >${positionNumHtml(s.position, showNums)}</div>`;
+  >${positionNumHtml(s.position, opts)}</div>`;
 }
 
 // Render a slot: if it has dots, use ö-style (dot row above square).
-function renderSlot(slot, showNums) {
+function renderSlot(slot, opts) {
   if (slot.dots.length === 0) {
-    return slot.square ? renderSquare(slot.square, showNums) : '';
+    return slot.square ? renderSquare(slot.square, opts) : '';
   }
   const dotsHtml = slot.dots.map(d => `<div
     class="stripe-indicator stripe-dot-indicator"
@@ -70,8 +70,8 @@ function renderSlot(slot, showNums) {
   ></div>`).join('');
   const slotPos = slot.square ? slot.square.position : slot.dots[0]?.position;
   const squareHtml = slot.square
-    ? renderSquare(slot.square, showNums)
-    : `<div class="stripe-indicator stripe-empty">${positionNumHtml(slotPos, showNums, true)}</div>`;
+    ? renderSquare(slot.square, opts)
+    : `<div class="stripe-indicator stripe-empty">${positionNumHtml(slotPos, opts, true)}</div>`;
   return `<div class="stripe-slot"><div class="slot-dot-row">${dotsHtml}</div>${squareHtml}</div>`;
 }
 
@@ -300,6 +300,11 @@ export function renderResults() {
 
     let stripeIndicators;
 
+    // Sparse cards number every mark with its exact slot (always-on); dense
+    // cards fall back to the toggle-gated anchor numbering.
+    const exact = countVisibleMarks(card.stripes) <= STRIPE_SPARSE_MAX;
+    const opts = { showNums, exact };
+
     if (showAllSlots && totalDecks > 0) {
       // Collect all used positions (deck positions + split group Side A positions)
       const allPositions = [...new Set([
@@ -312,12 +317,14 @@ export function renderResults() {
       for (const pos of allPositions) {
         const slot = slotMap.get(pos);
         if (slot) {
-          stripeIndicators += renderSlot(slot, showNums);
+          stripeIndicators += renderSlot(slot, opts);
         } else {
+          // Empty reference slots only ever show the anchor ruler number, never
+          // an "exact" number (they are not this card's marks).
           stripeIndicators += `<div
             class="stripe-indicator stripe-empty"
             title="${formatSlotLabel(pos)}: Empty"
-          >${positionNumHtml(pos, showNums, true)}</div>`;
+          >${positionNumHtml(pos, { showNums, exact: false }, true)}</div>`;
         }
       }
     } else {
@@ -325,7 +332,7 @@ export function renderResults() {
       const slotMap = buildSlotMap(card.stripes);
       stripeIndicators = '';
       for (const [, slot] of slotMap) {
-        stripeIndicators += renderSlot(slot, showNums);
+        stripeIndicators += renderSlot(slot, opts);
       }
     }
 

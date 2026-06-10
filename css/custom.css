@@ -607,6 +607,34 @@ wa-page[view='desktop'] [data-toggle-nav] {
   right: auto;
 }
 
+/* Reference ruler — faint tick + number at every 5th slot down a card edge,
+   drawn even on empty slots so any lone stripe can be located by eye. */
+.stripe-ruler-tick {
+  position: absolute;
+  right: 0px;
+  width: 10px;
+  height: 1px;
+  background: rgba(255, 255, 255, 0.85);
+  box-shadow: 0 0 2px rgba(0, 0, 0, 0.9);
+}
+
+.stripe-ruler-tick-left {
+  right: auto;
+  left: 0px;
+}
+
+.stripe-ruler-num {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 9px;
+  font-weight: 600;
+  line-height: 1;
+  color: rgba(255, 255, 255, 0.85);
+  text-shadow: 0 0 2px #000, 0 0 3px #000;
+  pointer-events: none;
+}
+
 /* Card name hover cursor */
 .card-name-cell {
   cursor: pointer;
