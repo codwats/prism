@@ -2,7 +2,7 @@
 
 import { fetchCard } from './scryfall.js';
 import { getPreferences } from './storage.js';
-import { stripePositionLabel } from '../core/utils.js';
+import { stripeNumberLabel, countVisibleMarks, STRIPE_SPARSE_MAX } from '../core/utils.js';
 
 // Strip back-face name from DFCs for Scryfall lookup
 // "Bala Ged Recovery // Bala Ged Sanctuary" → "Bala Ged Recovery"
@@ -53,12 +53,44 @@ function getStripeEdge(position, sideARight) {
   return { onRight };
 }
 
+// Anchor positions (every 5th slot per side) used for the reference ruler.
+// Side A side-relative 5/10/15/20 → positions 5/10/15/20; Side B → 29/34/39/44.
+const RULER_ANCHORS = [5, 10, 15, 20, 29, 34, 39, 44];
+
+// Draw a faint tick + number at every 5th slot down both card edges, regardless
+// of which slots the card actually marks — a permanent ruler so any lone stripe
+// can be located by eye. Gated on the showStripePositionNumbers preference.
+function appendRulerGuides(container, sideARight, topDown) {
+  for (const pos of RULER_ANCHORS) {
+    const { onRight } = getStripeEdge(pos, sideARight);
+    const y = getStripeY(pos, topDown);
+
+    const tick = document.createElement('div');
+    tick.className = `stripe-ruler-tick${onRight ? '' : ' stripe-ruler-tick-left'}`;
+    tick.style.top = `${y}px`;
+
+    const num = document.createElement('span');
+    num.className = 'stripe-ruler-num';
+    num.textContent = stripeNumberLabel(pos, { exact: true });
+    if (onRight) num.style.right = '26px';
+    else num.style.left = '26px';
+    tick.appendChild(num);
+
+    container.appendChild(tick);
+  }
+}
+
 // Create stripe overlay element
 function createStripeOverlay(stripes) {
   const container = document.createElement('div');
   container.className = 'card-preview-stripes';
   const { sideARight, topDown } = getCornerConfig();
   const showNums = !!getPreferences().showStripePositionNumbers;
+  // Sparse cards number every stripe with its exact slot (always-on).
+  const exact = countVisibleMarks(stripes) <= STRIPE_SPARSE_MAX;
+
+  // Permanent reference ruler down both edges when the counting aid is on.
+  if (showNums) appendRulerGuides(container, sideARight, topDown);
 
   // Build per-group dot local indices for offset computation
   const groupDotCounters = new Map();
@@ -109,17 +141,17 @@ function createStripeOverlay(stripes) {
     const sideLabel = stripe.position > SLOTS_PER_SIDE ? 'Side B' : 'Side A';
     mark.title = `${stripe.deckName} (${sideLabel} · Slot ${stripe.position})`;
 
-    if (showNums) {
-      const label = stripePositionLabel(stripe.position);
-      if (label) {
-        const num = document.createElement('span');
-        num.className = 'stripe-mark-num';
-        num.textContent = label;
-        // Sit just inboard of the stripe's edge.
-        if (onRight) num.style.right = '26px';
-        else num.style.left = '26px';
-        mark.appendChild(num);
-      }
+    // Sparse cards label every stripe exactly (always-on); dense cards label
+    // only anchor stripes, and only when the counting aid is on.
+    const label = (exact || showNums) ? stripeNumberLabel(stripe.position, { exact }) : null;
+    if (label) {
+      const num = document.createElement('span');
+      num.className = 'stripe-mark-num';
+      num.textContent = label;
+      // Sit just inboard of the stripe's edge.
+      if (onRight) num.style.right = '26px';
+      else num.style.left = '26px';
+      mark.appendChild(num);
     }
 
     container.appendChild(mark);
