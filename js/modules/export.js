@@ -4,7 +4,7 @@
  */
 
 import { processCards, getColorName, formatSlotLabel } from './processor.js';
-import { stripeNumberLabel, countVisibleMarks, STRIPE_SPARSE_MAX } from '../core/utils.js';
+import { stripeNumberLabel, countVisibleMarks, STRIPE_SPARSE_MAX, escapeHtml } from '../core/utils.js';
 import { getPreferences } from './storage.js';
 
 /**
@@ -244,7 +244,7 @@ export function generatePrintableGuide(prism) {
 <!DOCTYPE html>
 <html>
 <head>
-  <title>PRISM Marking Guide - ${prism.name}</title>
+  <title>PRISM Marking Guide - ${escapeHtml(prism.name)}</title>
   <style>
     body { font-family: system-ui, sans-serif; padding: 20px; max-width: 800px; margin: 0 auto; }
     h1 { border-bottom: 2px solid #333; padding-bottom: 10px; }
@@ -354,7 +354,7 @@ export function generatePrintableGuide(prism) {
 </head>
 <body>
   <h1>🔮 PRISM Marking Guide</h1>
-  <p><strong>${prism.name}</strong> — ${prism.decks.length} decks, ${processedCards.length} unique cards</p>
+  <p><strong>${escapeHtml(prism.name)}</strong> — ${prism.decks.length} decks, ${processedCards.length} unique cards</p>
 
   <h2>Deck Legend</h2>
   <div class="deck-legend">
@@ -366,7 +366,7 @@ export function generatePrintableGuide(prism) {
     html += `
     <div class="deck-item" style="width: 100%;">
       <div class="color-swatch" style="background: ${group.sideAColor}"></div>
-      <span><strong>${formatSlotLabel(group.sideAPosition, 'a')}:</strong> ${group.name} (split group · ${isDots ? 'dot variants' : 'stripe variants'})</span>
+      <span><strong>${formatSlotLabel(group.sideAPosition, 'a')}:</strong> ${escapeHtml(group.name)} (split group · ${isDots ? 'dot variants' : 'stripe variants'})</span>
     </div>`;
 
     const childDecks = prism.decks
@@ -375,14 +375,14 @@ export function generatePrintableGuide(prism) {
 
     if (isDots) {
       for (const deck of childDecks) {
-        const dotHtml = `<div class="variant-dot" style="background: ${deck.color}" title="${deck.name}"></div>`;
+        const dotHtml = `<div class="variant-dot" style="background: ${deck.color}" title="${escapeHtml(deck.name)}"></div>`;
         html += `
     <div class="deck-item" style="padding-left: 20px;">
       <div class="legend-slot">
         <div class="legend-dot-row">${dotHtml}</div>
         <div class="stripe-square" style="background: ${group.sideAColor}"></div>
       </div>
-      <span>${deck.name} · Bracket ${deck.bracket}</span>
+      <span>${escapeHtml(deck.name)} · Bracket ${deck.bracket}</span>
     </div>`;
       }
     } else {
@@ -390,7 +390,7 @@ export function generatePrintableGuide(prism) {
         html += `
     <div class="deck-item" style="padding-left: 20px;">
       <div class="color-swatch side-b" style="background: ${deck.color}"></div>
-      <span><strong>${formatSlotLabel(deck.stripePosition, 'b')}:</strong> ${deck.name} (Side B) · Bracket ${deck.bracket}</span>
+      <span><strong>${formatSlotLabel(deck.stripePosition, 'b')}:</strong> ${escapeHtml(deck.name)} (Side B) · Bracket ${deck.bracket}</span>
     </div>`;
       }
     }
@@ -401,7 +401,7 @@ export function generatePrintableGuide(prism) {
     html += `
     <div class="deck-item">
       <div class="color-swatch" style="background: ${deck.color}"></div>
-      <span><strong>${formatSlotLabel(deck.stripePosition)}:</strong> ${deck.name} (Bracket ${deck.bracket})</span>
+      <span><strong>${formatSlotLabel(deck.stripePosition)}:</strong> ${escapeHtml(deck.name)} (Bracket ${deck.bracket})</span>
     </div>`;
   }
 
@@ -486,12 +486,12 @@ export function generatePrintableGuide(prism) {
     for (const pos of allPositions) {
       const stripe = stripeMap.get(pos);
       const dots = dotsByPos.get(pos) || [];
-      const dotHtml = dots.map(d => `<div class="variant-dot" style="background: ${d.color}" title="Dot: ${d.deckName}"></div>`).join('');
+      const dotHtml = dots.map(d => `<div class="variant-dot" style="background: ${d.color}" title="Dot: ${escapeHtml(d.deckName)}"></div>`).join('');
       const dotRow = `<div class="slot-dot-row">${dotHtml}</div>`;
 
       let squareHtml;
       if (stripe) {
-        squareHtml = `<div class="stripe-square${stripe.side === 'b' ? ' side-b' : ''}" style="background: ${stripe.color}" title="${formatSlotLabel(stripe.position)}: ${stripe.deckName}"></div>`;
+        squareHtml = `<div class="stripe-square${stripe.side === 'b' ? ' side-b' : ''}" style="background: ${stripe.color}" title="${formatSlotLabel(stripe.position)}: ${escapeHtml(stripe.deckName)}"></div>`;
       } else {
         squareHtml = `<div class="stripe-empty" title="${formatSlotLabel(pos)}: Empty"></div>`;
       }
@@ -502,7 +502,7 @@ export function generatePrintableGuide(prism) {
 
     html += `
       <tr class="${rowClass}">
-        <td class="${nameClass}">${card.name}${card.isBasicLand ? ' (Basic)' : ''}</td>
+        <td class="${nameClass}">${escapeHtml(card.name)}${card.isBasicLand ? ' (Basic)' : ''}</td>
         <td><div class="stripe-indicator">${stripeIndicators}</div></td>
       </tr>`;
   }
