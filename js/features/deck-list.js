@@ -606,9 +606,11 @@ export function handleNewPrism() {
 }
 
 export function handleStripeReorder(deckId, direction) {
-  const sortedDecks = [...state.currentPrism.decks].sort(
-    (a, b) => a.stripePosition - b.stripePosition,
-  );
+  // Dot variants own no slot (stripePosition null) — exclude them so the
+  // neighbour-swap logic only ever targets decks with a real position.
+  const sortedDecks = state.currentPrism.decks
+    .filter((d) => typeof d.stripePosition === "number")
+    .sort((a, b) => a.stripePosition - b.stripePosition);
   const currentIndex = sortedDecks.findIndex((d) => d.id === deckId);
   if (currentIndex === -1) return;
 
@@ -722,14 +724,16 @@ function kebabItem(deck, cls, icon, label) {
 }
 
 function getMoveKebabItemHtml(deck, isInGroup) {
-  if (!isInGroup) {
+  const group = isInGroup
+    ? state.currentPrism.splitGroups?.find(g => g.id === deck.splitGroupId)
+    : null;
+  const splitStyle = group?.splitStyle || 'stripes';
+  // Standalone decks AND stripes-style variants are fully moveable — matches
+  // the inline Move button. Only dot variants are locked (they own no slot).
+  if (!isInGroup || splitStyle === 'stripes') {
     return kebabItem(deck, "btn-move-deck", "up-down-left-right", "Move to slot");
   }
-  const group = state.currentPrism.splitGroups?.find(g => g.id === deck.splitGroupId);
-  const splitStyle = group?.splitStyle || 'stripes';
-  const reason = splitStyle === 'stripes'
-    ? "Stripe variant decks can't be moved yet. This is coming in a future update."
-    : `Dot variants move with their parent. Move &quot;${escapeHtml(group?.name || 'parent deck')}&quot; instead.`;
+  const reason = `Dot variants move with their parent. Move &quot;${escapeHtml(group?.name || 'parent deck')}&quot; instead.`;
   return `
     <wa-button class="kebab-item" appearance="plain" variant="neutral" size="small" disabled title="${reason}">
       <wa-icon slot="start" name="up-down-left-right"></wa-icon>Move to slot
