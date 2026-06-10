@@ -39,7 +39,7 @@ Share your staples across every deck. PRISM tracks what goes where so you don't 
         <section class="wa-stack wa-gap-m" style="padding-block: var(--wa-space-xl);">
           <h2 class="wa-heading-xl">How PRISM Marks Work</h2>
           <p>PRISM uses colored marks on the edge of your sleeves to show which decks a card belongs to. Whether you mark the left or right edge depends on how you fan your cards. Pick whichever side is visible when you fan, and stay consistent.</p>
-          <p>Each deck gets a unique color (choose from 23 defaults or set your own) and a stripe position (1 through 48 along the sleeve edge). Fan your cards and you can see at a glance which decks each card belongs to.</p>
+          <p>Each deck gets a unique color (choose from 22 defaults or set your own) and a stripe position (1 through 48 along the sleeve edge). Fan your cards and you can see at a glance which decks each card belongs to.</p>
         </section>
 
         <wa-divider></wa-divider>
@@ -138,7 +138,7 @@ Share your staples across every deck. PRISM tracks what goes where so you don't 
           <wa-callout variant="brand" appearance="outlined">
             <wa-icon slot="icon"  name="handshake-angle"></wa-icon>
               <strong>Use the Spirit Guide.</strong><br />
-              A marking jig with position guides makes the process faster and more consistent. It holds the sleeve in place so you can add all colors for that card at once rather than batching by color. Find the 3D-printable STL on the <a href="tools.html">Tools page</a>.
+              A marking jig with position guides makes the process faster and more consistent. It holds the sleeve in place so you can add all colors for that card at once rather than batching by color. The 3D-printable STL is coming to the <a href="tools.html">Tools page</a> — until then, any straight-edge jig or ruler works.
           </wa-callout>
 
           <div class="wa-stack wa-gap-m">
@@ -196,15 +196,15 @@ Share your staples across every deck. PRISM tracks what goes where so you don't 
             <h3 class="wa-heading-m">Split styles</h3>
             <p>You have two options for how variants are marked on Side B:</p>
             <ul style="padding-left: var(--wa-space-xl); line-height: 1.8;">
-              <li><strong>Stripes.</strong> Each variant gets a unique color stripe on the opposite edge of the sleeve. Clear and easy to read, but uses more stripe positions.</li>
-              <li><strong>Dots.</strong> Variant 1 gets no dot (just the shared Side A stripe). Variant 2 gets one colored dot next to the Side A stripe. Variant 3 gets two dots. Keeps everything on one edge but requires closer inspection.</li>
+              <li><strong>Stripes.</strong> Each variant gets a unique color stripe on the opposite edge of the sleeve (2-8 variants). A card in <em>all</em> variants keeps only the shared Side A stripe; a card in a subset of variants also gets each matching variant's Side B stripe. Clear and easy to read, but uses more stripe positions.</li>
+              <li><strong>Dots.</strong> Limited to exactly 2 variants (one dot hole per card). A card in <em>both</em> variants keeps only the shared Side A stripe — no dot. A card in just one variant gets a single dot in that variant's color next to the Side A stripe. Keeps everything on one edge and uses no extra stripe positions, but requires closer inspection.</li>
             </ul>
-            <p>Pick stripes if you have 2-3 variants and plenty of unused positions. Pick dots if you're running tight on positions or want to keep all marks on one edge.</p>
+            <p>Pick stripes if you have 3 or more variants or plenty of unused positions. Pick dots for exactly two variants when you're running tight on positions or want to keep all marks on one edge.</p>
           </div>
 
           <div class="wa-stack wa-gap-m">
             <h3 class="wa-heading-m">Creating a split</h3>
-            <p>On the Decks tab, click the split icon on any deck card. Choose how many variants you want (2-8) and which split style to use. Each variant gets its own card list, commander, and bracket rating. Cards shared across all variants keep the parent's Side A mark. Cards unique to a variant get both Side A and their variant's Side B mark.</p>
+            <p>On the Decks tab, click the split icon on any deck card. Choose which split style to use and how many variants you want (2-8 for stripes, exactly 2 for dots). Each variant gets its own card list, commander, and bracket rating. Cards shared across all variants keep the parent's Side A mark. Cards unique to a variant get both Side A and their variant's Side B mark.</p>
           </div>
         </section>
 
@@ -222,12 +222,12 @@ Share your staples across every deck. PRISM tracks what goes where so you don't 
 
           <div class="wa-stack wa-gap-m">
             <h3 class="wa-heading-m">Bulk reordering</h3>
-            <p>The Export tab has a dropdown list that lets you reorder multiple decks at once. Drag decks up or down in the list to rearrange their stripe positions.</p>
+            <p>The Export tab has a position list that lets you reorder multiple decks at once. Pick a new slot from each deck's dropdown, or use the up/down buttons to swap a deck with its neighbour.</p>
           </div>
 
           <div class="wa-stack wa-gap-m">
             <h3 class="wa-heading-m">Stripe starting corner</h3>
-            <p>By default, stripe position 1 starts at the top of the sleeve edge. In the deck settings, you can change the starting corner to top-left, top-right, bottom-left, or bottom-right. This affects the card preview display but not your stored data. Pick whichever corner is most visible when you fan your cards and don't change it after you've started marking.</p>
+            <p>By default, stripe position 1 starts at the top-right corner of the sleeve. In Stripe Settings on the Decks tab, you can change the starting corner to top-left, top-right, bottom-left, or bottom-right. Applying the change renumbers every deck's slot so Slot 1 sits at the chosen corner — each mark stays at the same physical spot on the sleeve, only the numbering shifts. Pick whichever corner is most visible when you fan your cards and don't change it after you've started marking.</p>
           </div>
         </section>
 
@@ -284,7 +284,7 @@ Share your staples across every deck. PRISM tracks what goes where so you don't 
           <h2 class="wa-heading-xl">Managing Multiple PRISMs</h2>
           <p>If you have more decks than a single PRISM can hold (up to 48 with stripe splits, or 96 with dot splits), or if you want to organize your collection into separate groups, create multiple PRISMs.</p>
           <p>Each PRISM is independent: its own deck list, its own stripe positions, its own marking guide. You might separate by sleeve color (all black-sleeved decks in one PRISM, all colored sleeves in another), by power level, or by format once non-Commander formats are supported.</p>
-          <p>Switch between PRISMs from the header. Your current PRISM is always auto-saved before switching.</p>
+          <p>Switch between PRISMs from the My PRISMs page. Your current PRISM is always auto-saved before switching.</p>
         </section>
 
         <wa-divider></wa-divider>
