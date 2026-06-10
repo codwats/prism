@@ -10,11 +10,12 @@ import { normalizeCardName } from "./parser.js";
  * 15 distinct colors for maximum deck support
  */
 export const DEFAULT_COLORS = [
-	"#ecc933", // Yellow
-	"#558CC1", // Blue
-	"#6B5597", // Purple
-	"#C73D2B", // Red
-	"#70AF63", // Green
+	// First five are the WUBRG slots (web palette, updated June 2026)
+	"#EEB41B", // Yellow (W)
+	"#3995D9", // Blue (U)
+	"#8662D2", // Purple (B)
+	"#E2484B", // Red (R)
+	"#4FAB33", // Green (G)
 	"#EEEEEE", // White
 	"#7A5E68", // Brown
 	"#3C5890", // Navy
@@ -41,6 +42,13 @@ export const DEFAULT_COLORS = [
  */
 export function getColorName(hex) {
 	const colorNames = {
+		"#EEB41B": "Yellow",
+		"#3995D9": "Blue",
+		"#8662D2": "Purple",
+		"#E2484B": "Red",
+		"#4FAB33": "Green",
+		// Legacy WUBRG values (pre-June-2026 palette) kept so existing decks
+		// saved with the old hexes still display a color name.
 		"#ECC933": "Yellow",
 		"#558CC1": "Blue",
 		"#6B5597": "Purple",
