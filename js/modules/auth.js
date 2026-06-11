@@ -194,8 +194,11 @@ export async function updateEmail(newEmail) {
 
 // Update user account UI in the nav
 export function updateAuthUI(user) {
+  const loadingSection = document.getElementById('auth-loading');
   const loginSection = document.getElementById('auth-logged-out');
   const userSection = document.getElementById('auth-logged-in');
+
+  if (loadingSection) loadingSection.style.display = 'none';
 
   if (user) {
     if (loginSection) loginSection.style.display = 'none';

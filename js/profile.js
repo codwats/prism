@@ -14,6 +14,7 @@ let elements = {};
 function getElements() {
   return {
     // Profile sections
+    profileLoading: document.getElementById('profile-loading'),
     profileLoggedOut: document.getElementById('profile-logged-out'),
     profileLoggedIn: document.getElementById('profile-logged-in'),
     profileEmail: document.getElementById('profile-email'),
@@ -58,7 +59,11 @@ async function init() {
   await new Promise(resolve => setTimeout(resolve, 100));
 
   // Initialize auth
-  await initAuth();
+  try {
+    await initAuth();
+  } catch (err) {
+    console.error('Auth init failed:', err);
+  }
   setupAuthListeners();
 
   // Get elements
@@ -133,6 +138,9 @@ function setupEventListeners() {
 function handleAuthChange(user) {
   // Update nav auth UI
   updateAuthUI(user);
+
+  // Auth resolved — hide the loading skeleton
+  if (elements.profileLoading) elements.profileLoading.style.display = 'none';
 
   if (user) {
     // Show logged in state - use style.display for reliability with Web Awesome CSS

@@ -18,8 +18,29 @@
   <body>
     <wa-page mobile-breakpoint="768">
       <main style="max-width: 800px; margin: 0 auto; padding: var(--wa-space-xl);">
+        <!-- Loading State (replaced by handleAuthChange once auth resolves) -->
+        <div id="profile-loading" class="wa-stack wa-gap-l" style="padding-block: var(--wa-space-xl);">
+          <div class="wa-cluster wa-gap-m wa-align-items-center">
+            <wa-skeleton effect="pulse" class="skeleton-avatar"></wa-skeleton>
+            <div class="wa-stack wa-gap-xs" style="flex: 1; max-width: 300px;">
+              <wa-skeleton effect="pulse" class="skeleton-line-title"></wa-skeleton>
+              <wa-skeleton effect="pulse" class="skeleton-line"></wa-skeleton>
+            </div>
+          </div>
+          <div class="skeleton-deck-card">
+            <wa-skeleton effect="pulse" class="skeleton-line-title"></wa-skeleton>
+            <wa-skeleton effect="pulse" class="skeleton-line"></wa-skeleton>
+            <wa-skeleton effect="pulse" class="skeleton-line-short"></wa-skeleton>
+          </div>
+          <div class="skeleton-deck-card">
+            <wa-skeleton effect="pulse" class="skeleton-line-title"></wa-skeleton>
+            <wa-skeleton effect="pulse" class="skeleton-line"></wa-skeleton>
+            <wa-skeleton effect="pulse" class="skeleton-line-short"></wa-skeleton>
+          </div>
+        </div>
+
         <!-- Not Logged In State -->
-        <div id="profile-logged-out" class="wa-stack wa-gap-l wa-align-items-center" style="padding: var(--wa-space-2xl);">
+        <div id="profile-logged-out" class="wa-stack wa-gap-l wa-align-items-center" style="padding: var(--wa-space-2xl); display: none;">
           <wa-icon name="circle-user" style="font-size: 4rem; color: var(--wa-color-neutral-text-subtle);"></wa-icon>
           <h1 class="wa-heading-xl">Profile</h1>
           <p style="text-align: center; color: var(--wa-color-neutral-text-subtle);">

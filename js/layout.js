@@ -233,9 +233,14 @@ function injectNav(activePage) {
         </div>
 
         <!-- Account Section -->
-        <div class="wa-stack wa-gap-s" style="border-top: 1px solid var(--wa-color-neutral-border); padding-top: var(--wa-space-m);">
+        <div class="wa-stack wa-gap-s" style="border-top: 1px solid var(--wa-color-surface-border); padding-top: var(--wa-space-m);">
+          <!-- Loading State (replaced by updateAuthUI once auth resolves) -->
+          <div id="auth-loading">
+            <wa-skeleton effect="pulse" class="nav-auth-skeleton"></wa-skeleton>
+          </div>
+
           <!-- Logged Out State -->
-          <div id="auth-logged-out">
+          <div id="auth-logged-out" style="display: none;">
             <wa-button id="btn-login" variant="neutral" appearance="outlined" style="width: 100%;">
               <wa-icon slot="start" name="right-to-bracket"></wa-icon>
               Log In
@@ -333,7 +338,7 @@ function injectFooter() {
   if (main.querySelector('footer')) return;
 
   const footer = document.createElement('footer');
-  footer.style.cssText = 'margin-top: var(--wa-space-4xl); padding-block: var(--wa-space-xl); border-top: 1px solid var(--wa-color-neutral-stroke-subtle);';
+  footer.style.cssText = 'margin-top: var(--wa-space-4xl); padding-block: var(--wa-space-xl); border-top: 1px solid var(--wa-color-surface-border);';
   footer.innerHTML = `
           <div class="wa-stack wa-gap-m">
             <div class="wa-split">
@@ -451,6 +456,11 @@ function injectAuthDialog() {
 async function initAuthModule() {
   // Wait a tick for Web Awesome components to upgrade
   await new Promise(resolve => setTimeout(resolve, 100));
-  await initAuth();
+  try {
+    await initAuth();
+  } catch (err) {
+    console.error('Auth init failed:', err);
+  }
+  // Always run so updateAuthUI resolves the nav auth skeleton even when auth fails
   setupAuthListeners();
 }

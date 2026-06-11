@@ -164,8 +164,13 @@ export async function init() {
   // Wait a tick for Web Awesome components to upgrade
   await new Promise(resolve => setTimeout(resolve, 100));
 
-  // Initialize auth
-  await initAuth();
+  // Initialize auth — continue rendering local data even if auth/sync fails,
+  // so the loading skeletons never stick
+  try {
+    await initAuth();
+  } catch (err) {
+    console.error('Auth init failed:', err);
+  }
   setupAuthListeners();
 
   logToSupabase('info', 'app_loaded', { page: 'build', url: window.location.pathname });

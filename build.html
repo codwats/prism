@@ -80,7 +80,17 @@
 
               <!-- Existing Decks List -->
               <section id="decks-list" class="wa-stack wa-gap-m">
-                <!-- Deck cards will be inserted here -->
+                <!-- Loading skeletons — replaced by the first renderDecksList() -->
+                <div class="skeleton-deck-card">
+                  <wa-skeleton effect="pulse" class="skeleton-line-title"></wa-skeleton>
+                  <wa-skeleton effect="pulse" class="skeleton-line"></wa-skeleton>
+                  <wa-skeleton effect="pulse" class="skeleton-line-short"></wa-skeleton>
+                </div>
+                <div class="skeleton-deck-card">
+                  <wa-skeleton effect="pulse" class="skeleton-line-title"></wa-skeleton>
+                  <wa-skeleton effect="pulse" class="skeleton-line"></wa-skeleton>
+                  <wa-skeleton effect="pulse" class="skeleton-line-short"></wa-skeleton>
+                </div>
               </section>
 
               <!-- Display Settings (always visible — not gated on deck count) -->
@@ -377,7 +387,11 @@
                     </tr>
                   </thead>
                   <tbody id="results-tbody">
-                    <!-- Results will be inserted here -->
+                    <!-- Loading skeletons — replaced by the first renderResults() -->
+                    <tr><td colspan="3"><wa-skeleton effect="pulse" class="skeleton-line"></wa-skeleton></td></tr>
+                    <tr><td colspan="3"><wa-skeleton effect="pulse" class="skeleton-line"></wa-skeleton></td></tr>
+                    <tr><td colspan="3"><wa-skeleton effect="pulse" class="skeleton-line"></wa-skeleton></td></tr>
+                    <tr><td colspan="3"><wa-skeleton effect="pulse" class="skeleton-line"></wa-skeleton></td></tr>
                   </tbody>
                 </table>
               </div>
