@@ -40,6 +40,7 @@ function getElements() {
     colorSwatches: document.getElementById('color-swatches'),
     colorWarning: document.getElementById('color-warning'),
     parseErrors: document.getElementById('parse-errors'),
+    btnAddDeck: document.getElementById('btn-add-deck'),
     btnResetForm: document.getElementById('btn-reset-form'),
 
     // Moxfield import

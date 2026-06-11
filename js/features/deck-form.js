@@ -86,7 +86,7 @@ export async function handleDeckSubmit(e) {
 
   // Spinner while card names are canonicalized via Scryfall — the await below
   // is network-bound and can exceed 300ms with no other feedback.
-  const submitBtn = document.getElementById("btn-add-deck");
+  const submitBtn = state.elements.btnAddDeck;
   submitBtn?.setAttribute("loading", "");
 
   try {
