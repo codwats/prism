@@ -11,6 +11,7 @@
 import { initAuth, setupAuthListeners } from './modules/auth.js';
 import { getColorScheme } from './modules/storage.js';
 import { applyColorScheme } from './modules/theme.js';
+import { initGlobalErrorReporting } from './core/telemetry.js';
 
 // Re-apply when the OS theme changes, but only while preference is 'auto'
 window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
@@ -40,6 +41,7 @@ const NAV_LINKS = [
 export function initLayout(options = {}) {
   const { activePage = '' } = options;
 
+  initGlobalErrorReporting();
   injectHeadResources();
   injectNav(activePage);
   injectHeader(options.headerCta);
@@ -425,6 +427,18 @@ function injectAuthDialog() {
         <wa-button id="btn-back-to-login" type="button" appearance="plain" size="small" style="align-self: center;">
           Back to login
         </wa-button>
+      </div>
+
+      <!-- Set New Password View (opened by the PASSWORD_RECOVERY auth event) -->
+      <div id="auth-recovery-view" class="wa-stack wa-gap-m" style="display: none;">
+        <p class="wa-body-m" style="color: var(--wa-color-neutral-text-subtle);">You followed a password reset link. Choose a new password to finish.</p>
+        <form id="recovery-form" class="wa-stack wa-gap-m">
+          <wa-input id="recovery-password" name="password" type="password" label="New password" placeholder="At least 6 characters" autocomplete="new-password" required minlength="6"></wa-input>
+          <wa-input id="recovery-password-confirm" name="confirm" type="password" label="Confirm new password" placeholder="Repeat new password" autocomplete="new-password" required minlength="6"></wa-input>
+          <div id="recovery-error" hidden class="wa-caption-m" style="color: var(--wa-color-danger-text);"></div>
+          <div id="recovery-success" hidden class="wa-caption-m" style="color: var(--wa-color-success-text);"></div>
+          <wa-button id="btn-recovery-submit" type="submit" variant="brand" style="width: 100%;">Set New Password</wa-button>
+        </form>
       </div>`;
 
   document.body.appendChild(dialog);

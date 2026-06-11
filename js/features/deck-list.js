@@ -23,6 +23,7 @@ import {
   updateSplitGroupInPrism,
 } from "../modules/processor.js";
 import { savePrism, setCurrentPrism, recordUnmarkedCards } from "../modules/storage.js";
+import { trackEvent } from "../modules/supabase-client.js";
 import { canonicalizeCards } from "../modules/scryfall.js";
 import { hideEditImportMessages } from "./deck-import.js";
 import { initColorSwatches, resetDeckForm } from "./deck-form.js";
@@ -130,6 +131,9 @@ export function setCardMarked(cardKey, marked) {
   if (marked) {
     if (!state.currentPrism.markedCards.includes(cardKey)) {
       state.currentPrism.markedCards.push(cardKey);
+      // GA-only funnel step (visit → deck → first mark → export); too chatty
+      // for app_logs rows.
+      trackEvent('card_marked');
     }
   } else {
     state.currentPrism.markedCards = state.currentPrism.markedCards.filter(

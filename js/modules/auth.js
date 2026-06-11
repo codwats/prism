@@ -77,6 +77,14 @@ export function initAuth() {
         logToSupabase('info', 'user_signed_out');
       }
 
+      // Password-reset email link: the user lands with a recovery session and
+      // must be prompted for a new password, or reset appears broken.
+      if (event === 'PASSWORD_RECOVERY') {
+        wasLoggedOut = false; // recovery session signs the user in — skip the SIGNED_IN reload
+        openPasswordRecovery();
+        return;
+      }
+
       // Sync with Supabase when user freshly logs in (not on session recovery)
       if (event === 'SIGNED_IN' && session?.user && wasLoggedOut) {
         wasLoggedOut = false;
@@ -86,6 +94,14 @@ export function initAuth() {
         window.location.reload();
       }
     });
+
+    // Supabase processes the recovery token from the URL hash at client
+    // creation, which can finish before the listener above registers — check
+    // the URL directly so the set-password dialog opens either way.
+    if (window.location.hash.includes('type=recovery')) {
+      wasLoggedOut = false;
+      openPasswordRecovery();
+    }
 
     return currentUser;
   })().catch(err => {
@@ -195,12 +211,14 @@ function showAuthView(viewName) {
   const loginView = document.getElementById('auth-login-view');
   const signupView = document.getElementById('auth-signup-view');
   const forgotView = document.getElementById('auth-forgot-view');
+  const recoveryView = document.getElementById('auth-recovery-view');
   const dialogTitle = document.getElementById('auth-dialog-title');
 
   // Hide all views
   if (loginView) loginView.style.display = 'none';
   if (signupView) signupView.style.display = 'none';
   if (forgotView) forgotView.style.display = 'none';
+  if (recoveryView) recoveryView.style.display = 'none';
 
   // Show requested view and update title
   switch (viewName) {
@@ -216,16 +234,28 @@ function showAuthView(viewName) {
       if (forgotView) forgotView.style.display = '';
       if (dialogTitle) dialogTitle.textContent = 'Reset Password';
       break;
+    case 'recovery':
+      if (recoveryView) recoveryView.style.display = '';
+      if (dialogTitle) dialogTitle.textContent = 'Set a New Password';
+      break;
   }
 
   // Clear any error/success messages
   clearAuthMessages();
 }
 
+// Open the auth dialog on the set-new-password view (password-reset landing)
+function openPasswordRecovery() {
+  const dialog = document.getElementById('auth-dialog');
+  if (!dialog) return;
+  showAuthView('recovery');
+  dialog.setAttribute('open', '');
+}
+
 // Clear all error and success messages
 function clearAuthMessages() {
-  const errorEls = document.querySelectorAll('#login-error, #signup-error, #forgot-error');
-  const successEls = document.querySelectorAll('#signup-success, #forgot-success');
+  const errorEls = document.querySelectorAll('#login-error, #signup-error, #forgot-error, #recovery-error');
+  const successEls = document.querySelectorAll('#signup-success, #forgot-success, #recovery-success');
 
   errorEls.forEach(el => {
     if (el) el.hidden = true;
@@ -339,6 +369,7 @@ export function setupAuthListeners() {
         if (successEl) successEl.hidden = true;
 
         await signUp(email, password);
+        logToSupabase('info', 'user_signed_up');
 
         // Show success message
         if (successEl) {
@@ -384,6 +415,53 @@ export function setupAuthListeners() {
         }
       } catch (err) {
         console.error('Password reset error:', err);
+        if (errorEl) {
+          errorEl.textContent = err.message;
+          errorEl.hidden = false;
+        }
+      } finally {
+        if (submitBtn) submitBtn.loading = false;
+      }
+    });
+  }
+
+  // Set-new-password form (password-reset landing)
+  const recoveryForm = document.getElementById('recovery-form');
+  if (recoveryForm) {
+    recoveryForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const password = document.getElementById('recovery-password')?.value;
+      const confirm = document.getElementById('recovery-password-confirm')?.value;
+      const submitBtn = document.getElementById('btn-recovery-submit');
+      const errorEl = document.getElementById('recovery-error');
+      const successEl = document.getElementById('recovery-success');
+
+      if (password !== confirm) {
+        if (errorEl) {
+          errorEl.textContent = 'Passwords do not match.';
+          errorEl.hidden = false;
+        }
+        return;
+      }
+
+      try {
+        if (submitBtn) submitBtn.loading = true;
+        if (errorEl) errorEl.hidden = true;
+
+        await updatePassword(password);
+        logToSupabase('info', 'password_recovered');
+
+        if (successEl) {
+          successEl.textContent = 'Password updated. You are signed in.';
+          successEl.hidden = false;
+        }
+
+        // Let the confirmation register, then close the dialog
+        setTimeout(() => {
+          document.getElementById('auth-dialog')?.removeAttribute('open');
+        }, 1500);
+      } catch (err) {
+        console.error('Password update error:', err);
         if (errorEl) {
           errorEl.textContent = err.message;
           errorEl.hidden = false;

@@ -20,15 +20,35 @@ export function isConfigured() {
   return SUPABASE_URL !== 'YOUR_SUPABASE_URL' && SUPABASE_ANON_KEY !== 'YOUR_SUPABASE_ANON_KEY';
 }
 
+// Fire a Google Analytics event if gtag is present. Centralised here so every
+// logToSupabase call doubles as a funnel event — GA covers anonymous users,
+// who can't write to app_logs (RLS restricts INSERT to authenticated users).
+export function trackEvent(name, params = {}) {
+  try {
+    if (typeof window.gtag !== 'function') return;
+    const safe = { ...params };
+    delete safe.email; // never send PII to GA
+    window.gtag('event', name, safe);
+  } catch {
+    // Analytics must never break the app.
+  }
+}
+
 // Log helper for debugging
 export async function logToSupabase(level, message, metadata = null) {
+  trackEvent(message, { level, ...(metadata || {}) });
+
   const client = getSupabase();
   if (!client) return;
 
   try {
-    const { data: { user } } = await client.auth.getUser();
+    // getSession reads the locally cached session — no network round-trip
+    // (getUser made one per log call). Anonymous inserts are rejected by RLS
+    // anyway, so skip them instead of erroring into the console.
+    const { data: { session } } = await client.auth.getSession();
+    if (!session?.user) return;
     await client.from('app_logs').insert({
-      user_id: user?.id || null,
+      user_id: session.user.id,
       level,
       message,
       metadata
