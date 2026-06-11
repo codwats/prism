@@ -301,6 +301,7 @@ function injectHeader(ctaConfig) {
             <img src="./assets/Prism-Icon-Main.svg" alt="Prism Logo" style="height:1.5em;" class="wa-border-radius-square theme-logo-light">
             <span class="wa-heading-m wa-desktop-only">PRISM</span>
           </a>
+          <wa-tag size="small" variant="brand" appearance="outlined" title="PRISM is in open beta — expect rough edges and tell us about them">Beta</wa-tag>
         </div>
         <div class="wa-cluster wa-gap-xs wa-align-items-center">
           <wa-button${ctaId}${ctaHref} variant="${ctaVariant}"${ctaAppearanceAttr} size="small">
@@ -342,13 +343,19 @@ function injectFooter() {
                 <span style="color: var(--wa-color-neutral-text-subtle);">Made for Commander players, by Commander players</span>
               </div>
               <div class="wa-cluster wa-gap-m" style="color: var(--wa-color-neutral-text-subtle);">
-                <a href="https://github.com/codwats/prism" target="_blank" rel="noopener">
+                <a href="https://github.com/codwats/prism" target="_blank" rel="noopener" title="PRISM on GitHub">
                   <wa-icon name="github" family="brands"></wa-icon>
                 </a>
-                <a href="https://discord.com" target="_blank" rel="noopener">
+                <a href="https://discord.gg/Jp84QUPSe" target="_blank" rel="noopener" title="Join the PRISM Discord">
                   <wa-icon name="discord" family="brands"></wa-icon>
                 </a>
               </div>
+            </div>
+            <div class="wa-cluster wa-gap-m" style="justify-content: center;">
+              <span class="wa-caption-s" style="color: var(--wa-color-neutral-text-subtle);">
+                PRISM is in open beta — found a bug or have feedback?
+                <a href="https://discord.gg/Jp84QUPSe" target="_blank" rel="noopener">Tell us on Discord</a>
+              </span>
             </div>
             <div class="wa-cluster wa-gap-m" style="justify-content: center;">
               <a href="privacy.html" class="wa-caption-s" style="color: var(--wa-color-neutral-text-subtle);">Privacy Policy</a>
