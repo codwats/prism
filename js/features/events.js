@@ -16,6 +16,7 @@ import { updatePreferences, getPreferences, savePrism, setColorScheme } from '..
 import { applyColorScheme } from '../modules/theme.js';
 import { remapPrismForCorner } from '../modules/processor.js';
 import { renderAll } from './init.js';
+import { logToSupabase } from '../modules/supabase-client.js';
 
 // ============================================================================
 // Event Listeners
@@ -105,27 +106,39 @@ export function setupEventListeners() {
     });
   }
 
-  // Export buttons
+  // Export buttons — each logs an 'export' funnel event (GA + app_logs)
   if (state.elements.btnExportCSV) {
-    state.elements.btnExportCSV.addEventListener('click', () => downloadCSV(state.currentPrism));
+    state.elements.btnExportCSV.addEventListener('click', () => {
+      downloadCSV(state.currentPrism);
+      logToSupabase('info', 'export', { format: 'csv' });
+    });
   }
   if (state.elements.btnExportJSON) {
-    state.elements.btnExportJSON.addEventListener('click', () => downloadJSON(state.currentPrism));
+    state.elements.btnExportJSON.addEventListener('click', () => {
+      downloadJSON(state.currentPrism);
+      logToSupabase('info', 'export', { format: 'json' });
+    });
   }
   if (state.elements.btnPrintGuide) {
     state.elements.btnPrintGuide.addEventListener('click', async () => {
       if (!openPrintableGuide(state.currentPrism)) {
         const { showError } = await import('../core/notifications.js');
         showError('Could not open the printable guide. Please allow popups for this site and try again.');
+        return;
       }
+      logToSupabase('info', 'export', { format: 'print' });
     });
   }
   if (state.elements.btnDownloadUndone) {
-    state.elements.btnDownloadUndone.addEventListener('click', () => downloadUndoneTxt(state.currentPrism));
+    state.elements.btnDownloadUndone.addEventListener('click', () => {
+      downloadUndoneTxt(state.currentPrism);
+      logToSupabase('info', 'export', { format: 'undone_txt' });
+    });
   }
   if (state.elements.btnCopyUndone) {
     state.elements.btnCopyUndone.addEventListener('click', async () => {
       const count = await copyUndoneToClipboard(state.currentPrism);
+      logToSupabase('info', 'export', { format: 'undone_copy' });
       const { showSuccess } = await import('../core/notifications.js');
       showSuccess(`Copied ${count} undone card${count === 1 ? '' : 's'} to clipboard`);
     });
