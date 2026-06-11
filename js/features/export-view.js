@@ -64,7 +64,7 @@ export function renderExport() {
           ${children.map(child => `
             <div class="wa-cluster wa-gap-xs wa-align-items-center" style="padding-left: var(--wa-space-l);">
               <div class="deck-color-indicator small" style="background-color: ${child.color};"></div>
-              <span><strong>${formatSlotLabel(child.stripePosition)}:</strong> ${escapeHtml(child.name)}</span>
+              <span><strong>${typeof child.stripePosition === 'number' ? formatSlotLabel(child.stripePosition) : 'Dot variant'}:</strong> ${escapeHtml(child.name)}</span>
             </div>
           `).join('')}
         </div>`;

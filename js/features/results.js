@@ -276,7 +276,7 @@ export function renderResults() {
               <div
                 class="stripe-indicator"
                 style="background-color: ${card.removedDeckColor};"
-                title="Remove from ${formatSlotLabel(card.removedStripePosition)}"
+                title="Remove from ${card.removedStripePosition != null ? formatSlotLabel(card.removedStripePosition) : 'this deck’s group slot'}"
               ></div>
               <span class="removed-deck-label">Remove from ${escapeHtml(card.removedDeckName)}</span>
             </div>

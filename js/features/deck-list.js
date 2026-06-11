@@ -119,6 +119,18 @@ export function autoClearRemovedCards(newCards) {
   return before - state.currentPrism.removedCards.length;
 }
 
+// Slot to record in removedCards for a deck's cleared marks. Dot variants own
+// no slot of their own (stripePosition null) — their physical marks live at
+// the parent group's Side A position, so record that instead of null (which
+// rendered as "Remove from Side A - Slot null" in the Removed view).
+function getRemovalStripePosition(deck) {
+  if (typeof deck.stripePosition === 'number') return deck.stripePosition;
+  const group = (state.currentPrism.splitGroups || []).find(
+    (g) => g.id === deck.splitGroupId,
+  );
+  return group?.sideAPosition ?? null;
+}
+
 // ============================================================================
 // Mark toggle
 // ============================================================================
@@ -346,6 +358,7 @@ export async function handleEditConfirm() {
 
   const now = new Date().toISOString();
   let removedCount = 0;
+  const removalPosition = getRemovalStripePosition(deck);
 
   for (const removedCard of removedFromDeck) {
     if (
@@ -360,7 +373,7 @@ export async function handleEditConfirm() {
         deckId: deck.id,
         deckName: deck.name,
         deckColor: deck.color,
-        stripePosition: deck.stripePosition,
+        stripePosition: removalPosition,
         removedAt: now,
       });
       removedCount++;
@@ -376,7 +389,7 @@ export async function handleEditConfirm() {
           deckId: deck.id,
           deckName: deck.name,
           deckColor: deck.color,
-          stripePosition: deck.stripePosition,
+          stripePosition: removalPosition,
           removedAt: now,
         });
         removedCount++;
@@ -428,6 +441,7 @@ export function handleDeleteConfirm() {
 
   const now = new Date().toISOString();
   let removedCount = 0;
+  const removalPosition = getRemovalStripePosition(deck);
 
   for (const card of deck.cards) {
     if (
@@ -438,7 +452,7 @@ export function handleDeleteConfirm() {
         deckId: deck.id,
         deckName: deck.name,
         deckColor: deck.color,
-        stripePosition: deck.stripePosition,
+        stripePosition: removalPosition,
         removedAt: now,
       });
       removedCount++;
@@ -454,7 +468,7 @@ export function handleDeleteConfirm() {
           deckId: deck.id,
           deckName: deck.name,
           deckColor: deck.color,
-          stripePosition: deck.stripePosition,
+          stripePosition: removalPosition,
           removedAt: now,
         });
         removedCount++;
