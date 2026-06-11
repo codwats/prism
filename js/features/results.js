@@ -556,7 +556,10 @@ function renderDeckFilterMenu() {
   const sortedDecks = [...state.currentPrism.decks].sort((a, b) => a.stripePosition - b.stripePosition);
 
   if (sortedDecks.length === 0) {
-    state.elements.deckFilterMenu.innerHTML = '<wa-menu-item disabled>No decks added</wa-menu-item>';
+    // Plain wa-button like the rest of this menu — wa-menu-item is avoided
+    // codebase-wide (flaky CDN autoload, see CLAUDE.md).
+    state.elements.deckFilterMenu.innerHTML =
+      '<wa-button disabled appearance="plain" variant="neutral" size="small">No decks added</wa-button>';
     return;
   }
 

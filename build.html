@@ -63,6 +63,21 @@
           <wa-tab-panel name="decks">
             <div class="wa-stack wa-gap-xl">
 
+              <!-- First-run orientation (dismissal persisted in localStorage,
+                   wired by the inline onboarding script at the end of body) -->
+              <wa-card id="onboarding-callout" style="display: none;">
+                <div class="wa-flank:end">
+                  <div class="wa-stack wa-gap-xs">
+                    <strong>Welcome to PRISM.</strong> Add the Commander decks that share cards, and PRISM works out a colored-stripe plan so every sleeve shows which decks it belongs to.
+                    <span>New to sleeve marking? Read the <a href="guide.html">marking guide</a> first.</span>
+                  </div>
+                  <wa-button id="onboarding-dismiss" appearance="filled-outlined" size="small">
+                    <wa-icon slot="start" name="xmark"></wa-icon>
+                    Dismiss
+                  </wa-button>
+                </div>
+              </wa-card>
+
               <!-- Existing Decks List -->
               <section id="decks-list" class="wa-stack wa-gap-m">
                 <!-- Deck cards will be inserted here -->
@@ -218,7 +233,7 @@
                   </div>
 
                   <div class="wa-cluster wa-gap-s">
-                    <wa-button type="submit" variant="brand">
+                    <wa-button type="submit" id="btn-add-deck" variant="brand">
                       <wa-icon slot="start" name="plus"></wa-icon>
                       Add Deck
                     </wa-button>

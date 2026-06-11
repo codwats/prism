@@ -84,6 +84,11 @@ export async function handleDeckSubmit(e) {
   if (_submitting) return;
   _submitting = true;
 
+  // Spinner while card names are canonicalized via Scryfall — the await below
+  // is network-bound and can exceed 300ms with no other feedback.
+  const submitBtn = document.getElementById("btn-add-deck");
+  submitBtn?.setAttribute("loading", "");
+
   try {
     debugLog("PRISM: Form submitted");
 
@@ -224,6 +229,7 @@ export async function handleDeckSubmit(e) {
     showSuccess(message);
   } finally {
     _submitting = false;
+    submitBtn?.removeAttribute("loading");
   }
 }
 
