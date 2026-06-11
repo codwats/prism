@@ -4,7 +4,7 @@
  */
 
 import { processCards, getColorName, formatSlotLabel } from './processor.js';
-import { stripeNumberLabel, countVisibleMarks, STRIPE_SPARSE_MAX, escapeHtml } from '../core/utils.js';
+import { stripeNumberLabel, countVisibleMarks, STRIPE_SPARSE_MAX, escapeHtml, isCardDone } from '../core/utils.js';
 import { getPreferences } from './storage.js';
 
 /**
@@ -37,8 +37,11 @@ function escapeCSV(value) {
  * @returns {string} Human-readable summary
  */
 function generateStripeSummary(stripes) {
+  // 'membership' anchors carry no physical mark — exporting them would tell
+  // the user to paint marks that must not exist.
   return stripes
-    .map(s => `${formatSlotLabel(s.position)}: ${getColorName(s.color)} (${s.deckName})`)
+    .filter(s => s.markType !== 'membership')
+    .map(s => `${formatSlotLabel(s.position)}: ${s.markType === 'dot' ? 'Dot ' : ''}${getColorName(s.color)} (${s.deckName})`)
     .join('; ');
 }
 
@@ -87,16 +90,25 @@ export function exportToCSV(prism) {
       escapeCSV(generateStripeSummary(card.stripes))
     ];
     
-    // Create a map of position -> stripe for easy lookup
-    const stripeMap = new Map(card.stripes.map(s => [s.position, s]));
+    // Group visible marks per position. A slot can hold several marks (a Side A
+    // stripe plus dot-variant dots), so values are joined with " / " — the old
+    // single-entry Map silently dropped all but the last mark and leaked
+    // invisible 'membership' anchors.
+    const marksByPos = new Map();
+    for (const s of card.stripes) {
+      if (s.markType === 'membership') continue;
+      if (!marksByPos.has(s.position)) marksByPos.set(s.position, []);
+      marksByPos.get(s.position).push(s);
+    }
 
     // Add slot columns
     for (let i = 1; i <= maxSlot; i++) {
-      const stripe = stripeMap.get(i);
-      if (stripe) {
-        row.push(escapeCSV(getColorName(stripe.color)));
-        row.push(escapeCSV(stripe.deckName));
-        row.push(escapeCSV(stripe.bracket));
+      const marks = marksByPos.get(i);
+      if (marks && marks.length > 0) {
+        const colorLabel = (s) => `${s.markType === 'dot' ? 'Dot ' : ''}${getColorName(s.color)}`;
+        row.push(escapeCSV(marks.map(colorLabel).join(' / ')));
+        row.push(escapeCSV(marks.map(s => s.deckName).join(' / ')));
+        row.push(escapeCSV(marks.map(s => s.bracket ?? '').join(' / ')));
       } else {
         row.push('');
         row.push('');
@@ -545,8 +557,10 @@ export function exportUndoneTxt(prism) {
   const processedCards = processCards(prism);
   const markedSet = new Set(prism.markedCards || []);
 
+  // isCardDone also honours per-deck basic marks ("Name|DeckName" keys from
+  // the Basics-by-Deck view) so fully-marked basics drop off the undone list.
   const lines = processedCards
-    .filter(card => !markedSet.has(card.name))
+    .filter(card => !isCardDone(card, markedSet))
     .map(card => `${card.totalQuantity} ${card.name}`);
 
   return lines.join('\n');

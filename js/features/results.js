@@ -3,7 +3,7 @@
  */
 
 import { state } from '../core/state.js';
-import { escapeHtml, stripeNumberLabel, countVisibleMarks, STRIPE_SPARSE_MAX } from '../core/utils.js';
+import { escapeHtml, stripeNumberLabel, countVisibleMarks, STRIPE_SPARSE_MAX, isCardDone } from '../core/utils.js';
 import { getPreferences } from '../modules/storage.js';
 import { processCards, formatSlotLabel } from '../modules/processor.js';
 import { prefetchCards } from '../modules/scryfall.js';
@@ -104,7 +104,9 @@ export function updateMarkedProgress() {
   const cards = state.processedCards || [];
   const markedSet = new Set(state.currentPrism?.markedCards || []);
   const totalCount = cards.reduce((sum, c) => sum + c.totalQuantity, 0);
-  const markedCount = cards.reduce((sum, c) => sum + (markedSet.has(c.name) ? c.totalQuantity : 0), 0);
+  // isCardDone also honours per-deck basic marks ("Name|DeckName" keys from the
+  // Basics-by-Deck view) so progress can reach 100% for users of that view.
+  const markedCount = cards.reduce((sum, c) => sum + (isCardDone(c, markedSet) ? c.totalQuantity : 0), 0);
 
   if (state.elements.statMarked) state.elements.statMarked.textContent = `${markedCount}/${totalCount}`;
   if (state.elements.markedProgress) {
@@ -156,30 +158,42 @@ export function renderResults() {
     filteredCards = filteredCards.filter(c => c.logicalDeckCount > 1);
     displayCards = filteredCards;
   } else if (filter === 'basics-by-deck') {
-    // Show only basic lands, split into per-deck rows
+    // Show only basic lands, one row per LOGICAL deck. Standalone decks and
+    // split groups each emit exactly one Side A stripe, so iterating Side A
+    // gives the right row set — split variants share physical cards, so the
+    // group row carries the max quantity across its children. Iterating all
+    // stripes (the old behaviour) leaked invisible membership anchors and
+    // group-level stripes with no deckId, producing bogus rows with qty 1.
+    const findQty = (deck, cardName) =>
+      deck?.cards.find(c => c.name.toLowerCase() === cardName.toLowerCase())?.quantity || 0;
     displayCards = [];
     for (const card of filteredCards) {
-      if (card.isBasicLand) {
-        // Create a separate row for each deck this basic appears in
-        for (const stripe of card.stripes) {
-          // Find the quantity for this specific deck
-          const deck = state.currentPrism.decks.find(d => d.id === stripe.deckId);
-          const deckCard = deck?.cards.find(c => c.name.toLowerCase() === card.name.toLowerCase());
-          const quantity = deckCard?.quantity || 1;
+      if (!card.isBasicLand) continue; // Non-basics are excluded from this view
+      for (const stripe of card.stripes) {
+        if (stripe.side !== 'a') continue;
 
-          displayCards.push({
-            name: `${card.name} (${stripe.deckName})`,
-            displayName: card.name,
-            deckName: stripe.deckName,
-            isBasicLand: true,
-            isBasicByDeck: true,
-            totalQuantity: quantity,
-            deckCount: 1,
-            stripes: [stripe]
-          });
+        let quantity = 1;
+        if (stripe.deckId) {
+          const deck = state.currentPrism.decks.find(d => d.id === stripe.deckId);
+          quantity = findQty(deck, card.name) || 1;
+        } else if (stripe.groupId) {
+          const group = (state.currentPrism.splitGroups || []).find(g => g.id === stripe.groupId);
+          const childQtys = (group?.childDeckIds || [])
+            .map(id => findQty(state.currentPrism.decks.find(d => d.id === id), card.name));
+          quantity = Math.max(1, ...childQtys);
         }
+
+        displayCards.push({
+          name: `${card.name} (${stripe.deckName})`,
+          displayName: card.name,
+          deckName: stripe.deckName,
+          isBasicLand: true,
+          isBasicByDeck: true,
+          totalQuantity: quantity,
+          deckCount: 1,
+          stripes: [stripe]
+        });
       }
-      // Non-basic cards are excluded from this view
     }
     // Sort by land type first, then by deck name
     displayCards.sort((a, b) => {
