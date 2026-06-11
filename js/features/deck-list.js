@@ -714,7 +714,8 @@ function getMoveButtonHtml(deck, isInGroup) {
     const parentName = escapeHtml(group?.name || 'parent deck');
     return `
       <wa-button appearance="plain" variant="neutral" size="small" disabled
-        title="Dot variants don't own a slot. Move &quot;${parentName}&quot; instead.">
+        title="Dot variants don't own a slot. Move &quot;${parentName}&quot; instead."
+        aria-label="Move ${escapeHtml(deck.name)} (unavailable for dot variants)">
         <wa-icon name="up-down-left-right"></wa-icon>
       </wa-button>
     `;
@@ -723,7 +724,8 @@ function getMoveButtonHtml(deck, isInGroup) {
   // Standalone decks AND stripes-style variants: fully moveable.
   return `
     <wa-button appearance="plain" variant="neutral" size="small"
-      class="btn-move-deck" data-deck-id="${deck.id}" title="Move to a different slot">
+      class="btn-move-deck" data-deck-id="${deck.id}" title="Move to a different slot"
+      aria-label="Move ${escapeHtml(deck.name)} to a different slot">
       <wa-icon name="up-down-left-right"></wa-icon>
     </wa-button>
   `;
@@ -769,7 +771,8 @@ function getDeckActionsKebabHtml(deck, isInGroup) {
     : "";
   return `
     <wa-dropdown class="deck-actions-kebab">
-      <wa-button slot="trigger" appearance="plain" variant="neutral" size="small" title="Actions">
+      <wa-button slot="trigger" appearance="plain" variant="neutral" size="small" title="Actions"
+        aria-label="Actions for ${escapeHtml(deck.name)}">
         <wa-icon name="ellipsis-vertical"></wa-icon>
       </wa-button>
       <div class="wa-stack wa-gap-0 deck-actions-kebab-menu">
@@ -814,7 +817,8 @@ export function renderDeckCard(deck, showActions = true, processedCards = null) 
             state.currentPrism.decks.length >= 2
               ? `
           <wa-button appearance="plain" variant="neutral" size="small"
-            class="btn-what-if" data-deck-id="${deck.id}" title="What if I remove this deck?">
+            class="btn-what-if" data-deck-id="${deck.id}" title="What if I remove this deck?"
+            aria-label="What if I remove ${escapeHtml(deck.name)}?">
             <wa-icon name="flask"></wa-icon>
           </wa-button>
           `
@@ -825,18 +829,21 @@ export function renderDeckCard(deck, showActions = true, processedCards = null) 
             !isInGroup
               ? `
           <wa-button appearance="plain" variant="neutral" size="small"
-            class="btn-split-deck" data-deck-id="${deck.id}" title="Split into variants">
+            class="btn-split-deck" data-deck-id="${deck.id}" title="Split into variants"
+            aria-label="Split ${escapeHtml(deck.name)} into variants">
             <wa-icon name="code-branch"></wa-icon>
           </wa-button>
           `
               : ""
           }
           <wa-button appearance="plain" variant="neutral" size="small"
-            class="btn-edit-deck" data-deck-id="${deck.id}" title="Edit deck">
+            class="btn-edit-deck" data-deck-id="${deck.id}" title="Edit deck"
+            aria-label="Edit ${escapeHtml(deck.name)}">
             <wa-icon name="pen-to-square"></wa-icon>
           </wa-button>
           <wa-button appearance="plain" variant="neutral" size="small"
-            class="btn-delete-deck" data-deck-id="${deck.id}" title="Delete deck">
+            class="btn-delete-deck" data-deck-id="${deck.id}" title="Delete deck"
+            aria-label="Delete ${escapeHtml(deck.name)}">
             <wa-icon name="trash"></wa-icon>
           </wa-button>
         </div>
@@ -933,20 +940,24 @@ export function renderDecksList() {
             </div>
             <div class="wa-cluster wa-gap-xs">
               <wa-button appearance="plain" variant="neutral" size="small"
-                class="btn-move-group" data-group-id="${group.id}" title="Move group to a different slot">
+                class="btn-move-group" data-group-id="${group.id}" title="Move group to a different slot"
+                aria-label="Move ${escapeHtml(group.name)} to a different slot">
                 <wa-icon name="up-down-left-right"></wa-icon>
               </wa-button>
               <wa-button appearance="plain" variant="neutral" size="small"
-                class="btn-edit-group" data-group-id="${group.id}" title="Edit group name and color">
+                class="btn-edit-group" data-group-id="${group.id}" title="Edit group name and color"
+                aria-label="Edit ${escapeHtml(group.name)} name and color">
                 <wa-icon name="pen-to-square"></wa-icon>
               </wa-button>
               <wa-button appearance="plain" variant="neutral" size="small"
                 class="btn-add-split" data-group-id="${group.id}" title="Add another variant"
+                aria-label="Add another variant to ${escapeHtml(group.name)}"
                 ${(group.splitStyle || 'stripes') === 'dots' && group.childDeckIds.length >= 2 ? 'disabled' : ''}>
                 <wa-icon name="plus"></wa-icon>
               </wa-button>
               <wa-button appearance="plain" variant="neutral" size="small"
-                class="btn-unsplit" data-group-id="${group.id}" title="Merge back into one deck">
+                class="btn-unsplit" data-group-id="${group.id}" title="Merge back into one deck"
+                aria-label="Merge ${escapeHtml(group.name)} back into one deck">
                 <wa-icon name="code-merge"></wa-icon>
               </wa-button>
             </div>
