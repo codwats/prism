@@ -93,6 +93,27 @@ export function stripeNumberLabel(position, { exact } = {}) {
   return exact ? slotNumberLabel(position) : stripePositionLabel(position);
 }
 
+/**
+ * Whether a processed card is fully marked ("done").
+ * Non-basics are done when their plain name key is in markedCards. Basics can
+ * also be marked per logical deck from the Basics-by-Deck view (one row per
+ * Side A stripe, key "Name|DeckName"), so a basic counts as done when its
+ * plain key is marked OR every one of its per-deck keys is marked.
+ * Shared by the Marked progress stat and the undone-list exports so all
+ * surfaces agree on what "done" means.
+ * @param {Object} card - Processed card ({ name, isBasicLand, stripes })
+ * @param {Set<string>} markedSet - markedCards as a Set
+ * @returns {boolean}
+ */
+export function isCardDone(card, markedSet) {
+  if (markedSet.has(card.name)) return true;
+  if (!card.isBasicLand) return false;
+  const sideAKeys = (card.stripes || [])
+    .filter(s => s.side === 'a')
+    .map(s => `${card.name}|${s.deckName}`);
+  return sideAKeys.length > 0 && sideAKeys.every(k => markedSet.has(k));
+}
+
 export function escapeHtml(text) {
   const div = document.createElement('div');
   div.textContent = text;
