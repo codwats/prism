@@ -3,7 +3,7 @@
  * Handles user profile, PRISM management, and account settings
  */
 
-import { initAuth, setupAuthListeners, onAuthChange, getCurrentUser, signOut, updatePassword, updateEmail, updateAuthUI } from './modules/auth.js';
+import { initAuth, setupAuthListeners, onAuthChange, getCurrentUser, signOut, updatePassword, updateEmail, updateAuthUI, ensureAuthReady } from './modules/auth.js';
 import { getAllPrisms, setCurrentPrism, deletePrism, savePrism, getCurrentPrism } from './modules/storage.js';
 import { createPrism } from './modules/processor.js';
 import { escapeHtml, getLogicalDeckCount } from './core/utils.js';
@@ -83,6 +83,8 @@ function setupEventListeners() {
   // Profile login button
   if (elements.btnProfileLogin) {
     elements.btnProfileLogin.addEventListener('click', () => {
+      // Warm the lazily-loaded SDK while the user types credentials
+      ensureAuthReady();
       if (elements.authDialog) {
         elements.authDialog.setAttribute('open', '');
       }

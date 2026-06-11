@@ -289,6 +289,13 @@ wa-page[view='desktop'] [data-toggle-nav] {
   height: 2.5rem;
 }
 
+/* Second bar when a stored session exists — stands in for the small plain
+   Log Out button below the Profile button */
+.nav-auth-skeleton-secondary {
+  width: 100%;
+  height: 2.5rem;
+}
+
 .nav-auth-skeleton::part(indicator),
 .skeleton-avatar::part(indicator) {
   border-radius: var(--wa-border-radius-m);

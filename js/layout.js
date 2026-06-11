@@ -9,6 +9,7 @@
  */
 
 import { initAuth, setupAuthListeners } from './modules/auth.js';
+import { hasStoredSession, loadSupabaseSdk } from './modules/supabase-client.js';
 import { getColorScheme } from './modules/storage.js';
 import { applyColorScheme } from './modules/theme.js';
 import { initGlobalErrorReporting } from './core/telemetry.js';
@@ -178,11 +179,12 @@ function injectHeadResources() {
   document.documentElement.classList.add('wa-theme-matter', 'wa-palette-mild');
   applyColorScheme(getColorScheme());
 
-  // Supabase CDN (skip if already loaded)
-  if (!head.querySelector('script[src*="supabase"]')) {
-    const sb = document.createElement('script');
-    sb.src = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2';
-    head.appendChild(sb);
+  // Supabase SDK — eager-load only when a session may exist: a stored auth
+  // token (returning user) or an auth redirect hash (password recovery /
+  // email confirm). Anonymous visitors skip the SDK entirely; it loads on
+  // demand when they open the login dialog (ensureAuthReady in auth.js).
+  if (hasStoredSession() || window.location.hash.includes('access_token')) {
+    loadSupabaseSdk();
   }
 
   // Favicon
@@ -234,9 +236,12 @@ function injectNav(activePage) {
 
         <!-- Account Section -->
         <div class="wa-stack wa-gap-s" style="border-top: 1px solid var(--wa-color-surface-border); padding-top: var(--wa-space-m);">
-          <!-- Loading State (replaced by updateAuthUI once auth resolves) -->
-          <div id="auth-loading">
+          <!-- Loading State (replaced by updateAuthUI once auth resolves).
+               Sized to match the auth state we expect to resolve to, so the
+               swap doesn't shift the nav: logged-in shows two buttons. -->
+          <div id="auth-loading"${hasStoredSession() ? ' class="wa-stack wa-gap-s"' : ''}>
             <wa-skeleton effect="pulse" class="nav-auth-skeleton"></wa-skeleton>
+            ${hasStoredSession() ? '<wa-skeleton effect="pulse" class="nav-auth-skeleton-secondary"></wa-skeleton>' : ''}
           </div>
 
           <!-- Logged Out State -->

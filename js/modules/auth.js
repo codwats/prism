@@ -1,5 +1,5 @@
 // Authentication module for Prism
-import { getSupabase, isConfigured, logToSupabase } from './supabase-client.js';
+import { getSupabase, isConfigured, logToSupabase, loadSupabaseSdk } from './supabase-client.js';
 import { syncWithSupabase } from './storage.js';
 import { debugLog } from '../core/utils.js';
 
@@ -117,8 +117,17 @@ export function getCurrentUser() {
   return currentUser;
 }
 
+// Load the SDK on demand and run init. Anonymous visitors don't get the SDK
+// at page load (layout.js only eager-loads it when a stored session exists),
+// so auth entry points must ensure it before calling getSupabase().
+export function ensureAuthReady() {
+  loadSupabaseSdk();
+  return initAuth();
+}
+
 // Sign up with email/password
 export async function signUp(email, password) {
+  await ensureAuthReady();
   const supabase = getSupabase();
   if (!supabase) throw new Error('Supabase not configured');
 
@@ -134,6 +143,7 @@ export async function signUp(email, password) {
 
 // Sign in with email/password
 export async function signIn(email, password) {
+  await ensureAuthReady();
   const supabase = getSupabase();
   if (!supabase) throw new Error('Supabase not configured');
 
@@ -157,6 +167,7 @@ export async function signOut() {
 
 // Send password reset email
 export async function resetPassword(email) {
+  await ensureAuthReady();
   const supabase = getSupabase();
   if (!supabase) throw new Error('Supabase not configured');
 
@@ -280,6 +291,8 @@ export function setupAuthListeners() {
   const loginBtn = document.getElementById('btn-login');
   if (loginBtn) {
     loginBtn.addEventListener('click', () => {
+      // Warm the lazily-loaded SDK while the user types credentials
+      ensureAuthReady();
       const dialog = document.getElementById('auth-dialog');
       if (dialog) {
         showAuthView('login');
