@@ -75,8 +75,13 @@ export function renderOverlapMatrix() {
               }
               const count = overlapMap[`${rowDeck.id}|${colDeck.id}`] || 0;
               const intensity = count / maxOverlap;
+              // Heat color mixes the brand token in OKLCH (declarative colors
+              // use OKLCH by convention). The old rgba() relied on an
+              // undefined --wa-color-brand-60-rgb and always fell back to a
+              // hardcoded off-brand indigo.
+              const mixPct = Math.round((0.1 + intensity * 0.5) * 100);
               const bg = count > 0
-                ? `rgba(var(--wa-color-brand-60-rgb, 99, 102, 241), ${0.1 + intensity * 0.5})`
+                ? `color-mix(in oklch, var(--wa-color-brand-fill) ${mixPct}%, transparent)`
                 : 'transparent';
               return `<td class="overlap-cell${count > 0 ? ' overlap-has-value' : ''}"
                 style="background: ${bg};"
