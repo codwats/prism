@@ -9,6 +9,7 @@
  */
 
 import { initAuth, setupAuthListeners } from './modules/auth.js';
+import { hasStoredSession, loadSupabaseSdk } from './modules/supabase-client.js';
 import { getColorScheme } from './modules/storage.js';
 import { applyColorScheme } from './modules/theme.js';
 import { initGlobalErrorReporting } from './core/telemetry.js';
@@ -178,11 +179,12 @@ function injectHeadResources() {
   document.documentElement.classList.add('wa-theme-matter', 'wa-palette-mild');
   applyColorScheme(getColorScheme());
 
-  // Supabase CDN (skip if already loaded)
-  if (!head.querySelector('script[src*="supabase"]')) {
-    const sb = document.createElement('script');
-    sb.src = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2';
-    head.appendChild(sb);
+  // Supabase SDK — eager-load only when a session may exist: a stored auth
+  // token (returning user) or an auth redirect hash (password recovery /
+  // email confirm). Anonymous visitors skip the SDK entirely; it loads on
+  // demand when they open the login dialog (ensureAuthReady in auth.js).
+  if (hasStoredSession() || window.location.hash.includes('access_token')) {
+    loadSupabaseSdk();
   }
 
   // Favicon
@@ -233,9 +235,17 @@ function injectNav(activePage) {
         </div>
 
         <!-- Account Section -->
-        <div class="wa-stack wa-gap-s" style="border-top: 1px solid var(--wa-color-neutral-border); padding-top: var(--wa-space-m);">
+        <div class="wa-stack wa-gap-s" style="border-top: 1px solid var(--wa-color-surface-border); padding-top: var(--wa-space-m);">
+          <!-- Loading State (replaced by updateAuthUI once auth resolves).
+               Sized to match the auth state we expect to resolve to, so the
+               swap doesn't shift the nav: logged-in shows two buttons. -->
+          <div id="auth-loading"${hasStoredSession() ? ' class="wa-stack wa-gap-s"' : ''}>
+            <wa-skeleton effect="pulse" class="nav-auth-skeleton"></wa-skeleton>
+            ${hasStoredSession() ? '<wa-skeleton effect="pulse" class="nav-auth-skeleton-secondary"></wa-skeleton>' : ''}
+          </div>
+
           <!-- Logged Out State -->
-          <div id="auth-logged-out">
+          <div id="auth-logged-out" style="display: none;">
             <wa-button id="btn-login" variant="neutral" appearance="outlined" style="width: 100%;">
               <wa-icon slot="start" name="right-to-bracket"></wa-icon>
               Log In
@@ -333,7 +343,7 @@ function injectFooter() {
   if (main.querySelector('footer')) return;
 
   const footer = document.createElement('footer');
-  footer.style.cssText = 'margin-top: var(--wa-space-4xl); padding-block: var(--wa-space-xl); border-top: 1px solid var(--wa-color-neutral-stroke-subtle);';
+  footer.style.cssText = 'margin-top: var(--wa-space-4xl); padding-block: var(--wa-space-xl); border-top: 1px solid var(--wa-color-surface-border);';
   footer.innerHTML = `
           <div class="wa-stack wa-gap-m">
             <div class="wa-split">
@@ -451,6 +461,11 @@ function injectAuthDialog() {
 async function initAuthModule() {
   // Wait a tick for Web Awesome components to upgrade
   await new Promise(resolve => setTimeout(resolve, 100));
-  await initAuth();
+  try {
+    await initAuth();
+  } catch (err) {
+    console.error('Auth init failed:', err);
+  }
+  // Always run so updateAuthUI resolves the nav auth skeleton even when auth fails
   setupAuthListeners();
 }

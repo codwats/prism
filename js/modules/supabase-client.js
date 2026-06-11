@@ -9,6 +9,29 @@ const SUPABASE_ANON_KEY = 'sb_publishable_EmMs1syywKSfhJuPsO0LvA_GsCzVYFD';
 
 let supabaseClient = null;
 
+// Supabase JS v2 persists sessions under `sb-<project-ref>-auth-token`
+const AUTH_TOKEN_KEY = `sb-${new URL(SUPABASE_URL).hostname.split('.')[0]}-auth-token`;
+
+// Synchronous check for a persisted session — safe to call before the SDK loads.
+// Used to decide whether to eager-load the SDK and how to size the nav skeleton.
+export function hasStoredSession() {
+  try {
+    return !!localStorage.getItem(AUTH_TOKEN_KEY);
+  } catch {
+    return false;
+  }
+}
+
+// Inject the Supabase SDK script on demand. Idempotent. Anonymous visitors
+// never pay for the SDK unless they open the login dialog.
+export function loadSupabaseSdk() {
+  if (window.supabase) return;
+  if (document.head.querySelector('script[src*="supabase"]')) return;
+  const sb = document.createElement('script');
+  sb.src = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2';
+  document.head.appendChild(sb);
+}
+
 export function getSupabase() {
   if (!supabaseClient && window.supabase) {
     supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);

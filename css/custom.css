@@ -83,7 +83,7 @@ wa-page[view='desktop'] [data-toggle-nav] {
 .results-table td {
   padding: var(--wa-space-s) var(--wa-space-m);
   text-align: left;
-  border-bottom: 1px solid var(--wa-color-neutral-stroke-subtle);
+  border-bottom: 1px solid var(--wa-color-surface-border);
 }
 
 .results-table th {
@@ -177,7 +177,7 @@ wa-page[view='desktop'] [data-toggle-nav] {
 
 .stripe-empty {
   background-color: transparent;
-  border: 1px dashed var(--wa-color-neutral-stroke-subtle);
+  border: 1px dashed var(--wa-color-surface-border);
 }
 
 /* ============================================================================
@@ -192,7 +192,7 @@ wa-page[view='desktop'] [data-toggle-nav] {
   padding: var(--wa-space-s) var(--wa-space-m);
   background: var(--wa-color-surface-2);
   border-radius: var(--wa-border-radius-m);
-  border: 1px solid var(--wa-color-neutral-stroke-subtle);
+  border: 1px solid var(--wa-color-surface-border);
 }
 
 .position-item-info {
@@ -251,6 +251,60 @@ wa-page[view='desktop'] [data-toggle-nav] {
 .deck-color-indicator[style*="#FFFFFF" i],
 .stripe-indicator[style*="#FFFFFF" i] {
   border-color: var(--wa-color-neutral-stroke);
+}
+
+/* ============================================================================
+   Loading Skeletons
+   ============================================================================ */
+
+/* Card-shaped placeholder approximating a rendered deck card */
+.skeleton-deck-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--wa-space-m);
+  padding: var(--wa-space-l);
+  border: 1px solid var(--wa-color-surface-border);
+  border-radius: var(--wa-border-radius-l);
+  background: var(--wa-color-surface-default);
+}
+
+.skeleton-line-title {
+  width: 40%;
+  height: 1.5rem;
+}
+
+.skeleton-line {
+  width: 90%;
+  height: 1rem;
+}
+
+.skeleton-line-short {
+  width: 60%;
+  height: 1rem;
+}
+
+/* Matches the height of the outlined nav auth button it stands in for */
+.nav-auth-skeleton {
+  width: 100%;
+  height: 2.5rem;
+}
+
+/* Second bar when a stored session exists — stands in for the small plain
+   Log Out button below the Profile button */
+.nav-auth-skeleton-secondary {
+  width: 100%;
+  height: 2.5rem;
+}
+
+.nav-auth-skeleton::part(indicator),
+.skeleton-avatar::part(indicator) {
+  border-radius: var(--wa-border-radius-m);
+}
+
+.skeleton-avatar {
+  width: 3rem;
+  height: 3rem;
+  flex: 0 0 auto;
 }
 
 /* ============================================================================
@@ -379,7 +433,7 @@ wa-page[view='desktop'] [data-toggle-nav] {
 
 .btn-clear-all-removed {
   background: none;
-  border: 1px solid var(--wa-color-neutral-border);
+  border: 1px solid var(--wa-color-surface-border);
   border-radius: var(--wa-border-radius-medium);
   color: var(--wa-color-neutral-text);
   font-size: var(--wa-font-size-x-small);
@@ -413,7 +467,7 @@ wa-page[view='desktop'] [data-toggle-nav] {
 .overlap-matrix-table td {
   padding: var(--wa-space-xs) var(--wa-space-s);
   text-align: center;
-  border: 1px solid var(--wa-color-neutral-stroke-subtle);
+  border: 1px solid var(--wa-color-surface-border);
   white-space: nowrap;
 }
 
@@ -474,7 +528,7 @@ wa-page[view='desktop'] [data-toggle-nav] {
   padding: var(--wa-space-m);
   background: var(--wa-color-surface-2);
   border-radius: var(--wa-border-radius-m);
-  border: 1px solid var(--wa-color-neutral-stroke-subtle);
+  border: 1px solid var(--wa-color-surface-border);
 }
 
 .what-if-stats {
@@ -509,7 +563,7 @@ wa-page[view='desktop'] [data-toggle-nav] {
 
 .what-if-card-list li {
   padding: var(--wa-space-2xs) 0;
-  border-bottom: 1px solid var(--wa-color-neutral-stroke-subtle);
+  border-bottom: 1px solid var(--wa-color-surface-border);
   font-size: var(--wa-font-size-s);
 }
 
@@ -655,7 +709,7 @@ wa-page[view='desktop'] [data-toggle-nav] {
 
 .split-group-header {
   padding-bottom: var(--wa-space-s);
-  border-bottom: 1px solid var(--wa-color-neutral-stroke-subtle);
+  border-bottom: 1px solid var(--wa-color-surface-border);
   margin-bottom: var(--wa-space-s);
 }
 
@@ -829,7 +883,7 @@ wa-page[view='desktop'] [data-toggle-nav] {
 .stripe-reorder-legend {
   padding: var(--wa-space-s) var(--wa-space-m);
   background: var(--wa-color-surface-2);
-  border: 1px solid var(--wa-color-neutral-stroke-subtle);
+  border: 1px solid var(--wa-color-surface-border);
   border-radius: var(--wa-border-radius-m);
 }
 

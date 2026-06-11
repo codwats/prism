@@ -3,7 +3,7 @@
  * Handles user profile, PRISM management, and account settings
  */
 
-import { initAuth, setupAuthListeners, onAuthChange, getCurrentUser, signOut, updatePassword, updateEmail, updateAuthUI } from './modules/auth.js';
+import { initAuth, setupAuthListeners, onAuthChange, getCurrentUser, signOut, updatePassword, updateEmail, updateAuthUI, ensureAuthReady } from './modules/auth.js';
 import { getAllPrisms, setCurrentPrism, deletePrism, savePrism, getCurrentPrism } from './modules/storage.js';
 import { createPrism } from './modules/processor.js';
 import { escapeHtml, getLogicalDeckCount } from './core/utils.js';
@@ -14,6 +14,7 @@ let elements = {};
 function getElements() {
   return {
     // Profile sections
+    profileLoading: document.getElementById('profile-loading'),
     profileLoggedOut: document.getElementById('profile-logged-out'),
     profileLoggedIn: document.getElementById('profile-logged-in'),
     profileEmail: document.getElementById('profile-email'),
@@ -58,7 +59,11 @@ async function init() {
   await new Promise(resolve => setTimeout(resolve, 100));
 
   // Initialize auth
-  await initAuth();
+  try {
+    await initAuth();
+  } catch (err) {
+    console.error('Auth init failed:', err);
+  }
   setupAuthListeners();
 
   // Get elements
@@ -78,6 +83,8 @@ function setupEventListeners() {
   // Profile login button
   if (elements.btnProfileLogin) {
     elements.btnProfileLogin.addEventListener('click', () => {
+      // Warm the lazily-loaded SDK while the user types credentials
+      ensureAuthReady();
       if (elements.authDialog) {
         elements.authDialog.setAttribute('open', '');
       }
@@ -133,6 +140,9 @@ function setupEventListeners() {
 function handleAuthChange(user) {
   // Update nav auth UI
   updateAuthUI(user);
+
+  // Auth resolved — hide the loading skeleton
+  if (elements.profileLoading) elements.profileLoading.style.display = 'none';
 
   if (user) {
     // Show logged in state - use style.display for reliability with Web Awesome CSS
