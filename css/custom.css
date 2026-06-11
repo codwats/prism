@@ -764,6 +764,16 @@ wa-page[view='desktop'] [data-toggle-nav] {
   cursor: pointer;
   flex-shrink: 0;
   transition: box-shadow 0.12s ease, border-color 0.12s ease;
+  position: relative;
+}
+
+/* Invisible tap-area extension. The 24-slot column is a to-scale sleeve edge,
+   so slots can't be 44px tall — instead each slot's hit area bleeds sideways
+   and into the 2px gaps so fingers get a much larger effective target. */
+.stripe-reorder-slot::after {
+  content: '';
+  position: absolute;
+  inset: -1px -10px;
 }
 
 .stripe-reorder-slot--empty {
@@ -827,12 +837,21 @@ wa-page[view='desktop'] [data-toggle-nav] {
 /* Wider touch targets on mobile */
 @media (max-width: 768px) {
   .stripe-reorder-slot {
-    width: 32px;
-    height: 12px;
+    width: 44px;
+    height: 14px;
+  }
+
+  .stripe-reorder-slot::after {
+    inset: -1px -14px;
   }
 
   .stripe-reorder-sleeve {
-    min-height: 360px;
+    min-height: 400px;
+  }
+
+  .results-table .mark-checkbox {
+    width: 24px;
+    height: 24px;
   }
 }
 

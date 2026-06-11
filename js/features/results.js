@@ -290,6 +290,7 @@ export function renderResults() {
               data-card-name="${escapeHtml(card.name)}"
               data-deck-id="${card.removedDeckId}"
               title="Mark as cleared"
+              aria-label="Mark ${escapeHtml(card.name)} as cleared"
             >
               <wa-icon name="check"></wa-icon>
             </wa-button>
