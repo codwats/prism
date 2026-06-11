@@ -124,7 +124,7 @@ Preferences: { colorScheme, defaultColors, stripeStartCorner ('top-right'|'top-l
   - Card in **subset**, stripes-style → child Side B stripe per matching variant
   - Card in **subset**, dots-style, exactly 1 variant → dot in that variant's color
   - Card in **subset**, dots-style, 2+ variants → dot conflict; membership anchors only, parent stripe only
-- **Stripe starting corner** — global preference controlling which card corner stripes originate from. Affects card preview, not stored data.
+- **Stripe starting corner** — global preference controlling which card corner stripes originate from. Applying it runs `remapPrismForCorner` (processor.js), which rewrites every stored `stripePosition`/`sideAPosition` so physical mark locations are preserved under the new numbering — slot numbers change and are saved/synced; the marks on sleeves don't move.
 - **markedCards** tracks which cards the user has physically marked (checkbox state)
 - **removedCards** tracks cards removed from decks that still need physical marks cleared
 - **syncState** is local-only metadata used for Supabase merge reconciliation; it is not part of the PRISM domain model. Baseline shape per prism: `{ updatedAt, deckUpdatedAts, splitGroupUpdatedAts, deletedDecks, deletedSplitGroups, unmarkedCards: { [cardKey]: isoTimestamp } }`

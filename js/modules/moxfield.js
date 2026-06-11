@@ -56,7 +56,7 @@ export function transformMoxfieldDeck(moxfieldDeck) {
 
   // Process commanders first
   if (moxfieldDeck.boards?.commanders?.cards) {
-    for (const [cardName, cardData] of Object.entries(moxfieldDeck.boards.commanders.cards)) {
+    for (const cardData of Object.values(moxfieldDeck.boards.commanders.cards)) {
       // Use first commander as the deck's commander
       if (!commander) {
         commander = cardData.card.name;
@@ -72,7 +72,7 @@ export function transformMoxfieldDeck(moxfieldDeck) {
 
   // Process mainboard
   if (moxfieldDeck.boards?.mainboard?.cards) {
-    for (const [cardName, cardData] of Object.entries(moxfieldDeck.boards.mainboard.cards)) {
+    for (const cardData of Object.values(moxfieldDeck.boards.mainboard.cards)) {
       const card = cardData.card;
       const isBasicLand = isBasicLandCard(card);
 
@@ -87,7 +87,7 @@ export function transformMoxfieldDeck(moxfieldDeck) {
 
   // Process companions (add to mainboard)
   if (moxfieldDeck.boards?.companions?.cards) {
-    for (const [cardName, cardData] of Object.entries(moxfieldDeck.boards.companions.cards)) {
+    for (const cardData of Object.values(moxfieldDeck.boards.companions.cards)) {
       cards.push({
         name: cardData.card.name,
         quantity: cardData.quantity || 1,

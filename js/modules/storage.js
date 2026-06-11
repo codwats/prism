@@ -515,7 +515,7 @@ export function onSyncStatusChange(cb) {
 
 function emitSyncStatus(status, detail) {
   syncStatusListeners.forEach(cb => {
-    try { cb(status, detail); } catch (_) {}
+    try { cb(status, detail); } catch { /* listener errors must not break sync */ }
   });
 }
 

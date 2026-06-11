@@ -4,7 +4,7 @@
 
 import { state } from '../core/state.js';
 import { escapeHtml } from '../core/utils.js';
-import { formatSlotLabel, getColorName, getPositionOccupants } from '../modules/processor.js';
+import { formatSlotLabel, getPositionOccupants } from '../modules/processor.js';
 import { handleStripeReorder, handlePositionChange } from './deck-list.js';
 
 // ============================================================================

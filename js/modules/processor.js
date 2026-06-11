@@ -1050,7 +1050,6 @@ export function unsplitGroup(prism, groupId) {
 
 	const now = new Date().toISOString();
 	const childIds = new Set(group.childDeckIds);
-	const firstChild = prism.decks.find((d) => d.id === group.childDeckIds[0]);
 
 	// Convert first child back to standalone at the group's Side A position
 	const updatedDecks = prism.decks

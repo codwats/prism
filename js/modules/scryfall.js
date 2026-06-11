@@ -30,7 +30,7 @@ function loadCache() {
 function saveCache(cache) {
   try {
     localStorage.setItem(CACHE_KEY, JSON.stringify(cache));
-  } catch (e) {
+  } catch {
     // localStorage full - clear old entries
     console.warn('Scryfall cache full, clearing old entries');
     clearExpiredCache();

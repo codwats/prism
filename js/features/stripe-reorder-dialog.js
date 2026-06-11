@@ -285,39 +285,6 @@ function renderSleeveVisualization(activeDeck, slotMap) {
 }
 
 // ============================================================================
-// Legend (occupied slots only)
-// ============================================================================
-
-function renderLegend(slotMap, activeDeckId) {
-  const occupied = [...slotMap.entries()].sort((a, b) => a[0] - b[0]);
-  if (occupied.length === 0) return null;
-
-  const activeDeck = state.currentPrism.decks.find(d => d.id === activeDeckId);
-
-  const legend = document.createElement('div');
-  legend.className = 'stripe-reorder-legend';
-
-  const items = occupied.map(([pos, info]) => {
-    const isActive = activeDeck?.stripePosition === pos;
-    const disabledNote = info.disabled ? ' <span style="opacity:0.6;">(locked)</span>' : '';
-    const activeNote = isActive ? ' <span style="color: var(--wa-color-success-text);">(moving)</span>' : '';
-    return `
-      <div class="wa-cluster wa-gap-xs wa-align-items-center">
-        <div class="deck-color-indicator small" style="background-color: ${info.color}; opacity: ${info.disabled ? '0.5' : '1'};"></div>
-        <span class="wa-caption-s">${escapeHtml(formatSlotLabel(pos))}: ${escapeHtml(info.name)}${activeNote}${disabledNote}</span>
-      </div>
-    `;
-  });
-
-  legend.innerHTML = `
-    <p class="wa-caption-xs" style="color: var(--wa-color-neutral-text-subtle); margin-bottom: var(--wa-space-2xs);">OCCUPIED SLOTS</p>
-    <div class="wa-cluster wa-gap-s" style="flex-wrap: wrap;">${items.join('')}</div>
-  `;
-
-  return legend;
-}
-
-// ============================================================================
 // Public helpers used by deck-list.js
 // ============================================================================
 
