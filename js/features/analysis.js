@@ -4,7 +4,7 @@
 
 import { state } from '../core/state.js';
 import { escapeHtml } from '../core/utils.js';
-import { processCards, calculateOverlap, getColorName } from '../modules/processor.js';
+import { processCards, calculateOverlap } from '../modules/processor.js';
 
 // ============================================================================
 // Overlap Matrix

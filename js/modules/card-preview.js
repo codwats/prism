@@ -14,7 +14,6 @@ function frontFaceName(name) {
 // Display dimensions (half of Scryfall 'normal' 488x680)
 const DISPLAY_WIDTH = 244;
 const DISPLAY_HEIGHT = 340;
-const SCALE = 0.5; // Display scale factor
 
 // Stripe positioning at display scale
 // 24 slots per side, spanning the card art area
