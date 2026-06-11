@@ -71,12 +71,15 @@ export function renderExport() {
     }).join('');
   }
 
-  // Stripe position list with slot picker
+  // Stripe position list with slot picker. Dot variants own no slot
+  // (stripePosition null) — they move with their parent group, so they are
+  // excluded from the bulk reorder list.
   if (state.elements.stripeReorderList) {
     const occupants = getPositionOccupants(state.currentPrism);
-    const maxSlot = Math.max(24, ...sortedDecks.map(d => d.stripePosition));
+    const slotDecks = sortedDecks.filter(d => typeof d.stripePosition === 'number');
+    const maxSlot = Math.max(24, ...slotDecks.map(d => d.stripePosition));
 
-    state.elements.stripeReorderList.innerHTML = sortedDecks.map((deck, index) => {
+    state.elements.stripeReorderList.innerHTML = slotDecks.map((deck, index) => {
       // Build select options for all available slots
       const options = [];
       for (let slot = 1; slot <= maxSlot; slot++) {
@@ -124,7 +127,7 @@ export function renderExport() {
             size="small"
             class="btn-move-down"
             data-deck-id="${deck.id}"
-            ${index === sortedDecks.length - 1 ? 'disabled' : ''}
+            ${index === slotDecks.length - 1 ? 'disabled' : ''}
             title="Move down"
           >
             <wa-icon name="chevron-down"></wa-icon>
