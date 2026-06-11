@@ -690,7 +690,7 @@ function getMoveButtonHtml(deck, isInGroup) {
 
   // Dot variants have no slot of their own — mark lives on the parent group's slot.
   if (isInGroup && splitStyle === 'dots') {
-    const parentName = group?.name || 'parent deck';
+    const parentName = escapeHtml(group?.name || 'parent deck');
     return `
       <wa-button appearance="plain" variant="neutral" size="small" disabled
         title="Dot variants don't own a slot. Move &quot;${parentName}&quot; instead.">
@@ -729,7 +729,7 @@ function getMoveKebabItemHtml(deck, isInGroup) {
   const splitStyle = group?.splitStyle || 'stripes';
   const reason = splitStyle === 'stripes'
     ? "Stripe variant decks can't be moved yet. This is coming in a future update."
-    : `Dot variants move with their parent. Move &quot;${group?.name || 'parent deck'}&quot; instead.`;
+    : `Dot variants move with their parent. Move &quot;${escapeHtml(group?.name || 'parent deck')}&quot; instead.`;
   return `
     <wa-button class="kebab-item" appearance="plain" variant="neutral" size="small" disabled title="${reason}">
       <wa-icon slot="start" name="up-down-left-right"></wa-icon>Move to slot
