@@ -5,10 +5,10 @@ PRISM helps Magic: The Gathering Commander players who share cards across multip
 ## Tech Stack
 
 - **Frontend:** Vanilla JavaScript with ES modules (no bundler, no build step)
-- **UI Components:** [Web Awesome 3.7.0](https://www.webawesome.com/) loaded via CDN kit
+- **UI Components:** [Web Awesome 3.8.0](https://www.webawesome.com/) loaded via CDN kit. WA CSS, the autoloader, fonts, and `custom.css` are **static tags in every page's `<head>`** (so the browser preload scanner starts them at byte 0); `injectHeadResources` in layout.js skips tags already present and remains only as a fallback. Keep the static blocks and layout.js URLs in sync when bumping versions.
 - **Styling:** `css/custom.css` + Web Awesome design tokens (`--wa-color-*`, `--wa-space-*`)
 - **Persistence:** localStorage-first (`prism_data` key), optional Supabase sync when authenticated with merge-before-write conflict handling
-- **Auth:** Supabase Auth (email/password), idempotent init via cached `authInitPromise` so concurrent callers share one awaitable sync; `initAuth()` waits for the Supabase CDN script `load` event before proceeding so slow CDN loads don't break auth
+- **Auth:** Supabase Auth (email/password), idempotent init via cached `authInitPromise` so concurrent callers share one awaitable sync; `initAuth()` waits for the Supabase CDN script `load` event before proceeding so slow CDN loads don't break auth. The SDK is **lazy**: layout.js eager-loads it only when `hasStoredSession()` (sync localStorage check for `sb-<ref>-auth-token`) or an `access_token` URL hash exists; anonymous visitors get it on demand via `ensureAuthReady()` (login-button click, or top of `signUp`/`signIn`/`resetPassword`)
 - **APIs:** Scryfall (card data, no key needed), Moxfield & Archidekt (deck import via edge proxies)
 - **Hosting:** Netlify — `publish = "."` (root), edge functions in Deno/TypeScript
 - **Dev server:** `http-server` on port 3456, configured in `.claude/launch.json`
@@ -224,6 +224,7 @@ Preview viewport should be 1280px+ wide to see the desktop layout (sidebar nav).
 - Dialogs (`<wa-dialog>`) are opened/closed with `setAttribute('open','')` / `removeAttribute('open')`, never `dialog.open = true/false` (see Common Debugging). `<wa-details>` accordions still use the `.open` property
 - URL deck imports (add + edit) share `resolveDeckSource(urlOrId)` in deck-import.js for Moxfield/Archidekt detection — extend that one helper rather than duplicating detection logic
 - First-run onboarding callout on build.html persists its dismissal in the `prism_onboarding_dismissed` localStorage flag
+- Loading skeletons (`<wa-skeleton effect="pulse">`): the nav account section renders `#auth-loading` (sized via `hasStoredSession()` — one bar logged-out, two bars logged-in) hidden by `updateAuthUI`; build.html ships static skeleton markup in `#decks-list`/`#results-tbody` destroyed by the first render; profile.html has `#profile-loading` hidden by `handleAuthChange`. Skeleton CSS lives in custom.css (`.skeleton-*`, `.nav-auth-skeleton*`). Skeletons only cover the post-`wa-cloak` wait (auth/sync) — anything under the cloak is invisible
 - 22 paint pen colors in `DEFAULT_COLORS` (processor.js) — matched to real products
 - Bracket values 1–5 represent Commander power level
 - `formatSlotLabel(position, side?)` renders "Side A - Slot 1" style labels
