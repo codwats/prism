@@ -321,10 +321,15 @@ export async function handleEditConfirm() {
 
   const parseResult = parseDecklist(decklistText, commander);
 
+  // Spinner for the Scryfall round-trip — the only network-bound wait here.
+  const saveBtn = state.elements.btnConfirmEdit;
+  saveBtn?.setAttribute("loading", "");
   try {
     await canonicalizeCards(parseResult.cards);
   } catch (err) {
     console.warn("Card canonicalization failed, using raw names:", err.message);
+  } finally {
+    saveBtn?.removeAttribute("loading");
   }
 
   const validation = validateDecklist(parseResult);
