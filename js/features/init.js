@@ -103,6 +103,7 @@ function getElements() {
     editDeckBracket: document.getElementById('edit-deck-bracket'),
     editDeckColor: document.getElementById('edit-deck-color'),
     editDeckList: document.getElementById('edit-deck-list'),
+    editDeckListUpdated: document.getElementById('edit-deck-list-updated'),
     editDeckFileInput: document.getElementById('edit-deck-file-input'),
     editParseErrors: document.getElementById('edit-parse-errors'),
     btnCancelEdit: document.getElementById('btn-cancel-edit'),

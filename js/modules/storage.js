@@ -342,6 +342,7 @@ function buildPrismFromRow(prism) {
       commander: deck.deck_cards?.find(c => c.is_commander)?.card_name || null,
       createdAt: deck.created_at,
       updatedAt: deck.updated_at,
+      cardsUpdatedAt: deck.cards_updated_at || null,
       cards: (deck.deck_cards || []).map(card => ({
         name: card.card_name,
         quantity: card.quantity,
@@ -592,7 +593,8 @@ async function savePrismToSupabase(prism) {
           sort_order: deck.stripePosition,
           split_group_id: deck.splitGroupId || null,
           created_at: deck.createdAt || existingDeck?.created_at || deckUpdatedAt,
-          updated_at: deckUpdatedAt
+          updated_at: deckUpdatedAt,
+          cards_updated_at: deck.cardsUpdatedAt || null
         };
       });
 
