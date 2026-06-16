@@ -103,6 +103,7 @@ export function createDeck({
 	splitGroupId = null,
 	createdAt,
 	updatedAt,
+	cardsUpdatedAt,
 }) {
 	const now = new Date().toISOString();
 	return {
@@ -116,6 +117,7 @@ export function createDeck({
 		cards,
 		createdAt: createdAt || now,
 		updatedAt: updatedAt || now,
+		cardsUpdatedAt: cardsUpdatedAt || createdAt || now,
 	};
 }
 

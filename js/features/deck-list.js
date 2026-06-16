@@ -54,6 +54,23 @@ export function getStripeCountMap() {
   return map;
 }
 
+// True if the two card lists differ in membership or quantity (order-insensitive).
+function cardListChanged(oldCards, newCards) {
+  if (oldCards.length !== newCards.length) return true;
+  const toMap = (cards) => {
+    const m = new Map();
+    for (const c of cards) m.set(c.name.toLowerCase(), c.quantity);
+    return m;
+  };
+  const oldMap = toMap(oldCards);
+  const newMap = toMap(newCards);
+  if (oldMap.size !== newMap.size) return true;
+  for (const [name, qty] of newMap) {
+    if (oldMap.get(name) !== qty) return true;
+  }
+  return false;
+}
+
 export function unmarkCardsWithNewStripes(beforeCounts) {
   if (!state.currentPrism?.markedCards?.length) return [];
 
@@ -273,6 +290,16 @@ export function handleEditClick(deckId) {
     state.elements.editDeckList.value = decklistText;
   }
 
+  if (state.elements.editDeckListUpdated) {
+    const ts = deck.cardsUpdatedAt || deck.createdAt;
+    state.elements.editDeckListUpdated.textContent = ts
+      ? `Deck list last edited: ${new Date(ts).toLocaleString("en-US", {
+          dateStyle: "medium",
+          timeStyle: "short",
+        })}`
+      : "";
+  }
+
   if (state.elements.editParseErrors) {
     state.elements.editParseErrors.style.display = "none";
     state.elements.editParseErrors.innerHTML = "";
@@ -408,12 +435,15 @@ export async function handleEditConfirm() {
 
   const autoClearedCount = autoClearRemovedCards(parseResult.cards);
 
+  const cardsChanged = cardListChanged(oldCards, parseResult.cards);
+
   deck.name = name;
   deck.commander = commander;
   deck.bracket = parseInt(bracket, 10);
   deck.color = color;
   deck.cards = parseResult.cards;
   deck.updatedAt = now;
+  if (cardsChanged) deck.cardsUpdatedAt = now;
 
   const unmarkedKeys = unmarkCardsWithNewStripes(beforeCounts);
   const unmarkedCount = unmarkedKeys.length;

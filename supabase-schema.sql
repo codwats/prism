@@ -29,8 +29,13 @@ CREATE TABLE IF NOT EXISTS decks (
   sort_order INTEGER DEFAULT 0,
   split_group_id UUID,
   created_at TIMESTAMPTZ DEFAULT now(),
-  updated_at TIMESTAMPTZ DEFAULT now()
+  updated_at TIMESTAMPTZ DEFAULT now(),
+  cards_updated_at TIMESTAMPTZ
 );
+
+-- Migration for existing deployments: tracks when a deck's card list last changed
+-- (distinct from updated_at, which bumps on any deck edit). Nullable; client supplies it.
+ALTER TABLE decks ADD COLUMN IF NOT EXISTS cards_updated_at TIMESTAMPTZ;
 
 -- ============================================
 -- DECK_CARDS TABLE
