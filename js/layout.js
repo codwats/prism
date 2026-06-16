@@ -169,7 +169,7 @@ function injectHeadResources() {
     --wa-font-weight-longform: 400;
     --wa-border-radius-scale: 0.5;
     --wa-border-width-scale: 1;
-    --wa-space-scale: 0.875;
+    --wa-space-scale: 1.125;
       }
     `;
     head.appendChild(style);
