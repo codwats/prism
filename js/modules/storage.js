@@ -435,6 +435,7 @@ const PRISM_SELECT = `
     split_group_id,
     created_at,
     updated_at,
+    cards_updated_at,
     deck_cards (
       id,
       card_name,
