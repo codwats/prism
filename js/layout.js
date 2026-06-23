@@ -59,10 +59,10 @@ function injectHeadResources() {
   const head = document.head;
 
   // Web Awesome CDN — CSS links
-  const WA_BASE = 'https://ka-p.webawesome.com/kit/da021fed1e5141f2/webawesome@3.8.0';
+  const WA_BASE = 'https://ka-p.webawesome.com/kit/da021fed1e5141f2/webawesome@3.9.0';
   const waStyles = [
     `${WA_BASE}/styles/themes/matter.css`,
-    `${WA_BASE}/styles/color/palettes/mild.css`,
+    // `${WA_BASE}/styles/color/palettes/mild.css`,
     `${WA_BASE}/styles/native.css`,
     `${WA_BASE}/styles/utilities.css`,
   ];
