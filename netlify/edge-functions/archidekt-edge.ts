@@ -12,6 +12,10 @@ function getCorsHeaders(request: Request): Record<string, string> {
     'Access-Control-Allow-Origin': allowedOrigin,
     'Access-Control-Allow-Headers': 'Content-Type',
     'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+    // Responses are publicly cacheable and ACAO echoes the request Origin in
+    // non-production contexts — without Vary, a cache could serve one origin's
+    // ACAO header to a different origin.
+    'Vary': 'Origin',
   };
 }
 

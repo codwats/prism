@@ -795,12 +795,17 @@ function mergeMarkedCards(localArr, cloudArr, unmarkedTombstones, baselineUpdate
 function mergeRemovedCards(localArr, cloudArr) {
   const map = new Map();
 
+  // Skip malformed entries (missing cardName) instead of throwing — a single
+  // bad row from the cloud or an imported backup must not abort the whole
+  // prism merge for the session.
   for (const entry of localArr) {
+    if (!entry?.cardName) continue;
     const key = `${entry.cardName.toLowerCase()}|${entry.deckId}`;
     map.set(key, entry);
   }
 
   for (const entry of cloudArr) {
+    if (!entry?.cardName) continue;
     const key = `${entry.cardName.toLowerCase()}|${entry.deckId}`;
     const existing = map.get(key);
     if (!existing || new Date(entry.removedAt) > new Date(existing.removedAt)) {
@@ -890,14 +895,16 @@ export async function syncWithSupabase() {
     if (needsCloudWrite.has(prismId)) {
       // This prism has local changes — push merged result to cloud.
       const saved = await savePrismToSupabase(prism);
-      if (saved) {
-        recordPrismBaseline(storage, prism);
-      }
-    } else {
-      // Cloud-only prism: no write needed, just record the baseline so future
-      // debounced syncs have correct reference timestamps.
-      recordPrismBaseline(storage, prism);
+      if (!saved) continue;
     }
+    // Record the baseline (cloud-only prisms get one too, so future debounced
+    // syncs have correct reference timestamps) into a FRESH read of storage:
+    // savePrismToSupabase awaits the network, and the user may have saved
+    // edits meanwhile. recordPrismBaseline only touches syncState, so this
+    // write-back cannot clobber their prism data.
+    const freshStorage = loadStorage();
+    recordPrismBaseline(freshStorage, prism);
+    saveStorage(freshStorage);
   }
 
   for (const prismId of Object.keys(cloudPrisms)) {
@@ -906,7 +913,6 @@ export async function syncWithSupabase() {
     }
   }
 
-  saveStorage(storage);
   console.log('Synced with Supabase');
 }
 
@@ -915,14 +921,23 @@ async function syncPrismToSupabase(prismId) {
 
   emitSyncStatus('syncing');
 
-  const storage = loadStorage();
+  if (!loadStorage().prisms[prismId]) {
+    emitSyncStatus('failed');
+    return;
+  }
+
+  const cloudPrism = await loadPrismFromSupabase(prismId);
+
+  // Re-read storage after the network await: savePrism() writes synchronously,
+  // so the user may have saved edits while the fetch was in flight. Writing
+  // back a pre-await snapshot would silently erase those edits.
+  let storage = loadStorage();
   const localPrism = storage.prisms[prismId];
   if (!localPrism) {
     emitSyncStatus('failed');
     return;
   }
 
-  const cloudPrism = await loadPrismFromSupabase(prismId);
   const baseline = getPrismBaseline(storage, prismId);
   const mergedPrism = cloudPrism
     ? mergePrismVersions(localPrism, cloudPrism, baseline)
@@ -933,6 +948,10 @@ async function syncPrismToSupabase(prismId) {
 
   const saved = await savePrismToSupabase(mergedPrism);
   if (saved) {
+    // Re-read again for the same reason: only the syncState baseline may be
+    // written here (recordPrismBaseline never touches storage.prisms), so an
+    // edit saved during the upload survives and syncs on the next debounce.
+    storage = loadStorage();
     recordPrismBaseline(storage, mergedPrism);
     saveStorage(storage);
     emitSyncStatus('synced');
@@ -946,7 +965,19 @@ async function syncPrismToSupabase(prismId) {
 // ============================================
 
 let syncTimeout = null;
-let queuedPrismId = null;
+// All prism IDs with unsynced local saves. A single ID slot would drop prism
+// A's cloud sync whenever prism B is saved inside the debounce window.
+const queuedPrismIds = new Set();
+
+function drainQueuedSyncs() {
+  const prismIds = [...queuedPrismIds];
+  queuedPrismIds.clear();
+  for (const prismId of prismIds) {
+    syncPrismToSupabase(prismId).catch(err => {
+      console.error('Background sync failed:', err);
+    });
+  }
+}
 
 // Flush a pending debounced sync on page unload so in-flight edits don't get
 // stranded in localStorage. Listen to both beforeunload and pagehide — iOS
@@ -957,10 +988,8 @@ if (typeof window !== 'undefined') {
     if (!syncTimeout) return;
     clearTimeout(syncTimeout);
     syncTimeout = null;
-    const prismId = queuedPrismId;
-    queuedPrismId = null;
-    if (!prismId || !shouldSyncToSupabase()) return;
-    syncPrismToSupabase(prismId).catch(() => {});
+    if (!shouldSyncToSupabase()) return;
+    drainQueuedSyncs();
   };
   window.addEventListener('beforeunload', flushPendingSync);
   window.addEventListener('pagehide', flushPendingSync);
@@ -1005,13 +1034,10 @@ export function savePrism(prism) {
   // Sync to Supabase if logged in (debounced to avoid race conditions on rapid saves)
   if (shouldSyncToSupabase()) {
     clearTimeout(syncTimeout);
-    queuedPrismId = prism.id;
+    queuedPrismIds.add(prism.id);
     syncTimeout = setTimeout(() => {
       syncTimeout = null;
-      queuedPrismId = null;
-      syncPrismToSupabase(prism.id).catch(err => {
-        console.error('Background sync failed:', err);
-      });
+      drainQueuedSyncs();
     }, 2000);
   }
 }
@@ -1044,7 +1070,10 @@ export async function forceSyncCurrentPrism() {
   if (!prismId) return;
   clearTimeout(syncTimeout);
   syncTimeout = null;
-  queuedPrismId = null;
+  // Sync the current prism plus anything still queued from the debounce so a
+  // pending sync for a different prism isn't silently discarded.
+  queuedPrismIds.delete(prismId);
+  drainQueuedSyncs();
   await syncPrismToSupabase(prismId).catch(err => {
     console.error('Force sync failed:', err);
   });
@@ -1170,6 +1199,19 @@ export function importAllData(jsonString) {
       syncState: getDefaultStorage().syncState,
       version: CURRENT_VERSION
     };
+
+    // Untrusted file: colors flow unescaped into style="background: ${color}"
+    // in render/export HTML, so clamp them to strict hex (same rule as the
+    // deck-import path). Invalid → grey fallback.
+    const validHex = (c) => (/^#[0-9A-Fa-f]{6}$/.test(c) ? c : '#888888');
+    for (const prism of Object.values(merged.prisms || {})) {
+      for (const deck of prism?.decks || []) {
+        deck.color = validHex(deck.color);
+      }
+      for (const group of prism?.splitGroups || []) {
+        group.sideAColor = validHex(group.sideAColor);
+      }
+    }
 
     for (const prism of Object.values(merged.prisms)) {
       recordPrismBaseline(merged, prism);

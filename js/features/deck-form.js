@@ -24,6 +24,7 @@ import {
   unmarkSharedCards,
   autoClearRemovedCards,
 } from "./deck-list.js";
+import { resetFileInput } from "./deck-import.js";
 import { renderAll } from "./init.js";
 
 // ============================================================================
@@ -243,7 +244,7 @@ export function resetDeckForm() {
   if (state.elements.deckCommander) state.elements.deckCommander.value = "";
   if (state.elements.deckBracket) state.elements.deckBracket.value = "2";
   if (state.elements.deckList) state.elements.deckList.value = "";
-  if (state.elements.deckFileInput) state.elements.deckFileInput.files = [];
+  resetFileInput(state.elements.deckFileInput);
 
   const nextColor = getNextColor(state.currentPrism);
   if (state.elements.deckColor) state.elements.deckColor.value = nextColor;

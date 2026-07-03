@@ -25,7 +25,6 @@ import { logToSupabase } from '../modules/supabase-client.js';
 export function setupEventListeners() {
   // PRISM name change
   if (state.elements.prismName) {
-    state.elements.prismName.addEventListener('wa-input', handlePrismNameChange);
     state.elements.prismName.addEventListener('input', handlePrismNameChange);
   }
 

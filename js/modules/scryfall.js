@@ -31,9 +31,26 @@ function saveCache(cache) {
   try {
     localStorage.setItem(CACHE_KEY, JSON.stringify(cache));
   } catch {
-    // localStorage full - clear old entries
-    console.warn('Scryfall cache full, clearing old entries');
-    clearExpiredCache();
+    // localStorage full — evict and retry once. Must not re-enter saveCache:
+    // if nothing is expired, saveCache → clearExpiredCache → saveCache would
+    // recurse until the stack overflows.
+    console.warn('Scryfall cache full, evicting entries');
+    const now = Date.now();
+    let entries = Object.entries(cache).filter(([, v]) => now - v.cached_at < CACHE_TTL);
+    // Still too big? Keep only the newest half.
+    entries.sort((a, b) => b[1].cached_at - a[1].cached_at);
+    for (let keep = entries.length; ; keep = Math.floor(keep / 2)) {
+      try {
+        localStorage.setItem(CACHE_KEY, JSON.stringify(Object.fromEntries(entries.slice(0, keep))));
+        return;
+      } catch {
+        if (keep === 0) {
+          // Even an empty cache won't fit (quota consumed elsewhere) — give up.
+          localStorage.removeItem(CACHE_KEY);
+          return;
+        }
+      }
+    }
   }
 }
 
@@ -59,20 +76,6 @@ function cacheCard(cardName, data) {
     ...data,
     cached_at: Date.now(),
   };
-
-  saveCache(cache);
-}
-
-// Clear expired cache entries
-function clearExpiredCache() {
-  const cache = loadCache();
-  const now = Date.now();
-
-  for (const key of Object.keys(cache)) {
-    if (now - cache[key].cached_at >= CACHE_TTL) {
-      delete cache[key];
-    }
-  }
 
   saveCache(cache);
 }

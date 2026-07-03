@@ -470,11 +470,13 @@ export function generatePrintableGuide(prism) {
     <tbody>
 `;
 
-  // Collect all used positions (from decks + split group Side A positions)
+  // Collect all used positions (from decks + split group Side A positions).
+  // Dot-style split variants have stripePosition === null (they share the
+  // group's Side A slot), so drop nulls before building columns.
   const allPositions = [...new Set([
     ...prism.decks.map(d => d.stripePosition),
     ...splitGroups.map(g => g.sideAPosition)
-  ])].sort((a, b) => a - b);
+  ])].filter(p => p != null).sort((a, b) => a - b);
 
   // Add card rows
   for (const card of processedCards) {
