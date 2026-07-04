@@ -55,7 +55,6 @@ const ORIGINALS_DIR = 'originals';
 // ============================================
 
 const state = {
-  prism: null,          // selected prism (local source) or null when using JSON
   sourceLabel: '',      // human description of the active source
   corner: 'top-right',  // stripeStartCorner in effect for the active source
   cards: [],            // [{ name, normalizedName, stripes }] with membership filtered out
@@ -106,6 +105,11 @@ function setCards(cards, sourceLabel, corner) {
   state.cardsByNorm = new Map(cards.map(c => [c.normalizedName, c]));
   rematchEntries();
   renderSourceSummary();
+  refreshEntryViews();
+}
+
+// Re-render everything derived from entries/matches after they change
+function refreshEntryViews() {
   renderMatchTable();
   renderPreviewControls();
   updateProcessButton();
@@ -114,7 +118,6 @@ function setCards(cards, sourceLabel, corner) {
 
 function loadPrismSource(prism) {
   if (!prism) return;
-  state.prism = prism;
   const processed = processCards(prism);
   const cards = processed.map(card => ({
     name: card.name,
@@ -131,7 +134,6 @@ function loadJsonSource(data, filename) {
   if (!prism || !Array.isArray(prism.cards)) {
     throw new Error('Not a PRISM JSON export (missing prism.cards)');
   }
-  state.prism = null;
   const cards = prism.cards.map(card => ({
     name: card.name,
     normalizedName: normalizeCardName(card.name),
@@ -578,10 +580,7 @@ async function handleChooseFolder() {
     : `"${state.dirHandle.name}" — no .png/.jpg images found in this folder`;
   debugLog('MPC: scanned folder', state.dirHandle.name, state.entries.length, 'images');
 
-  renderMatchTable();
-  renderPreviewControls();
-  updateProcessButton();
-  drawPreview();
+  refreshEntryViews();
 }
 
 function handleMatchTableInput(event) {
@@ -590,10 +589,7 @@ function handleMatchTableInput(event) {
   const entry = state.entries[Number(select.dataset.index)];
   if (!entry) return;
   entry.matchNorm = select.value || null;
-  renderMatchTable();
-  renderPreviewControls();
-  updateProcessButton();
-  drawPreview();
+  refreshEntryViews();
 }
 
 function handleSkipToggle(event) {
@@ -602,10 +598,7 @@ function handleSkipToggle(event) {
   const entry = state.entries[Number(checkbox.dataset.index)];
   if (!entry) return;
   entry.skipped = !!checkbox.checked;
-  renderMatchTable();
-  renderPreviewControls();
-  updateProcessButton();
-  drawPreview();
+  refreshEntryViews();
 }
 
 function handleGeometryInput(event) {
