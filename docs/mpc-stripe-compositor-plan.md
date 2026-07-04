@@ -75,9 +75,11 @@ already-striped file (no double-striping).
 
 ### Data source
 
-- **Primary:** current PRISM from localStorage via the existing storage module; run
-  `processCards(prism)` (`js/modules/processor.js`) to get per-card `stripes`. **Filter
-  out `markType === 'membership'`** — those are deck-filter anchors, never rendered.
+- **Primary:** current PRISM from localStorage via the existing storage module (storage
+  supports multiple prisms under `currentPrismId` — default to the current one, but offer
+  a prism selector); run `processCards(prism)` (`js/modules/processor.js`) to get per-card
+  `stripes`. **Filter out `markType === 'membership'`** — those are deck-filter anchors,
+  never rendered.
 - **Secondary:** "Import PRISM JSON" file input consuming the `exportToJSON` shape
   (`prism.cards[].stripes`). Prerequisite: add `preferences.stripeStartCorner` to
   `exportToJSON` in `js/modules/export.js` (currently absent) so imported JSON carries
@@ -94,7 +96,11 @@ already-striped file (no double-striping).
   strip extension → strip trailing ` (driveId)` parens (the desktop tool appends these on
   name collisions) → strip bracketed set/artist decorations → strip DFC back-face after
   `//` (reuse the front-face logic already in `card-preview.js`) → `normalizeCardName`
-  (`js/modules/parser.js`) → match against the processed-cards list.
+  (`js/modules/parser.js`) → match against the processed-cards list (compare on the
+  `normalizedName` field `processCards()` already returns).
+- Quantity never matters to compositing: one image file serves all copies of a card
+  (including basic lands, which appear in many decks with quantities) — every copy gets
+  the same marks because marks are per card name, not per copy.
 - Match-review table: auto-matched rows, plus ambiguous/unmatched rows with a manual
   `<wa-select>` of card names and a "skip this image" option. Card backs / tokens
   naturally land in "skip".
@@ -108,7 +114,8 @@ config object, editable in the calibration panel and persisted to localStorage.
   size 63 × 88 mm; bleed ≈ **3.05 mm horizontal / 2.99 mm vertical per side**. Compute
   `pxPerMm = imageWidth / 69.09` per image (source resolutions vary); warn when an image's
   aspect ratio deviates > ~2% from full-bleed.
-- **Slot Y:** `y = cutTopPx + (FIRST_SLOT_OFFSET_MM + slotIndex * SLOT_PITCH_MM) * pxPerMm`,
+- **Slot Y:** `y = cutTopPx + (FIRST_SLOT_OFFSET_MM + slotIndex * SLOT_PITCH_MM) * pxPerMm`
+  where `cutTopPx = VERTICAL_BLEED_MM * pxPerMm` (the y of the top cut line),
   flipped when `topDown` is false. Defaults derived from the preview's proportions
   (preview: 340 px ↔ 88 mm ⇒ `STRIPE_START_Y` 28 px ≈ **7.25 mm**, 12 px pitch ≈
   **3.1 mm**) — these are starting points; **calibrate against the Spirit Guide after a
@@ -153,6 +160,11 @@ For each matched file:
 
 No CORS/tainted-canvas issues — all inputs are local files.
 
+Note: the MPC-Autofill desktop tool downscales images above 800 DPI (MPC's max print
+resolution) at upload time by default (`--max-dpi` flag). That scaling is uniform, so
+composited marks keep their relative positions — no action needed, just don't be surprised
+that very-high-resolution sources get resized during upload.
+
 ### Reuse pointers
 
 - `js/modules/processor.js` — `processCards`, `MAX_STRIPE_SLOTS`, `formatSlotLabel`,
@@ -194,7 +206,8 @@ arrive pre-marked.
 Hard requirements:
 1. Unlisted: <meta name="robots" content="noindex,nofollow">, NOT added to the nav in
    js/layout.js. Page uses the same static WA head block as build.html and calls initLayout.
-2. Data source: current PRISM from localStorage; run processCards(prism) from
+2. Data source: current PRISM from localStorage (default currentPrismId, with a selector
+   if multiple prisms exist); run processCards(prism) from
    js/modules/processor.js; filter OUT stripes with markType === 'membership'. Also support
    importing a PRISM JSON export as a fallback source — and first add
    preferences.stripeStartCorner to exportToJSON in js/modules/export.js so the export
@@ -204,14 +217,16 @@ Hard requirements:
    .png/.jpg/.jpeg. Match filenames to cards: strip extension, trailing " (driveId)"
    parens, bracketed set/artist decorations, and DFC back-face names after "//" (reuse the
    front-face stripping already in js/modules/card-preview.js), then normalizeCardName from
-   js/modules/parser.js. Show a match-review table with manual <wa-select> fixes and a
-   per-image "skip".
+   js/modules/parser.js, and compare against the normalizedName field processCards()
+   returns. One image serves all copies of a card (quantity is irrelevant to compositing).
+   Show a match-review table with manual <wa-select> fixes and a per-image "skip".
 4. Geometry: one exported MPC_GEOMETRY config, all values in mm relative to the cut line,
    editable in a calibration panel and persisted to localStorage. Image model: MPC full
    bleed 69.09 x 93.98 mm, cut 63 x 88 mm, bleed ~3.05 mm horiz / ~2.99 mm vert per side;
    pxPerMm = imageWidth / 69.09 computed per image; warn if aspect deviates >2%.
-   Slot Y: y = cutTopPx + (FIRST_SLOT_OFFSET_MM + slotIndex * SLOT_PITCH_MM) * pxPerMm,
-   flipped when the corner preference is bottom-first. Defaults: FIRST_SLOT_OFFSET_MM 7.25,
+   Slot Y: y = cutTopPx + (FIRST_SLOT_OFFSET_MM + slotIndex * SLOT_PITCH_MM) * pxPerMm
+   where cutTopPx = VERTICAL_BLEED_MM * pxPerMm, flipped when the corner preference is
+   bottom-first. Defaults: FIRST_SLOT_OFFSET_MM 7.25,
    SLOT_PITCH_MM 3.1, thickness 1.3 mm (these mirror the 244x340 preview in
    card-preview.js and WILL be recalibrated after test prints — keep them in one place).
    Stripe X: draw from the image edge THROUGH the bleed and STRIPE_VISIBLE_MM (default
