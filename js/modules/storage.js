@@ -1150,6 +1150,21 @@ export function updatePreferences(updates) {
   saveStorage(storage);
 }
 
+// Slider order for the Position Numbers preference (slider values 1..3).
+export const STRIPE_NUMBERS_MODES = ['none', 'some', 'all'];
+
+/**
+ * Get the stripe position-numbers mode.
+ * Falls back to the legacy showStripePositionNumbers boolean for users who
+ * set the old toggle before the three-way slider existed.
+ * @returns {'none'|'some'|'all'}
+ */
+export function getStripeNumbersMode() {
+  const prefs = getPreferences();
+  if (STRIPE_NUMBERS_MODES.includes(prefs.stripeNumbersMode)) return prefs.stripeNumbersMode;
+  return prefs.showStripePositionNumbers ? 'some' : 'none';
+}
+
 /**
  * Get the color scheme preference
  * @returns {string} 'light', 'dark', or 'auto'

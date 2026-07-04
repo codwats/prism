@@ -1,7 +1,7 @@
 // Card preview with stripe overlay
 
 import { fetchCard } from './scryfall.js';
-import { getPreferences } from './storage.js';
+import { getPreferences, getStripeNumbersMode } from './storage.js';
 import { stripeNumberLabel, countVisibleMarks, STRIPE_SPARSE_MAX } from '../core/utils.js';
 
 // Strip back-face name from DFCs for Scryfall lookup
@@ -65,7 +65,7 @@ export const RULER_ANCHORS = [5, 10, 15, 20, 29, 34, 39, 44];
 
 // Draw a faint tick + number at every 5th slot down both card edges, regardless
 // of which slots the card actually marks — a permanent ruler so any lone stripe
-// can be located by eye. Gated on the showStripePositionNumbers preference.
+// can be located by eye. Gated on the stripeNumbersMode preference.
 function appendRulerGuides(container, sideARight, topDown) {
   for (const pos of RULER_ANCHORS) {
     const { onRight } = getStripeEdge(pos, sideARight);
@@ -91,9 +91,10 @@ function createStripeOverlay(stripes) {
   const container = document.createElement('div');
   container.className = 'card-preview-stripes';
   const { sideARight, topDown } = getCornerConfig();
-  const showNums = !!getPreferences().showStripePositionNumbers;
+  const numbersMode = getStripeNumbersMode();
+  const showNums = numbersMode !== 'none';
   // Sparse cards number every stripe with its exact slot (always-on).
-  const exact = countVisibleMarks(stripes) <= STRIPE_SPARSE_MAX;
+  const exact = numbersMode === 'all' || countVisibleMarks(stripes) <= STRIPE_SPARSE_MAX;
 
   // Permanent reference ruler down both edges when the counting aid is on.
   if (showNums) appendRulerGuides(container, sideARight, topDown);
