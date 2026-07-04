@@ -45,8 +45,8 @@ export function parseLine(line) {
   }
   
   const quantity = parseInt(match[1], 10);
-  const cardName = match[2].trim();
-  
+  const cardName = stripPrintingSuffix(match[2].trim());
+
   if (quantity < 1 || !cardName) {
     return { error: true, line: trimmed };
   }
@@ -168,7 +168,26 @@ export function parseDecklist(decklist, commanderName = '') {
  * @returns {string} Normalized (lowercase, front-face only) card name
  */
 export function normalizeCardName(cardName) {
-  return cardName.split(' // ')[0].toLowerCase().trim();
+  // Strip printing suffixes here too so decks stored before the parser
+  // stripped them still dedup against clean names across decks.
+  return stripPrintingSuffix(cardName.split(' // ')[0].trim()).toLowerCase();
+}
+
+/**
+ * Strip set-code/collector-number/foil suffixes that some export formats
+ * append, e.g. "Sol Ring (C21) 263" or "Sol Ring (C21) 263 *F*". Without
+ * this, the same card pasted from different export flavors never dedups
+ * across decks. Real card names with parentheses (e.g. un-set names like
+ * "B.F.M. (Big Furry Monster)") are safe: the pattern only matches a short
+ * alphanumeric set code, optionally followed by a collector number.
+ * @param {string} name
+ * @returns {string}
+ */
+export function stripPrintingSuffix(name) {
+  return name
+    .replace(/\s+\*[A-Za-z]+\*$/, '')                       // foil/etch markers: *F*, *E*
+    .replace(/\s+\([A-Za-z0-9]{2,6}\)(\s+[A-Za-z0-9★†-]+)?$/, '') // (SET) [collector]
+    .trim();
 }
 
 /**

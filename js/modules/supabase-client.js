@@ -70,11 +70,18 @@ export async function logToSupabase(level, message, metadata = null) {
     // anyway, so skip them instead of erroring into the console.
     const { data: { session } } = await client.auth.getSession();
     if (!session?.user) return;
+    // Strip email PII before persisting, mirroring trackEvent's GA rule —
+    // app_logs rows already carry user_id, so the email adds nothing.
+    let safeMetadata = metadata;
+    if (metadata && typeof metadata === 'object' && 'email' in metadata) {
+      safeMetadata = { ...metadata };
+      delete safeMetadata.email;
+    }
     await client.from('app_logs').insert({
       user_id: session.user.id,
       level,
       message,
-      metadata
+      metadata: safeMetadata
     });
   } catch (err) {
     console.error('Failed to log to Supabase:', err);

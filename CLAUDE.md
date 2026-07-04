@@ -5,7 +5,7 @@ PRISM helps Magic: The Gathering Commander players who share cards across multip
 ## Tech Stack
 
 - **Frontend:** Vanilla JavaScript with ES modules (no bundler, no build step)
-- **UI Components:** [Web Awesome 3.8.0](https://www.webawesome.com/) loaded via CDN kit. WA CSS, the autoloader, fonts, and `custom.css` are **static tags in every page's `<head>`** (so the browser preload scanner starts them at byte 0); `injectHeadResources` in layout.js skips tags already present and remains only as a fallback. Keep the static blocks and layout.js URLs in sync when bumping versions.
+- **UI Components:** [Web Awesome 3.10.0](https://www.webawesome.com/) loaded via CDN kit. WA CSS, the autoloader, fonts, and `custom.css` are **static tags in every page's `<head>`** (so the browser preload scanner starts them at byte 0); `injectHeadResources` in layout.js skips tags already present and remains only as a fallback. Keep the static blocks and layout.js URLs in sync when bumping versions.
 - **Styling:** `css/custom.css` + Web Awesome design tokens (`--wa-color-*`, `--wa-space-*`)
 - **Persistence:** localStorage-first (`prism_data` key), optional Supabase sync when authenticated with merge-before-write conflict handling
 - **Auth:** Supabase Auth (email/password), idempotent init via cached `authInitPromise` so concurrent callers share one awaitable sync; `initAuth()` waits for the Supabase CDN script `load` event before proceeding so slow CDN loads don't break auth. The SDK is **lazy**: layout.js eager-loads it only when `hasStoredSession()` (sync localStorage check for `sb-<ref>-auth-token`) or an `access_token` URL hash exists; anonymous visitors get it on demand via `ensureAuthReady()` (login-button click, or top of `signUp`/`signIn`/`resetPassword`)
@@ -136,7 +136,7 @@ Preferences: { colorScheme, defaultColors, stripeStartCorner ('top-right'|'top-l
 ### Display Counts
 
 - **Decks tab** — Each deck card shows **pool** (cards in 2+ *logical* decks) and **core** (cards unique to one logical deck) counts. Both include full basic land quantities per deck. Computed via `getDeckPoolCoreCounts()` in `deck-list.js`.
-- **Results tab** — Stats cards show **Total Cards** (sum of `totalQuantity` across all processed cards, including basic land copies) and **Pool Cards** (same sum but only cards in 2+ logical decks). These numbers help users plan sleeve purchases and storage.
+- **Results tab** — Stats cards show **Total Cards** (sum of `totalQuantity` across all processed cards, including basic-land and any-number card copies — `totalQuantity` is the max quantity across decks for every card) and **Pool Cards** (same sum but only cards in 2+ logical decks). These numbers help users plan sleeve purchases and storage.
 
 ### Logical vs Physical Deck Count
 

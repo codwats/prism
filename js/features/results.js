@@ -241,7 +241,15 @@ export function renderResults() {
     );
   }
 
-  // Apply deck filter (if any decks are selected)
+  // Apply deck filter (if any decks are selected). First prune IDs whose deck
+  // no longer exists (deck deleted / unsplit while filtered) so a stale
+  // selection can't silently empty the table.
+  if (state.selectedDeckIds.size > 0) {
+    const liveDeckIds = new Set((state.currentPrism.decks || []).map(d => d.id));
+    for (const id of state.selectedDeckIds) {
+      if (!liveDeckIds.has(id)) state.selectedDeckIds.delete(id);
+    }
+  }
   if (state.selectedDeckIds.size > 0) {
     displayCards = displayCards.filter(card => {
       // Check if any of the card's stripes match a selected deck

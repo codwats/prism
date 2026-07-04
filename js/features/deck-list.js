@@ -530,6 +530,10 @@ export function handleDeleteConfirm() {
   }
   savePrism(state.currentPrism);
 
+  // Drop the deleted deck from the Results deck filter — a stale ID there
+  // matches no stripes and silently empties the whole table.
+  state.selectedDeckIds.delete(state.deckToDelete);
+
   state.deckToDelete = null;
   state.elements.deleteDialog.removeAttribute('open');
 

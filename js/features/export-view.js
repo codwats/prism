@@ -139,7 +139,8 @@ export function renderExport() {
 
     // Add position change listeners
     state.elements.stripeReorderList.querySelectorAll('.position-select').forEach(select => {
-      select.addEventListener('wa-change', (e) => {
+      // wa-select emits the native 'change' event (there is no 'wa-change')
+      select.addEventListener('change', (e) => {
         handlePositionChange(e.target.dataset.deckId, parseInt(e.target.value, 10));
       });
     });

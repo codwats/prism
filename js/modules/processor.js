@@ -303,11 +303,10 @@ export function processCards(prism) {
 	const processedCards = [];
 
 	for (const [normalizedName, cardData] of cardMap) {
-		// Calculate total quantity needed (max across decks for basics, 1 for others)
-		let totalQuantity = 1;
-		if (cardData.isBasicLand) {
-			totalQuantity = Math.max(...cardData.quantities.values());
-		}
+		// Calculate total quantity needed: max across decks. For singleton cards
+		// every quantity is 1, so this stays 1; basics and "any number" cards
+		// (Rat Colony, Shadowborn Apostle, …) report the real sleeve count.
+		const totalQuantity = Math.max(1, ...[...cardData.quantities.values()].map(q => q || 1));
 
 		// Sort stripes: Side A first (by position), then Side B (by position)
 		const sortedStripes = cardData.stripes.sort((a, b) => {
@@ -1010,7 +1009,16 @@ export function addSplitToGroup(prism, groupId) {
 		}
 	}
 	const childColor = getNextColor(prism);
-	const splitNumber = group.childDeckIds.length + 1;
+	// Number the new variant past the highest existing "(N)" suffix, not by
+	// child count — after removing a middle variant, count+1 would collide
+	// with a surviving sibling's name (and its Name|DeckName done-keys).
+	const existingNumbers = group.childDeckIds
+		.map((id) => prism.decks.find((d) => d.id === id))
+		.map((d) => {
+			const m = d?.name?.match(/\((\d+)\)\s*$/);
+			return m ? parseInt(m[1], 10) : 0;
+		});
+	const splitNumber = Math.max(group.childDeckIds.length, ...existingNumbers) + 1;
 
 	const newChild = createDeck({
 		name: `${group.name} (${splitNumber})`,

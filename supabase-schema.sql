@@ -53,6 +53,13 @@ CREATE TABLE IF NOT EXISTS deck_cards (
 CREATE INDEX IF NOT EXISTS idx_deck_cards_name ON deck_cards(card_name);
 CREATE INDEX IF NOT EXISTS idx_deck_cards_deck ON deck_cards(deck_id);
 
+-- Every RLS predicate on decks/deck_cards runs
+--   ... IN (SELECT id FROM prisms WHERE user_id = auth.uid())
+-- (and a decks JOIN prisms for deck_cards), so these two columns must be
+-- indexed or every read/write seq-scans as data grows.
+CREATE INDEX IF NOT EXISTS idx_prisms_user ON prisms(user_id);
+CREATE INDEX IF NOT EXISTS idx_decks_prism ON decks(prism_id);
+
 -- ============================================
 -- APP_LOGS TABLE
 -- ============================================

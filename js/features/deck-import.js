@@ -16,6 +16,21 @@ import { renderAll } from './init.js';
 // File Upload
 // ============================================================================
 
+/**
+ * Clear a file input's selection so choosing the same file again re-fires
+ * `change`. Never assign `.files` (getter-only on some elements — a throw here
+ * must not abort the caller's flow), so set `.value` and swallow failures.
+ */
+export function resetFileInput(input) {
+  if (!input) return;
+  try {
+    input.value = '';
+  } catch {
+    // Element doesn't support clearing; same-file re-selection won't refire,
+    // but the surrounding flow must not break over it.
+  }
+}
+
 export function handleFileUpload(e) {
   const file = e.target.files?.[0];
   if (!file) return;
@@ -35,6 +50,10 @@ export function handleFileUpload(e) {
 
   reader.onerror = () => showError('Failed to read file. Please try again.');
   reader.readAsText(file);
+  // Clear the selection so re-uploading the same file (e.g. after hand-editing
+  // the textarea) fires another change event. FileReader keeps its own
+  // reference to `file`, so clearing now doesn't abort the read.
+  resetFileInput(e.target);
 }
 
 export function handleEditFileUpload(e) {
@@ -50,6 +69,7 @@ export function handleEditFileUpload(e) {
 
   reader.onerror = () => showError('Failed to read file. Please try again.');
   reader.readAsText(file);
+  resetFileInput(e.target);
 }
 
 // ============================================================================
@@ -87,7 +107,10 @@ export function handleJsonImport(e) {
       newPrism.createdAt = prismData.createdAt || newPrism.createdAt;
       newPrism.updatedAt = new Date().toISOString();
       newPrism.markedCards = prismData.markedCards || [];
-      newPrism.removedCards = prismData.removedCards || [];
+      newPrism.removedCards = (prismData.removedCards || []).map(removed => ({
+        ...removed,
+        deckColor: validHex(removed.deckColor),
+      }));
 
       for (const deck of prismData.decks) {
         const deckCards = deck.cards || [];
@@ -154,8 +177,7 @@ export function handleJsonImport(e) {
 
   reader.onerror = () => showError('Failed to read file. Please try again.');
   reader.readAsText(file);
-
-  e.target.files = [];
+  resetFileInput(e.target);
 }
 
 // ============================================================================
