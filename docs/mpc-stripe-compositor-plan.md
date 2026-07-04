@@ -5,8 +5,9 @@ like the card preview in build.html's results pane / SCRY view, so cards ordered
 [MPC-Autofill](https://github.com/chilli-axe/mpc-autofill) come back pre-marked in the same
 spots the physical Spirit Guide jig would place them on sleeves.
 
-Status: **planned, not implemented**. Part 3 is a ready-to-paste prompt for the
-implementation session. Exact mm offsets will be calibrated after test prints.
+Status: **implemented** — `mpc-stripes.html` + `js/features/mpc-stripes.js` (see Part 2
+for the design it follows). Part 3's prompt was executed and is kept for reference.
+Exact mm offsets still need calibration after test prints (Part 4).
 
 ---
 
@@ -271,10 +272,10 @@ Verify before pushing:
 
 ### One-time setup
 
-1. **No fork. No new repo.** Everything lives in `codwats/prism`.
-2. Open a **new Claude Code session** on the prism repo and paste the Part 3 prompt.
-3. Review + merge the resulting branch, or just run it locally (`npx http-server -p 3456`)
-   if you'd rather not deploy the page to prismmtg.com.
+1. **No fork. No new repo.** Everything lives in `codwats/prism` — already implemented
+   on this branch.
+2. Review + merge the branch, or just run it locally (`npx http-server -p 3456` →
+   `/mpc-stripes.html`) if you'd rather not deploy the page to prismmtg.com.
 
 ### Calibration (first print only)
 

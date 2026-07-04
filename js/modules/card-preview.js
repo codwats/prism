@@ -22,14 +22,20 @@ const STRIPE_SLOT_HEIGHT = 12; // Spacing between stripe positions
 const SLOTS_PER_SIDE = 24;
 const STRIPE_END_Y = STRIPE_START_Y + (SLOTS_PER_SIDE - 1) * STRIPE_SLOT_HEIGHT;
 
-// Parse corner preference into rendering config
-function getCornerConfig() {
-  const prefs = getPreferences();
-  const corner = prefs.stripeStartCorner || 'top-right';
+// Translate a stripeStartCorner value into rendering config.
+// Pure — shared with the MPC stripe compositor, which resolves the corner
+// from an imported JSON export rather than local preferences.
+export function cornerToConfig(corner) {
+  const c = corner || 'top-right';
   return {
-    sideARight: corner.includes('right'),  // Side A stripes on right edge
-    topDown: corner.includes('top'),        // Position 1 at top
+    sideARight: c.includes('right'),  // Side A stripes on right edge
+    topDown: c.includes('top'),        // Position 1 at top
   };
+}
+
+// Parse the local corner preference into rendering config
+function getCornerConfig() {
+  return cornerToConfig(getPreferences().stripeStartCorner);
 }
 
 // Get Y position for a stripe at display scale
@@ -46,7 +52,8 @@ function getStripeY(position, topDown = true) {
 
 // Resolve which edge a slot lives on, purely from position + corner preference.
 // Slots 1-24 live on the primary edge; slots 25-48 live on the opposite edge.
-function getStripeEdge(position, sideARight) {
+// Exported for the MPC stripe compositor, which mirrors this geometry at print scale.
+export function getStripeEdge(position, sideARight) {
   const onPrimaryEdge = position <= SLOTS_PER_SIDE;
   const onRight = onPrimaryEdge ? sideARight : !sideARight;
   return { onRight };
@@ -54,7 +61,7 @@ function getStripeEdge(position, sideARight) {
 
 // Anchor positions (every 5th slot per side) used for the reference ruler.
 // Side A side-relative 5/10/15/20 → positions 5/10/15/20; Side B → 29/34/39/44.
-const RULER_ANCHORS = [5, 10, 15, 20, 29, 34, 39, 44];
+export const RULER_ANCHORS = [5, 10, 15, 20, 29, 34, 39, 44];
 
 // Draw a faint tick + number at every 5th slot down both card edges, regardless
 // of which slots the card actually marks — a permanent ruler so any lone stripe

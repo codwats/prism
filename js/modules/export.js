@@ -136,6 +136,11 @@ export function exportToJSON(prism) {
       name: prism.name,
       exportedAt: new Date().toISOString(),
       deckCount: prism.decks.length,
+      // Corner orientation is a global preference, not prism data — carry it in
+      // the export so consumers (MPC stripe compositor) render the same corners.
+      preferences: {
+        stripeStartCorner: getPreferences().stripeStartCorner || 'top-right'
+      },
       splitGroups: (prism.splitGroups || []).map(group => ({
         id: group.id,
         name: group.name,

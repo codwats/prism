@@ -915,3 +915,120 @@ wa-page[view='desktop'] [data-toggle-nav] {
     cursor: pointer;
   }
 }
+
+/* ============================================
+   MPC Stripe Compositor (mpc-stripes.html)
+   ============================================ */
+
+.mpc-preview-layout {
+  display: grid;
+  grid-template-columns: minmax(260px, 360px) 1fr;
+  gap: var(--wa-space-xl);
+  align-items: start;
+}
+
+@media (max-width: 768px) {
+  .mpc-preview-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Canvas is native image resolution; scale it down to fit its column */
+.mpc-preview-canvas {
+  width: 100%;
+  height: auto;
+  border-radius: var(--wa-border-radius-s);
+  box-shadow: var(--wa-shadow-m);
+  background: var(--wa-color-surface-2);
+}
+
+.mpc-geom-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: var(--wa-space-m);
+}
+
+.mpc-match-table-wrap {
+  max-height: 420px;
+  overflow: auto;
+  border: 1px solid var(--wa-color-surface-border);
+  border-radius: var(--wa-border-radius-s);
+}
+
+.mpc-match-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--wa-font-size-s);
+}
+
+.mpc-match-table th,
+.mpc-match-table td {
+  padding: var(--wa-space-xs) var(--wa-space-s);
+  text-align: left;
+  border-bottom: 1px solid var(--wa-color-surface-border);
+  vertical-align: middle;
+}
+
+.mpc-match-table thead th {
+  position: sticky;
+  top: 0;
+  background: var(--wa-color-surface-2);
+  z-index: 1;
+}
+
+.mpc-filename {
+  font-family: var(--wa-font-family-code, monospace);
+  word-break: break-all;
+}
+
+.mpc-match-ok {
+  font-weight: var(--wa-font-weight-semibold);
+}
+
+.mpc-match-marks {
+  margin-left: var(--wa-space-xs);
+  color: var(--wa-color-neutral-text-subtle);
+  font-size: var(--wa-font-size-xs);
+}
+
+.mpc-match-select {
+  max-width: 260px;
+  padding: 4px 6px;
+  border-radius: var(--wa-border-radius-s);
+  border: 1px solid var(--wa-color-surface-border);
+  background: var(--wa-color-surface-1);
+  color: inherit;
+  font: inherit;
+  font-size: var(--wa-font-size-s);
+}
+
+.mpc-row-unmatched {
+  background: var(--wa-color-warning-fill-quiet, rgba(255, 200, 0, 0.08));
+}
+
+.mpc-row-skipped {
+  opacity: 0.5;
+}
+
+.mpc-process-log {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  font-size: var(--wa-font-size-s);
+}
+
+.mpc-process-log li {
+  padding: var(--wa-space-2xs) 0;
+}
+
+.mpc-log-summary {
+  padding-bottom: var(--wa-space-xs);
+}
+
+.mpc-log-warn {
+  color: var(--wa-color-warning-text);
+}
+
+.mpc-log-error {
+  color: var(--wa-color-danger-text);
+}
