@@ -12,7 +12,7 @@ import { renderResults } from './results.js';
 import { openScryMode } from './scry-mode.js';
 import { renderOverlapMatrix } from './analysis.js';
 import { debounce } from '../core/utils.js';
-import { updatePreferences, getPreferences, savePrism, setColorScheme } from '../modules/storage.js';
+import { updatePreferences, getPreferences, savePrism, setColorScheme, STRIPE_NUMBERS_MODES } from '../modules/storage.js';
 import { applyColorScheme } from '../modules/theme.js';
 import { remapPrismForCorner } from '../modules/processor.js';
 import { renderAll } from './init.js';
@@ -257,11 +257,11 @@ export function setupEventListeners() {
     });
   }
 
-  // Show stripe position numbers preference (counting aid overlay).
+  // Position-numbers mode (counting aid overlay): none / some / all.
   // Read at render time + re-render the visible surfaces immediately on change.
-  if (state.elements.showStripePositionNumbers) {
-    state.elements.showStripePositionNumbers.addEventListener('change', (e) => {
-      updatePreferences({ showStripePositionNumbers: e.target.checked });
+  if (state.elements.stripeNumbersMode) {
+    state.elements.stripeNumbersMode.addEventListener('change', (e) => {
+      updatePreferences({ stripeNumbersMode: STRIPE_NUMBERS_MODES[Number(e.target.value) - 1] || 'none' });
       renderResults();
       refreshOpenPreview();
     });

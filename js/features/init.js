@@ -5,7 +5,7 @@
 import { state } from '../core/state.js';
 import { getLogicalDeckCount, debugLog } from '../core/utils.js';
 import { createPrism, getUsedPositions, MAX_STRIPE_SLOTS } from '../modules/processor.js';
-import { getCurrentPrism, savePrism, setCurrentPrism, getPreferences, getColorScheme, onSyncStatusChange, forceSyncCurrentPrism } from '../modules/storage.js';
+import { getCurrentPrism, savePrism, setCurrentPrism, getPreferences, getColorScheme, getStripeNumbersMode, STRIPE_NUMBERS_MODES, onSyncStatusChange, forceSyncCurrentPrism } from '../modules/storage.js';
 import { initAuth, setupAuthListeners, getCurrentUser } from '../modules/auth.js';
 import { logToSupabase } from '../modules/supabase-client.js';
 import { initColorSwatches } from './deck-form.js';
@@ -136,7 +136,7 @@ function getElements() {
     // Stripe settings
     stripeStartCorner: document.getElementById('stripe-start-corner'),
     stripeStartCornerApply: document.getElementById('stripe-start-corner-apply'),
-    showStripePositionNumbers: document.getElementById('show-stripe-position-numbers'),
+    stripeNumbersMode: document.getElementById('stripe-position-numbers-mode'),
     colorScheme: document.getElementById('color-scheme'),
 
     // Stripe reorder dialog
@@ -199,8 +199,8 @@ export async function init() {
     const prefs = getPreferences();
     state.elements.stripeStartCorner.value = prefs.stripeStartCorner || 'top-right';
   }
-  if (state.elements.showStripePositionNumbers) {
-    state.elements.showStripePositionNumbers.checked = !!getPreferences().showStripePositionNumbers;
+  if (state.elements.stripeNumbersMode) {
+    state.elements.stripeNumbersMode.value = STRIPE_NUMBERS_MODES.indexOf(getStripeNumbersMode()) + 1;
   }
   if (state.elements.colorScheme) {
     state.elements.colorScheme.value = getColorScheme();

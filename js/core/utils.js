@@ -59,7 +59,7 @@ export function slotNumberLabel(position) {
  * Side-relative slot number to overlay at "anchor" positions — every 5th slot
  * within each side (5/10/15/20 on Side A and Side B). Returns null for
  * non-anchor positions. Pure label logic; callers gate on the
- * showStripePositionNumbers preference. Shared by the results table, card
+ * stripeNumbersMode preference. Shared by the results table, card
  * preview, and printable guide so all three surfaces stay in parity.
  * @param {number} position - Stripe position 1-48
  * @returns {string|null} Label string (e.g. "10") or null
@@ -84,7 +84,7 @@ export function countVisibleMarks(stripes) {
 /**
  * Resolve the slot-number label for a stripe given whether the card is sparse.
  * Sparse → exact number on every mark (always-on). Otherwise → anchor label
- * (caller still gates this branch on the showStripePositionNumbers preference).
+ * (caller still gates this branch on the stripeNumbersMode preference).
  * @param {number} position - Stripe position 1-48
  * @param {{ exact: boolean }} opts
  * @returns {string|null}

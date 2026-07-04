@@ -4,7 +4,7 @@
 
 import { state } from '../core/state.js';
 import { escapeHtml, stripeNumberLabel, countVisibleMarks, STRIPE_SPARSE_MAX, isCardDone } from '../core/utils.js';
-import { getPreferences } from '../modules/storage.js';
+import { getStripeNumbersMode } from '../modules/storage.js';
 import { processCards, formatSlotLabel } from '../modules/processor.js';
 import { prefetchCards } from '../modules/scryfall.js';
 import { handleMarkToggle, handleClearRemoved, handleClearAllRemoved } from './deck-list.js';
@@ -283,7 +283,8 @@ export function renderResults() {
   if (!state.elements.resultsTbody) return;
 
   const showAllSlots = state.elements.showAllSlots?.checked || false;
-  const showNums = !!getPreferences().showStripePositionNumbers;
+  const numbersMode = getStripeNumbersMode();
+  const showNums = numbersMode !== 'none';
   const totalDecks = state.currentPrism?.decks?.length || 0;
 
   state.elements.resultsTbody.innerHTML = displayCards.map(card => {
@@ -324,8 +325,8 @@ export function renderResults() {
     let stripeIndicators;
 
     // Sparse cards number every mark with its exact slot (always-on); dense
-    // cards fall back to the toggle-gated anchor numbering.
-    const exact = countVisibleMarks(card.stripes) <= STRIPE_SPARSE_MAX;
+    // cards fall back to the anchor numbering unless the pref forces all.
+    const exact = numbersMode === 'all' || countVisibleMarks(card.stripes) <= STRIPE_SPARSE_MAX;
     const opts = { showNums, exact };
 
     if (showAllSlots && totalDecks > 0) {
