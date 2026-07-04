@@ -331,25 +331,31 @@ async function readCleanFile(entry) {
     const dir = await getOriginalsDir(false);
     const backup = await dir.getFileHandle(entry.name);
     return await backup.getFile();
-  } catch (err) {
+  } catch {
     return entry.handle.getFile();
   }
 }
 
 // Same, but ensures the backup exists first — used by processing so the
-// original bytes are safe before we overwrite the file in place.
+// original bytes are safe before we overwrite the file in place. Only a
+// missing backup may trigger the create-and-copy path: any other failure
+// must propagate rather than overwrite a valid backup with possibly
+// already-striped bytes.
 async function backupAndReadCleanFile(entry, originalsDir) {
+  let backup = null;
   try {
-    const backup = await originalsDir.getFileHandle(entry.name);
-    return await backup.getFile();
+    backup = await originalsDir.getFileHandle(entry.name);
   } catch (err) {
-    const file = await entry.handle.getFile();
-    const backup = await originalsDir.getFileHandle(entry.name, { create: true });
-    const writable = await backup.createWritable();
-    await writable.write(await file.arrayBuffer());
-    await writable.close();
-    return file;
+    if (err.name !== 'NotFoundError') throw err;
   }
+  if (backup) return backup.getFile();
+
+  const file = await entry.handle.getFile();
+  const created = await originalsDir.getFileHandle(entry.name, { create: true });
+  const writable = await created.createWritable();
+  await writable.write(await file.arrayBuffer());
+  await writable.close();
+  return file;
 }
 
 async function compositeEntry(entry, originalsDir, cornerConfig) {
