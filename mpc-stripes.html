@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en" class="wa-cloak">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- Unlisted utility page: not in nav, not for search engines -->
+    <meta name="robots" content="noindex,nofollow" />
+    <title>MPC Stripe Compositor - PRISM</title>
+    <style>.wa-cloak { visibility: hidden; }</style>
+    <style>wa-page:not(:defined) { visibility: hidden; }</style>
+    <!-- Preconnect to CDNs (Supabase SDK on cdn.jsdelivr.net is lazy-loaded for logged-in users) -->
+    <link rel="preconnect" href="https://ka-p.webawesome.com" />
+    <link rel="preconnect" href="https://ka-p.webawesome.com" crossorigin />
+    <link rel="preconnect" href="https://fonts.bunny.net" />
+    <link rel="preconnect" href="https://fonts.bunny.net" crossorigin />
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" />
+    <!-- Web Awesome, fonts, and app CSS as static tags so the browser preload scanner
+         starts them immediately; layout.js injectHeadResources skips tags already present -->
+    <link rel="stylesheet" href="https://ka-p.webawesome.com/kit/da021fed1e5141f2/webawesome@3.9.0/styles/themes/matter.css" />
+    <link rel="stylesheet" href="https://ka-p.webawesome.com/kit/da021fed1e5141f2/webawesome@3.9.0/styles/color/palettes/mild.css" />
+    <link rel="stylesheet" href="https://ka-p.webawesome.com/kit/da021fed1e5141f2/webawesome@3.9.0/styles/native.css" />
+    <link rel="stylesheet" href="https://ka-p.webawesome.com/kit/da021fed1e5141f2/webawesome@3.9.0/styles/utilities.css" />
+    <script type="module" src="https://ka-p.webawesome.com/kit/da021fed1e5141f2/webawesome@3.9.0/webawesome.loader.js"></script>
+    <link rel="stylesheet" href="https://fonts.bunny.net/css2?family=Inter:ital,wght@0,100..900;1,100..900&display=swap" />
+    <link rel="stylesheet" href="https://fonts.bunny.net/css2?family=Geist+Mono:wght@100..900&display=swap" />
+    <link rel="stylesheet" href="https://fonts.bunny.net/css2?family=Crimson+Pro:ital,wght@0,200..900;1,200..900&display=swap" />
+    <link rel="stylesheet" href="css/custom.css" />
+  </head>
+  <body>
+    <wa-page mobile-breakpoint="768">
+      <main style="max-width: 1000px; margin: 0 auto; padding: var(--wa-space-xl);">
+        <div class="wa-stack wa-gap-xl">
+          <!-- Intro -->
+          <div class="wa-stack wa-gap-s">
+            <h1 class="wa-heading-xl">MPC Stripe Compositor</h1>
+            <p style="color: var(--wa-color-neutral-text-subtle); max-width: 70ch;">
+              Draws your PRISM stripe and dot marks directly onto the full-bleed card images
+              in your MPC-Autofill <code>cards/</code> folder, so printed cards arrive pre-marked.
+              Marks run from the image edge, through the bleed, onto the visible card face.
+              Originals are backed up to <code>cards/originals/</code> and each image is
+              overwritten in place under the same filename — the MPC-Autofill desktop tool
+              then uploads the striped versions automatically (it skips re-downloading files
+              that already exist).
+            </p>
+          </div>
+
+          <wa-callout id="mpc-unsupported" variant="warning" hidden>
+            <wa-icon slot="icon" name="triangle-exclamation"></wa-icon>
+            This tool needs the File System Access API to write images in place.
+            Please use Chrome or Edge on desktop.
+          </wa-callout>
+
+          <!-- Step 1: card source -->
+          <wa-card>
+            <div slot="header" class="wa-cluster wa-gap-s wa-align-items-center">
+              <wa-icon name="layer-group"></wa-icon>
+              <span class="wa-heading-m">1 · PRISM source</span>
+            </div>
+            <div class="wa-stack wa-gap-m">
+              <div class="wa-cluster wa-gap-m wa-align-items-end">
+                <wa-select id="mpc-prism-select" label="PRISM" style="min-width: 280px;"></wa-select>
+                <wa-button id="btn-mpc-import-json" variant="neutral" appearance="outlined">
+                  <wa-icon slot="start" name="file-import"></wa-icon>
+                  Import PRISM JSON
+                </wa-button>
+                <input type="file" id="mpc-json-file" accept=".json,application/json" hidden />
+              </div>
+              <p id="mpc-source-summary" class="wa-caption-m" style="color: var(--wa-color-neutral-text-subtle);"></p>
+            </div>
+          </wa-card>
+
+          <!-- Step 2: cards folder -->
+          <wa-card>
+            <div slot="header" class="wa-cluster wa-gap-s wa-align-items-center">
+              <wa-icon name="folder-open"></wa-icon>
+              <span class="wa-heading-m">2 · MPC-Autofill cards folder</span>
+            </div>
+            <div class="wa-stack wa-gap-m">
+              <p class="wa-caption-m" style="color: var(--wa-color-neutral-text-subtle);">
+                Run the MPC-Autofill desktop tool once so it downloads your order's images,
+                quit before the upload phase, then pick that <code>cards/</code> folder here.
+              </p>
+              <div class="wa-cluster wa-gap-m wa-align-items-center">
+                <wa-button id="btn-mpc-choose-folder" variant="brand">
+                  <wa-icon slot="start" name="folder-open"></wa-icon>
+                  Choose cards folder
+                </wa-button>
+                <span id="mpc-folder-summary" class="wa-caption-m" style="color: var(--wa-color-neutral-text-subtle);"></span>
+              </div>
+            </div>
+          </wa-card>
+
+          <!-- Step 3: match review -->
+          <wa-card id="mpc-match-section" hidden>
+            <div slot="header" class="wa-cluster wa-gap-s wa-align-items-center">
+              <wa-icon name="link"></wa-icon>
+              <span class="wa-heading-m">3 · Match images to cards</span>
+            </div>
+            <div class="wa-stack wa-gap-m">
+              <p id="mpc-match-summary" class="wa-caption-m" style="color: var(--wa-color-neutral-text-subtle);"></p>
+              <div class="mpc-match-table-wrap">
+                <table class="mpc-match-table">
+                  <thead>
+                    <tr><th>Image file</th><th>Card</th><th></th></tr>
+                  </thead>
+                  <tbody id="mpc-match-tbody"></tbody>
+                </table>
+              </div>
+            </div>
+          </wa-card>
+
+          <!-- Step 4: preview + calibration -->
+          <wa-card id="mpc-preview-section" hidden>
+            <div slot="header" class="wa-cluster wa-gap-s wa-align-items-center">
+              <wa-icon name="ruler-combined"></wa-icon>
+              <span class="wa-heading-m">4 · Preview &amp; calibration</span>
+            </div>
+            <div class="mpc-preview-layout">
+              <div class="wa-stack wa-gap-m">
+                <wa-select id="mpc-preview-select" label="Preview card"></wa-select>
+                <canvas id="mpc-preview-canvas" class="mpc-preview-canvas"></canvas>
+                <p id="mpc-preview-note" class="wa-caption-s" style="color: var(--wa-color-neutral-text-subtle);"></p>
+                <div class="wa-cluster wa-gap-m">
+                  <wa-switch id="mpc-guide-cut" checked>Cut line</wa-switch>
+                  <wa-switch id="mpc-guide-ruler">Slot ruler</wa-switch>
+                </div>
+              </div>
+              <div class="wa-stack wa-gap-m">
+                <p class="wa-caption-m" style="color: var(--wa-color-neutral-text-subtle); max-width: 40ch;">
+                  All values are millimetres relative to the cut line. Defaults mirror the
+                  builder's card preview — <strong>calibrate against the Spirit Guide after a
+                  test print</strong>: process one card, order a cheap print, hold it against
+                  the jig, adjust, reprocess. Values persist on this device.
+                </p>
+                <div class="mpc-geom-grid">
+                  <wa-input class="mpc-geom-input" data-key="firstSlotOffsetMm" type="number" step="0.05" min="0" label="First slot offset (mm)"></wa-input>
+                  <wa-input class="mpc-geom-input" data-key="slotPitchMm" type="number" step="0.05" min="0" label="Slot pitch (mm)"></wa-input>
+                  <wa-input class="mpc-geom-input" data-key="stripeThicknessMm" type="number" step="0.05" min="0" label="Stripe thickness (mm)"></wa-input>
+                  <wa-input class="mpc-geom-input" data-key="stripeVisibleMm" type="number" step="0.05" min="0" label="Visible extent past cut (mm)"></wa-input>
+                  <wa-input class="mpc-geom-input" data-key="dotDiameterMm" type="number" step="0.05" min="0" label="Dot diameter (mm)"></wa-input>
+                  <wa-input class="mpc-geom-input" data-key="dotInsetMm" type="number" step="0.05" min="0" label="Dot inset from cut (mm)"></wa-input>
+                  <wa-input class="mpc-geom-input" data-key="dotSpacingMm" type="number" step="0.05" min="0" label="Dot spacing (mm)"></wa-input>
+                </div>
+                <wa-button id="btn-mpc-geom-reset" variant="neutral" appearance="outlined" size="small">
+                  <wa-icon slot="start" name="rotate-left"></wa-icon>
+                  Reset to defaults
+                </wa-button>
+              </div>
+            </div>
+          </wa-card>
+
+          <!-- Step 5: process -->
+          <wa-card id="mpc-process-section" hidden>
+            <div slot="header" class="wa-cluster wa-gap-s wa-align-items-center">
+              <wa-icon name="wand-magic-sparkles"></wa-icon>
+              <span class="wa-heading-m">5 · Process</span>
+            </div>
+            <div class="wa-stack wa-gap-m">
+              <p class="wa-caption-m" style="color: var(--wa-color-neutral-text-subtle);">
+                Backs up each original to <code>originals/</code>, then overwrites the image
+                in place with marks composited on. Safe to re-run — it always starts from the
+                backed-up originals.
+              </p>
+              <div class="wa-cluster wa-gap-m wa-align-items-center">
+                <wa-button id="btn-mpc-process" variant="brand" disabled>
+                  <wa-icon slot="start" name="paintbrush"></wa-icon>
+                  Process all matched images
+                </wa-button>
+              </div>
+              <wa-progress-bar id="mpc-progress" value="0" hidden></wa-progress-bar>
+              <ul id="mpc-process-log" class="mpc-process-log"></ul>
+            </div>
+          </wa-card>
+        </div>
+      </main>
+    </wa-page>
+
+    <!-- Toast notification container -->
+    <wa-toast placement="bottom-end" id="toast-container"></wa-toast>
+
+    <script type="module">
+      import { initLayout } from './js/layout.js';
+      import { initMpcStripes } from './js/features/mpc-stripes.js';
+      initLayout({ activePage: '', headerCta: { href: 'build.html', label: 'Build PRISM', icon: 'wand-magic-sparkles' } });
+      initMpcStripes();
+    </script>
+  </body>
+</html>
