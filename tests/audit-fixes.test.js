@@ -127,7 +127,14 @@ test('importAllData clamps non-hex colors from a restored backup', () => {
 			p1: {
 				id: 'p1', name: 'Evil', createdAt: '2026-01-01T00:00:00Z',
 				updatedAt: '2026-01-01T00:00:00Z',
-				markedCards: [], removedCards: [],
+				markedCards: [],
+				removedCards: [
+					{
+						cardName: 'Sol Ring', deckId: 'd1', deckName: 'Deck',
+						deckColor: '#fff" onmouseover="alert(1)', stripePosition: 1,
+						removedAt: '2026-01-01T00:00:00Z',
+					},
+				],
 				decks: [
 					{
 						id: 'd1', name: 'Deck', commander: 'C', bracket: 3,
@@ -155,4 +162,7 @@ test('importAllData clamps non-hex colors from a restored backup', () => {
 	assert.equal(prism.decks[0].color, '#888888');
 	assert.equal(prism.decks[1].color, '#00FF00');
 	assert.equal(prism.splitGroups[0].sideAColor, '#888888');
+	// removedCards[].deckColor renders unescaped in the Results "removed" tab
+	// (style="background-color: ${removed.deckColor}") — must be clamped too.
+	assert.equal(prism.removedCards[0].deckColor, '#888888');
 });

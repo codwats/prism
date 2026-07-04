@@ -107,7 +107,10 @@ export function handleJsonImport(e) {
       newPrism.createdAt = prismData.createdAt || newPrism.createdAt;
       newPrism.updatedAt = new Date().toISOString();
       newPrism.markedCards = prismData.markedCards || [];
-      newPrism.removedCards = prismData.removedCards || [];
+      newPrism.removedCards = (prismData.removedCards || []).map(removed => ({
+        ...removed,
+        deckColor: validHex(removed.deckColor),
+      }));
 
       for (const deck of prismData.decks) {
         const deckCards = deck.cards || [];

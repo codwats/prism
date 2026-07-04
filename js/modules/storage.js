@@ -1211,6 +1211,9 @@ export function importAllData(jsonString) {
       for (const group of prism?.splitGroups || []) {
         group.sideAColor = validHex(group.sideAColor);
       }
+      for (const removed of prism?.removedCards || []) {
+        removed.deckColor = validHex(removed.deckColor);
+      }
     }
 
     for (const prism of Object.values(merged.prisms)) {
