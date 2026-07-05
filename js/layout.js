@@ -10,7 +10,16 @@
 
 import { initAuth, setupAuthListeners } from './modules/auth.js';
 import { hasStoredSession, loadSupabaseSdk } from './modules/supabase-client.js';
-import { getColorScheme } from './modules/storage.js';
+import {
+  getColorScheme,
+  setColorScheme,
+  getPreferences,
+  updatePreferences,
+  getStripeNumbersMode,
+  STRIPE_NUMBERS_MODES,
+  getCurrentPrism,
+  savePrism,
+} from './modules/storage.js';
 import { applyColorScheme } from './modules/theme.js';
 import { initGlobalErrorReporting } from './core/telemetry.js';
 
@@ -48,6 +57,7 @@ export function initLayout(options = {}) {
   injectHeader(options.headerCta);
   injectFooter();
   injectAuthDialog();
+  injectSettingsDrawer();
   initAuthModule();
 }
 
@@ -316,6 +326,10 @@ function injectHeader(ctaConfig) {
           <wa-tag size="small" variant="brand" appearance="outlined" title="PRISM is in open beta — expect rough edges and tell us about them">Beta</wa-tag>
         </div>
         <div class="wa-cluster wa-gap-xs wa-align-items-center">
+          <wa-button id="btn-settings" appearance="plain" variant="neutral" size="small" aria-label="Settings">
+            <wa-icon name="gear"></wa-icon>
+          </wa-button>
+          <wa-tooltip for="btn-settings">Settings</wa-tooltip>
           <wa-button${ctaId}${ctaHref} variant="${ctaVariant}"${ctaAppearanceAttr} size="small">
             <wa-icon slot="start" name="${ctaIcon}"></wa-icon>
             ${ctaLabel}
@@ -452,6 +466,118 @@ function injectAuthDialog() {
       </div>`;
 
   document.body.appendChild(dialog);
+}
+
+// ============================================================
+// Settings Drawer (global — opened by the header gear button)
+// ============================================================
+
+function injectSettingsDrawer() {
+  if (document.getElementById('settings-drawer')) return;
+
+  const prefs = getPreferences();
+  const corner = prefs.stripeStartCorner || 'top-right';
+  const numbersValue = STRIPE_NUMBERS_MODES.indexOf(getStripeNumbersMode()) + 1;
+
+  const drawer = document.createElement('wa-drawer');
+  drawer.id = 'settings-drawer';
+  drawer.setAttribute('label', 'Settings');
+  drawer.setAttribute('placement', 'end');
+  drawer.setAttribute('light-dismiss', '');
+  drawer.innerHTML = `
+      <div class="wa-stack wa-gap-l">
+        <div class="wa-stack wa-gap-m">
+          <div class="wa-cluster wa-gap-s wa-align-items-center">
+            <wa-icon name="circle-half-stroke" style="color: var(--wa-color-brand-fill);"></wa-icon>
+            <span class="wa-heading-s">Display</span>
+          </div>
+          <wa-select id="color-scheme" label="Color Scheme" value="${getColorScheme()}" size="small">
+            <wa-option value="auto">Auto (match system)</wa-option>
+            <wa-option value="light">Light</wa-option>
+            <wa-option value="dark">Dark</wa-option>
+          </wa-select>
+          <p class="wa-caption-s" style="color: var(--wa-color-neutral-text-subtle); margin: 0;">Display changes save instantly.</p>
+        </div>
+
+        <wa-divider></wa-divider>
+
+        <div class="wa-stack wa-gap-m">
+          <div class="wa-cluster wa-gap-s wa-align-items-center">
+            <wa-icon name="palette" style="color: var(--wa-color-brand-fill);"></wa-icon>
+            <span class="wa-heading-s">Stripes</span>
+          </div>
+          <p class="wa-caption-m" style="color: var(--wa-color-neutral-text-subtle); margin: 0;">Choose which corner of the card stripes originate from.</p>
+          <wa-radio-group id="stripe-start-corner" label="Starting Corner" value="${corner}">
+            <wa-radio value="top-right">Top Right (default)</wa-radio>
+            <wa-radio value="top-left">Top Left</wa-radio>
+            <wa-radio value="bottom-right">Bottom Right</wa-radio>
+            <wa-radio value="bottom-left">Bottom Left</wa-radio>
+          </wa-radio-group>
+          <wa-button id="stripe-start-corner-apply" appearance="filled" variant="brand" size="small" disabled>Apply</wa-button>
+          <p class="wa-caption-s" style="color: var(--wa-color-neutral-text-subtle); margin: 0;">Applying remaps every deck's slot number so Slot 1 sits at the chosen corner.</p>
+          <wa-slider
+            id="stripe-position-numbers-mode"
+            label="Position Numbers"
+            name="position-numbers"
+            min="1"
+            max="3"
+            value="${numbersValue}"
+            with-markers
+            hint="Counting aid — None hides numbers, Some overlays every 5th slot (5 / 10 / 15 / 20 per side), All numbers every mark."
+          >
+            <span slot="reference">None</span>
+            <span slot="reference">Some</span>
+            <span slot="reference">All</span>
+          </wa-slider>
+        </div>
+
+        <wa-divider></wa-divider>
+
+        <p class="wa-caption-s" style="color: var(--wa-color-neutral-text-subtle); margin: 0;">Looking for email, password, or your PRISMs? Those live on your <a href="profile.html">Profile</a>.</p>
+      </div>`;
+
+  document.body.appendChild(drawer);
+
+  // Gear button opens the drawer (attribute works before WA upgrade)
+  document.getElementById('btn-settings')?.addEventListener('click', () => {
+    drawer.setAttribute('open', '');
+  });
+
+  // Color scheme — persist and apply live
+  drawer.querySelector('#color-scheme')?.addEventListener('change', (e) => {
+    setColorScheme(e.target.value);
+    applyColorScheme(e.target.value);
+  });
+
+  // Starting corner — Apply enabled only while the pending value differs
+  const cornerGroup = drawer.querySelector('#stripe-start-corner');
+  const applyBtn = drawer.querySelector('#stripe-start-corner-apply');
+  cornerGroup?.addEventListener('change', () => {
+    const applied = getPreferences().stripeStartCorner || 'top-right';
+    if (cornerGroup.value !== applied) applyBtn?.removeAttribute('disabled');
+    else applyBtn?.setAttribute('disabled', '');
+  });
+  applyBtn?.addEventListener('click', async () => {
+    const newCorner = cornerGroup?.value;
+    if (!newCorner) return;
+    const currentCorner = getPreferences().stripeStartCorner || 'top-right';
+    if (newCorner !== currentCorner) {
+      const prism = getCurrentPrism();
+      if (prism) {
+        const { remapPrismForCorner } = await import('./modules/processor.js');
+        savePrism(remapPrismForCorner(prism, currentCorner, newCorner));
+      }
+      updatePreferences({ stripeStartCorner: newCorner });
+      window.dispatchEvent(new CustomEvent('prism-settings-changed', { detail: { setting: 'stripeStartCorner' } }));
+    }
+    applyBtn.setAttribute('disabled', '');
+  });
+
+  // Position-numbers mode (counting aid overlay): none / some / all
+  drawer.querySelector('#stripe-position-numbers-mode')?.addEventListener('change', (e) => {
+    updatePreferences({ stripeNumbersMode: STRIPE_NUMBERS_MODES[Number(e.target.value) - 1] || 'none' });
+    window.dispatchEvent(new CustomEvent('prism-settings-changed', { detail: { setting: 'stripeNumbersMode' } }));
+  });
 }
 
 // ============================================================

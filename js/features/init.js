@@ -5,7 +5,7 @@
 import { state } from '../core/state.js';
 import { getLogicalDeckCount, debugLog } from '../core/utils.js';
 import { createPrism, getUsedPositions, MAX_STRIPE_SLOTS } from '../modules/processor.js';
-import { getCurrentPrism, savePrism, setCurrentPrism, getPreferences, getColorScheme, getStripeNumbersMode, STRIPE_NUMBERS_MODES, onSyncStatusChange, forceSyncCurrentPrism } from '../modules/storage.js';
+import { getCurrentPrism, savePrism, setCurrentPrism, getPreferences, onSyncStatusChange, forceSyncCurrentPrism } from '../modules/storage.js';
 import { initAuth, setupAuthListeners, getCurrentUser } from '../modules/auth.js';
 import { logToSupabase } from '../modules/supabase-client.js';
 import { initColorSwatches } from './deck-form.js';
@@ -52,7 +52,6 @@ function getElements() {
 
     // Decks list
     decksList: document.getElementById('decks-list'),
-    stripeSettingsCard: document.getElementById('stripe-settings-card'),
 
     // Results
     overlapMatrixContainer: document.getElementById('overlap-matrix-container'),
@@ -72,15 +71,19 @@ function getElements() {
     noResults: document.getElementById('no-results'),
     btnGoToDecks: document.getElementById('btn-go-to-decks'),
 
-    // Export
+    // Export (Legend + Export dropdowns in the Results toolbar)
     deckLegend: document.getElementById('deck-legend'),
     noDecksLegend: document.getElementById('no-decks-legend'),
-    stripeReorderList: document.getElementById('stripe-reorder-list'),
     btnExportCSV: document.getElementById('btn-export-csv'),
     btnExportJSON: document.getElementById('btn-export-json'),
     btnPrintGuide: document.getElementById('btn-print-guide'),
     btnCopyUndone: document.getElementById('btn-copy-undone'),
     btnDownloadUndone: document.getElementById('btn-download-undone'),
+
+    // Import backup dialog (opened from the ... overflow menu)
+    btnImportBackup: document.getElementById('btn-import-backup'),
+    importDialog: document.getElementById('import-dialog'),
+    btnCancelImport: document.getElementById('btn-cancel-import'),
     prismJsonInput: document.getElementById('prism-json-input'),
 
     // Dialogs
@@ -132,12 +135,6 @@ function getElements() {
     splitStyle: document.getElementById('split-style'),
     btnCancelSplit: document.getElementById('btn-cancel-split'),
     btnConfirmSplit: document.getElementById('btn-confirm-split'),
-
-    // Stripe settings
-    stripeStartCorner: document.getElementById('stripe-start-corner'),
-    stripeStartCornerApply: document.getElementById('stripe-start-corner-apply'),
-    stripeNumbersMode: document.getElementById('stripe-position-numbers-mode'),
-    colorScheme: document.getElementById('color-scheme'),
 
     // Stripe reorder dialog
     stripeReorderDialog: document.getElementById('stripe-reorder-dialog'),
@@ -194,17 +191,6 @@ export async function init() {
     setCurrentPrism(state.currentPrism.id);
   }
 
-  // Load stripe settings preference
-  if (state.elements.stripeStartCorner) {
-    const prefs = getPreferences();
-    state.elements.stripeStartCorner.value = prefs.stripeStartCorner || 'top-right';
-  }
-  if (state.elements.stripeNumbersMode) {
-    state.elements.stripeNumbersMode.value = STRIPE_NUMBERS_MODES.indexOf(getStripeNumbersMode()) + 1;
-  }
-  if (state.elements.colorScheme) {
-    state.elements.colorScheme.value = getColorScheme();
-  }
   if (state.elements.undoneFilter) {
     state.elements.undoneFilter.checked = !!getPreferences().undoneOnly;
   }

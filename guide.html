@@ -32,280 +32,173 @@
     <link rel="stylesheet" href="https://fonts.bunny.net/css2?family=Geist+Mono:wght@100..900&display=swap" />
     <link rel="stylesheet" href="https://fonts.bunny.net/css2?family=Crimson+Pro:ital,wght@0,200..900;1,200..900&display=swap" />
     <link rel="stylesheet" href="css/custom.css" />
+    <style>
+      /* Guide step bar (sticky subheader) */
+      #step-bar {
+        gap: var(--wa-space-xs);
+        justify-content: flex-start;
+        overflow-x: auto;
+      }
+      #step-bar .step-chip {
+        flex: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        text-decoration: none;
+        color: var(--wa-color-text-normal);
+        border: 1px solid var(--wa-color-surface-border);
+        border-radius: var(--wa-border-radius-m);
+        padding: 2px 10px;
+        font-size: var(--wa-font-size-s);
+      }
+      #step-bar .step-chip b {
+        font-family: var(--wa-font-family-code);
+        font-weight: 600;
+      }
+      #step-bar .step-chip.active {
+        background: var(--wa-color-brand-fill);
+        border-color: var(--wa-color-brand-fill);
+        color: var(--wa-color-brand-on-loud, #fff);
+      }
+      .guide-step {
+        padding-block: var(--wa-space-xl);
+        scroll-margin-top: 7rem;
+      }
+      .guide-step-num {
+        font-family: var(--wa-font-family-code);
+        color: var(--wa-color-brand-text);
+        margin-right: var(--wa-space-s);
+      }
+      .guide-img-placeholder {
+        border: 2px dashed var(--wa-color-surface-border);
+        border-radius: var(--wa-border-radius-m);
+        min-height: 240px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        padding: var(--wa-space-m);
+        color: var(--wa-color-neutral-text-subtle);
+        font-size: var(--wa-font-size-s);
+      }
+    </style>
   </head>
   <body>
     <wa-page mobile-breakpoint="768">
+      <div slot="subheader" id="step-bar">
+        <span class="wa-caption-s" style="color: var(--wa-color-neutral-text-subtle); letter-spacing: 0.06em; align-self: center; flex: none;">STEPS</span>
+        <a href="#s1" data-step="s1" class="step-chip"><b>1</b><span class="wa-desktop-only">How marks work</span></a>
+        <a href="#s2" data-step="s2" class="step-chip"><b>2</b><span class="wa-desktop-only">Import decks</span></a>
+        <a href="#s3" data-step="s3" class="step-chip"><b>3</b><span class="wa-desktop-only">Read results</span></a>
+        <a href="#s4" data-step="s4" class="step-chip"><b>4</b><span class="wa-desktop-only">Mark sleeves</span></a>
+        <a href="#s5" data-step="s5" class="step-chip"><b>5</b><span class="wa-desktop-only">Basics &amp; variants</span></a>
+        <a href="#s6" data-step="s6" class="step-chip"><b>6</b><span class="wa-desktop-only">Reorder slots</span></a>
+        <a href="#s7" data-step="s7" class="step-chip"><b>7</b><span class="wa-desktop-only">Export</span></a>
+      </div>
+
       <main style="max-width: 800px; margin: 0 auto;">
         <!-- Page Header -->
         <div class="wa-flank" style="--flank-size: 8rem;">
-  <div class="wa-frame wa-border-radius-m">
-    <img src="assets/stripe.avif" alt="" />
-  </div>
-  <div class="wa-flank:end" style="--content-percentage: 45%">
-    <div class="wa-stack wa-gap-xs">
-      <h1 class="wa-heading-2xl">Sleeve Marking Guide</h1>
-      <span>
-Share your staples across every deck. PRISM tracks what goes where so you don't have to.
-</span>
-    </div>
-
-  </div>
-</div>
-
-
-        <!-- Quick Overview -->
-        <section class="wa-stack wa-gap-m" style="padding-block: var(--wa-space-xl);">
-          <h2 class="wa-heading-xl">How PRISM Marks Work</h2>
-          <p>PRISM uses colored marks on the edge of your sleeves to show which decks a card belongs to. Whether you mark the left or right edge depends on how you fan your cards. Pick whichever side is visible when you fan, and stay consistent.</p>
-          <p>Each deck gets a unique color (choose from 22 defaults or set your own) and a stripe position (1 through 48 along the sleeve edge). Fan your cards and you can see at a glance which decks each card belongs to.</p>
-        </section>
-
-        <wa-divider></wa-divider>
-
-        <!-- Importing Your Decks -->
-        <section class="wa-stack wa-gap-l" style="padding-block: var(--wa-space-xl);">
-          <h2 class="wa-heading-xl">Importing Your Decks</h2>
-
-          <div class="wa-stack wa-gap-m">
-            <h3 class="wa-heading-m">From Moxfield or Archidekt</h3>
-            <p>Paste your deck URL into the import field and PRISM pulls the deck name, commander, and full card list. Make sure your deck is set to Public on the source site or the import will fail silently.</p>
+          <div class="wa-frame wa-border-radius-m">
+            <img src="assets/stripe.avif" alt="Fanned cards with colored sleeve-edge marks" />
           </div>
-
-          <div class="wa-stack wa-gap-m">
-            <h3 class="wa-heading-m">Manual entry</h3>
-            <p>Type or paste a decklist in standard MTGO format (one card per line, quantity followed by card name). PRISM parses it, deduplicates, and flags any card names it can't find via Scryfall.</p>
+          <div class="wa-flank:end" style="--content-percentage: 45%;">
+            <div class="wa-stack wa-gap-xs">
+              <h1 class="wa-heading-2xl">Sleeve Marking Guide</h1>
+              <span>Share your staples across every deck. PRISM tracks what goes where so you don't have to.</span>
+            </div>
           </div>
+        </div>
 
-          <div class="wa-stack wa-gap-m">
-            <h3 class="wa-heading-m">What happens after import</h3>
-            <p>PRISM analyzes your card pool immediately. The Results tab shows every card across all your decks, sorted by how many decks share it. Cards in two or more decks appear in your <strong>pool</strong>. Cards in only one deck are <strong>core</strong> to that deck. This distinction matters when you start marking: pool cards need multiple stripe colors, core cards need only one.</p>
+        <section id="s1" class="wa-stack wa-gap-m guide-step">
+          <h2 class="wa-heading-xl"><span class="guide-step-num">1</span>How marks work</h2>
+          <p>Each deck gets a unique color and a stripe position (1 through 48) on the sleeve edge. Fan your cards and the marks show which decks every card belongs to.</p>
+          <p>Mark whichever edge is visible when you fan, left or right, and stay consistent.</p>
+          <div class="wa-frame wa-border-radius-m" style="max-height: 260px;">
+            <img src="assets/stripe.avif" alt="Fanned cards showing stripe marks at different slots" />
           </div>
         </section>
 
         <wa-divider></wa-divider>
 
-        <!-- Understanding Your Results -->
-        <section class="wa-stack wa-gap-l" style="padding-block: var(--wa-space-xl);">
-          <h2 class="wa-heading-xl">Understanding Your Results</h2>
-          <p>Once you've imported at least two decks, the Results tab shows your full card analysis.</p>
-
-          <div class="wa-stack wa-gap-m">
-            <h3 class="wa-heading-m">Pool vs. core</h3>
-            <ul style="padding-left: var(--wa-space-xl); line-height: 1.8;">
-              <li><strong>Pool cards</strong> appear in two or more decks. These are the cards PRISM saves you money on. Each one needs a stripe mark for every deck it belongs to.<br>Optionally add a modifier dot from the Spirit Guide to easily identify all pool cards.</li>
-              <li><strong>Core cards</strong> appear in only one deck. They still need a stripe mark, but only one color.</li>
-            </ul>
-            <p>The stats bar at the top shows your total card count and pool count. The bigger your pool relative to your total, the more value PRISM is providing.</p>
-          </div>
-
-          <div class="wa-stack wa-gap-m">
-            <h3 class="wa-heading-m">The overlap matrix</h3>
-            <p>The Overlap Matrix shows how many cards each pair of decks shares. High overlap between two decks means those cards need marks for both. Low overlap means those decks are mostly independent. This is useful for deciding which decks to bring to a game night: pick decks with low overlap and you carry fewer total cards.</p>
-          </div>
-
-          <div class="wa-stack wa-gap-m">
-            <h3 class="wa-heading-m">Filtering and sorting</h3>
-            <p>Use "Filter by Deck" to show only cards in a specific deck. Click column headers to sort by card name, number of decks, or stripe assignments. The search bar filters by card name in real time.</p>
-          </div>
-
-          <div class="wa-stack wa-gap-m">
-            <h3 class="wa-heading-m">Removed cards</h3>
-            <p>If you remove a card from a deck after marking, it moves to the Removed list. This is a reminder that the physical sleeve still has a mark you may want to clean off. Once you've handled it, dismiss the removed card.</p>
-          </div>
+        <section id="s2" class="wa-stack wa-gap-m guide-step">
+          <h2 class="wa-heading-xl"><span class="guide-step-num">2</span>Import your decks</h2>
+          <ul style="padding-left: var(--wa-space-xl); line-height: 1.8; margin: 0;">
+            <li><strong>From a URL.</strong> Paste a Moxfield or Archidekt link and PRISM pulls the name, commander, and card list. The deck must be set to Public.</li>
+            <li><strong>Manual entry.</strong> Paste a decklist in MTGO format (quantity, then card name). PRISM parses it and flags names it can't find on Scryfall.</li>
+          </ul>
+          <p>PRISM analyzes your pool immediately: cards in two or more decks are <strong>POOL</strong>, cards in one deck are <strong>CORE</strong>.</p>
+          <div class="guide-img-placeholder">Screenshot: Add a Deck with a Moxfield URL pasted</div>
         </section>
 
         <wa-divider></wa-divider>
 
-        <!-- Step by Step -->
-        <section class="wa-stack wa-gap-l" style="padding-block: var(--wa-space-xl);">
-          <h2 class="wa-heading-xl">Marking Your Sleeves</h2>
+        <section id="s3" class="wa-stack wa-gap-m guide-step">
+          <h2 class="wa-heading-xl"><span class="guide-step-num">3</span>Read your results</h2>
+          <ul style="padding-left: var(--wa-space-xl); line-height: 1.8; margin: 0;">
+            <li><strong>POOL cards</strong> need a stripe for every deck they belong to. These are the cards PRISM saves you money on.</li>
+            <li><strong>CORE cards</strong> need one stripe.</li>
+            <li>The <strong>Overlap Matrix</strong> counts shared cards per deck pair. Bring low-overlap decks to game night and you carry fewer cards.</li>
+            <li>Cards removed after marking land in the <strong>Removed</strong> list until you clean the sleeve.</li>
+          </ul>
+          <div class="guide-img-placeholder">Screenshot: Results tab with POOL rows highlighted</div>
+        </section>
 
+        <wa-divider></wa-divider>
+
+        <section id="s4" class="wa-stack wa-gap-m guide-step">
+          <h2 class="wa-heading-xl"><span class="guide-step-num">4</span>Mark your sleeves</h2>
           <wa-callout variant="danger">
             <wa-icon slot="icon" name="triangle-exclamation"></wa-icon>
-            <strong>Finalize your decklists before you start marking.</strong> Do not edit your decks during the marking process. Changing cards mid-session leads to incorrect counts, missed marks, and confusion. If you realize a change is needed, write it down and make the edit after you've finished the initial marking pass.
+            <strong>Finalize your decklists first.</strong> Mid-session edits cause wrong counts and missed marks. Write changes down, make them after the pass.
           </wa-callout>
-
-          <div class="wa-stack wa-gap-m">
-            <h3 class="wa-heading-m">1. Set up your workspace</h3>
-            <ul style="padding-left: var(--wa-space-xl); line-height: 1.8;">
-              <li>Work on a clean, flat surface. An old playmat works well.</li>
-              <li>Keep paper towels and cotton swabs nearby for touch-ups.</li>
-              <li>Have your PRISM results open on a screen, or print your guide.</li>
-            </ul>
+          <ul style="padding-left: var(--wa-space-xl); line-height: 1.8; margin: 0;">
+            <li>Test your pen on a spare sleeve. Check visibility and smearing (see <a href="tools.html">Tools</a> for pens that work).</li>
+            <li>Mark the inner Perfect Fit sleeve, same edge every time. Short lines, 3 to 7mm.</li>
+            <li>Work through the list with search, check <strong>Done</strong> as you go. Start with POOL cards, they need the most stripes.</li>
+          </ul>
+          <div class="wa-frame wa-border-radius-m" style="max-height: 280px;">
+            <img src="assets/spiritguide.avif" alt="Spirit Guide alignment tool holding a sleeve" />
           </div>
-
-          <div class="wa-stack wa-gap-m">
-            <h3 class="wa-heading-m">2. Test your markers</h3>
-            <p>Always test on a spare sleeve first. Check that the color is visible against your sleeve backs (see the <a href="tools.html">Tools page</a> for recommendations). Make sure the ink sticks and doesn't smear once dry. Some sleeve materials work better with certain pen types, so test before committing.</p>
-          </div>
+          <wa-callout variant="brand" appearance="outlined">
+            <wa-icon slot="icon" name="handshake-angle"></wa-icon>
+            <strong>Use the Spirit Guide.</strong> It holds the sleeve and shows every position, so you paint all of a card's colors in one pass. Until the STL lands on <a href="tools.html">Tools</a>, any straight-edge jig works.
+          </wa-callout>
           <wa-callout variant="warning">
             <wa-icon slot="icon" name="hourglass"></wa-icon>
-              <strong>Let marks dry before sleeving.</strong><br />
-             Give them 2-3 minutes, especially paint pens. Rushing this step leads to smeared marks and re-dos.
+            <strong>Let marks dry 2 to 3 minutes before sleeving.</strong> Double-sleeve after: the outer sleeve protects the mark and keeps your cards tournament legal.
           </wa-callout>
-
-          <div class="wa-stack wa-gap-m">
-            <h3 class="wa-heading-m">3. Mark consistently</h3>
-            <ul style="padding-left: var(--wa-space-xl); line-height: 1.8;">
-              <li>Mark the same edge of each sleeve (left or right, whichever you chose).</li>
-              <li>Use the PRISM Spirit Guide as a jig or ruler.</li>
-              <li>Small dots or short lines work well. Aim for 3-7mm.</li>
-            </ul>
-          </div>
-
-          <wa-callout variant="brand" appearance="outlined">
-            <wa-icon slot="icon"  name="handshake-angle"></wa-icon>
-              <strong>Use the Spirit Guide.</strong><br />
-              A marking jig with position guides makes the process faster and more consistent. It holds the sleeve in place so you can add all colors for that card at once rather than batching by color. The 3D-printable STL is coming to the <a href="tools.html">Tools page</a> — until then, any straight-edge jig or ruler works.
-          </wa-callout>
-
-          <div class="wa-stack wa-gap-m">
-            <h3 class="wa-heading-m">4. Work through your list</h3>
-            <p>Use the search bar to find cards as you go. Check "Done" as you finish each one. Filter by deck to focus on one deck at a time. Start with pool cards (cards shared across multiple decks) since they need a mark for every deck they belong to. Core cards only appear in one deck, so they're quicker.</p>
-          </div>
         </section>
 
+        <wa-divider></wa-divider>
 
-        <!-- Tips Section -->
-        <section class="wa-stack wa-gap-l" style="padding-block: var(--wa-space-xl);">
-
-          <wa-callout variant="neutral">
-              <wa-icon slot="icon" name="layer-group"></wa-icon>
-              <strong>Mark the inner Perfect Fit sleeve on the card-face side.</strong><br />
-              Double-sleeve: an outer sleeve (e.g. Dragon Shields) protects the mark on the inner. The marks are small (around 7mm) and won't be felt through the outer sleeve. Your cards stay tournament legal.
-          </wa-callout>
-
+        <section id="s5" class="wa-stack wa-gap-m guide-step">
+          <h2 class="wa-heading-xl"><span class="guide-step-num">5</span>Basic lands and variants</h2>
+          <p><strong>Basics:</strong> PRISM tracks the maximum across decks. Deck A needs 12 Islands, Deck B needs 8? You mark 12 total, and only 8 carry Deck B's stripe. The <strong>Basics by Deck</strong> filter shows the counts.</p>
+          <p><strong>Variants:</strong> split a deck to run multiple builds in one slot. All variants share the parent's Side A stripe. <strong>Stripes</strong> (2 to 8 variants) add a Side B mark on the other edge; <strong>dots</strong> (exactly 2) add a colored dot next to the Side A stripe and keep everything on one edge.</p>
+          <div class="guide-img-placeholder">Photo: two variants told apart by dots next to the stripe</div>
         </section>
 
+        <wa-divider></wa-divider>
 
-        <!-- Basic Lands -->
-        <section class="wa-stack wa-gap-m" style="padding-block: var(--wa-space-xl);">
-          <h2 class="wa-heading-xl">Handling Basic Lands</h2>
-          <p>PRISM tracks the maximum count across your decks. If Deck A needs 12 Islands and Deck B needs 8, you need 12 total. All 12 get Deck A's mark. Only 8 get Deck B's mark. The "Basics by Deck" filter shows exactly how many of each basic each deck needs.</p>
-          <p>Or... Consider using different art or sets for each deck's basics. It makes sorting faster and gives each deck its own feel.</p>
+        <section id="s6" class="wa-stack wa-gap-m guide-step">
+          <h2 class="wa-heading-xl"><span class="guide-step-num">6</span>Reorder stripe positions</h2>
+          <p>Put your most-played decks in the most visible slots. Click <strong>Move</strong> on any deck card to open the slot picker: tap an empty slot to move there, tap an occupied one to swap.</p>
+          <p>The stripe starting corner and position numbers live in <strong>Settings</strong> (the gear in the header). Pick a corner before you start marking and don't change it after.</p>
+          <div class="guide-img-placeholder">Screenshot: the visual slot picker with 48 positions</div>
         </section>
 
+        <wa-divider></wa-divider>
 
-
-        <!-- Bracket Stacking -->
-        <section class="wa-stack wa-gap-m" style="padding-block: var(--wa-space-xl);">
-          <h2 class="wa-heading-xl">Same Commander, Different Power Levels</h2>
-          <p>If you run the same commander at multiple brackets or budgets, you need a way to tell those decks apart beyond the deck color. Two approaches work well.</p>
-          <ul style="padding-left: var(--wa-space-xl); line-height: 1.8;">
-            <li><strong>Dots next to the stripe.</strong> Add a small dot beside the stripe to indicate power level. No dot for casual, add a dot for higher bracket, or do a different color for more. Keeps everything on the same edge and is easy to read at a glance.</li>
-            <li><strong>Secondary stripes on the other edge.</strong> Use the opposite side of the sleeve for a second set of marks that indicate bracket or tier. More visual separation, avoids crowding your main marking edge.</li>
+        <section id="s7" class="wa-stack wa-gap-m guide-step">
+          <h2 class="wa-heading-xl"><span class="guide-step-num">7</span>Export your guide</h2>
+          <ul style="padding-left: var(--wa-space-xl); line-height: 1.8; margin: 0;">
+            <li><strong>Printable guide</strong> (Results tab, Export menu): every card with its colors and slots, plus the deck legend. Print it and check cards off.</li>
+            <li><strong>CSV</strong> for spreadsheets and your own workflows.</li>
+            <li><strong>JSON backup</strong> (the menu next to your PRISM name): full backup for restores and device moves.</li>
           </ul>
-          <p>Pick whichever fits how many variants you're tracking. Two versions of a commander? Dots are simpler. Three or more? The other edge gives you more room.</p>
+          <div class="guide-img-placeholder">Photo: printed guide and pens at a marking session</div>
         </section>
-
-        <wa-divider></wa-divider>
-
-        <!-- Deck Variants (Split Groups) -->
-        <section class="wa-stack wa-gap-l" style="padding-block: var(--wa-space-xl);">
-          <h2 class="wa-heading-xl">Deck Variants (Split Groups)</h2>
-          <p>Sometimes one deck slot holds multiple versions. A Simic shell that runs three different commanders. A Zur list with a casual build and a competitive one. PRISM handles this with split groups.</p>
-
-          <div class="wa-stack wa-gap-m">
-            <h3 class="wa-heading-m">How splitting works</h3>
-            <p>When you split a deck, the original becomes the <strong>parent</strong> and each variant becomes a <strong>child</strong>. All children share the parent's Side A stripe position and color. Each variant gets its own Side B mark on the opposite sleeve edge to distinguish it from the other variants.</p>
-          </div>
-
-          <div class="wa-stack wa-gap-m">
-            <h3 class="wa-heading-m">Split styles</h3>
-            <p>You have two options for how variants are marked on Side B:</p>
-            <ul style="padding-left: var(--wa-space-xl); line-height: 1.8;">
-              <li><strong>Stripes.</strong> Each variant gets a unique color stripe on the opposite edge of the sleeve (2-8 variants). A card in <em>all</em> variants keeps only the shared Side A stripe; a card in a subset of variants also gets each matching variant's Side B stripe. Clear and easy to read, but uses more stripe positions.</li>
-              <li><strong>Dots.</strong> Limited to exactly 2 variants (one dot hole per card). A card in <em>both</em> variants keeps only the shared Side A stripe — no dot. A card in just one variant gets a single dot in that variant's color next to the Side A stripe. Keeps everything on one edge and uses no extra stripe positions, but requires closer inspection.</li>
-            </ul>
-            <p>Pick stripes if you have 3 or more variants or plenty of unused positions. Pick dots for exactly two variants when you're running tight on positions or want to keep all marks on one edge.</p>
-          </div>
-
-          <div class="wa-stack wa-gap-m">
-            <h3 class="wa-heading-m">Creating a split</h3>
-            <p>On the Decks tab, click the split icon on any deck card. Choose which split style to use and how many variants you want (2-8 for stripes, exactly 2 for dots). Each variant gets its own card list, commander, and bracket rating. Cards shared across all variants keep the parent's Side A mark. Cards unique to a variant get both Side A and their variant's Side B mark.</p>
-          </div>
-        </section>
-
-        <wa-divider></wa-divider>
-
-        <!-- Reordering Stripe Positions -->
-        <section class="wa-stack wa-gap-l" style="padding-block: var(--wa-space-xl);">
-          <h2 class="wa-heading-xl">Reordering Stripe Positions</h2>
-          <p>Stripe positions determine where on the sleeve edge each deck's mark appears. Position 1 is at one end, position 48 at the other. The order matters because you want your most-played decks in the most visible positions.</p>
-
-          <div class="wa-stack wa-gap-m">
-            <h3 class="wa-heading-m">Using the slot picker</h3>
-            <p>Click the Move button on any deck card to open the visual slot picker. It shows all 48 positions with the current assignments. Tap an empty slot to move the deck there, or tap an occupied slot to swap positions with that deck.</p>
-          </div>
-
-          <div class="wa-stack wa-gap-m">
-            <h3 class="wa-heading-m">Bulk reordering</h3>
-            <p>The Export tab has a position list that lets you reorder multiple decks at once. Pick a new slot from each deck's dropdown, or use the up/down buttons to swap a deck with its neighbour.</p>
-          </div>
-
-          <div class="wa-stack wa-gap-m">
-            <h3 class="wa-heading-m">Stripe starting corner</h3>
-            <p>By default, stripe position 1 starts at the top-right corner of the sleeve. In Stripe Settings on the Decks tab, you can change the starting corner to top-left, top-right, bottom-left, or bottom-right. Applying the change renumbers every deck's slot so Slot 1 sits at the chosen corner — each mark stays at the same physical spot on the sleeve, only the numbering shifts. Pick whichever corner is most visible when you fan your cards and don't change it after you've started marking.</p>
-          </div>
-        </section>
-
-        <wa-divider></wa-divider>
-
-        <!-- Adding New Decks -->
-        <section class="wa-stack wa-gap-m" style="padding-block: var(--wa-space-xl);">
-          <h2 class="wa-heading-xl">Adding New Decks</h2>
-          <p>When you build a new deck:</p>
-          <ol style="padding-left: var(--wa-space-xl); line-height: 1.8;">
-            <li>Add the deck to your existing PRISM.</li>
-            <li>Assign a color and confirm its stripe position. New decks get the next available position by default.</li>
-            <li>Use "Filter by Deck" to see only the new deck's cards.</li>
-            <li>Cards already in your collection just need the new deck's color added to their sleeve.</li>
-            <li>New cards need all their marks. Check whether they appear in other decks too, because they may need multiple stripes.</li>
-          </ol>
-          <wa-callout variant="neutral" style="margin-top: var(--wa-space-m);">
-            <wa-icon slot="icon" name="lightbulb"></wa-icon>
-            Adding or editing a deck only un-checks cards whose stripe markings changed — not everything. Cards whose marks are unaffected stay checked, so you only re-mark what actually changed.
-          </wa-callout>
-
-          <div class="wa-stack wa-gap-m">
-            <h3 class="wa-heading-m">Removing a deck</h3>
-            <p>Deleting a deck removes it from your PRISM and frees its stripe position. Cards that were only in that deck will move to the Removed list as a reminder that their sleeves still carry marks. Cards shared with other decks keep their remaining marks.</p>
-          </div>
-        </section>
-
-        <wa-divider></wa-divider>
-
-        <!-- Exporting Your Data -->
-        <section class="wa-stack wa-gap-l" style="padding-block: var(--wa-space-xl);">
-          <h2 class="wa-heading-xl">Exporting Your Data</h2>
-
-          <div class="wa-stack wa-gap-m">
-            <h3 class="wa-heading-m">Printable marking guide</h3>
-            <p>The most common export. Generates a formatted reference you can print and bring to your marking session. Each card shows its name, which decks it belongs to, and which stripe colors and positions to apply. Print it, check cards off as you go.</p>
-          </div>
-
-          <div class="wa-stack wa-gap-m">
-            <h3 class="wa-heading-m">CSV export</h3>
-            <p>A spreadsheet-compatible file with one row per card. Useful if you want to do your own analysis, track inventory, or build a custom workflow.</p>
-          </div>
-
-          <div class="wa-stack wa-gap-m">
-            <h3 class="wa-heading-m">JSON export</h3>
-            <p>The raw PRISM data structure. Use this for backups, transferring between devices, or if you're building something on top of PRISM's data. Import a JSON file back into the app to restore a full PRISM with all decks and settings.</p>
-          </div>
-        </section>
-
-        <wa-divider></wa-divider>
-
-        <!-- Managing Multiple PRISMs -->
-        <section class="wa-stack wa-gap-l" style="padding-block: var(--wa-space-xl);">
-          <h2 class="wa-heading-xl">Managing Multiple PRISMs</h2>
-          <p>If you have more decks than a single PRISM can hold (up to 48 with stripe splits, or 96 with dot splits), or if you want to organize your collection into separate groups, create multiple PRISMs.</p>
-          <p>Each PRISM is independent: its own deck list, its own stripe positions, its own marking guide. You might separate by sleeve color (all black-sleeved decks in one PRISM, all colored sleeves in another), by power level, or by format once non-Commander formats are supported.</p>
-          <p>Switch between PRISMs from the My PRISMs page. Your current PRISM is always auto-saved before switching.</p>
-        </section>
-
-        <wa-divider></wa-divider>
 
         <!-- CTA -->
         <section class="wa-stack wa-gap-m wa-align-items-center" style="padding-block: var(--wa-space-2xl); text-align: center;">
@@ -321,6 +214,28 @@ Share your staples across every deck. PRISM tracks what goes where so you don't 
     <script type="module">
       import { initLayout } from './js/layout.js';
       initLayout({ activePage: 'guide', headerCta: { href: 'build.html', label: 'Build PRISM', icon: 'wand-magic-sparkles' } });
+    </script>
+    <script>
+      // Scroll spy: highlight the step chip for the section in view
+      (function () {
+        const chips = Array.from(document.querySelectorAll('#step-bar a[data-step]'));
+        const sections = chips.map((c) => document.getElementById(c.dataset.step)).filter(Boolean);
+        if (!sections.length) return;
+        const setActive = (id) => {
+          chips.forEach((c) => c.classList.toggle('active', c.dataset.step === id));
+        };
+        const observer = new IntersectionObserver(
+          (entries) => {
+            const visible = entries
+              .filter((e) => e.isIntersecting)
+              .sort((a, b) => b.intersectionRatio - a.intersectionRatio);
+            if (visible.length) setActive(visible[0].target.id);
+          },
+          { rootMargin: '-20% 0px -60% 0px', threshold: [0, 0.25, 0.5] }
+        );
+        sections.forEach((s) => observer.observe(s));
+        setActive('s1');
+      })();
     </script>
   </body>
 </html>

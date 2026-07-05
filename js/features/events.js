@@ -12,9 +12,7 @@ import { renderResults } from './results.js';
 import { openScryMode } from './scry-mode.js';
 import { renderOverlapMatrix } from './analysis.js';
 import { debounce } from '../core/utils.js';
-import { updatePreferences, getPreferences, savePrism, setColorScheme, STRIPE_NUMBERS_MODES } from '../modules/storage.js';
-import { applyColorScheme } from '../modules/theme.js';
-import { remapPrismForCorner } from '../modules/processor.js';
+import { updatePreferences, getCurrentPrism } from '../modules/storage.js';
 import { renderAll } from './init.js';
 import { logToSupabase } from '../modules/supabase-client.js';
 
@@ -50,9 +48,24 @@ export function setupEventListeners() {
     state.elements.deckFileInput.addEventListener('change', handleFileUpload);
   }
 
-  // JSON import (wa-file-input handles its own UI)
+  // JSON import (wa-file-input handles its own UI); close the dialog once a file is chosen
   if (state.elements.prismJsonInput) {
-    state.elements.prismJsonInput.addEventListener('change', handleJsonImport);
+    state.elements.prismJsonInput.addEventListener('change', (e) => {
+      handleJsonImport(e);
+      state.elements.importDialog?.removeAttribute('open');
+    });
+  }
+
+  // Import backup dialog (opened from the ... overflow menu)
+  if (state.elements.btnImportBackup) {
+    state.elements.btnImportBackup.addEventListener('click', () => {
+      state.elements.importDialog?.setAttribute('open', '');
+    });
+  }
+  if (state.elements.btnCancelImport) {
+    state.elements.btnCancelImport.addEventListener('click', () => {
+      state.elements.importDialog?.removeAttribute('open');
+    });
   }
 
   // Moxfield import
@@ -229,51 +242,18 @@ export function setupEventListeners() {
     });
   }
 
-  // Stripe starting corner preference
-  if (state.elements.stripeStartCorner) {
-    state.elements.stripeStartCorner.addEventListener('change', (e) => {
-      const pending = e.target.value;
-      const applied = getPreferences().stripeStartCorner || 'top-right';
-      const applyBtn = state.elements.stripeStartCornerApply;
-      if (applyBtn) {
-        if (pending !== applied) applyBtn.removeAttribute('disabled');
-        else applyBtn.setAttribute('disabled', '');
-      }
-    });
-  }
-
-  if (state.elements.stripeStartCornerApply) {
-    state.elements.stripeStartCornerApply.addEventListener('click', () => {
-      const newCorner = state.elements.stripeStartCorner?.value;
-      if (!newCorner) return;
-      const currentCorner = getPreferences().stripeStartCorner || 'top-right';
-      if (newCorner !== currentCorner && state.currentPrism) {
-        state.currentPrism = remapPrismForCorner(state.currentPrism, currentCorner, newCorner);
-        savePrism(state.currentPrism);
-      }
-      updatePreferences({ stripeStartCorner: newCorner });
-      state.elements.stripeStartCornerApply.setAttribute('disabled', '');
+  // Settings drawer (injected by layout.js) — refresh build surfaces when a
+  // stripe setting changes there. The drawer itself persists the preference.
+  window.addEventListener('prism-settings-changed', (e) => {
+    const setting = e.detail?.setting;
+    if (setting === 'stripeStartCorner') {
+      state.currentPrism = getCurrentPrism();
       renderAll();
-    });
-  }
-
-  // Position-numbers mode (counting aid overlay): none / some / all.
-  // Read at render time + re-render the visible surfaces immediately on change.
-  if (state.elements.stripeNumbersMode) {
-    state.elements.stripeNumbersMode.addEventListener('change', (e) => {
-      updatePreferences({ stripeNumbersMode: STRIPE_NUMBERS_MODES[Number(e.target.value) - 1] || 'none' });
+    } else if (setting === 'stripeNumbersMode') {
       renderResults();
       refreshOpenPreview();
-    });
-  }
-
-  // Color scheme preference — persist and apply live
-  if (state.elements.colorScheme) {
-    state.elements.colorScheme.addEventListener('change', (e) => {
-      setColorScheme(e.target.value);
-      applyColorScheme(e.target.value);
-    });
-  }
+    }
+  });
 
   // Overlap matrix — build content the first time the accordion is opened
   if (state.elements.overlapMatrixContainer) {
