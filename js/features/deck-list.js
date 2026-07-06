@@ -904,11 +904,6 @@ export function renderDecksList() {
   const splitGroups = state.currentPrism.splitGroups || [];
   const processed = sortedDecks.length > 0 ? processCards(state.currentPrism) : [];
 
-  // Stripe Settings card lives in this (Decks) panel, so its visibility is owned here.
-  if (state.elements.stripeSettingsCard) {
-    state.elements.stripeSettingsCard.style.display = sortedDecks.length >= 1 ? '' : 'none';
-  }
-
   if (sortedDecks.length === 0) {
     state.elements.decksList.innerHTML = `
       <div class="wa-stack wa-gap-m wa-align-items-center" style="padding: var(--wa-space-xl); text-align: center;">

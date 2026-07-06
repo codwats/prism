@@ -71,31 +71,33 @@
         </div>
 
         <!-- Logged In State -->
-        <div id="profile-logged-in" hidden>
-          <!-- Profile Header -->
-          <div class="wa-stack wa-gap-m" style="padding-bottom: var(--wa-space-xl);">
+        <div id="profile-logged-in" class="wa-stack wa-gap-xl" hidden>
+          <!-- Identity strip -->
+          <div class="wa-split wa-align-items-center" style="padding-block-end: var(--wa-space-m); border-bottom: 1px solid var(--wa-color-surface-border);">
             <div class="wa-cluster wa-gap-m wa-align-items-center">
-              <wa-icon name="circle-user" style="font-size: 3rem; color: var(--wa-color-brand-fill);"></wa-icon>
-              <div class="wa-stack wa-gap-2xs">
-                <h1 class="wa-heading-xl">Profile</h1>
-                <span id="profile-email" class="wa-body-m" style="color: var(--wa-color-neutral-text-subtle);"></span>
+              <wa-avatar id="profile-avatar" label="Your avatar" style="--size: 3rem; background: var(--wa-color-brand-fill-quiet); color: var(--wa-color-brand-text);"></wa-avatar>
+              <div class="wa-stack wa-gap-3xs">
+                <span id="profile-email" class="wa-heading-m"></span>
+                <span id="profile-meta" class="wa-caption-m" style="color: var(--wa-color-neutral-text-subtle);"></span>
               </div>
             </div>
+            <wa-button id="btn-profile-logout" variant="neutral" appearance="outlined" size="small">
+              <wa-icon slot="start" name="right-from-bracket"></wa-icon>
+              Sign out
+            </wa-button>
           </div>
 
-          <wa-divider></wa-divider>
-
           <!-- My PRISMs Section -->
-          <section class="wa-stack wa-gap-m" style="padding-block: var(--wa-space-xl);">
+          <section class="wa-stack wa-gap-m">
             <div class="wa-split wa-align-items-center">
-              <h2 class="wa-heading-l">My PRISMs</h2>
+              <h2 class="wa-heading-l" style="margin: 0;">My PRISMs</h2>
               <wa-button id="btn-new-prism" variant="neutral" appearance="outlined" size="small">
                 <wa-icon slot="start" name="plus"></wa-icon>
                 New PRISM
               </wa-button>
             </div>
 
-            <div id="prisms-list" class="wa-stack wa-gap-m">
+            <div id="prisms-list" class="wa-grid wa-gap-m" style="--min-column-size: 18rem;">
               <div class="wa-stack wa-gap-m wa-align-items-center" style="padding: var(--wa-space-xl); color: var(--wa-color-neutral-text-subtle);">
                 <wa-icon name="layer-group" style="font-size: 2rem;"></wa-icon>
                 <p>Loading your PRISMs...</p>
@@ -103,67 +105,106 @@
             </div>
           </section>
 
-          <wa-divider></wa-divider>
-
-          <!-- Account Settings Section -->
-          <section class="wa-stack wa-gap-m" style="padding-block: var(--wa-space-xl);">
-            <h2 class="wa-heading-l">Account Settings</h2>
-
+          <!-- Account & security -->
+          <section class="wa-stack wa-gap-m">
+            <h2 class="wa-heading-l" style="margin: 0;">Account &amp; security</h2>
             <wa-card>
-              <div slot="header" class="wa-cluster wa-gap-s wa-align-items-center">
-                <wa-icon name="envelope"></wa-icon>
-                <span class="wa-heading-m">Change Email</span>
-              </div>
-
-              <form id="change-email-form" class="wa-stack wa-gap-m">
-                <wa-input id="new-email" type="email" label="New Email" placeholder="Enter new email address" required></wa-input>
-                <div id="email-error" hidden class="wa-caption-m" style="color: var(--wa-color-danger-text);"></div>
-                <div id="email-success" hidden class="wa-caption-m" style="color: var(--wa-color-success-text);"></div>
-                <wa-button id="btn-change-email" type="submit" variant="brand">
-                  Update Email
-                </wa-button>
-              </form>
-            </wa-card>
-
-            <wa-card>
-              <div slot="header" class="wa-cluster wa-gap-s wa-align-items-center">
-                <wa-icon name="key"></wa-icon>
-                <span class="wa-heading-m">Change Password</span>
-              </div>
-
-              <form id="change-password-form" class="wa-stack wa-gap-m">
-                <wa-input id="new-password" name="new-password" type="password" label="New Password" placeholder="Enter new password" autocomplete="new-password" required minlength="6"></wa-input>
-                <wa-input id="confirm-password" name="confirm-password" type="password" label="Confirm Password" placeholder="Confirm new password" autocomplete="new-password" required minlength="6"></wa-input>
-                <div id="password-error" hidden class="wa-caption-m" style="color: var(--wa-color-danger-text);"></div>
-                <div id="password-success" hidden class="wa-caption-m" style="color: var(--wa-color-success-text);"></div>
-                <wa-button id="btn-change-password" type="submit" variant="brand">
-                  Update Password
-                </wa-button>
-              </form>
-            </wa-card>
-          </section>
-
-          <wa-divider></wa-divider>
-
-          <!-- Danger Zone -->
-          <section class="wa-stack wa-gap-m" style="padding-block: var(--wa-space-xl);">
-            <h2 class="wa-heading-l" style="color: var(--wa-color-danger-text);">Danger Zone</h2>
-
-            <wa-card style="border: 1px solid var(--wa-color-danger-stroke);">
-              <div class="wa-split wa-align-items-center">
-                <div class="wa-stack wa-gap-xs">
-                  <span class="wa-heading-m">Sign Out</span>
-                  <span class="wa-caption-m" style="color: var(--wa-color-neutral-text-subtle);">Sign out of your account on this device.</span>
+              <div class="wa-stack wa-gap-0">
+                <div class="wa-split wa-align-items-center" style="padding-block: var(--wa-space-s);">
+                  <div class="wa-stack wa-gap-3xs">
+                    <span style="font-weight: var(--wa-font-weight-semibold);">Email</span>
+                    <span id="account-email-caption" class="wa-caption-m" style="color: var(--wa-color-neutral-text-subtle);"></span>
+                  </div>
+                  <wa-button id="btn-open-email-dialog" appearance="plain" variant="neutral" size="small">Change</wa-button>
                 </div>
-                <wa-button id="btn-profile-logout" variant="danger" appearance="outlined">
-                  Sign Out
-                </wa-button>
+                <wa-divider style="--spacing: 0;"></wa-divider>
+                <div class="wa-split wa-align-items-center" style="padding-block: var(--wa-space-s);">
+                  <div class="wa-stack wa-gap-3xs">
+                    <span style="font-weight: var(--wa-font-weight-semibold);">Password</span>
+                    <span class="wa-caption-m" style="color: var(--wa-color-neutral-text-subtle);">Update your account password</span>
+                  </div>
+                  <wa-button id="btn-open-password-dialog" appearance="plain" variant="neutral" size="small">Change</wa-button>
+                </div>
+                <wa-divider style="--spacing: 0;"></wa-divider>
+                <div class="wa-split wa-align-items-center" style="padding-block: var(--wa-space-s);">
+                  <div class="wa-stack wa-gap-3xs">
+                    <span style="font-weight: var(--wa-font-weight-semibold);">Download my data</span>
+                    <span class="wa-caption-m" style="color: var(--wa-color-neutral-text-subtle);">A .json backup of each PRISM, decks and marks included</span>
+                  </div>
+                  <wa-button id="btn-download-data" appearance="plain" variant="neutral" size="small">
+                    <wa-icon slot="start" name="file-code"></wa-icon>
+                    Download
+                  </wa-button>
+                </div>
+                <wa-divider style="--spacing: 0;"></wa-divider>
+                <div class="wa-split wa-align-items-center" style="padding-block: var(--wa-space-s);">
+                  <div class="wa-stack wa-gap-3xs">
+                    <span style="font-weight: var(--wa-font-weight-semibold);">Restore from backup</span>
+                    <span class="wa-caption-m" style="color: var(--wa-color-neutral-text-subtle);">Import an exported .json as a new PRISM</span>
+                  </div>
+                  <wa-button id="btn-open-restore-dialog" appearance="plain" variant="neutral" size="small">
+                    <wa-icon slot="start" name="file-import"></wa-icon>
+                    Import
+                  </wa-button>
+                </div>
               </div>
             </wa-card>
+            <div class="wa-cluster wa-gap-s wa-align-items-center">
+              <wa-button id="btn-open-delete-account-dialog" appearance="plain" variant="danger" size="small">Delete account</wa-button>
+              <span class="wa-caption-s" style="color: var(--wa-color-neutral-text-subtle);">Removes your account and synced PRISMs. Local data stays in your browser.</span>
+            </div>
           </section>
         </div>
       </main>
     </wa-page>
+
+    <!-- Change email dialog -->
+    <wa-dialog id="email-dialog" label="Change email">
+      <form id="change-email-form" class="wa-stack wa-gap-m">
+        <wa-input id="new-email" type="email" label="New email" placeholder="Enter new email address" required></wa-input>
+        <span class="wa-caption-s" style="color: var(--wa-color-neutral-text-subtle);">We send a confirmation link to the new address before anything changes.</span>
+        <div id="email-error" hidden class="wa-caption-m" style="color: var(--wa-color-danger-text);"></div>
+        <div id="email-success" hidden class="wa-caption-m" style="color: var(--wa-color-success-text);"></div>
+      </form>
+      <div slot="footer" class="wa-cluster wa-gap-s">
+        <wa-button variant="neutral" appearance="outlined" data-dialog-close>Cancel</wa-button>
+        <wa-button id="btn-change-email" variant="brand">Update email</wa-button>
+      </div>
+    </wa-dialog>
+
+    <!-- Change password dialog -->
+    <wa-dialog id="password-dialog" label="Change password">
+      <form id="change-password-form" class="wa-stack wa-gap-m">
+        <wa-input id="new-password" name="new-password" type="password" label="New password" placeholder="At least 6 characters" autocomplete="new-password" required minlength="6"></wa-input>
+        <wa-input id="confirm-password" name="confirm-password" type="password" label="Confirm password" placeholder="Repeat new password" autocomplete="new-password" required minlength="6"></wa-input>
+        <div id="password-error" hidden class="wa-caption-m" style="color: var(--wa-color-danger-text);"></div>
+        <div id="password-success" hidden class="wa-caption-m" style="color: var(--wa-color-success-text);"></div>
+      </form>
+      <div slot="footer" class="wa-cluster wa-gap-s">
+        <wa-button variant="neutral" appearance="outlined" data-dialog-close>Cancel</wa-button>
+        <wa-button id="btn-change-password" variant="brand">Update password</wa-button>
+      </div>
+    </wa-dialog>
+
+    <!-- Restore from backup dialog -->
+    <wa-dialog id="restore-dialog" label="Restore from backup">
+      <div class="wa-stack wa-gap-m">
+        <p class="wa-caption-m" style="color: var(--wa-color-neutral-text-subtle); margin: 0;">The imported file becomes a new PRISM. Your existing PRISMs are untouched.</p>
+        <wa-file-input id="profile-json-input" accept=".json" label="Import File" hint="Drag & drop or click to select your exported .json file" size="small"></wa-file-input>
+      </div>
+      <div slot="footer" class="wa-cluster wa-gap-s">
+        <wa-button variant="neutral" appearance="outlined" data-dialog-close>Cancel</wa-button>
+      </div>
+    </wa-dialog>
+
+    <!-- Delete account dialog -->
+    <wa-dialog id="delete-account-dialog" label="Delete account">
+      <p>This removes your account and all synced PRISMs. Data saved locally in your browser stays until you clear it. This cannot be undone.</p>
+      <div slot="footer" class="wa-cluster wa-gap-s">
+        <wa-button variant="neutral" appearance="outlined" data-dialog-close>Cancel</wa-button>
+        <wa-button id="btn-confirm-delete-account" variant="danger">Delete account</wa-button>
+      </div>
+    </wa-dialog>
 
     <!-- Delete PRISM confirmation dialog -->
     <wa-dialog id="delete-prism-dialog" label="Delete PRISM">

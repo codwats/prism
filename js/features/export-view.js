@@ -1,26 +1,21 @@
 /**
- * Export tab: deck legend and stripe reorder list.
+ * Deck legend rendering (Legend dropdown in the Results toolbar; also prints on the guide).
  */
 
 import { state } from '../core/state.js';
 import { escapeHtml } from '../core/utils.js';
-import { formatSlotLabel, getPositionOccupants } from '../modules/processor.js';
-import { handleStripeReorder, handlePositionChange } from './deck-list.js';
+import { formatSlotLabel } from '../modules/processor.js';
 
 // ============================================================================
-// Export rendering
+// Legend rendering
 // ============================================================================
 
 export function renderExport() {
   const sortedDecks = [...state.currentPrism.decks].sort((a, b) => a.stripePosition - b.stripePosition);
 
-  // Deck legend
   if (sortedDecks.length === 0) {
     if (state.elements.deckLegend) state.elements.deckLegend.style.display = 'none';
     if (state.elements.noDecksLegend) state.elements.noDecksLegend.style.display = '';
-    if (state.elements.stripeReorderList) {
-      state.elements.stripeReorderList.innerHTML = '';
-    }
     return;
   }
 
@@ -44,113 +39,28 @@ export function renderExport() {
     }
     legendItems.sort((a, b) => a.sortPos - b.sortPos);
 
+    const legendRow = (color, name, slotLabel) => `
+      <div class="wa-cluster wa-gap-s wa-align-items-center" style="flex-wrap: nowrap;">
+        <div class="deck-color-indicator" style="background-color: ${color};"></div>
+        <span style="flex: 1;">${escapeHtml(name)}</span>
+        <span class="wa-caption-s" style="font-family: var(--wa-font-family-code); white-space: nowrap;">${escapeHtml(slotLabel)}</span>
+      </div>`;
+
     state.elements.deckLegend.innerHTML = legendItems.map(item => {
       if (item.type === 'standalone') {
-        const slotLabel = formatSlotLabel(item.deck.stripePosition);
-        return `
-          <div class="wa-cluster wa-gap-xs wa-align-items-center">
-            <div class="deck-color-indicator small" style="background-color: ${item.deck.color};"></div>
-            <span><strong>${slotLabel}:</strong> ${escapeHtml(item.deck.name)}</span>
-          </div>`;
+        return legendRow(item.deck.color, item.deck.name, formatSlotLabel(item.deck.stripePosition));
       }
       const group = item.group;
       const children = group.childDeckIds.map(id => state.currentPrism.decks.find(d => d.id === id)).filter(Boolean);
       return `
         <div class="wa-stack wa-gap-2xs" style="width: 100%;">
-          <div class="wa-cluster wa-gap-xs wa-align-items-center">
-            <div class="deck-color-indicator small" style="background-color: ${group.sideAColor};"></div>
-            <span><strong>${formatSlotLabel(group.sideAPosition, 'a')}:</strong> ${escapeHtml(group.name)} <span style="color:var(--wa-color-neutral-text-subtle);">(split group · ${(group.splitStyle || 'stripes') === 'dots' ? 'dots' : 'stripes'})</span></span>
-          </div>
+          ${legendRow(group.sideAColor, `${group.name} (split · ${(group.splitStyle || 'stripes') === 'dots' ? 'dots' : 'stripes'})`, formatSlotLabel(group.sideAPosition, 'a'))}
           ${children.map(child => `
-            <div class="wa-cluster wa-gap-xs wa-align-items-center" style="padding-left: var(--wa-space-l);">
-              <div class="deck-color-indicator small" style="background-color: ${child.color};"></div>
-              <span><strong>${typeof child.stripePosition === 'number' ? formatSlotLabel(child.stripePosition) : 'Dot variant'}:</strong> ${escapeHtml(child.name)}</span>
+            <div style="padding-left: var(--wa-space-l);">
+              ${legendRow(child.color, child.name, typeof child.stripePosition === 'number' ? formatSlotLabel(child.stripePosition) : 'dot')}
             </div>
           `).join('')}
         </div>`;
     }).join('');
-  }
-
-  // Stripe position list with slot picker. Dot variants own no slot
-  // (stripePosition null) — they move with their parent group, so they are
-  // excluded from the bulk reorder list.
-  if (state.elements.stripeReorderList) {
-    const occupants = getPositionOccupants(state.currentPrism);
-    const slotDecks = sortedDecks.filter(d => typeof d.stripePosition === 'number');
-    const maxSlot = Math.max(24, ...slotDecks.map(d => d.stripePosition));
-
-    state.elements.stripeReorderList.innerHTML = slotDecks.map((deck, index) => {
-      // Build select options for all available slots
-      const options = [];
-      for (let slot = 1; slot <= maxSlot; slot++) {
-        const occupant = occupants.get(slot);
-        const isCurrent = slot === deck.stripePosition;
-        let label = `Slot ${slot}`;
-        if (isCurrent) {
-          label += ' (current)';
-        } else if (occupant) {
-          label += ` — ${occupant.name}`;
-        }
-        options.push(`<wa-option value="${slot}" ${isCurrent ? 'selected' : ''}>${escapeHtml(label)}</wa-option>`);
-      }
-
-      return `
-      <div class="position-item" data-deck-id="${deck.id}">
-        <div class="position-item-info wa-cluster wa-gap-s wa-align-items-center">
-          <div class="deck-color-indicator" style="background-color: ${deck.color};"></div>
-          <span class="position-item-name">${escapeHtml(deck.name)}</span>
-        </div>
-        <div class="position-item-controls wa-cluster wa-gap-xs wa-align-items-center">
-          <wa-select
-            class="position-select"
-            size="small"
-            value="${deck.stripePosition}"
-            data-deck-id="${deck.id}"
-            hoist
-          >
-            ${options.join('')}
-          </wa-select>
-          <wa-button
-            appearance="plain"
-            variant="neutral"
-            size="small"
-            class="btn-move-up"
-            data-deck-id="${deck.id}"
-            ${index === 0 ? 'disabled' : ''}
-            title="Move up"
-          >
-            <wa-icon name="chevron-up"></wa-icon>
-          </wa-button>
-          <wa-button
-            appearance="plain"
-            variant="neutral"
-            size="small"
-            class="btn-move-down"
-            data-deck-id="${deck.id}"
-            ${index === slotDecks.length - 1 ? 'disabled' : ''}
-            title="Move down"
-          >
-            <wa-icon name="chevron-down"></wa-icon>
-          </wa-button>
-        </div>
-      </div>
-    `;
-    }).join('');
-
-    // Add position change listeners
-    state.elements.stripeReorderList.querySelectorAll('.position-select').forEach(select => {
-      // wa-select emits the native 'change' event (there is no 'wa-change')
-      select.addEventListener('change', (e) => {
-        handlePositionChange(e.target.dataset.deckId, parseInt(e.target.value, 10));
-      });
-    });
-
-    // Add reorder listeners
-    state.elements.stripeReorderList.querySelectorAll('.btn-move-up').forEach(btn => {
-      btn.addEventListener('click', () => handleStripeReorder(btn.dataset.deckId, 'up'));
-    });
-    state.elements.stripeReorderList.querySelectorAll('.btn-move-down').forEach(btn => {
-      btn.addEventListener('click', () => handleStripeReorder(btn.dataset.deckId, 'down'));
-    });
   }
 }

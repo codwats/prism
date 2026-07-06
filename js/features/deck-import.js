@@ -5,8 +5,8 @@
 import { state } from '../core/state.js';
 import { showError, showSuccess } from '../core/notifications.js';
 import { logToSupabase } from '../modules/supabase-client.js';
-import { createDeck, createPrism } from '../modules/processor.js';
 import { savePrism, setCurrentPrism } from '../modules/storage.js';
+import { buildPrismFromJson } from '../modules/prism-import.js';
 import { importFromMoxfield, toDecklistText, extractMoxfieldId } from '../modules/moxfield.js';
 import { importFromArchidekt, extractArchidektId } from '../modules/archidekt.js';
 import { initColorSwatches } from './deck-form.js';
@@ -84,78 +84,7 @@ export function handleJsonImport(e) {
   reader.onload = (event) => {
     try {
       const jsonData = JSON.parse(event.target.result);
-
-      let prismData = null;
-      if (jsonData.prism && jsonData.prism.decks) {
-        prismData = jsonData.prism;
-      } else if (jsonData.decks && Array.isArray(jsonData.decks)) {
-        prismData = jsonData;
-      } else {
-        throw new Error('Invalid PRISM JSON format. Expected decks array.');
-      }
-
-      if (!prismData.decks || prismData.decks.length === 0) {
-        throw new Error('No decks found in the imported file.');
-      }
-
-      // Untrusted file: clamp colors to strict hex before they reach
-      // style="background-color: ${color}" in render code. Invalid → grey fallback.
-      const validHex = (c) => (/^#[0-9A-Fa-f]{6}$/.test(c) ? c : '#888888');
-
-      const newPrism = createPrism(prismData.name || 'Imported PRISM');
-      newPrism.id = prismData.id || newPrism.id;
-      newPrism.createdAt = prismData.createdAt || newPrism.createdAt;
-      newPrism.updatedAt = new Date().toISOString();
-      newPrism.markedCards = prismData.markedCards || [];
-      newPrism.removedCards = (prismData.removedCards || []).map(removed => ({
-        ...removed,
-        deckColor: validHex(removed.deckColor),
-      }));
-
-      for (const deck of prismData.decks) {
-        const deckCards = deck.cards || [];
-        const newDeck = createDeck({
-          id: deck.id,
-          name: deck.name,
-          commander: deck.commander,
-          bracket: deck.bracket,
-          color: validHex(deck.color),
-          stripePosition: deck.stripePosition,
-          splitGroupId: deck.splitGroupId || null,
-          cards: deckCards,
-          createdAt: deck.createdAt,
-          updatedAt: deck.updatedAt
-        });
-        newPrism.decks.push(newDeck);
-      }
-
-      const deckIds = new Set(newPrism.decks.map(d => d.id));
-      newPrism.splitGroups = (prismData.splitGroups || [])
-        .map(group => {
-          const explicit = (group.childDeckIds || []).filter(id => deckIds.has(id));
-          const childDeckIds = explicit.length > 0
-            ? explicit
-            : newPrism.decks.filter(d => d.splitGroupId === group.id).map(d => d.id);
-          if (childDeckIds.length === 0) return null;
-          return {
-            id: group.id,
-            name: group.name,
-            sideAPosition: group.sideAPosition,
-            sideAColor: validHex(group.sideAColor),
-            splitStyle: group.splitStyle || 'stripes',
-            childDeckIds,
-            createdAt: group.createdAt,
-            updatedAt: group.updatedAt
-          };
-        })
-        .filter(Boolean);
-
-      const validGroupIds = new Set(newPrism.splitGroups.map(g => g.id));
-      for (const deck of newPrism.decks) {
-        if (deck.splitGroupId && !validGroupIds.has(deck.splitGroupId)) {
-          deck.splitGroupId = null;
-        }
-      }
+      const newPrism = buildPrismFromJson(jsonData);
 
       savePrism(newPrism);
       setCurrentPrism(newPrism.id);

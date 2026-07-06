@@ -5,7 +5,10 @@
 
 import { initAuth, setupAuthListeners, onAuthChange, getCurrentUser, signOut, updatePassword, updateEmail, updateAuthUI, ensureAuthReady } from './modules/auth.js';
 import { getAllPrisms, setCurrentPrism, deletePrism, savePrism, getCurrentPrism } from './modules/storage.js';
-import { createPrism } from './modules/processor.js';
+import { createPrism, processCards } from './modules/processor.js';
+import { downloadJSON } from './modules/export.js';
+import { buildPrismFromJson } from './modules/prism-import.js';
+import { showError, showSuccess } from './core/notifications.js';
 import { escapeHtml, getLogicalDeckCount } from './core/utils.js';
 
 // DOM Elements
@@ -18,25 +21,43 @@ function getElements() {
     profileLoggedOut: document.getElementById('profile-logged-out'),
     profileLoggedIn: document.getElementById('profile-logged-in'),
     profileEmail: document.getElementById('profile-email'),
+    profileAvatar: document.getElementById('profile-avatar'),
+    profileMeta: document.getElementById('profile-meta'),
+    accountEmailCaption: document.getElementById('account-email-caption'),
 
     // PRISMs list
     prismsList: document.getElementById('prisms-list'),
     btnNewPrism: document.getElementById('btn-new-prism'),
 
-    // Email change
+    // Email change (dialog)
+    emailDialog: document.getElementById('email-dialog'),
+    btnOpenEmailDialog: document.getElementById('btn-open-email-dialog'),
     changeEmailForm: document.getElementById('change-email-form'),
     newEmail: document.getElementById('new-email'),
     emailError: document.getElementById('email-error'),
     emailSuccess: document.getElementById('email-success'),
     btnChangeEmail: document.getElementById('btn-change-email'),
 
-    // Password change
+    // Password change (dialog)
+    passwordDialog: document.getElementById('password-dialog'),
+    btnOpenPasswordDialog: document.getElementById('btn-open-password-dialog'),
     changePasswordForm: document.getElementById('change-password-form'),
     newPassword: document.getElementById('new-password'),
     confirmPassword: document.getElementById('confirm-password'),
     passwordError: document.getElementById('password-error'),
     passwordSuccess: document.getElementById('password-success'),
     btnChangePassword: document.getElementById('btn-change-password'),
+
+    // Data download / restore
+    btnDownloadData: document.getElementById('btn-download-data'),
+    restoreDialog: document.getElementById('restore-dialog'),
+    btnOpenRestoreDialog: document.getElementById('btn-open-restore-dialog'),
+    profileJsonInput: document.getElementById('profile-json-input'),
+
+    // Delete account
+    deleteAccountDialog: document.getElementById('delete-account-dialog'),
+    btnOpenDeleteAccountDialog: document.getElementById('btn-open-delete-account-dialog'),
+    btnConfirmDeleteAccount: document.getElementById('btn-confirm-delete-account'),
 
     // Auth
     btnProfileLogin: document.getElementById('btn-profile-login'),
@@ -108,14 +129,77 @@ function setupEventListeners() {
     elements.btnNewPrism.addEventListener('click', handleNewPrism);
   }
 
-  // Change email form
+  // Any dialog footer Cancel closes its own dialog
+  document.addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-dialog-close]');
+    if (btn) btn.closest('wa-dialog')?.removeAttribute('open');
+  });
+
+  // Change email dialog
+  if (elements.btnOpenEmailDialog) {
+    elements.btnOpenEmailDialog.addEventListener('click', () => {
+      if (elements.emailError) elements.emailError.hidden = true;
+      if (elements.emailSuccess) elements.emailSuccess.hidden = true;
+      elements.emailDialog?.setAttribute('open', '');
+    });
+  }
   if (elements.changeEmailForm) {
     elements.changeEmailForm.addEventListener('submit', handleChangeEmail);
   }
+  if (elements.btnChangeEmail) {
+    elements.btnChangeEmail.addEventListener('click', () => elements.changeEmailForm?.requestSubmit());
+  }
 
-  // Change password form
+  // Change password dialog
+  if (elements.btnOpenPasswordDialog) {
+    elements.btnOpenPasswordDialog.addEventListener('click', () => {
+      if (elements.passwordError) elements.passwordError.hidden = true;
+      if (elements.passwordSuccess) elements.passwordSuccess.hidden = true;
+      elements.passwordDialog?.setAttribute('open', '');
+    });
+  }
   if (elements.changePasswordForm) {
     elements.changePasswordForm.addEventListener('submit', handleChangePassword);
+  }
+  if (elements.btnChangePassword) {
+    elements.btnChangePassword.addEventListener('click', () => elements.changePasswordForm?.requestSubmit());
+  }
+
+  // Download my data — one .json backup per PRISM (each restorable on its own)
+  if (elements.btnDownloadData) {
+    elements.btnDownloadData.addEventListener('click', () => {
+      const prisms = getAllPrisms();
+      if (prisms.length === 0) {
+        showError('No PRISMs to download yet.');
+        return;
+      }
+      prisms.forEach(prism => downloadJSON(prism));
+    });
+  }
+
+  // Restore from backup — imported file becomes a NEW PRISM
+  if (elements.btnOpenRestoreDialog) {
+    elements.btnOpenRestoreDialog.addEventListener('click', () => {
+      elements.restoreDialog?.setAttribute('open', '');
+    });
+  }
+  if (elements.profileJsonInput) {
+    elements.profileJsonInput.addEventListener('change', handleRestoreBackup);
+  }
+
+  // Delete account
+  if (elements.btnOpenDeleteAccountDialog) {
+    elements.btnOpenDeleteAccountDialog.addEventListener('click', () => {
+      elements.deleteAccountDialog?.setAttribute('open', '');
+    });
+  }
+  if (elements.btnConfirmDeleteAccount) {
+    elements.btnConfirmDeleteAccount.addEventListener('click', () => {
+      elements.deleteAccountDialog?.removeAttribute('open');
+      // ponytail: no client-side account deletion API yet — needs a server-side
+      // (service-role) function. Surface the manual path until that exists.
+      showError('Account deletion is not automated yet. Contact us on Discord and we will remove your account and synced data.');
+    });
   }
 
   // Delete PRISM dialog
@@ -152,6 +236,21 @@ function handleAuthChange(user) {
       elements.profileLoggedIn.style.display = '';
     }
     if (elements.profileEmail) elements.profileEmail.textContent = user.email;
+    if (elements.accountEmailCaption) elements.accountEmailCaption.textContent = user.email;
+    if (elements.profileAvatar) {
+      elements.profileAvatar.setAttribute('initials', (user.email?.[0] || 'P').toUpperCase());
+    }
+    if (elements.profileMeta) {
+      const prisms = getAllPrisms();
+      const deckCount = prisms.reduce((n, p) => n + getLogicalDeckCount(p), 0);
+      const since = user.created_at
+        ? new Date(user.created_at).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
+        : null;
+      elements.profileMeta.textContent =
+        `${prisms.length} PRISM${prisms.length === 1 ? '' : 's'} · ` +
+        `${deckCount} deck${deckCount === 1 ? '' : 's'}` +
+        (since ? ` · member since ${since}` : '');
+    }
 
     // Load PRISMs
     renderPrismsList();
@@ -187,50 +286,28 @@ function renderPrismsList() {
 
   elements.prismsList.innerHTML = prisms.map(prism => {
     const isActive = prism.id === currentPrismId;
+    const deckCount = getLogicalDeckCount(prism);
+    const cardCount = processCards(prism).reduce((n, card) => n + card.totalQuantity, 0);
+    const sortedDecks = [...prism.decks].sort((a, b) => a.stripePosition - b.stripePosition);
     return `
-    <wa-card class="prism-card ${isActive ? 'prism-active' : ''}" data-prism-id="${prism.id}" style="${isActive ? 'border: 2px solid var(--wa-color-brand-stroke);' : ''}">
-      <div class="wa-split wa-align-items-center">
-        <div class="wa-stack wa-gap-2xs">
-          <div class="wa-cluster wa-gap-s wa-align-items-center">
-            <span class="wa-heading-m">${escapeHtml(prism.name)}</span>
-            <wa-tag size="small" variant="neutral">${getLogicalDeckCount(prism)} decks</wa-tag>
-            ${isActive ? '<wa-tag size="small" variant="brand">Active</wa-tag>' : ''}
-          </div>
-          <span class="wa-caption-m" style="color: var(--wa-color-neutral-text-subtle);">
-            Last updated: ${formatDate(prism.updatedAt)}
-          </span>
+    <wa-card class="prism-card ${isActive ? 'prism-active' : ''}" data-prism-id="${prism.id}">
+      <div class="wa-stack wa-gap-s">
+        <div class="wa-split wa-align-items-center">
+          <span class="wa-heading-s">${escapeHtml(prism.name)}</span>
+          ${isActive ? '<wa-tag size="small" variant="brand">Current</wa-tag>' : '<span></span>'}
         </div>
-        <div class="wa-cluster wa-gap-xs">
-          ${!isActive ? `
-          <wa-button
-            appearance="outlined"
-            variant="neutral"
-            size="small"
-            class="btn-set-active"
-            data-prism-id="${prism.id}"
-            title="Set as Active"
-          >
-            Set Active
+        <span class="wa-caption-m" style="color: var(--wa-color-neutral-text-subtle);">
+          ${deckCount} deck${deckCount === 1 ? '' : 's'} · ${cardCount} card${cardCount === 1 ? '' : 's'} · updated ${formatDate(prism.updatedAt)}
+        </span>
+        <div class="wa-cluster wa-gap-2xs">
+          ${sortedDecks.map(deck => `<span class="stripe-indicator" style="background: ${deck.color};"></span>`).join('')}
+        </div>
+        <div class="wa-cluster wa-gap-s" style="padding-block-start: var(--wa-space-xs);">
+          <wa-button variant="brand" appearance="outlined" size="small" class="btn-open-prism" data-prism-id="${prism.id}">
+            <wa-icon slot="start" name="wand-magic-sparkles"></wa-icon>
+            Open
           </wa-button>
-          ` : ''}
-          <wa-button
-            appearance="plain"
-            variant="neutral"
-            size="small"
-            class="btn-open-prism"
-            data-prism-id="${prism.id}"
-            title="Edit PRISM"
-          >
-            <wa-icon name="pen-to-square"></wa-icon>
-          </wa-button>
-          <wa-button
-            appearance="plain"
-            variant="neutral"
-            size="small"
-            class="btn-delete-prism"
-            data-prism-id="${prism.id}"
-            title="Delete PRISM"
-          >
+          <wa-button appearance="plain" variant="danger" size="small" class="btn-delete-prism" data-prism-id="${prism.id}" title="Delete PRISM">
             <wa-icon name="trash"></wa-icon>
           </wa-button>
         </div>
@@ -240,10 +317,6 @@ function renderPrismsList() {
   }).join('');
 
   // Add event listeners
-  elements.prismsList.querySelectorAll('.btn-set-active').forEach(btn => {
-    btn.addEventListener('click', () => handleSetActive(btn.dataset.prismId));
-  });
-
   elements.prismsList.querySelectorAll('.btn-open-prism').forEach(btn => {
     btn.addEventListener('click', () => handleOpenPrism(btn.dataset.prismId));
   });
@@ -251,11 +324,6 @@ function renderPrismsList() {
   elements.prismsList.querySelectorAll('.btn-delete-prism').forEach(btn => {
     btn.addEventListener('click', () => handleDeletePrism(btn.dataset.prismId));
   });
-}
-
-function handleSetActive(prismId) {
-  setCurrentPrism(prismId);
-  renderPrismsList();
 }
 
 function handleOpenPrism(prismId) {
@@ -284,6 +352,32 @@ function handleNewPrism() {
   savePrism(newPrism);
   setCurrentPrism(newPrism.id);
   window.location.href = 'build.html';
+}
+
+/**
+ * Restore a backup .json as a NEW PRISM (fresh id, existing PRISMs untouched).
+ */
+function handleRestoreBackup(e) {
+  const file = e.target.files?.[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = (event) => {
+    try {
+      const jsonData = JSON.parse(event.target.result);
+      const newPrism = buildPrismFromJson(jsonData, { preserveId: false });
+      savePrism(newPrism);
+      renderPrismsList();
+      elements.restoreDialog?.removeAttribute('open');
+      showSuccess(`Imported "${newPrism.name}" as a new PRISM with ${newPrism.decks.length} deck${newPrism.decks.length === 1 ? '' : 's'}.`);
+    } catch (err) {
+      console.error('Backup restore error:', err);
+      showError(err.message || 'Failed to parse JSON file. Please check the format.');
+    }
+  };
+  reader.onerror = () => showError('Failed to read file. Please try again.');
+  reader.readAsText(file);
+  try { e.target.value = ''; } catch { /* wa-file-input may not allow value reset before upgrade */ }
 }
 
 async function handleChangeEmail(e) {

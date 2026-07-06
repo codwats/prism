@@ -54,6 +54,19 @@
                 <wa-icon name="arrows-rotate"></wa-icon>
               </wa-button>
               <wa-tag id="deck-count-tag" variant="neutral" size="small">0 decks</wa-tag>
+              <wa-dropdown id="prism-overflow" placement="bottom-end">
+                <wa-button slot="trigger" appearance="plain" variant="neutral" size="small" aria-label="More actions">
+                  <wa-icon name="ellipsis"></wa-icon>
+                </wa-button>
+                <wa-dropdown-item id="btn-export-json">
+                  <wa-icon slot="icon" name="file-code"></wa-icon>
+                  Download backup (.json)
+                </wa-dropdown-item>
+                <wa-dropdown-item id="btn-import-backup">
+                  <wa-icon slot="icon" name="file-import"></wa-icon>
+                  Import backup (.json)
+                </wa-dropdown-item>
+              </wa-dropdown>
             </div>
           </div>
         </section>
@@ -67,14 +80,6 @@
           <wa-tab slot="nav" panel="results">
             <wa-icon name="table" style="margin-right: 0.5em;"></wa-icon>
             Results
-          </wa-tab>
-          <wa-tab slot="nav" panel="export">
-            <wa-icon name="download" style="margin-right: 0.5em;"></wa-icon>
-            Export
-          </wa-tab>
-          <wa-tab slot="nav" panel="import">
-            <wa-icon name="upload" style="margin-right: 0.5em;"></wa-icon>
-            Import
           </wa-tab>
 
           <!-- Decks Panel -->
@@ -110,60 +115,6 @@
                   <wa-skeleton effect="pulse" class="skeleton-line-short"></wa-skeleton>
                 </div>
               </section>
-
-              <!-- Display Settings (always visible — not gated on deck count) -->
-              <wa-details id="display-settings-card">
-                <div slot="summary" class="wa-cluster wa-gap-s wa-align-items-center">
-                  <wa-icon name="circle-half-stroke" style="color: var(--wa-color-brand-fill);"></wa-icon>
-                  <span class="wa-heading-m">Display Settings</span>
-                </div>
-                <div class="wa-stack wa-gap-m" style="padding-top: var(--wa-space-s);">
-                  <wa-select id="color-scheme" label="Color Scheme" value="auto" size="small">
-                    <wa-option value="auto">Auto (match system)</wa-option>
-                    <wa-option value="light">Light</wa-option>
-                    <wa-option value="dark">Dark</wa-option>
-                  </wa-select>
-                </div>
-              </wa-details>
-
-              <!-- Stripe Settings -->
-              <wa-details id="stripe-settings-card" style="display: none;">
-                <div slot="summary" class="wa-cluster wa-gap-s wa-align-items-center">
-                  <wa-icon name="palette" style="color: var(--wa-color-brand-fill);"></wa-icon>
-                  <span class="wa-heading-m">Stripe Settings</span>
-                </div>
-                <div class="wa-stack wa-gap-m" style="padding-top: var(--wa-space-s);">
-                  <p class="wa-caption-m" style="color: var(--wa-color-neutral-text-subtle);">
-                    Choose which corner of the card stripes originate from.
-                  </p>
-                  <wa-radio-group id="stripe-start-corner" label="Starting Corner" value="top-right">
-                    <wa-radio value="top-right">Top Right (default)</wa-radio>
-                    <wa-radio value="top-left">Top Left</wa-radio>
-                    <wa-radio value="bottom-right">Bottom Right</wa-radio>
-                    <wa-radio value="bottom-left">Bottom Left</wa-radio>
-                  </wa-radio-group>
-                  <wa-button id="stripe-start-corner-apply" appearance="filled" variant="brand" size="small" disabled>
-                    Apply
-                  </wa-button>
-                  <p class="wa-caption-s" style="color: var(--wa-color-neutral-text-subtle);">
-                    Applying remaps every deck's slot number so Slot 1 sits at the chosen corner.
-                  </p>
-                  <wa-slider
-                    id="stripe-position-numbers-mode"
-                    label="Position Numbers"
-                    name="position-numbers"
-                    min="1"
-                    max="3"
-                    value="1"
-                    with-markers
-                    hint="Counting aid — None hides numbers, Some overlays every 5th slot (5 / 10 / 15 / 20 per side), All numbers every mark."
-                  >
-                    <span slot="reference">None</span>
-                    <span slot="reference">Some</span>
-                    <span slot="reference">All</span>
-                  </wa-slider>
-                </div>
-              </wa-details>
 
               <!-- Add Deck Form -->
               <wa-card id="add-deck-card">
@@ -389,9 +340,49 @@
                   <wa-radio appearance="button" value="removed" id="removed-filter-btn" size="small">Removed</wa-radio>
                 </wa-radio-group>
                 <!-- Search -->
-                <wa-input id="results-search" placeholder="Search cards..." size="medium" style="max-width: 400px;">
+                <wa-input id="results-search" placeholder="Search cards..." size="medium" style="max-width: 400px; flex: 1; min-width: 10rem;">
                   <wa-icon slot="start" name="search"></wa-icon>
                 </wa-input>
+                <!-- Deck legend (prints on the guide) -->
+                <wa-dropdown id="legend-dropdown" placement="bottom-end">
+                  <wa-button slot="trigger" appearance="plain" variant="neutral" size="small" caret>
+                    <wa-icon slot="start" name="palette"></wa-icon>
+                    Legend
+                  </wa-button>
+                  <div class="wa-stack wa-gap-s" style="padding: var(--wa-space-s) var(--wa-space-m); min-width: 16rem;">
+                    <span class="wa-caption-s" style="color: var(--wa-color-neutral-text-subtle);">Deck colors and slots. This legend prints on the guide.</span>
+                    <div id="deck-legend" class="wa-stack wa-gap-s">
+                      <!-- Deck legend items will be inserted here -->
+                    </div>
+                    <div id="no-decks-legend" style="color: var(--wa-color-neutral-text-subtle);">
+                      No decks added yet.
+                    </div>
+                  </div>
+                </wa-dropdown>
+                <!-- Export actions -->
+                <wa-dropdown id="export-dropdown" placement="bottom-end">
+                  <wa-button slot="trigger" variant="brand" appearance="outlined" size="small" caret>
+                    <wa-icon slot="start" name="download"></wa-icon>
+                    Export
+                  </wa-button>
+                  <wa-dropdown-item id="btn-print-guide">
+                    <wa-icon slot="icon" name="print"></wa-icon>
+                    Printable guide
+                  </wa-dropdown-item>
+                  <wa-dropdown-item id="btn-export-csv">
+                    <wa-icon slot="icon" name="file-csv"></wa-icon>
+                    Download CSV
+                  </wa-dropdown-item>
+                  <wa-divider></wa-divider>
+                  <wa-dropdown-item id="btn-copy-undone">
+                    <wa-icon slot="icon" name="clipboard"></wa-icon>
+                    Copy undone list
+                  </wa-dropdown-item>
+                  <wa-dropdown-item id="btn-download-undone">
+                    <wa-icon slot="icon" name="file-lines"></wa-icon>
+                    Download undone (.txt)
+                  </wa-dropdown-item>
+                </wa-dropdown>
                 <!-- SCRY-Mode launcher (hidden in Removed view) -->
                 <wa-button id="btn-scry" appearance="filled" variant="brand" size="small">
                   <wa-icon slot="start" name="expand"></wa-icon>
@@ -431,71 +422,22 @@
             </div>
           </wa-tab-panel>
 
-          <!-- Export Panel -->
-          <wa-tab-panel name="export">
-            <div class="wa-stack wa-gap-xl">
-              
-
-              <!-- Deck Legend -->
-              <wa-details summary="Deck Legend">
-                <div id="deck-legend" class="wa-cluster wa-gap-m">
-                  <!-- Deck legend items will be inserted here -->
-                </div>
-                <div id="no-decks-legend" style="color: var(--wa-color-neutral-text-subtle);">
-                  No decks added yet.
-                </div>
-              </wa-details>
-
-              <!-- Export Options -->
-              <wa-card>
-                <div slot="header" class="wa-heading-m">Export Options</div>
-                <div class="wa-cluster wa-gap-m">
-                  <wa-button id="btn-export-csv" variant="neutral">
-                    <wa-icon slot="start" name="file-csv"></wa-icon>
-                    Download CSV
-                  </wa-button>
-                  <wa-button id="btn-export-json" variant="neutral">
-                    <wa-icon slot="start" name="file-code"></wa-icon>
-                    Download JSON
-                  </wa-button>
-                  <wa-button id="btn-print-guide" variant="neutral">
-                    <wa-icon slot="start" name="print"></wa-icon>
-                    Printable Guide
-                  </wa-button>
-                  <wa-button id="btn-copy-undone" variant="neutral">
-                    <wa-icon slot="start" name="clipboard"></wa-icon>
-                    Copy Undone List
-                  </wa-button>
-                  <wa-button id="btn-download-undone" variant="neutral">
-                    <wa-icon slot="start" name="file-lines"></wa-icon>
-                    Download Undone (.txt)
-                  </wa-button>
-                </div>
-              </wa-card>
-
-
-            </div>
-          </wa-tab-panel>
-
-          <wa-tab-panel name="import">
-          <!-- Import Options -->
-              <wa-card>
-                <div slot="header" class="wa-cluster wa-gap-s wa-align-items-center">
-                  <wa-icon name="file-import" style="color: var(--wa-color-brand-fill);"></wa-icon>
-                  <span class="wa-heading-m">Import Saved PRISM</span>
-                </div>
-                <div class="wa-stack wa-gap-m">
-                  <p class="wa-caption-m" style="color: var(--wa-color-neutral-text-subtle);">
-                    Import a previously exported PRISM JSON file to restore your decks and settings.
-                  </p>
-                  <wa-file-input id="prism-json-input" accept=".json" label="Import File" hint="Drag & drop or click to select your exported .json file" size="small"></wa-file-input>
-                </div>
-              </wa-card>
-
-          </wa-tab-panel>
         </wa-tab-group>
       </main>
     </wa-page>
+
+    <!-- Import Backup Dialog -->
+    <wa-dialog id="import-dialog" label="Import backup">
+      <div class="wa-stack wa-gap-m">
+        <p class="wa-caption-m" style="color: var(--wa-color-neutral-text-subtle); margin: 0;">
+          Import a previously exported PRISM JSON file to restore your decks and settings. This replaces the current PRISM.
+        </p>
+        <wa-file-input id="prism-json-input" accept=".json" label="Import File" hint="Drag & drop or click to select your exported .json file" size="small"></wa-file-input>
+      </div>
+      <div slot="footer" class="wa-cluster wa-gap-s">
+        <wa-button id="btn-cancel-import" variant="neutral" appearance="outlined">Cancel</wa-button>
+      </div>
+    </wa-dialog>
 
     <!-- Delete Confirmation Dialog -->
     <wa-dialog id="delete-dialog" label="Delete Deck">
