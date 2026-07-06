@@ -41,24 +41,17 @@
       }
       #step-bar .step-chip {
         flex: none;
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
         text-decoration: none;
-        color: var(--wa-color-text-normal);
-        border: 1px solid var(--wa-color-surface-border);
-        border-radius: var(--wa-border-radius-m);
-        padding: 2px 10px;
-        font-size: var(--wa-font-size-s);
       }
-      #step-bar .step-chip b {
+      #step-bar .step-chip wa-tag {
+        cursor: pointer;
+      }
+      #step-bar .step-chip .step-num {
         font-family: var(--wa-font-family-code);
         font-weight: 600;
       }
-      #step-bar .step-chip.active {
-        background: var(--wa-color-brand-fill);
-        border-color: var(--wa-color-brand-fill);
-        color: var(--wa-color-brand-on-loud, #fff);
+      #step-bar .step-chip .step-label {
+        margin-inline-start: var(--wa-space-2xs);
       }
       .guide-step {
         padding-block: var(--wa-space-xl);
@@ -87,13 +80,13 @@
     <wa-page mobile-breakpoint="768">
       <div slot="subheader" id="step-bar">
         <span class="wa-caption-s" style="color: var(--wa-color-neutral-text-subtle); letter-spacing: 0.06em; align-self: center; flex: none;">STEPS</span>
-        <a href="#s1" data-step="s1" class="step-chip"><b>1</b><span class="wa-desktop-only">How marks work</span></a>
-        <a href="#s2" data-step="s2" class="step-chip"><b>2</b><span class="wa-desktop-only">Import decks</span></a>
-        <a href="#s3" data-step="s3" class="step-chip"><b>3</b><span class="wa-desktop-only">Read results</span></a>
-        <a href="#s4" data-step="s4" class="step-chip"><b>4</b><span class="wa-desktop-only">Mark sleeves</span></a>
-        <a href="#s5" data-step="s5" class="step-chip"><b>5</b><span class="wa-desktop-only">Basics &amp; variants</span></a>
-        <a href="#s6" data-step="s6" class="step-chip"><b>6</b><span class="wa-desktop-only">Reorder slots</span></a>
-        <a href="#s7" data-step="s7" class="step-chip"><b>7</b><span class="wa-desktop-only">Export</span></a>
+        <a href="#s1" data-step="s1" class="step-chip" aria-label="Step 1: How marks work"><wa-tag variant="neutral" appearance="outlined" size="small" pill><b class="step-num">1</b><span class="step-label wa-desktop-only">How marks work</span></wa-tag></a>
+        <a href="#s2" data-step="s2" class="step-chip" aria-label="Step 2: Import decks"><wa-tag variant="neutral" appearance="outlined" size="small" pill><b class="step-num">2</b><span class="step-label wa-desktop-only">Import decks</span></wa-tag></a>
+        <a href="#s3" data-step="s3" class="step-chip" aria-label="Step 3: Read results"><wa-tag variant="neutral" appearance="outlined" size="small" pill><b class="step-num">3</b><span class="step-label wa-desktop-only">Read results</span></wa-tag></a>
+        <a href="#s4" data-step="s4" class="step-chip" aria-label="Step 4: Mark sleeves"><wa-tag variant="neutral" appearance="outlined" size="small" pill><b class="step-num">4</b><span class="step-label wa-desktop-only">Mark sleeves</span></wa-tag></a>
+        <a href="#s5" data-step="s5" class="step-chip" aria-label="Step 5: Basics and variants"><wa-tag variant="neutral" appearance="outlined" size="small" pill><b class="step-num">5</b><span class="step-label wa-desktop-only">Basics &amp; variants</span></wa-tag></a>
+        <a href="#s6" data-step="s6" class="step-chip" aria-label="Step 6: Reorder slots"><wa-tag variant="neutral" appearance="outlined" size="small" pill><b class="step-num">6</b><span class="step-label wa-desktop-only">Reorder slots</span></wa-tag></a>
+        <a href="#s7" data-step="s7" class="step-chip" aria-label="Step 7: Export"><wa-tag variant="neutral" appearance="outlined" size="small" pill><b class="step-num">7</b><span class="step-label wa-desktop-only">Export</span></wa-tag></a>
       </div>
 
       <main style="max-width: 800px; margin: 0 auto;">
@@ -222,7 +215,13 @@
         const sections = chips.map((c) => document.getElementById(c.dataset.step)).filter(Boolean);
         if (!sections.length) return;
         const setActive = (id) => {
-          chips.forEach((c) => c.classList.toggle('active', c.dataset.step === id));
+          chips.forEach((c) => {
+            const tag = c.querySelector('wa-tag');
+            if (!tag) return;
+            const on = c.dataset.step === id;
+            tag.setAttribute('variant', on ? 'brand' : 'neutral');
+            tag.setAttribute('appearance', on ? 'accent' : 'outlined');
+          });
         };
         const observer = new IntersectionObserver(
           (entries) => {

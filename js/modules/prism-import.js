@@ -56,7 +56,8 @@ export function buildPrismFromJson(jsonData, { preserveId = true } = {}) {
       splitGroupId: deck.splitGroupId || null,
       cards: deckCards,
       createdAt: deck.createdAt,
-      updatedAt: deck.updatedAt
+      updatedAt: deck.updatedAt,
+      cardsUpdatedAt: deck.cardsUpdatedAt
     });
     newPrism.decks.push(newDeck);
   }
