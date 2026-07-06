@@ -56,7 +56,9 @@ prism/
 ├── netlify/
 │   └── edge-functions/     Deno TypeScript, deployed to Netlify Edge
 │       ├── moxfield-edge.ts   POST proxy → api2.moxfield.com
-│       └── archidekt-edge.ts  POST proxy → archidekt.com/api
+│       ├── archidekt-edge.ts  POST proxy → archidekt.com/api
+│       ├── stripe-checkout-edge.ts  Creates Stripe Checkout sessions (subscription mode)
+│       └── stripe-webhook-edge.ts   Stripe webhook → Supabase subscription state
 ├── netlify.toml            Deployment config (publish ".", edge function routes)
 ├── supabase-schema.sql     Database schema (prisms, decks, deck_cards, app_logs, replace_deck_cards RPC)
 └── package.json            Minimal (no deps, node >=18)
@@ -199,6 +201,17 @@ Feature modules have circular imports. This is safe because:
 ### Edge Function Proxies
 
 Moxfield and Archidekt APIs don't allow direct browser requests (CORS). Edge functions at `/api/moxfield-edge` and `/api/archidekt-edge` act as POST proxies. They validate input format and forward to the upstream API.
+
+### Billing (Stripe)
+
+Payment pipe for a future paid tier — built and testable ahead of launch, **not wired to restrict any feature**. No gating model is decided yet (may be deck-count, may be feature-based).
+
+- **Tables** (supabase-schema.sql): `stripe_customers`, `subscriptions` (one row per user; `updated_at` = Stripe event `created` so out-of-order webhook deliveries never overwrite newer state), `processed_stripe_events` (idempotency — dedupe redelivered event ids), `app_config` (publicly readable; `payment_enforcement` row defaults to `false` — flipping it to `true` in the SQL editor is the only launch step).
+- **RLS**: users SELECT their own `stripe_customers`/`subscriptions` row only; no client write policies. All writes happen in edge functions via `SUPABASE_SERVICE_ROLE_KEY` (bypasses RLS). `processed_stripe_events` has zero policies.
+- **Edge functions** (Netlify, Deno): `/api/stripe-checkout` verifies the Supabase access token, reuses/creates a Stripe customer, returns a Checkout session URL. `/api/stripe-webhook` verifies the Stripe signature on the raw body first (fail → 400 + log), dedupes on event id, handles `checkout.session.completed`, `customer.subscription.updated/deleted`, `invoice.payment_failed`, and records the event id only after successful processing (failures return 500 so Stripe retries). Subscription upserts are insert-if-missing + update-only-if-older (`updated_at=lt.` filter).
+- **Env vars** (Netlify dashboard only, never in code): `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRICE_ID`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`. Dev runs against a personal Stripe account; swapping to the business account is env-only.
+- **Client** (`js/modules/billing.js`): `isPaymentEnforced()` (reads `app_config`, defaults false on any error), `getSubscription()`/`hasActiveSubscription()`, `startCheckout()`. Profile page has a Subscription section, hidden unless the enforcement flag is on or `PRISM_DEBUG` is set. Nothing calls `isPaymentEnforced()` to gate features yet.
+- Pure helpers (`safeReturnPath`, `subscriptionRow`) are unit-tested in `tests/stripe-billing.test.js` — both edge modules keep Deno/network access inside functions so Node can import them.
 
 ## Development
 
