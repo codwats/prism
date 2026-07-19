@@ -209,6 +209,18 @@ async function toggleLike(artwork) {
 // Shared render helpers
 // ============================================================
 
+// Only allow http/https URLs into href attributes — stored values (artist
+// links, store URLs, scryfall links) must never render a javascript:/data: scheme.
+function safeUrl(url) {
+  if (!url) return '#';
+  try {
+    const u = new URL(url, window.location.origin);
+    return u.protocol === 'http:' || u.protocol === 'https:' ? url : '#';
+  } catch {
+    return '#';
+  }
+}
+
 function typeTagHtml(type, size = 'small') {
   const variant = TYPE_TAG_VARIANTS[type] || 'neutral';
   return `<wa-tag size="${size}" variant="${variant}" appearance="outlined">${TYPE_LABELS[type] || type}</wa-tag>`;
@@ -442,7 +454,7 @@ function renderDetail(root, id) {
         </div>
         <h1 class="wa-heading-xl">${escapeHtml(artwork.title)}</h1>
         ${artwork.originalCard
-          ? `<div class="gallery-orig"><wa-icon name="link" style="color: var(--wa-color-neutral-text-subtle);"></wa-icon><span>Original card: <strong>${escapeHtml(artwork.originalCard.name)}</strong>${artwork.originalCard.set ? ` &middot; ${escapeHtml(artwork.originalCard.set)}` : ''}</span><a href="${escapeHtml(artwork.originalCard.scryfallUrl || 'https://scryfall.com/search?q=' + encodeURIComponent('!"' + artwork.originalCard.name + '"'))}" target="_blank" rel="noopener" style="margin-left: auto; font-size: var(--wa-font-size-xs);">Scryfall <wa-icon name="arrow-up-right-from-square" style="font-size: 0.7em;"></wa-icon></a></div>`
+          ? `<div class="gallery-orig"><wa-icon name="link" style="color: var(--wa-color-neutral-text-subtle);"></wa-icon><span>Original card: <strong>${escapeHtml(artwork.originalCard.name)}</strong>${artwork.originalCard.set ? ` &middot; ${escapeHtml(artwork.originalCard.set)}` : ''}</span><a href="${escapeHtml(safeUrl(artwork.originalCard.scryfallUrl || 'https://scryfall.com/search?q=' + encodeURIComponent('!"' + artwork.originalCard.name + '"')))}" target="_blank" rel="noopener" style="margin-left: auto; font-size: var(--wa-font-size-xs);">Scryfall <wa-icon name="arrow-up-right-from-square" style="font-size: 0.7em;"></wa-icon></a></div>`
           : `<div class="gallery-orig"><wa-icon name="circle-minus" style="color: var(--wa-color-neutral-text-subtle);"></wa-icon><span style="color: var(--wa-color-neutral-text-subtle);">No original card${artwork.type === 'token' ? ' (token)' : ''}</span></div>`}
         ${artwork.description ? `<p class="gallery-desc">${escapeHtml(artwork.description)}</p>` : ''}
         <wa-divider></wa-divider>
@@ -455,7 +467,7 @@ function renderDetail(root, id) {
             </div>
             <p class="wa-caption-m" style="color: var(--wa-color-neutral-text-subtle); margin: var(--wa-space-3xs) 0 var(--wa-space-xs);">${escapeHtml(artist?.bio || 'Community uploader')}</p>
             <div class="wa-cluster wa-gap-m" style="font-size: var(--wa-font-size-s);">
-              ${(artist?.links || []).map(l => `<a href="${escapeHtml(l.href)}" target="_blank" rel="noopener"><wa-icon name="${escapeHtml(l.icon || 'globe')}"${l.family ? ` family="${escapeHtml(l.family)}"` : ''}></wa-icon> ${escapeHtml(l.label)}</a>`).join('')}
+              ${(artist?.links || []).map(l => `<a href="${escapeHtml(safeUrl(l.href))}" target="_blank" rel="noopener"><wa-icon name="${escapeHtml(l.icon || 'globe')}"${l.family ? ` family="${escapeHtml(l.family)}"` : ''}></wa-icon> ${escapeHtml(l.label)}</a>`).join('')}
               ${artist ? `<a href="gallery.html?artist=${encodeURIComponent(artist.id)}">View artist page &rarr;</a>` : ''}
             </div>
           </div>
@@ -465,7 +477,7 @@ function renderDetail(root, id) {
           ${user
             ? '<wa-button variant="brand" id="detail-download"><wa-icon slot="start" name="download"></wa-icon>Download</wa-button>'
             : '<wa-button variant="brand" id="detail-download-gated"><wa-icon slot="start" name="lock"></wa-icon>Sign in to download</wa-button>'}
-          ${artwork.highlighted && artwork.storeUrl ? `<wa-button appearance="outlined" href="${escapeHtml(artwork.storeUrl)}" target="_blank" rel="noopener"><wa-icon slot="start" name="cart-shopping"></wa-icon>Order custom sleeves <wa-icon slot="end" name="arrow-up-right-from-square" style="font-size: 0.7em;"></wa-icon></wa-button>` : ''}
+          ${artwork.highlighted && artwork.storeUrl ? `<wa-button appearance="outlined" href="${escapeHtml(safeUrl(artwork.storeUrl))}" target="_blank" rel="noopener"><wa-icon slot="start" name="cart-shopping"></wa-icon>Order custom sleeves <wa-icon slot="end" name="arrow-up-right-from-square" style="font-size: 0.7em;"></wa-icon></wa-button>` : ''}
         </div>
         ${user ? '' : '<p class="wa-caption-s" style="color: var(--wa-color-neutral-text-subtle); margin: 0;">Downloads need a free account — one print-ready file (2.5&times;3.5&Prime; + bleed).</p>'}
         ${licenseHtml()}
@@ -513,7 +525,7 @@ function renderArtist(root, id) {
           ${artist.isPartner ? '<wa-tag variant="brand"><wa-icon slot="start" name="handshake-angle"></wa-icon>PRISM Partner</wa-tag>' : ''}
         </div>
         <p style="color: var(--wa-color-neutral-text-normal); margin: var(--wa-space-xs) 0 0; max-width: 64ch;">${escapeHtml(artist.bio)}</p>
-        ${artist.links.length ? `<div class="wa-cluster wa-gap-m" style="margin-top: var(--wa-space-s); font-size: var(--wa-font-size-s);">${artist.links.map(l => `<a href="${escapeHtml(l.href)}" target="_blank" rel="noopener"><wa-icon name="${escapeHtml(l.icon || 'globe')}"${l.family ? ` family="${escapeHtml(l.family)}"` : ''}></wa-icon> ${escapeHtml(l.label)}</a>`).join('')}</div>` : ''}
+        ${artist.links.length ? `<div class="wa-cluster wa-gap-m" style="margin-top: var(--wa-space-s); font-size: var(--wa-font-size-s);">${artist.links.map(l => `<a href="${escapeHtml(safeUrl(l.href))}" target="_blank" rel="noopener"><wa-icon name="${escapeHtml(l.icon || 'globe')}"${l.family ? ` family="${escapeHtml(l.family)}"` : ''}></wa-icon> ${escapeHtml(l.label)}</a>`).join('')}</div>` : ''}
         ${artist.isPartner ? `
         <div class="gallery-stats">
           <div class="gallery-stat"><b>${works.length}</b><span>Works</span></div>
@@ -799,7 +811,7 @@ async function renderMyUploads(root) {
 
   root.querySelectorAll('[data-resubmit]').forEach(btn => btn.addEventListener('click', async () => {
     const { error: err } = await sb.from('gallery_artworks')
-      .update({ status: 'pending', reject_reason: null })
+      .update({ status: 'pending', reject_reason: null, reviewed_at: null, reviewed_by: null })
       .eq('id', btn.dataset.resubmit);
     if (err) { showError('Could not resubmit — try again.'); return; }
     showSuccess('Resubmitted for review');

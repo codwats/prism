@@ -410,6 +410,10 @@ CREATE POLICY "Users submit artworks for review"
     AND highlighted = false
     AND store_url IS NULL
     AND artist_id IS NULL
+    AND likes_count = 0
+    AND downloads_count = 0
+    AND reviewed_at IS NULL
+    AND reviewed_by IS NULL
   );
 
 DROP POLICY IF EXISTS "Admins moderate artworks" ON gallery_artworks;
@@ -430,6 +434,10 @@ CREATE POLICY "Owners resubmit rejected artworks"
     AND highlighted = false
     AND store_url IS NULL
     AND artist_id IS NULL
+    AND likes_count = 0
+    AND downloads_count = 0
+    AND reviewed_at IS NULL
+    AND reviewed_by IS NULL
   );
 
 DROP POLICY IF EXISTS "Owners withdraw own artworks" ON gallery_artworks;
