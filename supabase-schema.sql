@@ -256,3 +256,238 @@ BEGIN;
     ON app_logs FOR INSERT
     WITH CHECK (auth.uid() = user_id);
 COMMIT;
+
+-- ============================================
+-- GALLERY — artists, artworks, likes, admins
+-- ============================================
+-- Community gallery (gallery.html). Pre-moderated uploads: everything inserts
+-- as 'pending'; only gallery admins can approve/reject, set Highlight, or a
+-- store URL. Approved art is publicly readable (incl. anonymous users).
+
+-- Admins: one row per admin user. Add an admin with
+--   INSERT INTO gallery_admins (user_id) VALUES ('<auth.users uuid>');
+CREATE TABLE IF NOT EXISTS gallery_admins (
+  user_id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
+-- Locked down: no policies. Only the SECURITY DEFINER helper below reads it.
+ALTER TABLE gallery_admins ENABLE ROW LEVEL SECURITY;
+
+-- Helper used by RLS policies and by the client (via /rpc) to toggle admin UI.
+CREATE OR REPLACE FUNCTION is_gallery_admin()
+RETURNS BOOLEAN
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT EXISTS (SELECT 1 FROM gallery_admins WHERE user_id = auth.uid());
+$$;
+
+GRANT EXECUTE ON FUNCTION is_gallery_admin() TO authenticated;
+
+-- Artists (admin-managed; partners). Community uploads don't get a row —
+-- they carry artist_name text on the artwork instead.
+CREATE TABLE IF NOT EXISTS gallery_artists (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name TEXT NOT NULL,
+  bio TEXT DEFAULT '',
+  avatar_url TEXT,
+  links JSONB DEFAULT '[]'::jsonb,      -- [{label, icon, family?, href}]
+  is_partner BOOLEAN NOT NULL DEFAULT false,
+  user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS gallery_artworks (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  title TEXT NOT NULL,
+  type TEXT NOT NULL CHECK (type IN ('proxy', 'token', 'showcase')),
+  original_card_name TEXT,
+  original_card_set TEXT,
+  scryfall_url TEXT,
+  description TEXT DEFAULT '',
+  is_ai BOOLEAN NOT NULL DEFAULT false,
+  artist_id UUID REFERENCES gallery_artists(id) ON DELETE SET NULL,
+  artist_name TEXT,                     -- community attribution when artist_id is null
+  uploader_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+  image_path TEXT NOT NULL,             -- path within the gallery-art bucket
+  status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected')),
+  reject_reason TEXT,
+  highlighted BOOLEAN NOT NULL DEFAULT false,
+  store_url TEXT,
+  likes_count INTEGER NOT NULL DEFAULT 0,
+  downloads_count INTEGER NOT NULL DEFAULT 0,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  reviewed_at TIMESTAMPTZ,
+  reviewed_by UUID REFERENCES auth.users(id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_gallery_artworks_status_likes ON gallery_artworks(status, likes_count DESC);
+CREATE INDEX IF NOT EXISTS idx_gallery_artworks_uploader ON gallery_artworks(uploader_id);
+CREATE INDEX IF NOT EXISTS idx_gallery_artworks_artist ON gallery_artworks(artist_id);
+
+CREATE TABLE IF NOT EXISTS gallery_likes (
+  artwork_id UUID REFERENCES gallery_artworks(id) ON DELETE CASCADE,
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  PRIMARY KEY (artwork_id, user_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_gallery_likes_user ON gallery_likes(user_id);
+
+-- Denormalized likes_count so "Most liked" sorting never aggregates.
+-- SECURITY DEFINER because the liking user has no UPDATE right on artworks.
+CREATE OR REPLACE FUNCTION gallery_likes_counter()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  IF TG_OP = 'INSERT' THEN
+    UPDATE gallery_artworks SET likes_count = likes_count + 1 WHERE id = NEW.artwork_id;
+    RETURN NEW;
+  ELSIF TG_OP = 'DELETE' THEN
+    UPDATE gallery_artworks SET likes_count = GREATEST(likes_count - 1, 0) WHERE id = OLD.artwork_id;
+    RETURN OLD;
+  END IF;
+  RETURN NULL;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_gallery_likes_counter ON gallery_likes;
+CREATE TRIGGER trg_gallery_likes_counter
+  AFTER INSERT OR DELETE ON gallery_likes
+  FOR EACH ROW EXECUTE FUNCTION gallery_likes_counter();
+
+-- Download counter, login-gated (authenticated only).
+CREATE OR REPLACE FUNCTION increment_gallery_download(p_artwork_id UUID)
+RETURNS void
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  UPDATE gallery_artworks
+  SET downloads_count = downloads_count + 1
+  WHERE id = p_artwork_id AND status = 'approved';
+$$;
+
+GRANT EXECUTE ON FUNCTION increment_gallery_download(UUID) TO authenticated;
+
+-- ---- RLS ----
+ALTER TABLE gallery_artists ENABLE ROW LEVEL SECURITY;
+ALTER TABLE gallery_artworks ENABLE ROW LEVEL SECURITY;
+ALTER TABLE gallery_likes ENABLE ROW LEVEL SECURITY;
+
+-- Artists: public read, admin write.
+DROP POLICY IF EXISTS "Anyone can view gallery artists" ON gallery_artists;
+CREATE POLICY "Anyone can view gallery artists"
+  ON gallery_artists FOR SELECT
+  USING (true);
+
+DROP POLICY IF EXISTS "Admins manage gallery artists" ON gallery_artists;
+CREATE POLICY "Admins manage gallery artists"
+  ON gallery_artists FOR ALL
+  USING (is_gallery_admin())
+  WITH CHECK (is_gallery_admin());
+
+-- Artworks: approved is public; owners see their own any-status; admins see all.
+DROP POLICY IF EXISTS "Approved artworks are public" ON gallery_artworks;
+CREATE POLICY "Approved artworks are public"
+  ON gallery_artworks FOR SELECT
+  USING (status = 'approved' OR uploader_id = auth.uid() OR is_gallery_admin());
+
+-- Uploads always enter the queue: pending, unhighlighted, no store URL, and
+-- no claiming a partner artist row (admins attach artist_id on approval).
+DROP POLICY IF EXISTS "Users submit artworks for review" ON gallery_artworks;
+CREATE POLICY "Users submit artworks for review"
+  ON gallery_artworks FOR INSERT
+  WITH CHECK (
+    uploader_id = auth.uid()
+    AND status = 'pending'
+    AND highlighted = false
+    AND store_url IS NULL
+    AND artist_id IS NULL
+    AND likes_count = 0
+    AND downloads_count = 0
+    AND reviewed_at IS NULL
+    AND reviewed_by IS NULL
+  );
+
+DROP POLICY IF EXISTS "Admins moderate artworks" ON gallery_artworks;
+CREATE POLICY "Admins moderate artworks"
+  ON gallery_artworks FOR UPDATE
+  USING (is_gallery_admin())
+  WITH CHECK (is_gallery_admin());
+
+-- Owners may resubmit a rejected upload — it must go back to pending and
+-- can't pick up privileges on the way.
+DROP POLICY IF EXISTS "Owners resubmit rejected artworks" ON gallery_artworks;
+CREATE POLICY "Owners resubmit rejected artworks"
+  ON gallery_artworks FOR UPDATE
+  USING (uploader_id = auth.uid() AND status = 'rejected')
+  WITH CHECK (
+    uploader_id = auth.uid()
+    AND status = 'pending'
+    AND highlighted = false
+    AND store_url IS NULL
+    AND artist_id IS NULL
+    AND likes_count = 0
+    AND downloads_count = 0
+    AND reviewed_at IS NULL
+    AND reviewed_by IS NULL
+  );
+
+DROP POLICY IF EXISTS "Owners withdraw own artworks" ON gallery_artworks;
+CREATE POLICY "Owners withdraw own artworks"
+  ON gallery_artworks FOR DELETE
+  USING ((uploader_id = auth.uid() AND status IN ('pending', 'rejected')) OR is_gallery_admin());
+
+-- Likes: users manage their own; counts are read from likes_count.
+DROP POLICY IF EXISTS "Users view own likes" ON gallery_likes;
+CREATE POLICY "Users view own likes"
+  ON gallery_likes FOR SELECT
+  USING (user_id = auth.uid());
+
+DROP POLICY IF EXISTS "Users like approved artworks" ON gallery_likes;
+CREATE POLICY "Users like approved artworks"
+  ON gallery_likes FOR INSERT
+  WITH CHECK (
+    user_id = auth.uid()
+    AND artwork_id IN (SELECT id FROM gallery_artworks WHERE status = 'approved')
+  );
+
+DROP POLICY IF EXISTS "Users unlike artworks" ON gallery_likes;
+CREATE POLICY "Users unlike artworks"
+  ON gallery_likes FOR DELETE
+  USING (user_id = auth.uid());
+
+-- ---- Storage: public bucket, uuid paths ----
+-- Public-read display bucket. Discovery is controlled by table RLS (pending
+-- art is never listed and paths are unguessable uuids); there is deliberately
+-- NO SELECT policy on storage.objects so the bucket can't be listed via API.
+INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+VALUES ('gallery-art', 'gallery-art', true, 10485760, ARRAY['image/png', 'image/jpeg', 'image/webp'])
+ON CONFLICT (id) DO UPDATE
+  SET public = true,
+      file_size_limit = 10485760,
+      allowed_mime_types = ARRAY['image/png', 'image/jpeg', 'image/webp'];
+
+-- Uploads go to gallery-art/<auth.uid()>/<uuid>.<ext>
+DROP POLICY IF EXISTS "Users upload gallery art to own folder" ON storage.objects;
+CREATE POLICY "Users upload gallery art to own folder"
+  ON storage.objects FOR INSERT TO authenticated
+  WITH CHECK (
+    bucket_id = 'gallery-art'
+    AND (storage.foldername(name))[1] = auth.uid()::text
+  );
+
+DROP POLICY IF EXISTS "Users or admins delete gallery art" ON storage.objects;
+CREATE POLICY "Users or admins delete gallery art"
+  ON storage.objects FOR DELETE TO authenticated
+  USING (
+    bucket_id = 'gallery-art'
+    AND ((storage.foldername(name))[1] = auth.uid()::text OR is_gallery_admin())
+  );

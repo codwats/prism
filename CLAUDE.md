@@ -232,6 +232,17 @@ Preview viewport should be 1280px+ wide to see the desktop layout (sidebar nav).
 - The Stripe Positions reorder card was removed from the Decks tab — use the Move button (⊕) on each deck card to open the visual slot-picker dialog, or use the Export tab's dropdown list for bulk reordering
 - `build.html` has a sync status indicator (`#sync-status`) and a Sync Now button (`#btn-sync-now`) near the PRISM name; both are hidden until the user is logged in. `setupSyncStatus()` in `init.js` wires these to `onSyncStatusChange` / `forceSyncCurrentPrism` from `storage.js`. Storage exports: `onSyncStatusChange(cb)` (returns unsubscribe fn), `forceSyncCurrentPrism()`, `recordUnmarkedCards(prismId, keys)`
 
+### Gallery
+
+`gallery.html` + `js/gallery.js` — community artwork gallery (proxies/tokens/showcase). One page, query-param views: grid (default), `?art=<id>` detail, `?artist=<id>` artist page, `?view=upload|uploads|admin`. Tables `gallery_artists`, `gallery_artworks`, `gallery_likes`, `gallery_admins` in `supabase-schema.sql` (GALLERY section):
+
+- **Public reads** (approved artworks + artists) use plain PostgREST `fetch` with the anon key (`SUPABASE_URL`/`SUPABASE_ANON_KEY` exported from supabase-client.js) so anonymous visitors never load the SDK. Authed actions (likes, uploads, moderation) use the SDK.
+- **Admin role** = row in `gallery_admins`; `is_gallery_admin()` (SECURITY DEFINER) is used in RLS policies and callable via RPC to gate the admin UI. Add admins with `INSERT INTO gallery_admins (user_id) VALUES ('<uuid>')`.
+- **Moderation**: uploads INSERT as `pending` only (RLS WITH CHECK blocks self-approve/highlight/store_url/artist_id). Admins approve/reject via UPDATE; owners may resubmit `rejected → pending` and delete own pending/rejected rows.
+- **Likes**: one row per user per artwork; `likes_count` on artworks is trigger-maintained (SECURITY DEFINER) so most-liked sorting never aggregates. `increment_gallery_download` RPC (authenticated) bumps download counts.
+- **Storage**: single public bucket `gallery-art`, paths `<uid>/<uuid>.<ext>` (10 MB, png/jpg/webp). No SELECT policy on storage.objects → bucket can't be listed; pending art is undiscoverable via table RLS. Download gating is UI-level (soft) by design.
+- **Demo fallback**: if the gallery tables aren't reachable (schema not deployed), gallery.js falls back to read-only `DEMO_*` sample data — remove once real partner art is seeded.
+
 ## Agent skills
 
 ### Issue tracker

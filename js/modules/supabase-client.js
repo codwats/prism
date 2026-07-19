@@ -1,8 +1,10 @@
 // Supabase client configuration
 // Replace these with your actual Supabase project credentials
 
-const SUPABASE_URL = 'https://clqxysoimlsjfmnjbxsa.supabase.co';
-const SUPABASE_ANON_KEY = 'sb_publishable_EmMs1syywKSfhJuPsO0LvA_GsCzVYFD';
+// Exported for anonymous PostgREST reads (gallery public data) — plain fetch
+// with the anon key keeps the SDK lazy for logged-out visitors.
+export const SUPABASE_URL = 'https://clqxysoimlsjfmnjbxsa.supabase.co';
+export const SUPABASE_ANON_KEY = 'sb_publishable_EmMs1syywKSfhJuPsO0LvA_GsCzVYFD';
 
 // Import Supabase from CDN (loaded in HTML)
 // We'll use the global supabase object
