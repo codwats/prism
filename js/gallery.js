@@ -64,6 +64,7 @@ const LICENSE_HTML = 'Personal, non-commercial use only — credit the artist. <
 let artworks = [];        // approved artworks, mapped to camelCase
 let artistsDb = [];       // gallery_artists rows, mapped
 let myLikes = new Set();  // artwork ids the current user liked
+let isAdmin = false;      // current user is a gallery admin (loaded before render)
 let usingDemo = false;    // gallery schema not deployed — read-only sample data
 let publicLoaded = false;
 
@@ -91,6 +92,7 @@ function mapArtwork(r) {
     isAI: r.is_ai,
     artistId: r.artist_id,
     artistName: r.artist_name,
+    uploaderId: r.uploader_id,
     imageUrl: r.image_path ? publicImageUrl(r.image_path) : null,
     imagePath: r.image_path,
     likes: r.likes_count || 0,
@@ -141,6 +143,17 @@ async function loadMyLikes() {
   }
   const { data } = await sb.from('gallery_likes').select('artwork_id').eq('user_id', user.id);
   myLikes = new Set((data || []).map(r => r.artwork_id));
+}
+
+async function loadAdminFlag() {
+  const user = getCurrentUser();
+  const sb = getSupabase();
+  if (!user || !sb || usingDemo) {
+    isAdmin = false;
+    return;
+  }
+  const { data } = await sb.rpc('is_gallery_admin');
+  isAdmin = !!data;
 }
 
 function findArtwork(id) {
@@ -478,6 +491,7 @@ function renderDetail(root, id) {
             ? '<wa-button variant="brand" id="detail-download"><wa-icon slot="start" name="download"></wa-icon>Download</wa-button>'
             : '<wa-button variant="brand" id="detail-download-gated"><wa-icon slot="start" name="lock"></wa-icon>Sign in to download</wa-button>'}
           ${artwork.highlighted && artwork.storeUrl ? `<wa-button appearance="outlined" href="${escapeHtml(safeUrl(artwork.storeUrl))}" target="_blank" rel="noopener"><wa-icon slot="start" name="cart-shopping"></wa-icon>Order custom sleeves <wa-icon slot="end" name="arrow-up-right-from-square" style="font-size: 0.7em;"></wa-icon></wa-button>` : ''}
+          ${user && !usingDemo && (isAdmin || artwork.uploaderId === user.id) ? `<wa-button appearance="outlined" href="gallery.html?view=edit&art=${encodeURIComponent(artwork.id)}"><wa-icon slot="start" name="pen"></wa-icon>Edit</wa-button>` : ''}
         </div>
         ${user ? '' : '<p class="wa-caption-s" style="color: var(--wa-color-neutral-text-subtle); margin: 0;">Downloads need a free account — one print-ready file (2.5&times;3.5&Prime; + bleed).</p>'}
         ${licenseHtml()}
@@ -543,6 +557,123 @@ function renderArtist(root, id) {
 }
 
 // ============================================================
+// Upload / edit form (shared fields)
+// ============================================================
+
+// Last-used public display name, so repeat uploaders don't retype it.
+const ARTIST_NAME_KEY = 'prism_gallery_artist_name';
+const EMAIL_RE = /\S+@\S+\.\S+/;
+
+// Suggested display name: last used, else the email's local part —
+// never the full email, since artist_name renders publicly on the site.
+function defaultArtistName(user) {
+  try {
+    const stored = localStorage.getItem(ARTIST_NAME_KEY);
+    if (stored) return stored;
+  } catch { /* storage unavailable */ }
+  return (user.email || '').split('@')[0];
+}
+
+function rememberArtistName(name) {
+  try { localStorage.setItem(ARTIST_NAME_KEY, name); } catch { /* storage unavailable */ }
+}
+
+/** Metadata fields shared by the upload and edit forms. */
+function artworkFieldsHtml(v = {}) {
+  const aiValue = v.isAI === true ? 'yes' : v.isAI === false ? 'no' : '';
+  return `
+      <wa-input id="up-title" label="Title" placeholder="e.g. Sol Ring — Ornate" value="${escapeHtml(v.title || '')}" required></wa-input>
+      <wa-radio-group id="up-type" label="Type" value="${escapeHtml(v.type || 'proxy')}" orientation="horizontal">
+        <wa-radio value="proxy">Proxy</wa-radio>
+        <wa-radio value="token">Token</wa-radio>
+        <wa-radio value="showcase">Showcase</wa-radio>
+      </wa-radio-group>
+      <div class="gallery-suggest">
+        <wa-input id="up-card" label="Original card (optional)" placeholder="Start typing a card name" autocomplete="off" value="${escapeHtml(v.originalCard?.name || '')}">
+          <wa-icon slot="start" name="magnifying-glass"></wa-icon>
+          <span slot="hint">Leave blank for tokens or original art with no source card.</span>
+        </wa-input>
+        <div class="gallery-suggest-list" id="up-card-suggest" hidden></div>
+      </div>
+      <wa-textarea id="up-desc" label="Description" placeholder="Tell players about this piece (optional)" rows="3" value="${escapeHtml(v.description || '')}"></wa-textarea>
+      <div>
+        <wa-radio-group id="up-ai" label="AI-generated?" orientation="horizontal"${aiValue ? ` value="${aiValue}"` : ''}>
+          <wa-radio value="no">No</wa-radio>
+          <wa-radio value="yes">Yes</wa-radio>
+        </wa-radio-group>
+        <p class="wa-caption-s" style="color: var(--wa-color-neutral-text-subtle); margin: var(--wa-space-2xs) 0 0;"><wa-icon name="robot"></wa-icon> AI art is allowed but must be labeled.</p>
+      </div>
+      <wa-input id="up-artist" label="Display name" placeholder="e.g. deckbrewer" value="${escapeHtml(v.artistName || '')}">
+        <span slot="hint">Shown publicly next to the artwork — use a pseudonym or handle, not your email. Crediting someone else? Only with their permission.</span>
+      </wa-input>`;
+}
+
+// Outside-click dismissal for the autocomplete list. One document listener at
+// a time: re-wiring (each form render replaces the subtree) removes the old
+// listener so handlers don't accumulate holding detached nodes.
+let acDismissCleanup = null;
+
+/** Scryfall card-name autocomplete for the #up-card input. */
+function wireCardAutocomplete(root) {
+  const cardInput = root.querySelector('#up-card');
+  const suggest = root.querySelector('#up-card-suggest');
+  let acTimer;
+  cardInput.addEventListener('input', () => {
+    clearTimeout(acTimer);
+    const q = (cardInput.value || '').trim();
+    if (q.length < 2) { suggest.hidden = true; return; }
+    acTimer = setTimeout(async () => {
+      try {
+        const res = await fetch(`https://api.scryfall.com/cards/autocomplete?q=${encodeURIComponent(q)}`);
+        const data = await res.json();
+        const names = (data.data || []).slice(0, 8);
+        suggest.innerHTML = names.map(n => `<button type="button">${escapeHtml(n)}</button>`).join('');
+        suggest.hidden = names.length === 0;
+        suggest.querySelectorAll('button').forEach(b => b.addEventListener('click', () => {
+          cardInput.value = b.textContent;
+          suggest.hidden = true;
+        }));
+      } catch {
+        suggest.hidden = true;
+      }
+    }, 250);
+  });
+  acDismissCleanup?.();
+  const onDocClick = e => { if (!suggest.contains(e.target) && e.target !== cardInput) suggest.hidden = true; };
+  document.addEventListener('click', onDocClick);
+  acDismissCleanup = () => document.removeEventListener('click', onDocClick);
+}
+
+// WA inputs store values in shadow DOM; fall back to the internal
+// input/textarea when the host .value is empty (see CLAUDE.md).
+function fieldValue(root, selector) {
+  const el = root.querySelector(selector);
+  if (!el) return '';
+  return el.value || el.shadowRoot?.querySelector('input, textarea')?.value || '';
+}
+
+/** Read + validate the shared fields. Returns null (after showError) when invalid. */
+function readArtworkFields(root) {
+  const title = fieldValue(root, '#up-title').trim();
+  const ai = root.querySelector('#up-ai').value;
+  const artistName = fieldValue(root, '#up-artist').trim();
+  if (!title) { showError('Give it a title.'); return null; }
+  if (!ai) { showError('Tell us whether it’s AI-generated — AI art is allowed but must be labeled.'); return null; }
+  if (!artistName) { showError('Add a display name — it’s shown publicly next to the artwork.'); return null; }
+  if (EMAIL_RE.test(artistName)) { showError('That looks like an email address. Your display name is shown publicly — use a pseudonym or handle instead.'); return null; }
+  const cardName = fieldValue(root, '#up-card').trim() || null;
+  return {
+    title,
+    type: root.querySelector('#up-type').value || 'proxy',
+    cardName,
+    scryfallUrl: cardName ? 'https://scryfall.com/search?q=' + encodeURIComponent('!"' + cardName + '"') : null,
+    description: fieldValue(root, '#up-desc').trim(),
+    isAI: ai === 'yes',
+    artistName,
+  };
+}
+
+// ============================================================
 // Upload view
 // ============================================================
 
@@ -576,30 +707,7 @@ function renderUpload(root) {
         </div>
         <input type="file" id="upload-file" accept="image/png,image/jpeg,image/webp" hidden />
       </div>
-      <wa-input id="up-title" label="Title" placeholder="e.g. Sol Ring — Ornate" required></wa-input>
-      <wa-radio-group id="up-type" label="Type" value="proxy" orientation="horizontal">
-        <wa-radio value="proxy">Proxy</wa-radio>
-        <wa-radio value="token">Token</wa-radio>
-        <wa-radio value="showcase">Showcase</wa-radio>
-      </wa-radio-group>
-      <div class="gallery-suggest">
-        <wa-input id="up-card" label="Original card (optional)" placeholder="Start typing a card name" autocomplete="off">
-          <wa-icon slot="start" name="magnifying-glass"></wa-icon>
-          <span slot="hint">Leave blank for tokens or original art with no source card.</span>
-        </wa-input>
-        <div class="gallery-suggest-list" id="up-card-suggest" hidden></div>
-      </div>
-      <wa-textarea id="up-desc" label="Description" placeholder="Tell players about this piece (optional)" rows="3"></wa-textarea>
-      <div>
-        <wa-radio-group id="up-ai" label="AI-generated?" orientation="horizontal">
-          <wa-radio value="no">No</wa-radio>
-          <wa-radio value="yes">Yes</wa-radio>
-        </wa-radio-group>
-        <p class="wa-caption-s" style="color: var(--wa-color-neutral-text-subtle); margin: var(--wa-space-2xs) 0 0;"><wa-icon name="robot"></wa-icon> AI art is allowed but must be labeled.</p>
-      </div>
-      <wa-input id="up-artist" label="Artist attribution" value="${escapeHtml(user.email || 'You')}">
-        <span slot="hint">Crediting someone else? Enter their name — only with their permission.</span>
-      </wa-input>
+      ${artworkFieldsHtml({ artistName: defaultArtistName(user) })}
       <div class="gallery-ack">
         <wa-checkbox id="up-ack">I confirm this upload follows the rules:</wa-checkbox>
         <span class="wa-caption-s" style="color: var(--wa-color-neutral-text-subtle);">MTG-related only &middot; your own work or permission held &middot; no NSFW &middot; AI art is labeled</span>
@@ -634,41 +742,14 @@ function renderUpload(root) {
   drop.addEventListener('dragleave', () => drop.classList.remove('dragover'));
   drop.addEventListener('drop', e => { e.preventDefault(); drop.classList.remove('dragover'); readFile(e.dataTransfer.files[0]); });
 
-  // Scryfall card-name autocomplete
-  const cardInput = root.querySelector('#up-card');
-  const suggest = root.querySelector('#up-card-suggest');
-  let acTimer;
-  cardInput.addEventListener('input', () => {
-    clearTimeout(acTimer);
-    const q = (cardInput.value || '').trim();
-    if (q.length < 2) { suggest.hidden = true; return; }
-    acTimer = setTimeout(async () => {
-      try {
-        const res = await fetch(`https://api.scryfall.com/cards/autocomplete?q=${encodeURIComponent(q)}`);
-        const data = await res.json();
-        const names = (data.data || []).slice(0, 8);
-        suggest.innerHTML = names.map(n => `<button type="button">${escapeHtml(n)}</button>`).join('');
-        suggest.hidden = names.length === 0;
-        suggest.querySelectorAll('button').forEach(b => b.addEventListener('click', () => {
-          cardInput.value = b.textContent;
-          suggest.hidden = true;
-        }));
-      } catch {
-        suggest.hidden = true;
-      }
-    }, 250);
-  });
-  document.addEventListener('click', e => { if (!suggest.contains(e.target) && e.target !== cardInput) suggest.hidden = true; });
+  wireCardAutocomplete(root);
 
   root.querySelector('#upload-form').addEventListener('submit', async e => {
     e.preventDefault();
-    const title = root.querySelector('#up-title').value?.trim();
-    const ai = root.querySelector('#up-ai').value;
-    const ack = root.querySelector('#up-ack').checked;
     if (!selectedFile) { showError('Add an image — it’s what the gallery is for.'); return; }
-    if (!title) { showError('Give it a title.'); return; }
-    if (!ai) { showError('Tell us whether it’s AI-generated — AI art is allowed but must be labeled.'); return; }
-    if (!ack) { showError('Please confirm the upload rules.'); return; }
+    const fields = readArtworkFields(root);
+    if (!fields) return;
+    if (!root.querySelector('#up-ack').checked) { showError('Please confirm the upload rules.'); return; }
 
     const sb = getSupabase();
     if (!sb) { showError('Not connected — try reloading the page.'); return; }
@@ -683,15 +764,14 @@ function renderUpload(root) {
       const { error: uploadErr } = await sb.storage.from('gallery-art').upload(path, selectedFile, { contentType: selectedFile.type });
       if (uploadErr) throw uploadErr;
 
-      const cardName = cardInput.value?.trim();
       const { error: insertErr } = await sb.from('gallery_artworks').insert({
-        title,
-        type: root.querySelector('#up-type').value || 'proxy',
-        original_card_name: cardName || null,
-        scryfall_url: cardName ? 'https://scryfall.com/search?q=' + encodeURIComponent('!"' + cardName + '"') : null,
-        description: root.querySelector('#up-desc').value?.trim() || '',
-        is_ai: ai === 'yes',
-        artist_name: root.querySelector('#up-artist').value?.trim() || user.email,
+        title: fields.title,
+        type: fields.type,
+        original_card_name: fields.cardName,
+        scryfall_url: fields.scryfallUrl,
+        description: fields.description,
+        is_ai: fields.isAI,
+        artist_name: fields.artistName,
         uploader_id: user.id,
         image_path: path,
         status: 'pending',
@@ -700,6 +780,7 @@ function renderUpload(root) {
         sb.storage.from('gallery-art').remove([path]); // best-effort cleanup
         throw insertErr;
       }
+      rememberArtistName(fields.artistName);
       renderPending(root);
     } catch (err) {
       console.error('Gallery upload failed:', err);
@@ -728,6 +809,154 @@ function renderPending(root) {
 }
 
 // ============================================================
+// Edit view (owner metadata edits; admins edit everything)
+// ============================================================
+
+async function renderEditArtwork(root, id) {
+  const user = getCurrentUser();
+  if (!user) {
+    if (hasStoredSession()) { root.innerHTML = loadingHtml(); return; } // auth still restoring
+    root.innerHTML = `
+      ${breadcrumbHtml([{ label: 'Gallery', href: 'gallery.html' }, { label: 'Edit artwork' }])}
+      <div class="gallery-empty" style="max-width: 34rem;">
+        <div class="ic"><wa-icon name="lock"></wa-icon></div>
+        <h2 class="wa-heading-m">Sign in to edit artwork</h2>
+        <wa-button variant="brand" id="edit-signin"><wa-icon slot="start" name="right-to-bracket"></wa-icon>Sign in</wa-button>
+      </div>`;
+    root.querySelector('#edit-signin')?.addEventListener('click', promptSignIn);
+    return;
+  }
+  if (usingDemo) {
+    renderNotFound(root, 'Editing unavailable', 'Demo data — deploy the gallery schema to enable editing.');
+    return;
+  }
+  const sb = getSupabase();
+  if (!sb) {
+    renderNotFound(root, 'Not connected', 'Try reloading the page.');
+    return;
+  }
+  root.innerHTML = loadingHtml();
+
+  // RLS: owners and admins can read any-status rows; others only see approved.
+  const { data: row, error } = await sb.from('gallery_artworks').select('*').eq('id', id).maybeSingle();
+  if (error || !row) {
+    renderNotFound(root, 'Artwork not found', 'It may have been removed, or the link is wrong.');
+    return;
+  }
+  const artwork = mapArtwork(row);
+  const isOwner = artwork.uploaderId === user.id;
+  if (!isOwner && !isAdmin) {
+    renderNotFound(root, 'Not authorized', 'Only the uploader or a gallery admin can edit this artwork.');
+    return;
+  }
+
+  const backHref = isOwner ? 'gallery.html?view=uploads'
+    : artwork.status === 'pending' ? 'gallery.html?view=admin'
+    : `gallery.html?art=${encodeURIComponent(artwork.id)}`;
+
+  root.innerHTML = `
+    ${breadcrumbHtml([{ label: 'Gallery', href: 'gallery.html' }, { label: 'Edit artwork' }])}
+    <h1 class="wa-heading-2xl">Edit artwork</h1>
+    <p style="color: var(--wa-color-neutral-text-subtle); margin-top: var(--wa-space-2xs);">${isOwner
+      ? 'Changes apply right away — approved artwork stays live.'
+      : `Editing as gallery admin${artwork.artistName ? ` &middot; uploaded by ${escapeHtml(artwork.artistName)}` : ''}.`}</p>
+    <form class="gallery-form" id="edit-form" style="margin-top: var(--wa-space-l);">
+      <div class="gallery-row">
+        <div class="gallery-thumb">${artwork.imageUrl ? `<img src="${escapeHtml(artwork.imageUrl)}" alt="" loading="lazy" />` : '<wa-icon name="image"></wa-icon>'}</div>
+        <div class="gallery-rowmeta">
+          ${STATUS_TAGS[artwork.status] || ''}
+          <span class="wa-caption-s" style="color: var(--wa-color-neutral-text-subtle);">The image can&rsquo;t be changed — withdraw this upload and submit a new one to replace it.</span>
+        </div>
+      </div>
+      ${artworkFieldsHtml(artwork)}
+      ${isAdmin ? `
+      <wa-divider></wa-divider>
+      <wa-radio-group id="edit-status" label="Status" value="${escapeHtml(artwork.status)}" orientation="horizontal">
+        <wa-radio value="pending">Pending</wa-radio>
+        <wa-radio value="approved">Approved</wa-radio>
+        <wa-radio value="rejected">Rejected</wa-radio>
+      </wa-radio-group>
+      <wa-input id="edit-reject-reason" label="Rejection reason" placeholder="Shown to the uploader" value="${escapeHtml(artwork.reason || '')}">
+        <span slot="hint">Only used when status is Rejected.</span>
+      </wa-input>
+      <wa-switch id="edit-highlight"${artwork.highlighted ? ' checked' : ''}>Highlight (Featured + sleeves link)</wa-switch>
+      <wa-input id="edit-store" label="Store URL" placeholder="https://&hellip; (highlighted only)" value="${escapeHtml(artwork.storeUrl || '')}"></wa-input>` : ''}
+      <div class="wa-cluster wa-gap-s">
+        <wa-button type="submit" variant="brand" id="edit-submit"><wa-icon slot="start" name="floppy-disk"></wa-icon>Save changes</wa-button>
+        <wa-button type="button" appearance="plain" href="${backHref}">Cancel</wa-button>
+      </div>
+    </form>`;
+
+  wireCardAutocomplete(root);
+
+  root.querySelector('#edit-form').addEventListener('submit', async e => {
+    e.preventDefault();
+    const fields = readArtworkFields(root);
+    if (!fields) return;
+
+    const submitBtn = root.querySelector('#edit-submit');
+    const unlock = () => { submitBtn.removeAttribute('loading'); submitBtn.removeAttribute('disabled'); };
+
+    let status = artwork.status;
+    let rejectReason = null;
+    if (isAdmin) {
+      status = root.querySelector('#edit-status').value || artwork.status;
+      rejectReason = fieldValue(root, '#edit-reject-reason').trim() || null;
+      if (status === 'rejected' && !rejectReason) { showError('Give the uploader a reason.'); return; }
+    }
+
+    submitBtn.setAttribute('loading', '');
+    submitBtn.setAttribute('disabled', '');
+
+    try {
+      if (isAdmin) {
+        const update = {
+          title: fields.title,
+          type: fields.type,
+          original_card_name: fields.cardName,
+          scryfall_url: fields.scryfallUrl,
+          description: fields.description,
+          is_ai: fields.isAI,
+          artist_name: fields.artistName,
+          status,
+          reject_reason: status === 'rejected' ? rejectReason : null,
+          highlighted: !!root.querySelector('#edit-highlight')?.checked,
+          store_url: fieldValue(root, '#edit-store').trim() || null,
+        };
+        if (status !== artwork.status) {
+          update.reviewed_at = new Date().toISOString();
+          update.reviewed_by = user.id;
+        }
+        const { error: err } = await sb.from('gallery_artworks').update(update).eq('id', artwork.id);
+        if (err) throw err;
+      } else {
+        const { data, error: err } = await sb.rpc('update_own_gallery_artwork', {
+          p_id: artwork.id,
+          p_title: fields.title,
+          p_type: fields.type,
+          p_original_card_name: fields.cardName,
+          p_scryfall_url: fields.scryfallUrl,
+          p_description: fields.description,
+          p_is_ai: fields.isAI,
+          p_artist_name: fields.artistName,
+        });
+        if (err) throw err;
+        if (!data) throw new Error('No row updated — not the uploader?');
+      }
+      if (isOwner) rememberArtistName(fields.artistName);
+      showSuccess('Changes saved');
+      await loadPublicData(); // approved metadata may have changed
+      history.pushState({}, '', backHref);
+      render();
+    } catch (err) {
+      console.error('Gallery edit failed:', err);
+      showError('Could not save changes — try again.');
+      unlock();
+    }
+  });
+}
+
+// ============================================================
 // My uploads view
 // ============================================================
 
@@ -752,6 +981,7 @@ function uploadRowHtml(u) {
         </div>
       </div>
       ${STATUS_TAGS[u.status] || ''}
+      <wa-button size="small" appearance="outlined" href="gallery.html?view=edit&art=${encodeURIComponent(u.id)}"><wa-icon slot="start" name="pen"></wa-icon>Edit</wa-button>
       ${u.status === 'approved' ? `<wa-button size="small" appearance="outlined" href="gallery.html?art=${encodeURIComponent(u.id)}">View</wa-button>` : ''}
       ${u.status === 'rejected' ? `<wa-button size="small" appearance="outlined" data-resubmit="${u.id}">Resubmit</wa-button>` : ''}
       ${u.status === 'pending' ? `<wa-button size="small" appearance="plain" data-withdraw="${u.id}" aria-label="Withdraw upload"><wa-icon name="trash"></wa-icon></wa-button>` : ''}
@@ -841,8 +1071,7 @@ async function renderAdmin(root) {
   const sb = getSupabase();
   root.innerHTML = loadingHtml();
 
-  const { data: adminOk } = await sb.rpc('is_gallery_admin');
-  if (!adminOk) {
+  if (!isAdmin) {
     renderNotFound(root, 'Not authorized', 'The moderation queue is for gallery admins.');
     return;
   }
@@ -893,6 +1122,7 @@ async function renderAdmin(root) {
               </div>
             </div>
             <div class="wa-cluster wa-gap-xs">
+              <wa-button size="small" appearance="outlined" href="gallery.html?view=edit&art=${encodeURIComponent(u.id)}"><wa-icon slot="start" name="pen"></wa-icon>Edit</wa-button>
               <wa-button size="small" variant="success" data-approve="${u.id}"><wa-icon slot="start" name="check"></wa-icon>Approve</wa-button>
               <wa-button size="small" variant="danger" appearance="outlined" data-reject="${u.id}"><wa-icon slot="start" name="xmark"></wa-icon>Reject&hellip;</wa-button>
             </div>
@@ -973,7 +1203,8 @@ function render() {
   const artist = params.get('artist');
   const view = params.get('view');
 
-  if (art) renderDetail(root, art);
+  if (view === 'edit' && art) renderEditArtwork(root, art);
+  else if (art) renderDetail(root, art);
   else if (artist) renderArtist(root, artist);
   else if (view === 'upload') renderUpload(root);
   else if (view === 'uploads') renderMyUploads(root);
@@ -988,8 +1219,19 @@ function render() {
 initLayout({ activePage: 'gallery' });
 
 loadPublicData().then(async () => {
-  await loadMyLikes(); // no-op unless auth already restored
+  await Promise.all([loadMyLikes(), loadAdminFlag()]); // no-ops unless auth already restored
   render();
+});
+
+// Post-save navigation uses pushState so success toasts survive; re-render
+// when the user walks back through history.
+window.addEventListener('popstate', render);
+
+// <wa-button href> only navigates once WA upgrades the element (see CLAUDE.md);
+// delegated fallback so links rendered before the CDN loads still work.
+document.addEventListener('click', e => {
+  const btn = e.target.closest?.('wa-button[href]');
+  if (btn && !btn.matches(':defined')) window.location.href = btn.getAttribute('href');
 });
 
 // Re-render when auth state changes (session restore, logout) so gated views
@@ -999,7 +1241,7 @@ onAuthChange(async user => {
   const id = user?.id || null;
   if (id !== lastUserId) {
     lastUserId = id;
-    await loadMyLikes();
+    await Promise.all([loadMyLikes(), loadAdminFlag()]);
     render();
   }
 });
