@@ -251,7 +251,7 @@ function partnerCheckHtml(artwork) {
 
 function artPlaceholderHtml(artwork, cls = 'gallery-art') {
   const img = artwork.imageUrl;
-  return `<div class="${cls}">${img ? `<img src="${escapeHtml(img)}" alt="${escapeHtml(artwork.title)}" loading="lazy" />` : '<wa-icon name="image" label="Artwork placeholder"></wa-icon>'}${artwork.highlighted ? '<wa-tag class="gallery-flag" size="small" variant="brand">Featured</wa-tag>' : artwork.isAI ? '<wa-tag class="gallery-flag" size="small" variant="neutral" appearance="filled"><wa-icon name="robot" label="AI-generated"></wa-icon></wa-tag>' : ''}</div>`;
+  return `<div class="${cls}">${img ? `<img src="${escapeHtml(img)}" alt="${escapeHtml(artwork.title)}" loading="lazy" />` : '<wa-icon name="image" label="Artwork placeholder"></wa-icon>'}${artwork.highlighted ? '<wa-tag class="gallery-flag" size="s" variant="brand">Featured</wa-tag>' : artwork.isAI ? '<wa-tag class="gallery-flag" size="s" variant="neutral" appearance="filled"><wa-icon name="robot" label="AI-generated"></wa-icon></wa-tag>' : ''}</div>`;
 }
 
 function avatarHtml(artist, sizeRem, extraStyle = '') {
@@ -356,15 +356,15 @@ function renderGrid(root) {
         <h3 class="wa-heading-s">No artwork matches these filters</h3>
         <p class="wa-caption-m" style="color: var(--wa-color-neutral-text-subtle); max-width: 32ch;">Try another card name or clear the type filter.</p>
         <div class="wa-cluster wa-gap-xs">
-          <wa-button size="small" appearance="outlined" id="gallery-clear-filters">Clear filters</wa-button>
-          <wa-button size="small" variant="brand" href="gallery.html?view=upload"><wa-icon slot="start" name="plus"></wa-icon>Upload one</wa-button>
+          <wa-button size="s" appearance="outlined" id="gallery-clear-filters">Clear filters</wa-button>
+          <wa-button size="s" variant="brand" href="gallery.html?view=upload"><wa-icon slot="start" name="plus"></wa-icon>Upload one</wa-button>
         </div>
       </div>` : `
       <div class="gallery-empty">
         <div class="ic"><wa-icon name="image"></wa-icon></div>
         <h3 class="wa-heading-s">No artwork yet</h3>
         <p class="wa-caption-m" style="color: var(--wa-color-neutral-text-subtle); max-width: 32ch;">Partnered art is on its way. Be the first community upload.</p>
-        <wa-button size="small" variant="brand" href="gallery.html?view=upload"><wa-icon slot="start" name="plus"></wa-icon>Upload artwork</wa-button>
+        <wa-button size="s" variant="brand" href="gallery.html?view=upload"><wa-icon slot="start" name="plus"></wa-icon>Upload artwork</wa-button>
       </div>`;
   } else if (hasFilter || filters.sort !== 'liked') {
     gridsHtml = `
@@ -389,30 +389,30 @@ function renderGrid(root) {
     </div>
 
     ${user ? '' : `
-    <wa-callout variant="brand" size="small" style="margin-top: var(--wa-space-m);">
+    <wa-callout variant="brand" size="s" style="margin-top: var(--wa-space-m);">
       <wa-icon slot="icon" name="circle-info"></wa-icon>
       Browsing as a guest. Likes and counts are visible. <a href="#" id="gallery-signin-link">Sign in</a> to like and download.
     </wa-callout>`}
 
     <div class="gallery-toolbar">
       <div class="gallery-toolbar-search">
-        <wa-input id="gallery-search" size="small" label="Card name search" placeholder="Search by card name — e.g. Sol Ring" value="${escapeHtml(filters.q)}">
+        <wa-input id="gallery-search" size="s" label="Card name search" placeholder="Search by card name — e.g. Sol Ring" value="${escapeHtml(filters.q)}">
           <wa-icon slot="start" name="magnifying-glass"></wa-icon>
         </wa-input>
       </div>
       <div>
         <span class="gallery-tlabel">Type</span>
         <wa-button-group label="Filter by type">
-          ${['all', 'proxy', 'token', 'showcase'].map(t => `<wa-button size="small" data-type="${t}"${filters.type === t ? ' variant="brand"' : ' appearance="outlined"'}>${t === 'all' ? 'All' : TYPE_LABELS[t]}</wa-button>`).join('')}
+          ${['all', 'proxy', 'token', 'showcase'].map(t => `<wa-button size="s" data-type="${t}"${filters.type === t ? ' variant="brand"' : ' appearance="outlined"'}>${t === 'all' ? 'All' : TYPE_LABELS[t]}</wa-button>`).join('')}
         </wa-button-group>
       </div>
-      <wa-select id="gallery-artist" size="small" label="Artist" value="${escapeHtml(filters.artist)}" style="width: 12rem;">
+      <wa-select id="gallery-artist" size="s" label="Artist" value="${escapeHtml(filters.artist)}" style="width: 12rem;">
         <wa-option value="all">All artists</wa-option>
         <wa-option value="partnered">Partnered artists</wa-option>
         ${partnered.map(a => `<wa-option value="${a.id}">${escapeHtml(a.name)}</wa-option>`).join('')}
         ${community.map(a => `<wa-option value="${a.id}">${escapeHtml(a.name)}</wa-option>`).join('')}
       </wa-select>
-      <wa-select id="gallery-sort" size="small" label="Sort" value="${escapeHtml(filters.sort)}" style="width: 11rem;">
+      <wa-select id="gallery-sort" size="s" label="Sort" value="${escapeHtml(filters.sort)}" style="width: 11rem;">
         <wa-option value="liked">Most liked</wa-option>
         <wa-option value="new">Newest</wa-option>
         <wa-option value="dl">Most downloaded</wa-option>
@@ -476,7 +476,7 @@ function renderDetail(root, id) {
           <div style="flex: 1;">
             <div class="wa-cluster wa-gap-xs wa-align-items-center">
               <strong>${escapeHtml(artistName(artwork))}</strong>
-              ${artist?.isPartner ? '<wa-tag size="small" variant="brand"><wa-icon slot="start" name="handshake-angle"></wa-icon>Partner</wa-tag>' : ''}
+              ${artist?.isPartner ? '<wa-tag size="s" variant="brand"><wa-icon slot="start" name="handshake-angle"></wa-icon>Partner</wa-tag>' : ''}
             </div>
             <p class="wa-caption-m" style="color: var(--wa-color-neutral-text-subtle); margin: var(--wa-space-3xs) 0 var(--wa-space-xs);">${escapeHtml(artist?.bio || 'Community uploader')}</p>
             <div class="wa-cluster wa-gap-m" style="font-size: var(--wa-font-size-s);">
@@ -698,15 +698,9 @@ function renderUpload(root) {
     <h1 class="wa-heading-2xl">Upload artwork</h1>
     <p style="color: var(--wa-color-neutral-text-subtle); margin-top: var(--wa-space-2xs);">Uploads are reviewed before going public. You&rsquo;ll see it under <a href="gallery.html?view=uploads">My uploads</a> while it&rsquo;s pending.</p>
     <form class="gallery-form" id="upload-form" style="margin-top: var(--wa-space-l);">
-      <div>
-        <span class="gallery-tlabel">Image <span style="color: var(--wa-color-danger-text);">*</span></span>
-        <div class="gallery-drop" id="upload-drop" tabindex="0" role="button" aria-label="Choose an image file">
-          <wa-icon name="cloud-arrow-up" style="font-size: var(--wa-font-size-xl);"></wa-icon>
-          <div id="upload-drop-label"><strong>Drop image or browse</strong></div>
-          <div class="wa-caption-s">PNG, JPG, or WebP &middot; up to 10 MB &middot; high-res recommended for print</div>
-        </div>
-        <input type="file" id="upload-file" accept="image/png,image/jpeg,image/webp" hidden />
-      </div>
+      <wa-file-input id="upload-file" accept="image/png,image/jpeg,image/webp" hint="PNG, JPG, or WebP &middot; up to 10 MB &middot; high-res recommended for print">
+        <span slot="label">Image <span style="color: var(--wa-color-danger-text);">*</span></span>
+      </wa-file-input>
       ${artworkFieldsHtml({ artistName: defaultArtistName(user) })}
       <div class="gallery-ack">
         <wa-checkbox id="up-ack">I confirm this upload follows the rules:</wa-checkbox>
@@ -718,29 +712,20 @@ function renderUpload(root) {
       </div>
     </form>`;
 
-  // Image picker (click, keyboard, drag & drop)
-  const drop = root.querySelector('#upload-drop');
+  // Image picker — wa-file-input handles dropzone, browse, and thumbnail.
+  // Its .files is a plain array; enforce the 10 MB cap here and clear on reject.
   const fileInput = root.querySelector('#upload-file');
   let selectedFile = null;
-  const readFile = file => {
-    if (!file || !file.type.startsWith('image/')) return;
-    if (file.size > 10 * 1024 * 1024) {
+  fileInput.addEventListener('change', () => {
+    const file = fileInput.files[0] || null;
+    if (file && file.size > 10 * 1024 * 1024) {
       showError('Image too large — keep it under 10 MB.');
+      selectedFile = null;
+      try { fileInput.files = []; } catch { /* best-effort UI clear; state is already reset */ }
       return;
     }
     selectedFile = file;
-    const reader = new FileReader();
-    reader.onload = () => {
-      drop.innerHTML = `<img src="${reader.result}" alt="Selected artwork preview" /><div class="wa-caption-s">${escapeHtml(file.name)} &middot; click to replace</div>`;
-    };
-    reader.readAsDataURL(file);
-  };
-  drop.addEventListener('click', () => fileInput.click());
-  drop.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fileInput.click(); } });
-  fileInput.addEventListener('change', () => readFile(fileInput.files[0]));
-  drop.addEventListener('dragover', e => { e.preventDefault(); drop.classList.add('dragover'); });
-  drop.addEventListener('dragleave', () => drop.classList.remove('dragover'));
-  drop.addEventListener('drop', e => { e.preventDefault(); drop.classList.remove('dragover'); readFile(e.dataTransfer.files[0]); });
+  });
 
   wireCardAutocomplete(root);
 
@@ -797,13 +782,13 @@ function renderPending(root) {
       <div class="gallery-avatar" style="width: 3.5rem; height: 3.5rem; background: var(--wa-color-warning-fill-quiet); color: var(--wa-color-warning-text); font-size: var(--wa-font-size-l);"><wa-icon name="clock"></wa-icon></div>
       <h2 class="wa-heading-l">Submitted — pending review</h2>
       <p style="color: var(--wa-color-neutral-text-subtle);">Thanks. An admin will review it before it goes public. You&rsquo;ll find its status under My uploads.</p>
-      <wa-callout size="small" style="text-align: left;">
+      <wa-callout size="s" style="text-align: left;">
         <wa-icon slot="icon" name="list-check"></wa-icon>
         We check: MTG-related, your own work or permission, no NSFW, AI labeled.
       </wa-callout>
       <div class="wa-cluster wa-gap-xs">
-        <wa-button size="small" variant="brand" href="gallery.html?view=uploads">View My uploads</wa-button>
-        <wa-button size="small" appearance="outlined" href="gallery.html?view=upload">Upload another</wa-button>
+        <wa-button size="s" variant="brand" href="gallery.html?view=uploads">View My uploads</wa-button>
+        <wa-button size="s" appearance="outlined" href="gallery.html?view=upload">Upload another</wa-button>
       </div>
     </div>`;
 }
@@ -981,10 +966,10 @@ function uploadRowHtml(u) {
         </div>
       </div>
       ${STATUS_TAGS[u.status] || ''}
-      <wa-button size="small" appearance="outlined" href="gallery.html?view=edit&art=${encodeURIComponent(u.id)}"><wa-icon slot="start" name="pen"></wa-icon>Edit</wa-button>
-      ${u.status === 'approved' ? `<wa-button size="small" appearance="outlined" href="gallery.html?art=${encodeURIComponent(u.id)}">View</wa-button>` : ''}
-      ${u.status === 'rejected' ? `<wa-button size="small" appearance="outlined" data-resubmit="${u.id}">Resubmit</wa-button>` : ''}
-      ${u.status === 'pending' ? `<wa-button size="small" appearance="plain" data-withdraw="${u.id}" aria-label="Withdraw upload"><wa-icon name="trash"></wa-icon></wa-button>` : ''}
+      <wa-button size="s" appearance="outlined" href="gallery.html?view=edit&art=${encodeURIComponent(u.id)}"><wa-icon slot="start" name="pen"></wa-icon>Edit</wa-button>
+      ${u.status === 'approved' ? `<wa-button size="s" appearance="outlined" href="gallery.html?art=${encodeURIComponent(u.id)}">View</wa-button>` : ''}
+      ${u.status === 'rejected' ? `<wa-button size="s" appearance="outlined" data-resubmit="${u.id}">Resubmit</wa-button>` : ''}
+      ${u.status === 'pending' ? `<wa-button size="s" appearance="plain" data-withdraw="${u.id}" aria-label="Withdraw upload"><wa-icon name="trash"></wa-icon></wa-button>` : ''}
     </div>`;
 }
 
@@ -1093,7 +1078,7 @@ async function renderAdmin(root) {
         <h1 class="wa-heading-2xl">Moderation queue</h1>
         <p style="color: var(--wa-color-neutral-text-subtle); margin-top: var(--wa-space-2xs);">Review pending uploads. Approve, reject with a reason, set Highlight and a store URL.</p>
       </div>
-      <wa-tag variant="warning" size="large"><wa-icon slot="start" name="inbox"></wa-icon>${pending.length} pending</wa-tag>
+      <wa-tag variant="warning" size="l"><wa-icon slot="start" name="inbox"></wa-icon>${pending.length} pending</wa-tag>
     </div>
     ${pending.length === 0 ? `
       <div class="gallery-empty">
@@ -1111,7 +1096,7 @@ async function renderAdmin(root) {
                 <div class="wa-cluster wa-gap-xs wa-align-items-center">
                   <strong>${escapeHtml(u.title)}</strong>
                   ${typeTagHtml(u.type)}
-                  ${u.isAI ? '<wa-tag size="small" variant="neutral" appearance="filled"><wa-icon slot="start" name="robot"></wa-icon>AI</wa-tag>' : ''}
+                  ${u.isAI ? '<wa-tag size="s" variant="neutral" appearance="filled"><wa-icon slot="start" name="robot"></wa-icon>AI</wa-tag>' : ''}
                 </div>
                 <div class="gallery-rowsub">
                   <span><wa-icon name="user"></wa-icon> ${escapeHtml(u.artistName || 'Unknown')}</span>
@@ -1122,25 +1107,25 @@ async function renderAdmin(root) {
               </div>
             </div>
             <div class="wa-cluster wa-gap-xs">
-              <wa-button size="small" appearance="outlined" href="gallery.html?view=edit&art=${encodeURIComponent(u.id)}"><wa-icon slot="start" name="pen"></wa-icon>Edit</wa-button>
-              <wa-button size="small" variant="success" data-approve="${u.id}"><wa-icon slot="start" name="check"></wa-icon>Approve</wa-button>
-              <wa-button size="small" variant="danger" appearance="outlined" data-reject="${u.id}"><wa-icon slot="start" name="xmark"></wa-icon>Reject&hellip;</wa-button>
+              <wa-button size="s" appearance="outlined" href="gallery.html?view=edit&art=${encodeURIComponent(u.id)}"><wa-icon slot="start" name="pen"></wa-icon>Edit</wa-button>
+              <wa-button size="s" variant="success" data-approve="${u.id}"><wa-icon slot="start" name="check"></wa-icon>Approve</wa-button>
+              <wa-button size="s" variant="danger" appearance="outlined" data-reject="${u.id}"><wa-icon slot="start" name="xmark"></wa-icon>Reject&hellip;</wa-button>
             </div>
           </div>
           <wa-divider style="margin: 0;"></wa-divider>
           <div class="wa-split wa-align-items-center">
             <div class="wa-cluster wa-gap-l wa-align-items-center">
-              <wa-switch size="small" data-highlight="${u.id}">Highlight</wa-switch>
+              <wa-switch size="s" data-highlight="${u.id}">Highlight</wa-switch>
               <div class="wa-cluster wa-gap-xs wa-align-items-center">
                 <wa-icon name="cart-shopping" style="color: var(--wa-color-neutral-text-subtle);"></wa-icon>
-                <wa-input size="small" placeholder="Store URL (highlighted only)" data-store-url="${u.id}" style="width: 17.5rem;"></wa-input>
+                <wa-input size="s" placeholder="Store URL (highlighted only)" data-store-url="${u.id}" style="width: 17.5rem;"></wa-input>
               </div>
             </div>
             <span class="wa-caption-s" style="color: var(--wa-color-neutral-text-subtle);">Highlight &rarr; surfaces in Featured + enables sleeves link</span>
           </div>
           <div class="gallery-reject-row" data-reject-row="${u.id}">
-            <wa-input size="small" placeholder="Reason (shown to the uploader)" data-reject-reason="${u.id}"></wa-input>
-            <wa-button size="small" variant="danger" data-reject-confirm="${u.id}">Confirm reject</wa-button>
+            <wa-input size="s" placeholder="Reason (shown to the uploader)" data-reject-reason="${u.id}"></wa-input>
+            <wa-button size="s" variant="danger" data-reject-confirm="${u.id}">Confirm reject</wa-button>
           </div>
         </div>`).join('')}
       </div>`}
