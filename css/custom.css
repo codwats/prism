@@ -1102,7 +1102,7 @@ wa-page[view='desktop'] [data-toggle-nav] {
 
 .gallery-art {
   position: relative;
-  aspect-ratio: 1.35;
+  aspect-ratio: 63 / 88; /* physical MTG card ratio */
   background: var(--wa-color-surface-lowered);
   display: grid;
   place-items: center;
@@ -1119,7 +1119,10 @@ wa-page[view='desktop'] [data-toggle-nav] {
 }
 
 .gallery-art--lg {
-  aspect-ratio: 1.3;
+  aspect-ratio: 63 / 88;
+  max-width: 26rem; /* card ratio is tall — cap width so detail art doesn't tower */
+  width: 100%;
+  margin-inline: auto;
   border-radius: var(--wa-border-radius-m);
   border: 1px solid var(--wa-color-surface-border);
   overflow: hidden;
