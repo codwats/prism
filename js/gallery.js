@@ -720,8 +720,8 @@ function renderUpload(root) {
     const file = fileInput.files[0] || null;
     if (file && file.size > 10 * 1024 * 1024) {
       showError('Image too large — keep it under 10 MB.');
-      fileInput.files = [];
       selectedFile = null;
+      try { fileInput.files = []; } catch { /* best-effort UI clear; state is already reset */ }
       return;
     }
     selectedFile = file;
