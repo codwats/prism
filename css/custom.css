@@ -1302,31 +1302,6 @@ wa-page[view='desktop'] [data-toggle-nav] {
   gap: var(--wa-space-l);
 }
 
-.gallery-drop {
-  border: 1.5px dashed var(--wa-color-neutral-border-normal, var(--wa-color-surface-border));
-  border-radius: var(--wa-border-radius-m);
-  background: var(--wa-color-surface-lowered);
-  padding: var(--wa-space-2xl);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: var(--wa-space-xs);
-  text-align: center;
-  color: var(--wa-color-neutral-text-subtle);
-  cursor: pointer;
-}
-
-.gallery-drop:hover,
-.gallery-drop.dragover {
-  border-color: var(--wa-color-brand-border-loud);
-}
-
-.gallery-drop img {
-  max-width: 100%;
-  max-height: 14rem;
-  border-radius: var(--wa-border-radius-s);
-}
-
 .gallery-ack {
   border: 1px solid var(--wa-color-surface-border);
   border-radius: var(--wa-border-radius-m);
