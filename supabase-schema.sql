@@ -245,6 +245,71 @@ BEGIN;
 COMMIT;
 
 -- ============================================
+-- STRIPE BILLING TABLES
+-- ============================================
+-- Written only by edge functions using the service role key (which bypasses
+-- RLS). Clients get read-only access to their own rows — no INSERT/UPDATE/
+-- DELETE policies exist on purpose.
+
+CREATE TABLE IF NOT EXISTS stripe_customers (
+  user_id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  stripe_customer_id TEXT UNIQUE NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
+-- One row per user, single price tier. updated_at comes from the Stripe
+-- event's created timestamp so out-of-order webhook deliveries can be
+-- rejected (older event never overwrites newer state).
+CREATE TABLE IF NOT EXISTS subscriptions (
+  user_id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  stripe_subscription_id TEXT UNIQUE,
+  status TEXT,
+  price_id TEXT,
+  current_period_end TIMESTAMPTZ,
+  updated_at TIMESTAMPTZ DEFAULT now()
+);
+
+-- Stripe redelivers webhook events; this table makes processing idempotent.
+CREATE TABLE IF NOT EXISTS processed_stripe_events (
+  event_id TEXT PRIMARY KEY,
+  processed_at TIMESTAMPTZ DEFAULT now()
+);
+
+-- Publicly readable app configuration. Holds the payment-enforcement launch
+-- flag: flipping it to true in the SQL editor is the only step needed to
+-- start gating at launch.
+CREATE TABLE IF NOT EXISTS app_config (
+  key TEXT PRIMARY KEY,
+  value JSONB NOT NULL
+);
+
+INSERT INTO app_config (key, value)
+  VALUES ('payment_enforcement', 'false'::jsonb)
+  ON CONFLICT (key) DO NOTHING;
+
+ALTER TABLE stripe_customers ENABLE ROW LEVEL SECURITY;
+ALTER TABLE subscriptions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE processed_stripe_events ENABLE ROW LEVEL SECURITY;
+ALTER TABLE app_config ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Users can view own stripe customer" ON stripe_customers;
+CREATE POLICY "Users can view own stripe customer"
+  ON stripe_customers FOR SELECT
+  USING (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can view own subscription" ON subscriptions;
+CREATE POLICY "Users can view own subscription"
+  ON subscriptions FOR SELECT
+  USING (auth.uid() = user_id);
+
+-- processed_stripe_events: RLS enabled, zero policies — service role only.
+
+DROP POLICY IF EXISTS "Anyone can read app config" ON app_config;
+CREATE POLICY "Anyone can read app config"
+  ON app_config FOR SELECT
+  USING (true);
+
+-- ============================================
 -- MIGRATION: Restrict app_logs INSERT to authenticated users
 -- ============================================
 -- Rejects inserts where caller is unauthenticated or supplies a mismatched

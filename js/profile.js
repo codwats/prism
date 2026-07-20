@@ -8,6 +8,7 @@ import { getAllPrisms, setCurrentPrism, deletePrism, savePrism, getCurrentPrism 
 import { createPrism, processCards } from './modules/processor.js';
 import { downloadJSON } from './modules/export.js';
 import { buildPrismFromJson } from './modules/prism-import.js';
+import { isPaymentEnforced, getSubscription, hasActiveSubscription, startCheckout } from './modules/billing.js';
 import { showError, showSuccess } from './core/notifications.js';
 import { escapeHtml, getLogicalDeckCount } from './core/utils.js';
 
@@ -59,6 +60,12 @@ function getElements() {
     btnOpenDeleteAccountDialog: document.getElementById('btn-open-delete-account-dialog'),
     btnConfirmDeleteAccount: document.getElementById('btn-confirm-delete-account'),
 
+    // Subscription
+    subscriptionSection: document.getElementById('subscription-section'),
+    subscriptionStatusTag: document.getElementById('subscription-status-tag'),
+    subscriptionCaption: document.getElementById('subscription-caption'),
+    btnSubscribe: document.getElementById('btn-subscribe'),
+
     // Auth
     btnProfileLogin: document.getElementById('btn-profile-login'),
     btnProfileLogout: document.getElementById('btn-profile-logout'),
@@ -98,6 +105,17 @@ async function init() {
 
   // Initial render based on current auth state
   handleAuthChange(getCurrentUser());
+
+  // Returning from Stripe Checkout
+  const checkoutResult = new URLSearchParams(window.location.search).get('checkout');
+  if (checkoutResult) {
+    if (checkoutResult === 'success') {
+      showSuccess('Payment complete! Your subscription is active.');
+    } else if (checkoutResult === 'cancel') {
+      showError('Checkout was cancelled — you have not been charged.');
+    }
+    history.replaceState(null, '', window.location.pathname);
+  }
 }
 
 function setupEventListeners() {
@@ -202,6 +220,20 @@ function setupEventListeners() {
     });
   }
 
+  // Subscribe button — redirect to Stripe Checkout
+  if (elements.btnSubscribe) {
+    elements.btnSubscribe.addEventListener('click', async () => {
+      elements.btnSubscribe.loading = true;
+      try {
+        await startCheckout(); // navigates away on success
+      } catch (err) {
+        console.error('Checkout error:', err);
+        showError(err.message || 'Could not start checkout.');
+        elements.btnSubscribe.loading = false;
+      }
+    });
+  }
+
   // Delete PRISM dialog
   if (elements.btnCancelDeletePrism) {
     elements.btnCancelDeletePrism.addEventListener('click', () => {
@@ -254,11 +286,56 @@ function handleAuthChange(user) {
 
     // Load PRISMs
     renderPrismsList();
+
+    // Subscription section (hidden unless enforcement flag or PRISM_DEBUG)
+    renderSubscriptionSection();
   } else {
     // Show logged out state
     if (elements.profileLoggedOut) elements.profileLoggedOut.style.display = '';
     if (elements.profileLoggedIn) elements.profileLoggedIn.style.display = 'none';
+    if (elements.subscriptionSection) elements.subscriptionSection.hidden = true;
   }
+}
+
+/**
+ * Show subscription state on the profile page. The section stays hidden
+ * unless payment enforcement is switched on (app_config) or the PRISM_DEBUG
+ * localStorage flag is set — the payment pipe ships ahead of the paid tier.
+ */
+async function renderSubscriptionSection() {
+  const section = elements.subscriptionSection;
+  if (!section) return;
+
+  let debugFlag = false;
+  try { debugFlag = !!localStorage.getItem('PRISM_DEBUG'); } catch { /* private mode */ }
+  if (!debugFlag && !(await isPaymentEnforced())) {
+    section.hidden = true;
+    return;
+  }
+  section.hidden = false;
+
+  const subscription = await getSubscription();
+  const tag = elements.subscriptionStatusTag;
+  const caption = elements.subscriptionCaption;
+  const active = hasActiveSubscription(subscription);
+
+  if (active) {
+    if (tag) { tag.setAttribute('variant', 'success'); tag.textContent = 'Active'; }
+    if (caption) {
+      const renews = subscription.current_period_end
+        ? ` Renews ${formatDate(subscription.current_period_end)}.`
+        : '';
+      caption.textContent = `Thanks for supporting PRISM.${renews}`;
+    }
+  } else if (subscription?.status === 'past_due') {
+    if (tag) { tag.setAttribute('variant', 'warning'); tag.textContent = 'Past due'; }
+    if (caption) caption.textContent = 'Your last payment failed — resubscribe to update your card.';
+  } else {
+    if (tag) { tag.setAttribute('variant', 'neutral'); tag.textContent = subscription?.status === 'canceled' ? 'Canceled' : 'Free'; }
+    if (caption) caption.textContent = 'Support PRISM with a recurring subscription.';
+  }
+
+  if (elements.btnSubscribe) elements.btnSubscribe.hidden = active;
 }
 
 function renderPrismsList() {
