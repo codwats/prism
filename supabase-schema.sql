@@ -419,6 +419,13 @@ UPDATE gallery_artworks
 SET artist_name = split_part(artist_name, '@', 1)
 WHERE artist_name LIKE '%@%';
 
+-- Server-side guard mirroring the client rule: attribution must not be
+-- email-shaped (bare handles like '@mreyes' stay legal). Added after the
+-- masking UPDATE so legacy rows validate. Idempotent via DROP IF EXISTS.
+ALTER TABLE gallery_artworks DROP CONSTRAINT IF EXISTS gallery_artworks_artist_name_not_email;
+ALTER TABLE gallery_artworks ADD CONSTRAINT gallery_artworks_artist_name_not_email
+  CHECK (artist_name IS NULL OR artist_name !~ '\S+@\S+\.\S+');
+
 -- ---- RLS ----
 ALTER TABLE gallery_artists ENABLE ROW LEVEL SECURITY;
 ALTER TABLE gallery_artworks ENABLE ROW LEVEL SECURITY;

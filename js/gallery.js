@@ -608,6 +608,11 @@ function artworkFieldsHtml(v = {}) {
       </wa-input>`;
 }
 
+// Outside-click dismissal for the autocomplete list. One document listener at
+// a time: re-wiring (each form render replaces the subtree) removes the old
+// listener so handlers don't accumulate holding detached nodes.
+let acDismissCleanup = null;
+
 /** Scryfall card-name autocomplete for the #up-card input. */
 function wireCardAutocomplete(root) {
   const cardInput = root.querySelector('#up-card');
@@ -633,25 +638,36 @@ function wireCardAutocomplete(root) {
       }
     }, 250);
   });
-  document.addEventListener('click', e => { if (!suggest.contains(e.target) && e.target !== cardInput) suggest.hidden = true; });
+  acDismissCleanup?.();
+  const onDocClick = e => { if (!suggest.contains(e.target) && e.target !== cardInput) suggest.hidden = true; };
+  document.addEventListener('click', onDocClick);
+  acDismissCleanup = () => document.removeEventListener('click', onDocClick);
+}
+
+// WA inputs store values in shadow DOM; fall back to the internal
+// input/textarea when the host .value is empty (see CLAUDE.md).
+function fieldValue(root, selector) {
+  const el = root.querySelector(selector);
+  if (!el) return '';
+  return el.value || el.shadowRoot?.querySelector('input, textarea')?.value || '';
 }
 
 /** Read + validate the shared fields. Returns null (after showError) when invalid. */
 function readArtworkFields(root) {
-  const title = root.querySelector('#up-title').value?.trim();
+  const title = fieldValue(root, '#up-title').trim();
   const ai = root.querySelector('#up-ai').value;
-  const artistName = root.querySelector('#up-artist').value?.trim();
+  const artistName = fieldValue(root, '#up-artist').trim();
   if (!title) { showError('Give it a title.'); return null; }
   if (!ai) { showError('Tell us whether it’s AI-generated — AI art is allowed but must be labeled.'); return null; }
   if (!artistName) { showError('Add a display name — it’s shown publicly next to the artwork.'); return null; }
   if (EMAIL_RE.test(artistName)) { showError('That looks like an email address. Your display name is shown publicly — use a pseudonym or handle instead.'); return null; }
-  const cardName = root.querySelector('#up-card').value?.trim() || null;
+  const cardName = fieldValue(root, '#up-card').trim() || null;
   return {
     title,
     type: root.querySelector('#up-type').value || 'proxy',
     cardName,
     scryfallUrl: cardName ? 'https://scryfall.com/search?q=' + encodeURIComponent('!"' + cardName + '"') : null,
-    description: root.querySelector('#up-desc').value?.trim() || '',
+    description: fieldValue(root, '#up-desc').trim(),
     isAI: ai === 'yes',
     artistName,
   };
@@ -885,7 +901,7 @@ async function renderEditArtwork(root, id) {
     let rejectReason = null;
     if (isAdmin) {
       status = root.querySelector('#edit-status').value || artwork.status;
-      rejectReason = root.querySelector('#edit-reject-reason').value?.trim() || null;
+      rejectReason = fieldValue(root, '#edit-reject-reason').trim() || null;
       if (status === 'rejected' && !rejectReason) { showError('Give the uploader a reason.'); return; }
     }
 
@@ -905,7 +921,7 @@ async function renderEditArtwork(root, id) {
           status,
           reject_reason: status === 'rejected' ? rejectReason : null,
           highlighted: !!root.querySelector('#edit-highlight')?.checked,
-          store_url: root.querySelector('#edit-store')?.value?.trim() || null,
+          store_url: fieldValue(root, '#edit-store').trim() || null,
         };
         if (status !== artwork.status) {
           update.reviewed_at = new Date().toISOString();
@@ -1210,6 +1226,13 @@ loadPublicData().then(async () => {
 // Post-save navigation uses pushState so success toasts survive; re-render
 // when the user walks back through history.
 window.addEventListener('popstate', render);
+
+// <wa-button href> only navigates once WA upgrades the element (see CLAUDE.md);
+// delegated fallback so links rendered before the CDN loads still work.
+document.addEventListener('click', e => {
+  const btn = e.target.closest?.('wa-button[href]');
+  if (btn && !btn.matches(':defined')) window.location.href = btn.getAttribute('href');
+});
 
 // Re-render when auth state changes (session restore, logout) so gated views
 // and the guest callout stay in sync. Fresh SIGNED_IN reloads the page (auth.js).
