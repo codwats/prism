@@ -376,6 +376,49 @@ $$;
 
 GRANT EXECUTE ON FUNCTION increment_gallery_download(UUID) TO authenticated;
 
+-- Owner metadata edits. A plain owner-UPDATE policy can't work here: RLS
+-- WITH CHECK can't compare OLD vs NEW, so any policy permissive enough to
+-- keep an approved row approved would also let an owner flip their own
+-- pending row to approved. This RPC only touches the safe columns —
+-- status, highlighted, store_url, artist_id, counters, reviewed_* and
+-- image_path stay admin-only. Returns true when a row was updated, NULL
+-- when the caller doesn't own the artwork (or it doesn't exist).
+CREATE OR REPLACE FUNCTION update_own_gallery_artwork(
+  p_id UUID,
+  p_title TEXT,
+  p_type TEXT,
+  p_original_card_name TEXT,
+  p_scryfall_url TEXT,
+  p_description TEXT,
+  p_is_ai BOOLEAN,
+  p_artist_name TEXT
+)
+RETURNS BOOLEAN
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  UPDATE gallery_artworks SET
+    title = p_title,
+    type = p_type,
+    original_card_name = p_original_card_name,
+    scryfall_url = p_scryfall_url,
+    description = p_description,
+    is_ai = p_is_ai,
+    artist_name = p_artist_name
+  WHERE id = p_id AND uploader_id = auth.uid()
+  RETURNING true;
+$$;
+
+GRANT EXECUTE ON FUNCTION update_own_gallery_artwork(UUID, TEXT, TEXT, TEXT, TEXT, TEXT, BOOLEAN, TEXT) TO authenticated;
+
+-- One-time cleanup: early uploads stored the uploader's email as the public
+-- attribution. Truncate anything email-shaped at the @ so addresses never
+-- render on the site. Idempotent — masked values no longer contain '@'.
+UPDATE gallery_artworks
+SET artist_name = split_part(artist_name, '@', 1)
+WHERE artist_name LIKE '%@%';
+
 -- ---- RLS ----
 ALTER TABLE gallery_artists ENABLE ROW LEVEL SECURITY;
 ALTER TABLE gallery_artworks ENABLE ROW LEVEL SECURITY;
