@@ -170,12 +170,12 @@ function injectHeadResources() {
     --wa-color-danger-80: #ffb0aa;
     --wa-color-danger-90: #ffd7d3;
     --wa-color-danger-95: #ffeae7;
-    --wa-font-family-body: Inter, sans-serif;
-    --wa-font-family-heading: Inter, sans-serif;
+    --wa-font-family-body: "halyard-micro-variable",sans-serif;
+    --wa-font-family-heading: "adobe-aldine-display", serif;
     --wa-font-family-code: "Geist Mono", monospace;
     --wa-font-family-longform: "Crimson Pro", serif;
     --wa-font-weight-body: 400;
-    --wa-font-weight-heading: 600;
+    --wa-font-weight-heading: 500;
     --wa-font-weight-code: 400;
     --wa-font-weight-longform: 400;
     --wa-border-radius-scale: 0.5;
