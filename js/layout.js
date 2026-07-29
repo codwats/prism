@@ -90,6 +90,7 @@ function injectHeadResources() {
     'https://fonts.bunny.net/css2?family=Inter:ital,wght@0,100..900;1,100..900&display=swap',
     'https://fonts.bunny.net/css2?family=Geist+Mono:wght@100..900&display=swap',
     'https://fonts.bunny.net/css2?family=Crimson+Pro:ital,wght@0,200..900;1,200..900&display=swap',
+    'https://use.typekit.net/gbw6ibc.css',
   ];
   fonts.forEach(href => {
     if (!head.querySelector(`link[href="${href}"]`)) {
