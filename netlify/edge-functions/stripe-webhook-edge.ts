@@ -11,23 +11,10 @@
  * SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY.
  */
 
+import { subscriptionRow } from './lib/stripe-helpers.js';
+
 // deno-lint-ignore no-explicit-any
 type StripeObject = Record<string, any>;
-
-// Flatten a Stripe subscription object into a subscriptions table row.
-// current_period_end lives on the subscription pre-Basil and on the first
-// subscription item from API version 2025-03-31.basil onward — accept both.
-export function subscriptionRow(sub: StripeObject, userId: string, eventCreated: number): StripeObject {
-  const periodEnd = sub.current_period_end ?? sub.items?.data?.[0]?.current_period_end ?? null;
-  return {
-    user_id: userId,
-    stripe_subscription_id: sub.id,
-    status: sub.status,
-    price_id: sub.items?.data?.[0]?.price?.id ?? null,
-    current_period_end: periodEnd ? new Date(periodEnd * 1000).toISOString() : null,
-    updated_at: new Date(eventCreated * 1000).toISOString(),
-  };
-}
 
 function serviceHeaders(): Record<string, string> {
   const key = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';

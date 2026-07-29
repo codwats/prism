@@ -10,6 +10,8 @@
  * SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY.
  */
 
+import { safeReturnPath } from './lib/stripe-helpers.js';
+
 function getCorsHeaders(request: Request): Record<string, string> {
   const origin = request.headers.get('origin') || 'https://prismmtg.com';
   const allowedOrigin = Deno.env.get('CONTEXT') === 'production'
@@ -28,15 +30,6 @@ function jsonResponse(request: Request, status: number, body: unknown): Response
     status,
     headers: { ...getCorsHeaders(request), 'Content-Type': 'application/json' }
   });
-}
-
-// Only same-site paths are allowed as checkout return targets — a full URL
-// (or protocol-relative //host) could bounce the user to a foreign site
-// after payment.
-export function safeReturnPath(returnUrl: unknown): string | null {
-  if (typeof returnUrl !== 'string') return null;
-  if (!returnUrl.startsWith('/') || returnUrl.startsWith('//')) return null;
-  return returnUrl;
 }
 
 function serviceHeaders(): Record<string, string> {
@@ -103,7 +96,14 @@ export default async function handler(request: Request): Promise<Response> {
       `${supabaseUrl}/rest/v1/stripe_customers?user_id=eq.${user.id}&select=stripe_customer_id`,
       { headers: serviceHeaders() }
     );
-    const rows = lookupRes.ok ? await lookupRes.json() : [];
+    if (!lookupRes.ok) {
+      // Must not fall through to "no customer": that would create a second
+      // Stripe customer and overwrite the stored id, orphaning the original
+      // (and any subscription attached to it).
+      console.error('Failed to look up stripe customer:', lookupRes.status, await lookupRes.text());
+      return jsonResponse(request, 500, { error: 'Failed to start checkout' });
+    }
+    const rows = await lookupRes.json();
     let customerId = rows[0]?.stripe_customer_id;
 
     if (!customerId) {

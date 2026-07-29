@@ -62,14 +62,22 @@ export async function startCheckout() {
     throw new Error('Please sign in to subscribe.');
   }
 
-  const response = await fetch('/api/stripe-checkout', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${session.access_token}`
-    },
-    body: JSON.stringify({ returnUrl: '/profile.html' })
-  });
+  let response;
+  try {
+    response = await fetch('/api/stripe-checkout', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${session.access_token}`
+      },
+      body: JSON.stringify({ returnUrl: '/profile.html' }),
+      // Without this the Subscribe button can sit in its loading state
+      // indefinitely if the request never settles.
+      signal: AbortSignal.timeout(15000)
+    });
+  } catch {
+    throw new Error('Could not reach checkout. Please try again.');
+  }
   const data = await response.json().catch(() => ({}));
   if (!response.ok || !data.url) {
     throw new Error(data.error || 'Could not start checkout. Please try again.');

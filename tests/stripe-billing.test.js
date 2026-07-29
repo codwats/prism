@@ -1,10 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-// Node 22+ strips types from local .ts imports; both edge modules keep Deno
-// and network access inside functions so the pure helpers are testable here.
-import { safeReturnPath } from '../netlify/edge-functions/stripe-checkout-edge.ts';
-import { subscriptionRow } from '../netlify/edge-functions/stripe-webhook-edge.ts';
+import { safeReturnPath, subscriptionRow } from '../netlify/edge-functions/lib/stripe-helpers.js';
 
 test('safeReturnPath allows same-site paths only', () => {
 	assert.equal(safeReturnPath('/profile.html'), '/profile.html');

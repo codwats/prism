@@ -110,7 +110,10 @@ async function init() {
   const checkoutResult = new URLSearchParams(window.location.search).get('checkout');
   if (checkoutResult) {
     if (checkoutResult === 'success') {
-      showSuccess('Payment complete! Your subscription is active.');
+      // Stripe redirects here before the webhook necessarily lands, so don't
+      // claim the subscription is already active — the card below may still
+      // read "Free" for a moment.
+      showSuccess('Payment received! Your subscription will activate shortly.');
     } else if (checkoutResult === 'cancel') {
       showError('Checkout was cancelled — you have not been charged.');
     }
