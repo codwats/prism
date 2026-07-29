@@ -18,6 +18,14 @@
   path = "/api/archidekt-edge"
   function = "archidekt-edge"
 
+[[edge_functions]]
+  path = "/api/stripe-checkout"
+  function = "stripe-checkout-edge"
+
+[[edge_functions]]
+  path = "/api/stripe-webhook"
+  function = "stripe-webhook-edge"
+
 # Headers for the functions
 [[headers]]
   for = "/.netlify/functions/*"
