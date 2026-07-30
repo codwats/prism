@@ -126,7 +126,7 @@ Preferences: { colorScheme, defaultColors, stripeStartCorner ('top-right'|'top-l
   - Card in **subset**, stripes-style → child Side B stripe per matching variant
   - Card in **subset**, dots-style, exactly 1 variant → dot in that variant's color
   - Card in **subset**, dots-style, 2+ variants → dot conflict; membership anchors only, parent stripe only
-- **Stripe starting corner** — global preference controlling which card corner stripes originate from. Applying it runs `remapPrismForCorner` (processor.js), which rewrites every stored `stripePosition`/`sideAPosition` so physical mark locations are preserved under the new numbering — slot numbers change and are saved/synced; the marks on sleeves don't move.
+- **Stripe starting corner** — global preference controlling which card corner stripes originate from. Pure presentation: slot numbers never change on corner change; the rendering layer (`cornerToConfig` in card-preview.js and friends) maps slot → physical location using the preference, so Slot 1 always renders at the chosen corner. No prism data is mutated or synced. If any prism has `markedCards`, Apply shows a native `confirm()` warning that physical sleeve marks won't move.
 - **markedCards** tracks which cards the user has physically marked (checkbox state)
 - **removedCards** tracks cards removed from decks that still need physical marks cleared
 - **syncState** is local-only metadata used for Supabase merge reconciliation; it is not part of the PRISM domain model. Baseline shape per prism: `{ updatedAt, deckUpdatedAts, splitGroupUpdatedAts, deletedDecks, deletedSplitGroups, unmarkedCards: { [cardKey]: isoTimestamp } }`
@@ -245,11 +245,25 @@ Preview viewport should be 1280px+ wide to see the desktop layout (sidebar nav).
 - The Stripe Positions reorder card was removed from the Decks tab — use the Move button (⊕) on each deck card to open the visual slot-picker dialog, or use the Export tab's dropdown list for bulk reordering
 - `build.html` has a sync status indicator (`#sync-status`) and a Sync Now button (`#btn-sync-now`) near the PRISM name; both are hidden until the user is logged in. `setupSyncStatus()` in `init.js` wires these to `onSyncStatusChange` / `forceSyncCurrentPrism` from `storage.js`. Storage exports: `onSyncStatusChange(cb)` (returns unsubscribe fn), `forceSyncCurrentPrism()`, `recordUnmarkedCards(prismId, keys)`
 
+### Gallery
+
+`gallery.html` + `js/gallery.js` — community artwork gallery (proxies/tokens/showcase). One page, query-param views: grid (default), `?art=<id>` detail, `?artist=<id>` artist page, `?view=upload|uploads|admin`. Tables `gallery_artists`, `gallery_artworks`, `gallery_likes`, `gallery_admins` in `supabase-schema.sql` (GALLERY section):
+
+- **Public reads** (approved artworks + artists) use plain PostgREST `fetch` with the anon key (`SUPABASE_URL`/`SUPABASE_ANON_KEY` exported from supabase-client.js) so anonymous visitors never load the SDK. Authed actions (likes, uploads, moderation) use the SDK.
+- **Admin role** = row in `gallery_admins`; `is_gallery_admin()` (SECURITY DEFINER) is used in RLS policies and callable via RPC to gate the admin UI. Add admins with `INSERT INTO gallery_admins (user_id) VALUES ('<uuid>')`.
+- **Moderation**: uploads INSERT as `pending` only (RLS WITH CHECK blocks self-approve/highlight/store_url/artist_id). Admins approve/reject via UPDATE; owners may resubmit `rejected → pending` and delete own pending/rejected rows.
+- **Editing** (`?view=edit&art=<id>`): owners edit metadata (title/type/card/description/AI flag/display name) via the `update_own_gallery_artwork` SECURITY DEFINER RPC — a plain owner-UPDATE policy can't work because RLS WITH CHECK can't compare OLD vs NEW (it would allow self-approval). Approved artwork stays live after an owner edit; image replacement is not supported (withdraw + re-upload). Admins edit everything (incl. status/highlight/store URL, post-approval) via direct UPDATE under the existing admin policy. The upload and edit forms share `artworkFieldsHtml`/`wireCardAutocomplete`/`readArtworkFields` in gallery.js.
+- **Attribution**: `artist_name` is a public display name — never an email. The upload/edit forms require it, reject email-shaped values, and prefill from the `prism_gallery_artist_name` localStorage key (falling back to the email's local part). The schema includes an idempotent migration masking legacy email values at the `@`.
+- **Likes**: one row per user per artwork; `likes_count` on artworks is trigger-maintained (SECURITY DEFINER) so most-liked sorting never aggregates. `increment_gallery_download` RPC (authenticated) bumps download counts.
+- **Storage**: single public bucket `gallery-art`, paths `<uid>/<uuid>.<ext>` (10 MB, png/jpg/webp). No SELECT policy on storage.objects → bucket can't be listed; pending art is undiscoverable via table RLS. Download gating is UI-level (soft) by design.
+- **Demo fallback**: if the gallery tables aren't reachable (schema not deployed), gallery.js falls back to read-only `DEMO_*` sample data — remove once real partner art is seeded.
+
 ## Agent skills
 
 ### Issue tracker
 
 Issues and PRDs are tracked in this repository's GitHub Issues using the `gh` CLI. See `docs/agents/issue-tracker.md`.
+Issues live in GitHub Issues (codwats/prism), via the `gh` CLI. See `docs/agents/issue-tracker.md`.
 
 ### Triage labels
 
@@ -258,3 +272,4 @@ Triage uses the five default canonical labels. See `docs/agents/triage-labels.md
 ### Domain docs
 
 Domain documentation uses a single-context layout. See `docs/agents/domain.md`.
+Single-context layout — `CONTEXT.md` + `docs/adr/` at the repo root. See `docs/agents/domain.md`.
