@@ -17,8 +17,7 @@ import {
   updatePreferences,
   getStripeNumbersMode,
   STRIPE_NUMBERS_MODES,
-  getCurrentPrism,
-  savePrism,
+  getAllPrisms,
 } from './modules/storage.js';
 import { applyColorScheme } from './modules/theme.js';
 import { initGlobalErrorReporting } from './core/telemetry.js';
@@ -33,6 +32,7 @@ const NAV_LINKS = [
   { href: 'index.html', label: 'Home', page: 'home' },
   { href: 'guide.html', label: 'Guide', page: 'guide' },
   { href: 'tools.html', label: 'Tools', page: 'tools' },
+  { href: 'gallery.html', label: 'Gallery', page: 'gallery' },
   { href: 'build.html', label: 'My PRISM', page: 'build' },
 ];
 
@@ -514,7 +514,7 @@ function injectSettingsDrawer() {
             <wa-radio value="bottom-left">Bottom Left</wa-radio>
           </wa-radio-group>
           <wa-button id="stripe-start-corner-apply" appearance="filled" variant="brand" size="small" disabled>Apply</wa-button>
-          <p class="wa-caption-s" style="color: var(--wa-color-neutral-text-subtle); margin: 0;">Applying remaps every deck's slot number so Slot 1 sits at the chosen corner.</p>
+          <p class="wa-caption-s" style="color: var(--wa-color-neutral-text-subtle); margin: 0;">Slot numbers stay the same — stripes move so Slot 1 starts at the chosen corner.</p>
           <wa-slider
             id="stripe-position-numbers-mode"
             label="Position Numbers"
@@ -557,15 +557,19 @@ function injectSettingsDrawer() {
     if (cornerGroup.value !== applied) applyBtn?.removeAttribute('disabled');
     else applyBtn?.setAttribute('disabled', '');
   });
-  applyBtn?.addEventListener('click', async () => {
+  applyBtn?.addEventListener('click', () => {
     const newCorner = cornerGroup?.value;
     if (!newCorner) return;
     const currentCorner = getPreferences().stripeStartCorner || 'top-right';
     if (newCorner !== currentCorner) {
-      const prism = getCurrentPrism();
-      if (prism) {
-        const { remapPrismForCorner } = await import('./modules/processor.js');
-        savePrism(remapPrismForCorner(prism, currentCorner, newCorner));
+      const hasMarks = getAllPrisms().some((p) => (p.markedCards || []).length > 0);
+      // ponytail: native confirm(); upgrade to wa-dialog if UX polish needed
+      if (hasMarks && !window.confirm(
+        "You've already marked cards. Marks you've made on sleeves won't move — stripe positions will now start from the new corner. Continue?"
+      )) {
+        cornerGroup.value = currentCorner;
+        applyBtn.setAttribute('disabled', '');
+        return;
       }
       updatePreferences({ stripeStartCorner: newCorner });
       window.dispatchEvent(new CustomEvent('prism-settings-changed', { detail: { setting: 'stripeStartCorner' } }));

@@ -649,55 +649,6 @@ export function getNextVariantPosition(prism) {
 }
 
 /**
- * Remap a slot (1-48) when the starting corner changes.
- * Physical card position of each mark is preserved; the slot *number* shifts
- * so slot 1 always sits at the newly-chosen corner.
- *
- * Model: corner = { R: right-edge primary, T: top-first numbering }.
- * A slot's physical location is (edgeRight, yFromTop): slots 1-24 live on the
- * primary edge from `from`, slots 25-48 on the opposite edge. Index-within-side
- * counts from top under `fromT`, from bottom under `!fromT`.
- */
-export function remapSlot(slot, fromCorner, toCorner) {
-	const fromR = fromCorner.includes('right');
-	const fromT = fromCorner.includes('top');
-	const toR = toCorner.includes('right');
-	const toT = toCorner.includes('top');
-
-	const sideA = slot <= 24;
-	const index = sideA ? slot - 1 : slot - 25; // 0-23 along the edge
-	const physEdgeRight = sideA ? fromR : !fromR;
-	const physY = fromT ? index : 23 - index;
-
-	const newSideA = physEdgeRight === toR;
-	const newIndex = toT ? physY : 23 - physY;
-	return newSideA ? newIndex + 1 : newIndex + 25;
-}
-
-/**
- * Rewrite every stripePosition / sideAPosition in a PRISM so slot 1 sits
- * at the newly-chosen corner while each deck stays at the same physical
- * location on the sleeve.
- */
-export function remapPrismForCorner(prism, fromCorner, toCorner) {
-	if (fromCorner === toCorner) return prism;
-	const now = new Date().toISOString();
-	return {
-		...prism,
-		decks: prism.decks.map((d) => {
-			if (typeof d.stripePosition !== 'number') return d;
-			return { ...d, stripePosition: remapSlot(d.stripePosition, fromCorner, toCorner), updatedAt: now };
-		}),
-		splitGroups: (prism.splitGroups || []).map((g) => ({
-			...g,
-			sideAPosition: remapSlot(g.sideAPosition, fromCorner, toCorner),
-			updatedAt: now,
-		})),
-		updatedAt: now,
-	};
-}
-
-/**
  * Get the next available color from the default palette
  * @param {Object} prism - The PRISM object
  * @returns {string} The next available hex color
