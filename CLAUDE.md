@@ -264,6 +264,10 @@ Preview viewport should be 1280px+ wide to see the desktop layout (sidebar nav).
 
 Issues live in GitHub Issues (codwats/prism), via the `gh` CLI. See `docs/agents/issue-tracker.md`.
 
+### Triage labels
+
+Triage uses the five default canonical labels. See `docs/agents/triage-labels.md`.
+
 ### Domain docs
 
 Single-context layout — `CONTEXT.md` + `docs/adr/` at the repo root. See `docs/agents/domain.md`.
