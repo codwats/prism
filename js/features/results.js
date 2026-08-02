@@ -75,6 +75,10 @@ function renderSlot(slot, opts) {
   return `<div class="stripe-slot"><div class="slot-dot-row">${dotsHtml}</div>${squareHtml}</div>`;
 }
 
+// Multi-batch cards the user has expanded (by card name). Module-level so the
+// disclosure state survives re-renders within the session.
+const expandedCards = new Set();
+
 // ============================================================================
 // Removed filter badge
 // ============================================================================
@@ -104,9 +108,17 @@ export function updateMarkedProgress() {
   const cards = state.processedCards || [];
   const markedSet = new Set(state.currentPrism?.markedCards || []);
   const totalCount = cards.reduce((sum, c) => sum + c.totalQuantity, 0);
-  // isCardDone also honours per-deck basic marks ("Name|DeckName" keys from the
-  // Basics-by-Deck view) so progress can reach 100% for users of that view.
-  const markedCount = cards.reduce((sum, c) => sum + (isCardDone(c, markedSet) ? c.totalQuantity : 0), 0);
+  // Batch-aware (#151): a fully-done card counts all copies (isCardDone also
+  // honours pass keys); a partially-done multi-batch card counts the copies
+  // of its done batches, so marking 3 of 5 Forests moves the bar.
+  const markedCount = cards.reduce((sum, c) => {
+    if (isCardDone(c, markedSet)) return sum + c.totalQuantity;
+    const batches = c.batches || [];
+    if (batches.length > 1) {
+      return sum + batches.reduce((s, b) => s + (markedSet.has(b.key) ? b.copyCount : 0), 0);
+    }
+    return sum;
+  }, 0);
 
   if (state.elements.statMarked) state.elements.statMarked.textContent = `${markedCount}/${totalCount}`;
   if (state.elements.markedProgress) {
@@ -122,7 +134,12 @@ export function renderResults() {
   const processedCards = processCards(state.currentPrism);
   state.processedCards = processedCards;
   const totalCardCount = processedCards.reduce((sum, c) => sum + c.totalQuantity, 0);
-  const sharedCardCount = processedCards.filter(c => c.logicalDeckCount > 1).reduce((sum, c) => sum + c.totalQuantity, 0);
+  // Pool/core belongs to batches (#146): A5/B3 contributes 3 pool + 2 core,
+  // not 5 pool — so Pool Cards sums pool-batch quantities.
+  const sharedCardCount = processedCards.reduce(
+    (sum, c) => sum + (c.batches || []).reduce((s, b) => s + (b.isPool ? b.copyCount : 0), 0),
+    0,
+  );
 
   // Update stats
   if (state.elements.statTotal) state.elements.statTotal.textContent = totalCardCount;
@@ -158,47 +175,41 @@ export function renderResults() {
     filteredCards = filteredCards.filter(c => c.logicalDeckCount > 1);
     displayCards = filteredCards;
   } else if (filter === 'basics-by-deck') {
-    // Show only basic lands, one row per LOGICAL deck. Standalone decks and
-    // split groups each emit exactly one Side A stripe, so iterating Side A
-    // gives the right row set — split variants share physical cards, so the
-    // group row carries the max quantity across its children. Iterating all
-    // stripes (the old behaviour) leaked invisible membership anchors and
-    // group-level stripes with no deckId, producing bogus rows with qty 1.
-    const findQty = (deck, cardName) =>
-      deck?.cards.find(c => c.name.toLowerCase() === cardName.toLowerCase())?.quantity || 0;
+    // One-mark-at-a-time pass view (#149): the per-deck projection of the
+    // canonical batches (#146), generalized from basics to every repeated
+    // card. One row per distinct physical mark; its quantity is the sum of
+    // the copy counts of the batches carrying that mark — "an A-mark pass
+    // over 5 copies", "a child-indicator pass over the 3 A-only copies".
+    // Row keys stay `<name>|<deckName>` (#151), shared with passKeysForCard.
     displayCards = [];
     for (const card of filteredCards) {
-      if (!card.isBasicLand) continue; // Non-basics are excluded from this view
-      for (const stripe of card.stripes) {
-        if (stripe.side !== 'a') continue;
-
-        let quantity = 1;
-        if (stripe.deckId) {
-          const deck = state.currentPrism.decks.find(d => d.id === stripe.deckId);
-          quantity = findQty(deck, card.name) || 1;
-        } else if (stripe.groupId) {
-          const group = (state.currentPrism.splitGroups || []).find(g => g.id === stripe.groupId);
-          const childQtys = (group?.childDeckIds || [])
-            .map(id => findQty(state.currentPrism.decks.find(d => d.id === id), card.name));
-          quantity = Math.max(1, ...childQtys);
+      if (card.totalQuantity <= 1) continue; // single physical copy — no pass needed
+      const passes = new Map(); // deckName -> { stripe, copies }
+      for (const batch of card.batches || []) {
+        for (const s of batch.stripes) {
+          if (s.markType === 'membership') continue;
+          const entry = passes.get(s.deckName) || { stripe: s, copies: 0 };
+          entry.copies += batch.copyCount;
+          passes.set(s.deckName, entry);
         }
-
+      }
+      for (const [deckName, { stripe, copies }] of passes) {
         displayCards.push({
-          name: `${card.name} (${stripe.deckName})`,
+          name: `${card.name} (${deckName})`,
           displayName: card.name,
-          deckName: stripe.deckName,
-          isBasicLand: true,
-          isBasicByDeck: true,
-          totalQuantity: quantity,
+          deckName,
+          isBasicLand: card.isBasicLand,
+          isPassRow: true,
+          totalQuantity: copies,
           deckCount: 1,
           stripes: [stripe]
         });
       }
     }
-    // Sort by land type first, then by deck name
+    // Sort by card name first, then by deck name
     displayCards.sort((a, b) => {
-      const landCompare = a.displayName.localeCompare(b.displayName);
-      if (landCompare !== 0) return landCompare;
+      const nameCompare = a.displayName.localeCompare(b.displayName);
+      if (nameCompare !== 0) return nameCompare;
       return a.deckName.localeCompare(b.deckName);
     });
   } else if (filter === 'removed') {
@@ -215,6 +226,8 @@ export function renderResults() {
         removedDeckColor: removed.deckColor,
         removedStripePosition: removed.stripePosition,
         removedAt: removed.removedAt,
+        removedPreviousQuantity: removed.previousQuantity,
+        removedNewQuantity: removed.newQuantity,
         deckCount: 0, // Not in any deck now (for this stripe)
         stripes: [{
           position: removed.stripePosition,
@@ -258,11 +271,14 @@ export function renderResults() {
   }
 
   // Persistent undone-only filter: keep cards the user hasn't marked done.
+  // Card rows go through isCardDone so multi-batch cards classify consistently
+  // (a partially-done card stays visible); pass rows keep key equality.
   if (state.elements.undoneFilter?.checked) {
     const markedSet = new Set(state.currentPrism.markedCards || []);
     displayCards = displayCards.filter(card => {
-      const cardKey = card.isBasicByDeck ? `${card.displayName}|${card.deckName}` : card.name;
-      return !markedSet.has(cardKey);
+      if (card.isPassRow) return !markedSet.has(`${card.displayName}|${card.deckName}`);
+      if (card.isRemoved) return true;
+      return !isCardDone(card, markedSet);
     });
   }
 
@@ -273,8 +289,21 @@ export function renderResults() {
   // Apply sorting
   displayCards = sortCards(displayCards, state.sortState.column, state.sortState.direction);
 
-  // Snapshot for SCRY-Mode — reflects exact list visible to user (all filters/sort applied)
-  state.resultsView = displayCards;
+  // Snapshot for SCRY-Mode — reflects exact list visible to user (all
+  // filters/sort applied). Multi-batch cards flatten to one entry per batch
+  // (#149): the parent row is not markable, so it is not a screen.
+  state.resultsView = displayCards.flatMap(card => {
+    const batches = card.batches || [];
+    if (card.isRemoved || card.isPassRow || batches.length <= 1) return [card];
+    return batches.map(b => ({
+      name: card.name,
+      isBasicLand: card.isBasicLand,
+      batchKey: b.key,
+      copyCount: b.copyCount,
+      totalQuantity: b.copyCount,
+      stripes: b.stripes
+    }));
+  });
 
   // Render table header with sort indicators
   renderResultsHeader();
@@ -287,10 +316,59 @@ export function renderResults() {
   const showNums = numbersMode !== 'none';
   const totalDecks = state.currentPrism?.decks?.length || 0;
 
+  // All used positions, for the show-all-slots ruler
+  const allPositions = showAllSlots && totalDecks > 0
+    ? [...new Set([
+        ...state.currentPrism.decks.map(d => d.stripePosition),
+        ...(state.currentPrism.splitGroups || []).map(g => g.sideAPosition)
+      ])].sort((a, b) => a - b)
+    : null;
+
+  // Render a stripe-indicator strip for any stripe set (card row or batch row).
+  // Sparse sets number every mark with its exact slot; dense sets fall back to
+  // anchor numbering unless the pref forces all.
+  const stripeHtml = (stripes) => {
+    const exact = numbersMode === 'all' || countVisibleMarks(stripes) <= STRIPE_SPARSE_MAX;
+    const opts = { showNums, exact };
+    const slotMap = buildSlotMap(stripes);
+    let html = '';
+    if (allPositions) {
+      for (const pos of allPositions) {
+        const slot = slotMap.get(pos);
+        if (slot) {
+          html += renderSlot(slot, opts);
+        } else {
+          // Empty reference slots only ever show the anchor ruler number, never
+          // an "exact" number (they are not this card's marks).
+          html += `<div
+            class="stripe-indicator stripe-empty"
+            title="${formatSlotLabel(pos)}: Empty"
+          >${positionNumHtml(pos, { showNums, exact: false }, true)}</div>`;
+        }
+      }
+    } else {
+      for (const [, slot] of slotMap) html += renderSlot(slot, opts);
+    }
+    return html;
+  };
+
+  const markedSetForRows = new Set(state.currentPrism.markedCards || []);
+  // Copies cell renders only when the quantity exceeds one (#149) — the
+  // common singleton path gains no text at all.
+  const copiesCell = (q) => `<td class="copies-cell">${q > 1 ? q : ''}</td>`;
+
   state.elements.resultsTbody.innerHTML = displayCards.map(card => {
     // Handle removed cards differently
     if (card.isRemoved) {
       const removedKey = `${card.name}|${card.removedDeckId}`;
+      // "clear this mark from N copies" (#151); legacy rows without quantity
+      // fields keep the plain label.
+      const clearCopies = card.removedPreviousQuantity != null
+        ? Math.max(1, (card.removedPreviousQuantity || 1) - (card.removedNewQuantity || 0))
+        : null;
+      const copiesNote = clearCopies != null
+        ? ` — clear ${clearCopies} ${clearCopies === 1 ? 'copy' : 'copies'}`
+        : '';
       return `
         <tr class="removed-row" data-removed-key="${escapeHtml(removedKey)}">
           <td>${escapeHtml(card.name)}</td>
@@ -301,7 +379,7 @@ export function renderResults() {
                 style="background-color: ${card.removedDeckColor};"
                 title="Remove from ${card.removedStripePosition != null ? formatSlotLabel(card.removedStripePosition) : 'this deck’s group slot'}"
               ></div>
-              <span class="removed-deck-label">Remove from ${escapeHtml(card.removedDeckName)}</span>
+              <span class="removed-deck-label">Remove from ${escapeHtml(card.removedDeckName)}${copiesNote}</span>
             </div>
           </td>
           <td style="text-align: center;">
@@ -322,64 +400,78 @@ export function renderResults() {
       `;
     }
 
-    let stripeIndicators;
-
-    // Sparse cards number every mark with its exact slot (always-on); dense
-    // cards fall back to the anchor numbering unless the pref forces all.
-    const exact = numbersMode === 'all' || countVisibleMarks(card.stripes) <= STRIPE_SPARSE_MAX;
-    const opts = { showNums, exact };
-
-    if (showAllSlots && totalDecks > 0) {
-      // Collect all used positions (deck positions + split group Side A positions)
-      const allPositions = [...new Set([
-        ...state.currentPrism.decks.map(d => d.stripePosition),
-        ...(state.currentPrism.splitGroups || []).map(g => g.sideAPosition)
-      ])].sort((a, b) => a - b);
-
-      const slotMap = buildSlotMap(card.stripes);
-      stripeIndicators = '';
-      for (const pos of allPositions) {
-        const slot = slotMap.get(pos);
-        if (slot) {
-          stripeIndicators += renderSlot(slot, opts);
-        } else {
-          // Empty reference slots only ever show the anchor ruler number, never
-          // an "exact" number (they are not this card's marks).
-          stripeIndicators += `<div
-            class="stripe-indicator stripe-empty"
-            title="${formatSlotLabel(pos)}: Empty"
-          >${positionNumHtml(pos, { showNums, exact: false }, true)}</div>`;
-        }
-      }
-    } else {
-      // Show only filled slots (default)
-      const slotMap = buildSlotMap(card.stripes);
-      stripeIndicators = '';
-      for (const [, slot] of slotMap) {
-        stripeIndicators += renderSlot(slot, opts);
-      }
-    }
-
     const rowClass = card.logicalDeckCount > 1 ? 'shared-row' : '';
     const nameClass = card.isBasicLand ? 'basic-land' : '';
-    const basicTag = card.isBasicLand && !card.isBasicByDeck ? ' <span class="basic-tag">(Basic)</span>' : '';
-    const copiesCell = filter === 'basics-by-deck' ? `<td>${card.totalQuantity}</td>` : '';
+    const basicTag = card.isBasicLand && !card.isPassRow ? ' <span class="basic-tag">(Basic)</span>' : '';
+    const batches = card.batches || [];
+    const multiBatch = !card.isPassRow && batches.length > 1;
 
-    // Check if card is marked (use original card name for basics-by-deck entries)
-    const cardKey = card.isBasicByDeck ? `${card.displayName}|${card.deckName}` : card.name;
-    const isMarked = state.currentPrism.markedCards?.includes(cardKey) || false;
-    const markedClass = isMarked ? 'marked-row' : '';
+    if (!multiBatch) {
+      // Singleton path — exactly today's row (#149). Pass rows keep their
+      // `<name>|<deckName>` key.
+      const cardKey = card.isPassRow ? `${card.displayName}|${card.deckName}` : card.name;
+      const isMarked = markedSetForRows.has(cardKey);
+      return `
+        <tr class="${rowClass} ${isMarked ? 'marked-row' : ''}" data-card-key="${escapeHtml(cardKey)}">
+          <td style="text-align: center;">
+            <input type="checkbox" class="mark-checkbox" aria-label="Mark ${escapeHtml(card.name)} done" ${isMarked ? 'checked' : ''}>
+          </td>
+          <td class="${nameClass} card-name-cell" data-card-name="${escapeHtml(card.isPassRow ? card.displayName : card.name)}">${escapeHtml(card.name)}${basicTag}</td>${copiesCell(card.totalQuantity)}
+          <td><div class="stripe-indicators">${stripeHtml(card.stripes)}</div></td>
+        </tr>
+      `;
+    }
 
-    return `
-      <tr class="${rowClass} ${markedClass}" data-card-key="${escapeHtml(cardKey)}">
+    // Multi-batch card: parent row with derived (non-clickable) checkbox and
+    // no mark union — the union is the over-marking trap (#149). Marking
+    // requires expanding and checking each batch.
+    const doneCount = batches.filter(b => markedSetForRows.has(b.key)).length;
+    const allDone = doneCount === batches.length;
+    const isExpanded = expandedCards.has(card.name);
+    const parentRow = `
+      <tr class="${rowClass} ${allDone ? 'marked-row' : ''} batch-parent">
         <td style="text-align: center;">
-          <input type="checkbox" class="mark-checkbox" aria-label="Mark ${escapeHtml(card.name)} done" ${isMarked ? 'checked' : ''}>
+          <input type="checkbox" class="batch-parent-check" disabled
+            aria-label="${escapeHtml(card.name)} roll-up: ${doneCount} of ${batches.length} batches done"
+            ${allDone ? 'checked' : ''} ${doneCount > 0 && !allDone ? 'data-indeterminate="1"' : ''}>
         </td>
-        <td class="${nameClass} card-name-cell" data-card-name="${escapeHtml(card.name)}">${escapeHtml(card.name)}${basicTag}</td>${copiesCell}
-        <td><div class="stripe-indicators">${stripeIndicators}</div></td>
+        <td class="${nameClass} card-name-cell" data-card-name="${escapeHtml(card.name)}">
+          <button type="button" class="batch-toggle" data-card-name="${escapeHtml(card.name)}" aria-expanded="${isExpanded}" title="${isExpanded ? 'Collapse' : 'Expand'} batches">
+            <wa-icon name="${isExpanded ? 'chevron-down' : 'chevron-right'}"></wa-icon>
+          </button>
+          ${escapeHtml(card.name)}${basicTag}
+        </td>${copiesCell(card.totalQuantity)}
+        <td><span class="basic-tag">${batches.length} different markings</span></td>
       </tr>
     `;
+    if (!isExpanded) return parentRow;
+
+    return parentRow + batches.map(b => {
+      const marked = markedSetForRows.has(b.key);
+      return `
+        <tr class="batch-subrow ${marked ? 'marked-row' : ''}" data-card-key="${escapeHtml(b.key)}">
+          <td style="text-align: center;">
+            <input type="checkbox" class="mark-checkbox" aria-label="Mark ${b.copyCount} ${escapeHtml(card.name)} copies done" ${marked ? 'checked' : ''}>
+          </td>
+          <td class="batch-subrow-label" data-card-name="${escapeHtml(card.name)}">${b.copyCount} ${b.copyCount === 1 ? 'copy' : 'copies'} — ${b.isPool ? 'pool' : 'core'}</td>${copiesCell(b.copyCount)}
+          <td><div class="stripe-indicators">${stripeHtml(b.stripes)}</div></td>
+        </tr>
+      `;
+    }).join('');
   }).join('');
+
+  // Batch expand/collapse + derived parent checkbox states
+  state.elements.resultsTbody.querySelectorAll('.batch-toggle').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const name = btn.dataset.cardName;
+      if (expandedCards.has(name)) expandedCards.delete(name);
+      else expandedCards.add(name);
+      renderResults();
+    });
+  });
+  state.elements.resultsTbody.querySelectorAll('.batch-parent-check[data-indeterminate="1"]').forEach(cb => {
+    cb.indeterminate = true;
+  });
 
   // Add event listeners for checkboxes
   state.elements.resultsTbody.querySelectorAll('.mark-checkbox').forEach(checkbox => {
@@ -401,7 +493,7 @@ export function renderResults() {
     clearAllBtn.addEventListener('click', handleClearAllRemoved);
   }
 
-  const colspan = filter === 'basics-by-deck' ? 4 : 3;
+  const colspan = 4;
 
   // Handle empty states
   if (displayCards.length === 0) {
@@ -426,7 +518,7 @@ export function renderResults() {
   // Prefetch card images for visible cards (first 20 to avoid rate limiting)
   const cardNames = displayCards
     .slice(0, 20)
-    .map(c => c.isBasicByDeck ? c.displayName : c.name)
+    .map(c => c.isPassRow ? c.displayName : c.name)
     .filter(Boolean);
   if (cardNames.length > 0) {
     prefetchCards(cardNames).catch(() => {
@@ -467,11 +559,12 @@ function sortCards(cards, column, direction) {
         }
         break;
       case 'marked': {
-        const aKey = a.isBasicByDeck ? `${a.displayName}|${a.deckName}` : a.name;
-        const bKey = b.isBasicByDeck ? `${b.displayName}|${b.deckName}` : b.name;
-        const aMarked = markedSet.has(aKey) ? 1 : 0;
-        const bMarked = markedSet.has(bKey) ? 1 : 0;
-        comparison = aMarked - bMarked;
+        // Card rows classify through isCardDone (batch-aware); pass rows keep
+        // their key equality.
+        const doneOf = (c) => c.isPassRow
+          ? (markedSet.has(`${c.displayName}|${c.deckName}`) ? 1 : 0)
+          : (isCardDone(c, markedSet) ? 1 : 0);
+        comparison = doneOf(a) - doneOf(b);
         if (comparison === 0) {
           comparison = a.name.localeCompare(b.name);
         }
@@ -494,7 +587,7 @@ function renderResultsHeader() {
   if (!thead) return;
 
   const filter = state.elements.resultsFilter?.value || 'all';
-  const showCopies = filter === 'basics-by-deck';
+  const showCopies = true; // Copies column always present; cells are empty at qty 1 (#149)
   const isRemovedFilter = filter === 'removed';
 
   const getSortIcon = (column) => {

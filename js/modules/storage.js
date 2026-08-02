@@ -809,7 +809,7 @@ function mergeMarkedCards(localArr, cloudArr, unmarkedTombstones, baselineUpdate
  * Merge removedCards arrays via union, deduplicated by (cardName, deckId).
  * When both contain the same entry, keep the one with the later removedAt.
  */
-function mergeRemovedCards(localArr, cloudArr) {
+export function mergeRemovedCards(localArr, cloudArr) {
   const map = new Map();
 
   // Skip malformed entries (missing cardName) instead of throwing — a single
@@ -825,8 +825,15 @@ function mergeRemovedCards(localArr, cloudArr) {
     if (!entry?.cardName) continue;
     const key = `${entry.cardName.toLowerCase()}|${entry.deckId}`;
     const existing = map.get(key);
-    if (!existing || new Date(entry.removedAt) > new Date(existing.removedAt)) {
+    if (!existing) {
       map.set(key, entry);
+    } else {
+      // Latest row wins, but previousQuantity keeps the max of both (#151):
+      // successive edits (5→4→3) and cross-device edits must not collapse to
+      // the last delta and under-report the surplus copies to clear.
+      const newer = new Date(entry.removedAt) > new Date(existing.removedAt) ? entry : existing;
+      const maxPrev = Math.max(entry.previousQuantity || 0, existing.previousQuantity || 0);
+      map.set(key, maxPrev > 0 ? { ...newer, previousQuantity: maxPrev } : newer);
     }
   }
 

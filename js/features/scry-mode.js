@@ -13,7 +13,8 @@ let scrySnapshot = [];
 let scryIndex = 0;
 
 function getScryCardKey(card) {
-  return card.isBasicByDeck ? `${card.displayName}|${card.deckName}` : card.name;
+  if (card.batchKey) return card.batchKey; // one screen per batch (#149/#151)
+  return card.isPassRow ? `${card.displayName}|${card.deckName}` : card.name;
 }
 
 function computeScale() {
@@ -53,8 +54,12 @@ async function renderCurrentScryCard() {
   }
 
   const card = scrySnapshot[scryIndex];
-  const displayName = card.isBasicByDeck ? card.displayName : card.name;
-  scryProgress.textContent = `${scryIndex + 1} / ${scrySnapshot.length} — ${displayName}`;
+  const displayName = card.isPassRow ? card.displayName : card.name;
+  // Each screen states its quantity — "mark 2 copies" — rather than implying
+  // one copy per card (#149). Pass rows and batch screens both carry one.
+  const copies = card.copyCount || card.totalQuantity || 1;
+  const copiesNote = copies > 1 ? ` — mark ${copies} copies` : '';
+  scryProgress.textContent = `${scryIndex + 1} / ${scrySnapshot.length} — ${displayName}${copiesNote}`;
 
   const scale = computeScale();
   scryContent.innerHTML = '';
@@ -68,7 +73,7 @@ async function renderCurrentScryCard() {
   const capturedIndex = scryIndex;
 
   try {
-    const cardName = card.isBasicByDeck ? card.displayName : card.name;
+    const cardName = card.isPassRow ? card.displayName : card.name;
     const stripes = card.stripes || [];
     const el = await buildCardWithStripes(cardName, stripes);
 
@@ -79,7 +84,7 @@ async function renderCurrentScryCard() {
     inner.appendChild(el);
     scryContent.appendChild(outer);
   } catch (err) {
-    console.warn(`SCRY: failed to load card image for "${card.isBasicByDeck ? card.displayName : card.name}":`, err);
+    console.warn(`SCRY: failed to load card image for "${card.isPassRow ? card.displayName : card.name}":`, err);
     if (scryIndex !== capturedIndex) return;
 
     scryContent.innerHTML = '';
@@ -91,7 +96,7 @@ async function renderCurrentScryCard() {
   // Prefetch next few cards so advance is snappy
   const nextNames = scrySnapshot
     .slice(scryIndex + 1, scryIndex + 4)
-    .map(c => c.isBasicByDeck ? c.displayName : c.name)
+    .map(c => c.isPassRow ? c.displayName : c.name)
     .filter(Boolean);
   if (nextNames.length > 0) prefetchCards(nextNames).catch(() => {});
 }

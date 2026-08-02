@@ -94,24 +94,54 @@ export function stripeNumberLabel(position, { exact } = {}) {
 }
 
 /**
- * Whether a processed card is fully marked ("done").
- * Non-basics are done when their plain name key is in markedCards. Basics can
- * also be marked per logical deck from the Basics-by-Deck view (one row per
- * Side A stripe, key "Name|DeckName"), so a basic counts as done when its
- * plain key is marked OR every one of its per-deck keys is marked.
+ * Pass keys for the one-mark-at-a-time view: one `<name>|<deckName>` key per
+ * distinct visible mark across the card's batches (#151). Empty for
+ * non-repeated cards (single physical copy). Shared by the pass-view row
+ * builder and isCardDone so the two can't drift.
+ * @param {Object} card - Processed card ({ name, totalQuantity, batches })
+ * @returns {string[]}
+ */
+export function passKeysForCard(card) {
+  if (!card.batches || card.totalQuantity <= 1) return [];
+  const deckNames = new Set();
+  for (const batch of card.batches) {
+    for (const s of batch.stripes) {
+      if (s.markType === 'membership') continue;
+      deckNames.add(s.deckName);
+    }
+  }
+  return [...deckNames].map(n => `${card.name}|${n}`);
+}
+
+/**
+ * Whether a processed card is fully marked ("done"), per #151:
+ * - single-batch card: plain name key (unchanged legacy path)
+ * - multi-batch card: every batch key marked. A legacy plain-name mark is
+ *   deliberately NOT honored here — the old single checkbox never said which
+ *   copies got which pen, so those cards present as undone.
+ * - OR every pass key marked (one-mark-at-a-time view)
+ * - OR, for basics, every legacy per-deck Side A key marked (pre-batch shape,
+ *   retained so existing Forest|DeckName marks keep counting)
  * Shared by the Marked progress stat and the undone-list exports so all
  * surfaces agree on what "done" means.
- * @param {Object} card - Processed card ({ name, isBasicLand, stripes })
+ * @param {Object} card - Processed card ({ name, isBasicLand, stripes, batches })
  * @param {Set<string>} markedSet - markedCards as a Set
  * @returns {boolean}
  */
 export function isCardDone(card, markedSet) {
-  if (markedSet.has(card.name)) return true;
-  if (!card.isBasicLand) return false;
-  const sideAKeys = (card.stripes || [])
-    .filter(s => s.side === 'a')
-    .map(s => `${card.name}|${s.deckName}`);
-  return sideAKeys.length > 0 && sideAKeys.every(k => markedSet.has(k));
+  const batches = card.batches || [];
+  const multiBatch = batches.length > 1;
+  if (!multiBatch && markedSet.has(card.name)) return true;
+  if (multiBatch && batches.every(b => markedSet.has(b.key))) return true;
+  const passKeys = passKeysForCard(card);
+  if (passKeys.length > 0 && passKeys.every(k => markedSet.has(k))) return true;
+  if (card.isBasicLand) {
+    const sideAKeys = (card.stripes || [])
+      .filter(s => s.side === 'a')
+      .map(s => `${card.name}|${s.deckName}`);
+    if (sideAKeys.length > 0 && sideAKeys.every(k => markedSet.has(k))) return true;
+  }
+  return false;
 }
 
 export function escapeHtml(text) {

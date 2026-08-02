@@ -13,7 +13,6 @@ import {
   moveStripeToPosition,
   getColorName,
   calculateRemovedCards,
-  isCardInOtherDecks,
   splitDeck,
   addSplitToGroup,
   unsplitGroup,
@@ -132,16 +131,39 @@ export function unmarkSharedCards(newCardNames) {
 export function autoClearRemovedCards(newCards) {
   if (!state.currentPrism?.removedCards?.length || !newCards?.length) return 0;
 
-  const newCardNames = new Set(
-    newCards.map((c) => c.name.toLowerCase().trim()),
+  const newByName = new Map(
+    newCards.map((c) => [c.name.toLowerCase().trim(), c]),
   );
 
   const before = state.currentPrism.removedCards.length;
-  state.currentPrism.removedCards = state.currentPrism.removedCards.filter(
-    (rc) => !newCardNames.has(rc.cardName.toLowerCase().trim()),
-  );
+  state.currentPrism.removedCards = state.currentPrism.removedCards.filter((rc) => {
+    const newCard = newByName.get(rc.cardName.toLowerCase().trim());
+    if (!newCard) return true; // still absent — keep the row
+    // Quantity-decrease rows (#151) only clear once the quantity is fully
+    // restored — otherwise the very save that created the row would clear it.
+    // Legacy rows without quantity fields keep the present-in-list rule.
+    if (rc.previousQuantity != null) return (newCard.quantity || 1) < rc.previousQuantity;
+    return false; // present again — clear
+  });
 
   return before - state.currentPrism.removedCards.length;
+}
+
+// Upsert a removedCards row by (cardName, deckId): successive quantity edits
+// merge instead of duplicating — previousQuantity keeps its max (5→4→3 must
+// not under-report the surplus), the latest newQuantity/removedAt win.
+// Mirrors mergeRemovedCards in storage.js. Returns true if the row is new.
+function trackRemovedCard(row) {
+  const list = state.currentPrism.removedCards;
+  const idx = list.findIndex(
+    (rc) => rc.cardName.toLowerCase() === row.cardName.toLowerCase() && rc.deckId === row.deckId,
+  );
+  if (idx >= 0) {
+    row.previousQuantity = Math.max(row.previousQuantity || 1, list[idx].previousQuantity || 0);
+    list.splice(idx, 1);
+  }
+  list.push(row);
+  return idx < 0;
 }
 
 // Slot to record in removedCards for a deck's cleared marks. Dot variants own
@@ -208,8 +230,9 @@ export function handleMarkToggle(event) {
   setCardMarked(cardKey, isChecked);
 
   // Full re-render when: undone filter active (marked row must disappear) OR
-  // sort is by "marked" column (row order needs to update).
-  if (state.elements.undoneFilter?.checked || state.sortState?.column === 'marked') {
+  // sort is by "marked" column (row order needs to update) OR a batch sub-row
+  // toggled (the derived parent roll-up checkbox must update).
+  if (state.elements.undoneFilter?.checked || state.sortState?.column === 'marked' || row.classList.contains('batch-subrow')) {
     renderResults();
   } else {
     updateMarkedProgress();
@@ -404,40 +427,17 @@ export async function handleEditConfirm() {
   const removalPosition = getRemovalStripePosition(deck);
 
   for (const removedCard of removedFromDeck) {
-    if (
-      !isCardInOtherDecks(
-        state.currentPrism,
-        removedCard.name,
-        state.deckToEdit,
-      )
-    ) {
-      state.currentPrism.removedCards.push({
-        cardName: removedCard.name,
-        deckId: deck.id,
-        deckName: deck.name,
-        deckColor: deck.color,
-        stripePosition: removalPosition,
-        removedAt: now,
-      });
-      removedCount++;
-    } else {
-      const alreadyTracked = state.currentPrism.removedCards.some(
-        (rc) =>
-          rc.cardName.toLowerCase() === removedCard.name.toLowerCase() &&
-          rc.deckId === deck.id,
-      );
-      if (!alreadyTracked) {
-        state.currentPrism.removedCards.push({
-          cardName: removedCard.name,
-          deckId: deck.id,
-          deckName: deck.name,
-          deckColor: deck.color,
-          stripePosition: removalPosition,
-          removedAt: now,
-        });
-        removedCount++;
-      }
-    }
+    const isNew = trackRemovedCard({
+      cardName: removedCard.name,
+      deckId: deck.id,
+      deckName: deck.name,
+      deckColor: deck.color,
+      stripePosition: removalPosition,
+      removedAt: now,
+      previousQuantity: removedCard.previousQuantity,
+      newQuantity: removedCard.newQuantity,
+    });
+    if (isNew) removedCount++;
   }
 
   const autoClearedCount = autoClearRemovedCards(parseResult.cards);
@@ -489,36 +489,17 @@ export function handleDeleteConfirm() {
   const removalPosition = getRemovalStripePosition(deck);
 
   for (const card of deck.cards) {
-    if (
-      !isCardInOtherDecks(state.currentPrism, card.name, state.deckToDelete)
-    ) {
-      state.currentPrism.removedCards.push({
-        cardName: card.name,
-        deckId: deck.id,
-        deckName: deck.name,
-        deckColor: deck.color,
-        stripePosition: removalPosition,
-        removedAt: now,
-      });
-      removedCount++;
-    } else {
-      const alreadyTracked = state.currentPrism.removedCards.some(
-        (rc) =>
-          rc.cardName.toLowerCase() === card.name.toLowerCase() &&
-          rc.deckId === deck.id,
-      );
-      if (!alreadyTracked) {
-        state.currentPrism.removedCards.push({
-          cardName: card.name,
-          deckId: deck.id,
-          deckName: deck.name,
-          deckColor: deck.color,
-          stripePosition: removalPosition,
-          removedAt: now,
-        });
-        removedCount++;
-      }
-    }
+    const isNew = trackRemovedCard({
+      cardName: card.name,
+      deckId: deck.id,
+      deckName: deck.name,
+      deckColor: deck.color,
+      stripePosition: removalPosition,
+      removedAt: now,
+      previousQuantity: card.quantity || 1,
+      newQuantity: 0,
+    });
+    if (isNew) removedCount++;
   }
 
   const deckName = deck.name;
@@ -719,26 +700,17 @@ export function handlePositionChange(deckId, newPosition) {
 // Pool/Core count helpers
 // ============================================================================
 
-function getDeckPoolCoreCounts(deck, processedCards) {
+export function getDeckPoolCoreCounts(deck, processedCards) {
+  // Batch-based (#146): a deck participates in every batch containing it, so
+  // its pool + core equals its trusted decklist quantity for every card.
   let pool = 0;
   let core = 0;
 
   for (const card of processedCards) {
-    // Check if this card belongs to this deck
-    const inThisDeck = card.stripes.some(s => s.deckId === deck.id);
-    if (!inThisDeck) continue;
-
-    // For basic lands, use this deck's actual quantity
-    let qty = 1;
-    if (card.isBasicLand) {
-      const deckCard = deck.cards.find(c => c.name.toLowerCase() === card.name.toLowerCase());
-      qty = deckCard?.quantity || 1;
-    }
-
-    if (card.logicalDeckCount > 1) {
-      pool += qty;
-    } else {
-      core += qty;
+    for (const batch of card.batches || []) {
+      if (!batch.participantIds.includes(deck.id)) continue;
+      if (batch.isPool) pool += batch.copyCount;
+      else core += batch.copyCount;
     }
   }
 

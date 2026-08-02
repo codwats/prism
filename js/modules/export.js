@@ -486,23 +486,20 @@ export function generatePrintableGuide(prism) {
     ...splitGroups.map(g => g.sideAPosition)
   ])].filter(p => p != null).sort((a, b) => a - b);
 
-  // Add card rows
-  for (const card of processedCards) {
-    const rowClass = card.logicalDeckCount > 1 ? 'shared' : '';
-    const nameClass = card.isBasicLand ? 'basic-land' : '';
-
+  // Render one stripe strip for a mark set (whole card or one batch).
+  const stripeStripHtml = (stripes) => {
     // Non-dot stripes by position
-    const stripeMap = new Map(card.stripes.filter(s => s.markType !== 'dot' && s.markType !== 'membership').map(s => [s.position, s]));
+    const stripeMap = new Map(stripes.filter(s => s.markType !== 'dot' && s.markType !== 'membership').map(s => [s.position, s]));
     // Dots grouped by position
     const dotsByPos = new Map();
-    for (const s of card.stripes.filter(s => s.markType === 'dot')) {
+    for (const s of stripes.filter(s => s.markType === 'dot')) {
       if (!dotsByPos.has(s.position)) dotsByPos.set(s.position, []);
       dotsByPos.get(s.position).push(s);
     }
 
     // Sparse cards number every mark with its exact slot; only the card's own
     // marked positions get the exact treatment (empty reference slots don't).
-    const cardIsSparse = numbersMode === 'all' || countVisibleMarks(card.stripes) <= STRIPE_SPARSE_MAX;
+    const cardIsSparse = numbersMode === 'all' || countVisibleMarks(stripes) <= STRIPE_SPARSE_MAX;
 
     let stripeIndicators = '';
     for (const pos of allPositions) {
@@ -521,12 +518,32 @@ export function generatePrintableGuide(prism) {
       const isCardMark = !!stripe || dots.length > 0;
       stripeIndicators += `<div class="stripe-slot">${dotRow}${squareHtml}${posNum(pos, cardIsSparse && isCardMark)}</div>`;
     }
+    return stripeIndicators;
+  };
 
-    html += `
+  // Add card rows. Multi-batch cards print one row per batch — the union of a
+  // card's marks on paper is the same over-marking trap #149 closed on screen.
+  for (const card of processedCards) {
+    const rowClass = card.logicalDeckCount > 1 ? 'shared' : '';
+    const nameClass = card.isBasicLand ? 'basic-land' : '';
+    const basicTag = card.isBasicLand ? ' (Basic)' : '';
+    const batches = card.batches || [];
+
+    if (batches.length > 1) {
+      for (const b of batches) {
+        html += `
       <tr class="${rowClass}">
-        <td class="${nameClass}">${escapeHtml(card.name)}${card.isBasicLand ? ' (Basic)' : ''}</td>
-        <td><div class="stripe-indicator">${stripeIndicators}</div></td>
+        <td class="${nameClass}">${escapeHtml(card.name)}${basicTag} — ${b.copyCount} ${b.copyCount === 1 ? 'copy' : 'copies'}</td>
+        <td><div class="stripe-indicator">${stripeStripHtml(b.stripes)}</div></td>
       </tr>`;
+      }
+    } else {
+      html += `
+      <tr class="${rowClass}">
+        <td class="${nameClass}">${escapeHtml(card.name)}${basicTag}</td>
+        <td><div class="stripe-indicator">${stripeStripHtml(card.stripes)}</div></td>
+      </tr>`;
+    }
   }
 
   html += `
@@ -567,11 +584,18 @@ export function exportUndoneTxt(prism) {
   const processedCards = processCards(prism);
   const markedSet = new Set(prism.markedCards || []);
 
-  // isCardDone also honours per-deck basic marks ("Name|DeckName" keys from
-  // the Basics-by-Deck view) so fully-marked basics drop off the undone list.
-  const lines = processedCards
-    .filter(card => !isCardDone(card, markedSet))
-    .map(card => `${card.totalQuantity} ${card.name}`);
+  // Batch-aware (#151): emit the sum of the UNDONE batch quantities — "5
+  // Forest", not "8 Forest" — so nobody re-pulls copies they already marked.
+  // isCardDone also honours pass keys so fully-marked cards drop off entirely.
+  const lines = [];
+  for (const card of processedCards) {
+    if (isCardDone(card, markedSet)) continue;
+    const batches = card.batches || [];
+    const undoneQty = batches.length > 1
+      ? batches.reduce((s, b) => s + (markedSet.has(b.key) ? 0 : b.copyCount), 0)
+      : card.totalQuantity;
+    if (undoneQty > 0) lines.push(`${undoneQty} ${card.name}`);
+  }
 
   return lines.join('\n');
 }

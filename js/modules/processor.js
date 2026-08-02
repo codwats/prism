@@ -180,6 +180,88 @@ export function createPrism(name = "") {
  * @param {Object} prism - The PRISM object containing decks
  * @returns {Array} Array of ProcessedCard objects sorted by deck count (descending) then name
  */
+/**
+ * Re-derive the marks for one batch's exact participant set (#146/#149).
+ * Cannot be a filter over the card's processed stripes: processCards decides
+ * shared-vs-subset over the WHOLE split group, so a group at A5/B2 emits no
+ * child indicator at all, while the 5-copy tier (A only) requires one.
+ * Emits the same stripe entry shapes as processCards, including 'membership'
+ * anchors so deck-filtering keeps working on batch rows.
+ * @param {Array} decks - prism.decks
+ * @param {Array} splitGroups - prism.splitGroups
+ * @param {Set} participantIds - deck ids participating in this batch
+ * @param {Map} quantities - deckId -> quantity for this card
+ * @returns {Array} stripes, Side A first then by position
+ */
+function marksForParticipants(decks, splitGroups, participantIds, quantities) {
+	const stripes = [];
+
+	for (const deck of decks) {
+		if (!deck.splitGroupId && participantIds.has(deck.id)) {
+			stripes.push({
+				position: deck.stripePosition,
+				color: deck.color,
+				side: "a",
+				deckName: deck.name,
+				deckId: deck.id,
+				groupId: null,
+				bracket: deck.bracket,
+				quantity: quantities.get(deck.id),
+			});
+		}
+	}
+
+	for (const group of splitGroups) {
+		const variantDecks = group.childDeckIds
+			.map((id) => decks.find((d) => d.id === id))
+			.filter(Boolean);
+		const inBatch = variantDecks.filter((d) => participantIds.has(d.id));
+		if (inBatch.length === 0) continue;
+
+		stripes.push({
+			position: group.sideAPosition,
+			color: group.sideAColor,
+			side: "a",
+			deckName: group.name,
+			deckId: null,
+			groupId: group.id,
+			bracket: null,
+			quantity: null,
+		});
+
+		const isShared = inBatch.length === variantDecks.length;
+		const isDotStyle = (group.splitStyle || "stripes") === "dots";
+		const anchor = (variantDeck, markType, position) => ({
+			position,
+			color: variantDeck.color,
+			side: "b",
+			deckName: variantDeck.name,
+			deckId: variantDeck.id,
+			groupId: group.id,
+			bracket: variantDeck.bracket,
+			quantity: quantities.get(variantDeck.id),
+			markType,
+		});
+
+		if (isShared) {
+			inBatch.forEach((d) => stripes.push(anchor(d, "membership", group.sideAPosition)));
+		} else if (isDotStyle) {
+			if (inBatch.length === 1) {
+				stripes.push(anchor(inBatch[0], "dot", group.sideAPosition));
+			} else {
+				inBatch.forEach((d) => stripes.push(anchor(d, "membership", group.sideAPosition)));
+			}
+		} else {
+			inBatch.forEach((d) => stripes.push(anchor(d, "stripe", d.stripePosition)));
+		}
+	}
+
+	return stripes.sort((a, b) => {
+		if (a.side !== b.side) return a.side === "a" ? -1 : 1;
+		return a.position - b.position;
+	});
+}
+
 export function processCards(prism) {
 	const { decks, splitGroups = [] } = prism;
 
@@ -361,6 +443,40 @@ export function processCards(prism) {
 		}
 		const logicalDeckCount = standaloneIds.size + splitGroupIds.size;
 
+		// Quantity-tier marking batches (#146): thresholds are the distinct
+		// quantities ascending; each batch is the gap to the previous threshold
+		// with everyone at >= that tier participating. Participant sets strictly
+		// shrink as tiers rise, so Σ copyCount === totalQuantity.
+		const parts = [...cardData.quantities.entries()].map(([deckId, qty]) => ({
+			deckId,
+			qty: qty || 1,
+		}));
+		const tiers = [...new Set(parts.map((p) => p.qty))].sort((a, b) => a - b);
+		const batches = [];
+		let prevTier = 0;
+		for (const tier of tiers) {
+			const participantIds = parts
+				.filter((p) => p.qty >= tier)
+				.map((p) => p.deckId)
+				.sort();
+			const logical = new Set(
+				participantIds.map((id) => {
+					const deck = decks.find((d) => d.id === id);
+					return (deck?.splitGroupId && groupMap.has(deck.splitGroupId)) ? deck.splitGroupId : id;
+				}),
+			);
+			const copyCount = tier - prevTier;
+			batches.push({
+				copyCount,
+				participantIds,
+				key: `${cardData.name}|#b|${participantIds.join(",")}|${copyCount}`,
+				logicalDeckCount: logical.size,
+				isPool: logical.size > 1,
+				stripes: marksForParticipants(decks, splitGroups, new Set(participantIds), cardData.quantities),
+			});
+			prevTier = tier;
+		}
+
 		processedCards.push({
 			name: cardData.name,
 			normalizedName,
@@ -369,6 +485,7 @@ export function processCards(prism) {
 			deckCount: cardData.deckIds.size, // Number of actual decks, not stripe count
 			logicalDeckCount, // Standalone decks + split groups (variants of same group = 1)
 			stripes: sortedStripes,
+			batches,
 		});
 	}
 
@@ -781,16 +898,23 @@ export function updateDeckInPrism(prism, deckId, updates) {
  * @returns {Array} Array of removed card names
  */
 export function calculateRemovedCards(oldCards, newCards) {
-	const newCardNames = new Set(newCards.map((c) => normalizeCardName(c.name)));
+	const newByName = new Map(newCards.map((c) => [normalizeCardName(c.name), c]));
 	const removedCards = [];
 
 	for (const card of oldCards) {
 		const normalizedName = normalizeCardName(card.name);
-		if (!newCardNames.has(normalizedName)) {
+		const newCard = newByName.get(normalizedName);
+		const previousQuantity = card.quantity || 1;
+		const newQuantity = newCard ? (newCard.quantity || 1) : 0;
+		// A quantity decrease is a removal of copies; full removal is the
+		// newQuantity === 0 special case (#151).
+		if (newQuantity < previousQuantity) {
 			removedCards.push({
 				name: card.name,
 				normalizedName,
 				isBasicLand: card.isBasicLand,
+				previousQuantity,
+				newQuantity,
 			});
 		}
 	}
