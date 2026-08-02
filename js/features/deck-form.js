@@ -3,10 +3,10 @@
  */
 
 import { state } from "../core/state.js";
-import { showError, showSuccess } from "../core/notifications.js";
+import { showError, showSuccess, showToast } from "../core/notifications.js";
 import { logToSupabase } from "../modules/supabase-client.js";
 import { escapeHtml, debugLog } from "../core/utils.js";
-import { parseDecklist, validateDecklist, rewriteDecklistCommanders } from "../modules/parser.js";
+import { parseDecklist, validateDecklist, rewriteDecklistCommanders, normalizeCardName } from "../modules/parser.js";
 import {
   createDeck,
   commanderNames,
@@ -267,6 +267,27 @@ export async function handleDeckSubmit(e) {
       await canonicalizeCards(parseResult.cards);
     } catch (err) {
       console.warn("Card canonicalization failed, using raw names:", err.message);
+    }
+
+    // Add-time hint (#150): a commander shared by two standalone decks is a
+    // modeling mistake the split group already handles — one non-blocking
+    // nudge toward Split; the save proceeds either way. Add-time only: once
+    // both decks exist the hint has no action behind it.
+    const newCommanderNames = new Set(
+      parseResult.cards.filter((c) => c.isCommander).map((c) => normalizeCardName(c.name)),
+    );
+    for (const existing of state.currentPrism.decks) {
+      const shared = (existing.cards || []).find(
+        (c) => c.isCommander && newCommanderNames.has(normalizeCardName(c.name)),
+      );
+      if (shared) {
+        showToast(
+          `"${shared.name}" already commands "${existing.name}". If these are variants of one physical deck, use Split on that deck instead.`,
+          'warning',
+          'triangle-exclamation',
+        );
+        break;
+      }
     }
 
     // Get card names from the new deck (no processCards call)

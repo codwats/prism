@@ -289,6 +289,7 @@ export function processCards(prism) {
 					stripes: [],
 					sideAGroups: new Set(), // Track which split groups already have a Side A stripe
 					deckIds: new Set(), // Track unique deck IDs for deckCount
+					commanderDeckIds: new Set(), // Decks where this card is isCommander-flagged (#150)
 				});
 			}
 
@@ -297,6 +298,7 @@ export function processCards(prism) {
 			// Track quantity per deck (for basics)
 			cardData.quantities.set(deck.id, card.quantity);
 			cardData.deckIds.add(deck.id);
+			if (card.isCommander) cardData.commanderDeckIds.add(deck.id);
 
 			if (group) {
 				// Split deck: add Side A stripe (deduplicated per group)
@@ -419,11 +421,6 @@ export function processCards(prism) {
 	const processedCards = [];
 
 	for (const [normalizedName, cardData] of cardMap) {
-		// Calculate total quantity needed: max across decks. For singleton cards
-		// every quantity is 1, so this stays 1; basics and "any number" cards
-		// (Rat Colony, Shadowborn Apostle, …) report the real sleeve count.
-		const totalQuantity = Math.max(1, ...[...cardData.quantities.values()].map(q => q || 1));
-
 		// Sort stripes: Side A first (by position), then Side B (by position)
 		const sortedStripes = cardData.stripes.sort((a, b) => {
 			if (a.side !== b.side) return a.side === "a" ? -1 : 1;
@@ -447,12 +444,51 @@ export function processCards(prism) {
 		// quantities ascending; each batch is the gap to the previous threshold
 		// with everyone at >= that tier participating. Participant sets strictly
 		// shrink as tiers rise, so Σ copyCount === totalQuantity.
-		const parts = [...cardData.quantities.entries()].map(([deckId, qty]) => ({
+		let parts = [...cardData.quantities.entries()].map(([deckId, qty]) => ({
 			deckId,
 			qty: qty || 1,
 		}));
-		const tiers = [...new Set(parts.map((p) => p.qty))].sort((a, b) => a - b);
 		const batches = [];
+
+		// Dedicated commander copies (#150): one rule per (commander card,
+		// logical deck) — emit a dedicated batch at the logical deck's full
+		// quantity carrying its normal marks, and REMOVE that logical deck from
+		// the remaining threshold derivation (replace, not add on top: a
+		// commander with no other home still costs exactly one copy). A group
+		// dedicates when the card is flagged in at least one child variant, and
+		// emits ONE batch for the whole group, never one per variant.
+		if (prism.useDedicatedCommanderCopies && cardData.commanderDeckIds.size > 0) {
+			const logicalIdOf = (deckId) => {
+				const deck = decks.find((d) => d.id === deckId);
+				return (deck?.splitGroupId && groupMap.has(deck.splitGroupId)) ? deck.splitGroupId : deckId;
+			};
+			const byLogical = new Map(); // logicalId -> parts[]
+			for (const p of parts) {
+				const lid = logicalIdOf(p.deckId);
+				if (!byLogical.has(lid)) byLogical.set(lid, []);
+				byLogical.get(lid).push(p);
+			}
+			const dedicatedDeckIds = new Set();
+			for (const [, logicalParts] of byLogical) {
+				const flagged = logicalParts.some((p) => cardData.commanderDeckIds.has(p.deckId));
+				if (!flagged) continue;
+				const participantIds = logicalParts.map((p) => p.deckId).sort();
+				const copyCount = Math.max(...logicalParts.map((p) => p.qty));
+				batches.push({
+					copyCount,
+					participantIds,
+					key: `${cardData.name}|#b|${participantIds.join(",")}|${copyCount}`,
+					logicalDeckCount: 1, // dedicated batches are core by construction
+					isPool: false,
+					isDedicated: true,
+					stripes: marksForParticipants(decks, splitGroups, new Set(participantIds), cardData.quantities),
+				});
+				logicalParts.forEach((p) => dedicatedDeckIds.add(p.deckId));
+			}
+			parts = parts.filter((p) => !dedicatedDeckIds.has(p.deckId));
+		}
+
+		const tiers = [...new Set(parts.map((p) => p.qty))].sort((a, b) => a - b);
 		let prevTier = 0;
 		for (const tier of tiers) {
 			const participantIds = parts
@@ -476,6 +512,12 @@ export function processCards(prism) {
 			});
 			prevTier = tier;
 		}
+
+		// Physical total (#146 as amended by #150): the sum of batch quantities —
+		// dedicated batches plus the maximum across the remaining participants.
+		// With dedication off this equals the plain max across decks. Singleton
+		// cards stay 1; basics and "any number" cards report the real count.
+		const totalQuantity = Math.max(1, batches.reduce((s, b) => s + b.copyCount, 0));
 
 		processedCards.push({
 			name: cardData.name,

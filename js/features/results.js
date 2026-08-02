@@ -453,7 +453,7 @@ export function renderResults() {
           <td style="text-align: center;">
             <input type="checkbox" class="mark-checkbox" aria-label="Mark ${b.copyCount} ${escapeHtml(card.name)} copies done" ${marked ? 'checked' : ''}>
           </td>
-          <td class="batch-subrow-label" data-card-name="${escapeHtml(card.name)}">${b.copyCount} ${b.copyCount === 1 ? 'copy' : 'copies'} — ${b.isPool ? 'pool' : 'core'}</td>${copiesCell(b.copyCount)}
+          <td class="batch-subrow-label" data-card-name="${escapeHtml(card.name)}">${b.copyCount} ${b.copyCount === 1 ? 'copy' : 'copies'} — ${b.isDedicated ? 'dedicated' : (b.isPool ? 'pool' : 'core')}</td>${copiesCell(b.copyCount)}
           <td><div class="stripe-indicators">${stripeHtml(b.stripes)}</div></td>
         </tr>
       `;

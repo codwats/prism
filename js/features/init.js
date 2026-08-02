@@ -39,6 +39,7 @@ function getElements() {
     deckColor: document.getElementById('deck-color'),
     deckList: document.getElementById('deck-list'),
     deckFileInput: document.getElementById('deck-file-input'),
+    dedicatedCommanderToggle: document.getElementById('dedicated-commander-copies'),
     colorSwatches: document.getElementById('color-swatches'),
     colorWarning: document.getElementById('color-warning'),
     parseErrors: document.getElementById('parse-errors'),
@@ -227,6 +228,10 @@ export async function init() {
 
 export function renderAll() {
   renderPrismHeader();
+  // Per-PRISM toggle reflects the loaded/synced prism, not just user clicks
+  if (state.elements.dedicatedCommanderToggle) {
+    state.elements.dedicatedCommanderToggle.checked = !!state.currentPrism?.useDedicatedCommanderCopies;
+  }
   renderDecksList();
   renderResults();
   renderExport();

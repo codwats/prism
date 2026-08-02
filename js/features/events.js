@@ -23,7 +23,7 @@ import { renderResults } from './results.js';
 import { openScryMode } from './scry-mode.js';
 import { renderOverlapMatrix } from './analysis.js';
 import { debounce } from '../core/utils.js';
-import { updatePreferences, getCurrentPrism } from '../modules/storage.js';
+import { updatePreferences, getCurrentPrism, savePrism } from '../modules/storage.js';
 import { renderAll } from './init.js';
 import { logToSupabase } from '../modules/supabase-client.js';
 
@@ -52,6 +52,19 @@ export function setupEventListeners() {
     refs.field1?.addEventListener('change', () => applyCommanderFieldsToText(refs));
     refs.field2?.addEventListener('change', () => applyCommanderFieldsToText(refs));
     refs.toggle?.addEventListener('change', () => handleTwoCommandersToggle(refs));
+  }
+
+  // Dedicated commander copies — per-PRISM synced setting; write path per #145
+  // (flag + its own merge timestamp + prism.updatedAt, mirroring mark-toggle)
+  if (state.elements.dedicatedCommanderToggle) {
+    state.elements.dedicatedCommanderToggle.addEventListener('change', (e) => {
+      const now = new Date().toISOString();
+      state.currentPrism.useDedicatedCommanderCopies = !!e.target.checked;
+      state.currentPrism.useDedicatedCommanderCopiesUpdatedAt = now;
+      state.currentPrism.updatedAt = now;
+      savePrism(state.currentPrism);
+      renderAll();
+    });
   }
 
   // Color picker change
