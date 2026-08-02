@@ -187,6 +187,7 @@ export function exportToJSON(prism) {
       })),
       markedCards: prism.markedCards || [],
       removedCards: prism.removedCards || [],
+      useDedicatedCommanderCopies: prism.useDedicatedCommanderCopies || false,
       statistics: {
         totalUniqueCards: processedCards.length,
         sharedCards: processedCards.filter(c => c.logicalDeckCount > 1).length,

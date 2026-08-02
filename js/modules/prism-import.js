@@ -39,6 +39,9 @@ export function buildPrismFromJson(jsonData, { preserveId = true } = {}) {
   newPrism.createdAt = prismData.createdAt || newPrism.createdAt;
   newPrism.updatedAt = new Date().toISOString();
   newPrism.markedCards = prismData.markedCards || [];
+  // Timestamp stays createPrism()'s `now`: restore is a user act happening
+  // now, so the restored value wins the next cloud merge (#145).
+  newPrism.useDedicatedCommanderCopies = prismData.useDedicatedCommanderCopies || false;
   newPrism.removedCards = (prismData.removedCards || []).map(removed => ({
     ...removed,
     deckColor: validHex(removed.deckColor),

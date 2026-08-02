@@ -327,6 +327,8 @@ function buildPrismFromRow(prism) {
     updatedAt: prism.updated_at,
     markedCards: prism.marked_cards || [],
     markedCardsUpdatedAt: prism.marked_cards_updated_at || null,
+    useDedicatedCommanderCopies: prism.use_dedicated_commander_copies || false,
+    useDedicatedCommanderCopiesUpdatedAt: prism.use_dedicated_commander_copies_updated_at || null,
     removedCards: prism.removed_cards || [],
     splitGroups: (prism.split_groups || []).map(group => ({
       ...group,
@@ -353,7 +355,7 @@ function buildPrismFromRow(prism) {
   };
 }
 
-function mergePrismVersions(localPrism, cloudPrism, prismBaseline) {
+export function mergePrismVersions(localPrism, cloudPrism, prismBaseline) {
   const baseline = prismBaseline || {
     updatedAt: null,
     deckUpdatedAts: {},
@@ -393,6 +395,12 @@ function mergePrismVersions(localPrism, cloudPrism, prismBaseline) {
   const localMCTime = getTimestampMs(localPrism.markedCardsUpdatedAt);
   const cloudMCTime = getTimestampMs(cloudPrism.markedCardsUpdatedAt);
 
+  // Merged on its own timestamp, not via basePrism: prism.updatedAt is bumped
+  // by mark-toggle (high frequency), so whole-prism LWW would silently revert
+  // a toggle made on another device (#145).
+  const localDCTime = getTimestampMs(localPrism.useDedicatedCommanderCopiesUpdatedAt);
+  const cloudDCTime = getTimestampMs(cloudPrism.useDedicatedCommanderCopiesUpdatedAt);
+
   return {
     ...basePrism,
     markedCards: mergeMarkedCards(
@@ -404,6 +412,12 @@ function mergePrismVersions(localPrism, cloudPrism, prismBaseline) {
     markedCardsUpdatedAt: localMCTime >= cloudMCTime
       ? localPrism.markedCardsUpdatedAt
       : cloudPrism.markedCardsUpdatedAt,
+    useDedicatedCommanderCopies: localDCTime >= cloudDCTime
+      ? localPrism.useDedicatedCommanderCopies || false
+      : cloudPrism.useDedicatedCommanderCopies || false,
+    useDedicatedCommanderCopiesUpdatedAt: localDCTime >= cloudDCTime
+      ? localPrism.useDedicatedCommanderCopiesUpdatedAt || null
+      : cloudPrism.useDedicatedCommanderCopiesUpdatedAt || null,
     removedCards: mergeRemovedCards(
       localPrism.removedCards || [],
       cloudPrism.removedCards || []
@@ -422,6 +436,8 @@ const PRISM_SELECT = `
   split_groups,
   marked_cards,
   marked_cards_updated_at,
+  use_dedicated_commander_copies,
+  use_dedicated_commander_copies_updated_at,
   removed_cards,
   created_at,
   updated_at,
@@ -555,6 +571,8 @@ async function savePrismToSupabase(prism) {
         split_groups: prism.splitGroups || [],
         marked_cards: prism.markedCards || [],
         marked_cards_updated_at: prism.markedCardsUpdatedAt || null,
+        use_dedicated_commander_copies: prism.useDedicatedCommanderCopies || false,
+        use_dedicated_commander_copies_updated_at: prism.useDedicatedCommanderCopiesUpdatedAt || null,
         removed_cards: prism.removedCards || [],
         created_at: prism.createdAt || prismUpdatedAt,
         updated_at: prismUpdatedAt
