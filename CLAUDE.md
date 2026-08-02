@@ -101,7 +101,8 @@ Sync behavior is merge-first, not whole-PRISM last-write-wins:
 
 - On login/session restore, local and cloud PRISMs are merged per prism, per deck, and per split group.
 - `markedCards` merge by union minus any keys with an `unmarkedCards` tombstone newer than the last sync baseline — this ensures intentional un-marks (manual checkbox or auto-unmark when a new deck shares a card) are not reverted by the cloud copy.
-- `removedCards` merge by `(cardName, deckId)` with latest `removedAt`.
+- `removedCards` merge by `(cardName, deckId)` with latest `removedAt`; `previousQuantity` keeps the max of both rows so successive quantity edits never under-report the surplus.
+- `useDedicatedCommanderCopies` merges on its own `useDedicatedCommanderCopiesUpdatedAt` (newer wins, ties local) — explicitly, in `mergePrismVersions`, like `markedCardsUpdatedAt`. The Supabase columns are `use_dedicated_commander_copies` (NOT NULL DEFAULT false) + `use_dedicated_commander_copies_updated_at`; rollout was schema-first.
 - Background saves fetch the latest cloud copy, merge it with local using the stored baseline, then write the merged result back to Supabase.
 - Deck and split-group `updatedAt` timestamps are important for conflict resolution and should be preserved on mutation.
 - Split-group child ordering should be preserved from `group.childDeckIds` during merge; only orphaned child IDs should be dropped, with deck-derived order used as a fallback when the stored ordering is missing.
@@ -112,12 +113,16 @@ Sync behavior is merge-first, not whole-PRISM last-write-wins:
 ### PRISM Data Model
 
 ```
-Prism: { id, name, decks[], splitGroups[], markedCards[], removedCards[], createdAt, updatedAt }
-Deck:  { id, name, commander, bracket (1-5), color (hex), stripePosition (1-48), cards[], splitGroupId? }
+Prism: { id, name, decks[], splitGroups[], markedCards[], removedCards[],
+         useDedicatedCommanderCopies, useDedicatedCommanderCopiesUpdatedAt, createdAt, updatedAt }
+Deck:  { id, name, bracket (1-5), color (hex), stripePosition (1-48), cards[], splitGroupId? }
 SplitGroup: { id, name, sideAPosition, sideAColor, childDeckIds[], splitStyle ('stripes'|'dots'), createdAt?, updatedAt? }
 Card:  { name, quantity, isCommander, isBasicLand }
 Preferences: { colorScheme, defaultColors, stripeStartCorner ('top-right'|'top-left'|'bottom-right'|'bottom-left') }
 ```
+
+- **Commander role** — per-card `isCommander` flags are the only source of truth (#147). There is no `deck.commander` field; read via `commanderNames(deck)` in `processor.js` (alphabetical, derived). The decklist textarea carries N flags losslessly through `Commander`/`Deck` section headers (`cardsToDecklistText`/`rewriteDecklistCommanders` in `parser.js`); the parsed text is the sole save-time authority, with the Add/Edit commander fields kept in sync both ways (`syncCommanderFieldsFromText`/`applyCommanderFieldsToText` in `deck-form.js`). `parseDecklist(text)` takes no commander-name argument. Archidekt import flags only the exact `Commander` category. Legacy scalar-only decks are normalized once at build-page load (`applyCommanderFallback`).
+- **useDedicatedCommanderCopies** (#145/#150) — synced per-PRISM boolean with its own merge timestamp (never rides whole-prism LWW; mark-toggle bumps `prism.updatedAt` too often). Toggle lives on the Decks tab; write path = set flag + its timestamp + `prism.updatedAt` + `savePrism()`. When on, each (commander card, logical deck) pair emits a **dedicated batch** at the deck's full quantity and leaves the shared threshold derivation (replace, not add on top). A split group dedicates as one batch when flagged in ≥1 variant, never per variant. Dedicated-ness is derived at processing time (`isDedicated` on the batch), never stored.
 
 - **Stripe positions** 1–24 (Side A) and 25–48 (Side B) — 48 physical slots, the real capacity limit (`MAX_STRIPE_SLOTS` in `processor.js`). Stripe-only decks/variants each consume one slot (up to 48 decks); dot variants share a Side A slot (up to 96 decks). There is no fixed "logical deck" cap — adding a standalone deck is gated on slot availability (`getUsedPositions(prism).size >= MAX_STRIPE_SLOTS`).
 - **Split groups** let one deck slot have 2–8 (stripes) or exactly 2 (dots) variants sharing a Side A position. The group itself holds `name`, `sideAColor`, and `sideAPosition` — editable via the ✎ button on the group card header (`handleEditGroupClick`/`handleEditGroupConfirm` in `deck-list.js`, `updateSplitGroupInPrism` in `processor.js`).
@@ -127,18 +132,22 @@ Preferences: { colorScheme, defaultColors, stripeStartCorner ('top-right'|'top-l
   - Card in **subset**, dots-style, exactly 1 variant → dot in that variant's color
   - Card in **subset**, dots-style, 2+ variants → dot conflict; membership anchors only, parent stripe only
 - **Stripe starting corner** — global preference controlling which card corner stripes originate from. Pure presentation: slot numbers never change on corner change; the rendering layer (`cornerToConfig` in card-preview.js and friends) maps slot → physical location using the preference, so Slot 1 always renders at the chosen corner. No prism data is mutated or synced. If any prism has `markedCards`, Apply shows a native `confirm()` warning that physical sleeve marks won't move.
-- **markedCards** tracks which cards the user has physically marked (checkbox state)
-- **removedCards** tracks cards removed from decks that still need physical marks cleared
+- **markedCards** tracks which copies the user has physically marked. Three key shapes (#151): plain `<name>` for single-batch cards, `<name>|#b|<sorted deck ids>|<copy count>` per batch of a multi-batch card, and `<name>|<deck name>` for one-mark-at-a-time pass rows. `isCardDone` in `core/utils.js` is the single done gate (plain key for single-batch only; every batch key for multi-batch — legacy plain marks on multi-batch cards deliberately present as undone; every pass key via `passKeysForCard`). Participant/size changes re-key batches so Done retires with no invalidation code; dead keys are never pruned so reverted edits resurrect their marks.
+- **removedCards** tracks cards removed from decks that still need physical marks cleared. Rows carry `previousQuantity`/`newQuantity` — a quantity decrease is a removal of copies (full removal = `newQuantity` 0). Writers upsert by `(cardName, deckId)` via `trackRemovedCard` in `deck-list.js`; `autoClearRemovedCards` only clears once quantity is fully restored; `mergeRemovedCards` keeps `max(previousQuantity)` with the latest row.
 - **syncState** is local-only metadata used for Supabase merge reconciliation; it is not part of the PRISM domain model. Baseline shape per prism: `{ updatedAt, deckUpdatedAts, splitGroupUpdatedAts, deletedDecks, deletedSplitGroups, unmarkedCards: { [cardKey]: isoTimestamp } }`
 
 ### Card Processing
 
-`processCards(prism)` deduplicates cards across all decks and assigns stripe indicators. Basic lands use **max quantity** across decks (not sum). Card names are canonicalized via Scryfall API before storage. Child variant marks for split groups are emitted in a **post-loop pass** — the main loop only emits the group's Side A stripe. The post-loop determines shared vs subset membership for the full group before emitting any child marks (see split styles above). `markType` values: `'stripe'` (rendered Side B stripe), `'dot'` (rendered dot), `'membership'` (not rendered; carries `deckId` for deck-filter matching). `dotIndex` is not stored — renderers compute local dot order from the stripes array at render time. Results table and printable guide both use ö-style rendering (dot row above the stripe square).
+`processCards(prism)` deduplicates cards across all decks and assigns stripe indicators. Card names are canonicalized via Scryfall API before storage. Child variant marks for split groups are emitted in a **post-loop pass** — the main loop only emits the group's Side A stripe. The post-loop determines shared vs subset membership for the full group before emitting any child marks (see split styles above). `markType` values: `'stripe'` (rendered Side B stripe), `'dot'` (rendered dot), `'membership'` (not rendered; carries `deckId` for deck-filter matching). `dotIndex` is not stored — renderers compute local dot order from the stripes array at render time. Results table and printable guide both use ö-style rendering (dot row above the stripe square).
+
+**Marking batches (#146)** — every ProcessedCard carries `batches`: quantity-tier thresholds over the distinct per-deck quantities, each batch `{ copyCount: ti−t(i−1), participantIds (sorted), key, logicalDeckCount, isPool, isDedicated?, stripes }`. Batch marks are **re-derived from the exact participant set** (`marksForParticipants`), never filtered from the card's stripes — `processCards` decides shared-vs-subset over the whole group, so an A5/B2 group emits no child indicator while the 5-tier batch needs one. `totalQuantity` = Σ batch copyCounts (dedicated batches + max across remaining participants; plain max when dedication is off). Results renders multi-batch cards as expandable sub-rows with a derived, non-clickable parent roll-up checkbox; the parent never shows the mark union (over-marking trap). SCRY consumes the flattened `state.resultsView` snapshot — one screen per batch, stating its copy count. "One Mark at a Time" (internal filter value still `basics-by-deck`) is the per-mark projection of batches over every repeated card.
 
 ### Display Counts
 
-- **Decks tab** — Each deck card shows **pool** (cards in 2+ *logical* decks) and **core** (cards unique to one logical deck) counts. Both include full basic land quantities per deck. Computed via `getDeckPoolCoreCounts()` in `deck-list.js`.
-- **Results tab** — Stats cards show **Total Cards** (sum of `totalQuantity` across all processed cards, including basic-land and any-number card copies — `totalQuantity` is the max quantity across decks for every card) and **Pool Cards** (same sum but only cards in 2+ logical decks). These numbers help users plan sleeve purchases and storage.
+Pool/core classification belongs to **batches**, not card names (#146): a pool batch participates in 2+ logical decks, a core batch in exactly one; dedicated batches are core by construction.
+
+- **Decks tab** — Each deck card shows **pool**/**core** counts: Σ copyCount of the pool/core batches the deck participates in (`getDeckPoolCoreCounts()` in `deck-list.js`). Per-deck pool + core equals the deck's trusted decklist quantity per card; per-deck counts are intentionally not additive across decks.
+- **Results tab** — Stats cards show **Total Cards** (Σ `totalQuantity`) and **Pool Cards** (Σ of pool-batch quantities). The Marked progress counts copies: full `totalQuantity` for done cards plus copyCounts of done batches on partially-done cards. Turning dedication on drains commanders out of the pool (Total rises, Pool drops) — correct, not a bug.
 
 ### Logical vs Physical Deck Count
 
@@ -241,7 +250,7 @@ Preview viewport should be 1280px+ wide to see the desktop layout (sidebar nav).
 - 22 paint pen colors in `DEFAULT_COLORS` (processor.js) — matched to real products
 - Bracket values 1–5 represent Commander power level
 - `formatSlotLabel(position, side?)` renders "Side A - Slot 1" style labels
-- Stripe Settings in the Decks tab is a `<wa-details>` accordion (collapsed by default)
+- Stripe display settings (starting corner, position numbers) live in the global settings drawer injected by `layout.js`; the per-PRISM "Dedicated commander copies" `wa-switch` lives on the Decks tab (per-PRISM synced data does not belong in the global drawer)
 - The Stripe Positions reorder card was removed from the Decks tab — use the Move button (⊕) on each deck card to open the visual slot-picker dialog, or use the Export tab's dropdown list for bulk reordering
 - `build.html` has a sync status indicator (`#sync-status`) and a Sync Now button (`#btn-sync-now`) near the PRISM name; both are hidden until the user is logged in. `setupSyncStatus()` in `init.js` wires these to `onSyncStatusChange` / `forceSyncCurrentPrism` from `storage.js`. Storage exports: `onSyncStatusChange(cb)` (returns unsubscribe fn), `forceSyncCurrentPrism()`, `recordUnmarkedCards(prismId, keys)`
 
