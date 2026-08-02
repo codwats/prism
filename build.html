@@ -138,7 +138,16 @@
                       placeholder="e.g., Alania, Divergent Storm"
                       required
                     ></wa-input>
+
+                    <wa-input
+                      id="deck-commander-2"
+                      label="Second Commander"
+                      placeholder="e.g., Partner commander"
+                      hidden
+                    ></wa-input>
                   </div>
+
+                  <wa-switch id="deck-two-commanders" size="small">Two commanders</wa-switch>
 
                   <wa-radio-group
                     id="deck-bracket"
@@ -475,7 +484,15 @@
             label="Commander"
             required
           ></wa-input>
+
+          <wa-input
+            id="edit-deck-commander-2"
+            label="Second Commander"
+            hidden
+          ></wa-input>
         </div>
+
+        <wa-switch id="edit-deck-two-commanders" size="small">Two commanders</wa-switch>
 
         <wa-radio-group
           id="edit-deck-bracket"

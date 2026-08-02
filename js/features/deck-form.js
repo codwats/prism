@@ -6,9 +6,10 @@ import { state } from "../core/state.js";
 import { showError, showSuccess } from "../core/notifications.js";
 import { logToSupabase } from "../modules/supabase-client.js";
 import { escapeHtml, debugLog } from "../core/utils.js";
-import { parseDecklist, validateDecklist } from "../modules/parser.js";
+import { parseDecklist, validateDecklist, rewriteDecklistCommanders } from "../modules/parser.js";
 import {
   createDeck,
+  commanderNames,
   getNextStripePosition,
   getNextColor,
   isColorUsed,
@@ -71,6 +72,105 @@ export function updateColorSwatchSelection() {
 }
 
 // ============================================================================
+// Commander field <-> decklist text sync (#147)
+// ============================================================================
+// The parsed decklist text is the sole commander authority; the fields are a
+// text-authoring shortcut kept in sync both ways. All reconciliation happens
+// visibly in the textarea.
+
+// Web Awesome inputs may hold their value in shadow DOM before upgrade
+function getInputValue(element) {
+  if (!element) return "";
+  const shadowInput = element.shadowRoot?.querySelector("input, textarea");
+  if (shadowInput && shadowInput.value) {
+    return String(shadowInput.value).trim();
+  }
+  if (
+    element.value !== undefined &&
+    element.value !== null &&
+    element.value !== ""
+  ) {
+    return String(element.value).trim();
+  }
+  return "";
+}
+
+export function addCommanderRefs() {
+  return {
+    textarea: state.elements.deckList,
+    field1: state.elements.deckCommander,
+    field2: state.elements.deckCommander2,
+    toggle: state.elements.deckTwoCommanders,
+  };
+}
+
+export function editCommanderRefs() {
+  return {
+    textarea: state.elements.editDeckList,
+    field1: state.elements.editDeckCommander,
+    field2: state.elements.editDeckCommander2,
+    toggle: state.elements.editDeckTwoCommanders,
+  };
+}
+
+/**
+ * text → fields: repopulate the commander fields from the parsed decklist.
+ * Toggle auto-enables at ≥2 flags; >2 flags disables the fields (edit the
+ * Commander section directly). With 0 flags the typed field-1 value is kept —
+ * paste-99-then-type is the dominant flow and the save-entry rewrite will
+ * carry it into the text.
+ */
+export function syncCommanderFieldsFromText(refs) {
+  if (!refs.textarea || !refs.field1) return;
+  const names = parseDecklist(refs.textarea.value || "")
+    .cards.filter((c) => c.isCommander)
+    .map((c) => c.name);
+
+  const many = names.length > 2;
+  if (names.length > 0) refs.field1.value = names[0];
+  if (refs.field2) {
+    refs.field2.value = names[1] || "";
+    refs.field2.hidden = names.length < 2;
+  }
+  if (refs.toggle) {
+    refs.toggle.checked = names.length >= 2;
+    refs.toggle.disabled = many;
+  }
+  refs.field1.disabled = many;
+  if (refs.field2) refs.field2.disabled = many;
+  refs.field1.hint = many
+    ? `${names.length} commanders detected — edit the Commander section directly`
+    : "";
+}
+
+/**
+ * fields → text: rewrite the decklist's Commander section to exactly the
+ * field names. Runs on field change and once more at save entry (idempotent)
+ * so a value typed without blurring is not lost. No-op while the fields are
+ * disabled (>2 flags: the text is being edited directly).
+ */
+export function applyCommanderFieldsToText(refs) {
+  if (!refs.textarea || !refs.field1 || refs.field1.disabled) return;
+  const names = [getInputValue(refs.field1)];
+  if (refs.toggle?.checked) names.push(getInputValue(refs.field2));
+  const wanted = names.filter(Boolean);
+  if (wanted.length === 0) return; // nothing to author; save validation catches empty
+  refs.textarea.value = rewriteDecklistCommanders(refs.textarea.value || "", wanted);
+}
+
+/** Toggle switched: show the second field, or collapse the section to field 1. */
+export function handleTwoCommandersToggle(refs) {
+  if (!refs.toggle || !refs.field2) return;
+  if (refs.toggle.checked) {
+    refs.field2.hidden = false;
+  } else {
+    refs.field2.value = "";
+    refs.field2.hidden = true;
+    applyCommanderFieldsToText(refs);
+  }
+}
+
+// ============================================================================
 // Deck Submit
 // ============================================================================
 
@@ -100,22 +200,9 @@ export async function handleDeckSubmit(e) {
       return;
     }
 
-    // Get form values - for web components, access the native input in shadow DOM
-    const getInputValue = (element) => {
-      if (!element) return "";
-      const shadowInput = element.shadowRoot?.querySelector("input, textarea");
-      if (shadowInput && shadowInput.value) {
-        return String(shadowInput.value).trim();
-      }
-      if (
-        element.value !== undefined &&
-        element.value !== null &&
-        element.value !== ""
-      ) {
-        return String(element.value).trim();
-      }
-      return "";
-    };
+    // Fields → text once at save entry (idempotent) so a commander typed
+    // without blurring still lands in the Commander section (#147)
+    applyCommanderFieldsToText(addCommanderRefs());
 
     const name = getInputValue(state.elements.deckName);
     const commander = getInputValue(state.elements.deckCommander);
@@ -145,8 +232,8 @@ export async function handleDeckSubmit(e) {
       return;
     }
 
-    // Parse decklist
-    const parseResult = parseDecklist(decklistText, commander);
+    // Parse decklist — the text is the sole commander authority
+    const parseResult = parseDecklist(decklistText);
     const validation = validateDecklist(parseResult);
 
     debugLog("PRISM: Parse result:", {
@@ -190,7 +277,6 @@ export async function handleDeckSubmit(e) {
     // Create deck
     const deck = createDeck({
       name,
-      commander,
       bracket,
       color,
       stripePosition: getNextStripePosition(state.currentPrism),
@@ -213,7 +299,7 @@ export async function handleDeckSubmit(e) {
     savePrism(state.currentPrism);
 
     debugLog("PRISM: Deck added:", deck.name);
-    logToSupabase('info', 'deck_added', { name: deck.name, commander: deck.commander, bracket: deck.bracket, cardCount: parseResult.uniqueCards });
+    logToSupabase('info', 'deck_added', { name: deck.name, commander: commanderNames(deck).join(' / '), bracket: deck.bracket, cardCount: parseResult.uniqueCards });
 
     // Reset form and re-render
     resetDeckForm();
@@ -241,7 +327,20 @@ export async function handleDeckSubmit(e) {
 export function resetDeckForm() {
   if (state.elements.deckForm) state.elements.deckForm.reset();
   if (state.elements.deckName) state.elements.deckName.value = "";
-  if (state.elements.deckCommander) state.elements.deckCommander.value = "";
+  if (state.elements.deckCommander) {
+    state.elements.deckCommander.value = "";
+    state.elements.deckCommander.disabled = false;
+    state.elements.deckCommander.hint = "";
+  }
+  if (state.elements.deckCommander2) {
+    state.elements.deckCommander2.value = "";
+    state.elements.deckCommander2.hidden = true;
+    state.elements.deckCommander2.disabled = false;
+  }
+  if (state.elements.deckTwoCommanders) {
+    state.elements.deckTwoCommanders.checked = false;
+    state.elements.deckTwoCommanders.disabled = false;
+  }
   if (state.elements.deckBracket) state.elements.deckBracket.value = "2";
   if (state.elements.deckList) state.elements.deckList.value = "";
   resetFileInput(state.elements.deckFileInput);

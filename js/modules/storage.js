@@ -341,7 +341,6 @@ function buildPrismFromRow(prism) {
       bracket: deck.bracket,
       stripePosition: deck.stripe_position,
       splitGroupId: deck.split_group_id || null,
-      commander: deck.deck_cards?.find(c => c.is_commander)?.card_name || null,
       createdAt: deck.created_at,
       updatedAt: deck.updated_at,
       cardsUpdatedAt: deck.cards_updated_at || null,

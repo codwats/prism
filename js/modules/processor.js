@@ -94,7 +94,6 @@ export function generateId() {
  */
 export function createDeck({
 	name,
-	commander,
 	bracket,
 	color,
 	stripePosition,
@@ -109,7 +108,6 @@ export function createDeck({
 	return {
 		id: id || generateId(),
 		name,
-		commander,
 		bracket: parseInt(bracket, 10),
 		color: color.toUpperCase(),
 		stripePosition,
@@ -119,6 +117,40 @@ export function createDeck({
 		updatedAt: updatedAt || now,
 		cardsUpdatedAt: cardsUpdatedAt || createdAt || now,
 	};
+}
+
+/**
+ * Derive a deck's commander names from its card flags — the only commander
+ * source of truth (#147). Alphabetical so the label is stable across syncs
+ * (deck_cards has no ORDER BY; paste order does not survive a round-trip).
+ * @param {Object} deck
+ * @returns {string[]}
+ */
+export function commanderNames(deck) {
+	return (deck.cards || []).filter(c => c.isCommander).map(c => c.name).sort();
+}
+
+/**
+ * One-time normalization for decks that carry only the legacy commander
+ * scalar (form-added, typed name absent from the pasted list). Flags the
+ * matching card, or inserts the name as a qty-1 card. No-op when any flag
+ * already exists, so it is idempotent across loads.
+ * @param {Object} deck - Deck object (mutated)
+ * @param {string|null} commanderName - Legacy scalar (or backup fallback)
+ * @returns {boolean} Whether the deck changed
+ */
+export function applyCommanderFallback(deck, commanderName) {
+	if (!commanderName) return false;
+	const cards = deck.cards || [];
+	if (cards.some(c => c.isCommander)) return false;
+	const norm = normalizeCardName(commanderName);
+	const hit = cards.find(c => normalizeCardName(c.name) === norm);
+	if (hit) {
+		hit.isCommander = true;
+	} else {
+		cards.unshift({ name: commanderName, quantity: 1, isCommander: true, isBasicLand: false });
+	}
+	return true;
 }
 
 /**
@@ -907,7 +939,6 @@ export function splitDeck(prism, deckId, splitCount, splitStyle = 'stripes') {
 				const childColor = getNextColor(tempPrism);
 				const child = createDeck({
 					name: `${deck.name} (${i})`,
-					commander: deck.commander,
 					bracket: deck.bracket,
 					color: childColor,
 					stripePosition: childPosition,
@@ -975,7 +1006,6 @@ export function addSplitToGroup(prism, groupId) {
 
 	const newChild = createDeck({
 		name: `${group.name} (${splitNumber})`,
-		commander: templateDeck.commander,
 		bracket: templateDeck.bracket,
 		color: childColor,
 		stripePosition: childPosition,

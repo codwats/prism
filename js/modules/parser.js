@@ -68,16 +68,18 @@ export function parseLine(line) {
  *   Commander
  *   commander card
  * Only includes cards from maindeck and commander sections.
+ * Cards under a `Commander` header are flagged isCommander (unbounded count) —
+ * the parsed text is the sole commander authority (#147).
  * @param {string} decklist - The full decklist text
- * @param {string} commanderName - The commander's name for flagging
- * @returns {Object} Result with cards array and any errors
+ * @returns {Object} Result with cards array, errors, and excludedLines
+ *   (verbatim lines of non-included sections, headers included, so rewrites
+ *   can preserve sideboard/maybeboard text)
  */
-export function parseDecklist(decklist, commanderName = '') {
+export function parseDecklist(decklist) {
   const lines = decklist.split('\n');
   const cards = [];
   const errors = [];
-
-  const normalizedCommander = commanderName.toLowerCase().trim();
+  const excludedLines = [];
 
   // Track which section we're in: 'main', 'sideboard', 'commander', 'companion', 'maybeboard'
   let currentSection = 'main';
@@ -93,6 +95,7 @@ export function parseDecklist(decklist, commanderName = '') {
     // Check for section headers
     if (upperLine.startsWith('SIDEBOARD') || upperLine === 'SB:' || upperLine.startsWith('SB:')) {
       currentSection = 'sideboard';
+      excludedLines.push(trimmedLine);
       continue;
     }
     if (upperLine.startsWith('COMMANDER')) {
@@ -105,6 +108,7 @@ export function parseDecklist(decklist, commanderName = '') {
     }
     if (upperLine.startsWith('MAYBEBOARD') || upperLine.startsWith('CONSIDERING')) {
       currentSection = 'maybeboard';
+      excludedLines.push(trimmedLine);
       continue;
     }
     if (upperLine.startsWith('DECK') || upperLine === 'MAINBOARD' || upperLine === 'MAINBOARD:') {
@@ -112,8 +116,10 @@ export function parseDecklist(decklist, commanderName = '') {
       continue;
     }
 
-    // Skip cards in sections we don't want
+    // Keep cards from sections we don't want out of the deck, but preserve
+    // their text verbatim so a rewrite can re-emit them.
     if (!includeSections.has(currentSection)) {
+      if (trimmedLine) excludedLines.push(trimmedLine);
       continue;
     }
 
@@ -132,10 +138,8 @@ export function parseDecklist(decklist, commanderName = '') {
       continue;
     }
 
-    // Flag if this is the commander (either by name match or by being in commander section)
+    // Flag if this card is in the commander section
     if (currentSection === 'commander') {
-      result.isCommander = true;
-    } else if (normalizedCommander && result.name.toLowerCase().trim() === normalizedCommander) {
       result.isCommander = true;
     }
 
@@ -156,9 +160,70 @@ export function parseDecklist(decklist, commanderName = '') {
   return {
     cards,
     errors,
+    excludedLines,
     totalCards: cards.reduce((sum, card) => sum + card.quantity, 0),
     uniqueCards: cards.length
   };
+}
+
+/**
+ * Serialize cards to decklist text with a Commander/Deck section structure.
+ * The Commander section is the lossless carrier for N commander flags (#147);
+ * it is omitted when no card is flagged.
+ * @param {Array} cards - Card objects ({ name, quantity, isCommander })
+ * @returns {string}
+ */
+export function cardsToDecklistText(cards) {
+  const line = (c) => `${c.quantity} ${c.name}`;
+  const commanders = (cards || []).filter(c => c.isCommander);
+  const rest = (cards || []).filter(c => !c.isCommander);
+  if (commanders.length === 0) return rest.map(line).join('\n');
+  return [
+    'Commander',
+    ...commanders.map(line),
+    '',
+    'Deck',
+    ...rest.map(line)
+  ].join('\n');
+}
+
+/**
+ * Rewrite a decklist's Commander section so the flagged set is exactly
+ * `names` (#147 field→text sync). A name matching an existing line keeps its
+ * quantity and moves into the section, never duplicated; an unmatched name is
+ * added as a qty-1 card; every other card is unflagged. Unparseable lines and
+ * excluded-section blocks (sideboard/maybeboard) are re-emitted verbatim.
+ * ponytail: comments and formatting are normalized away — same as the Edit
+ * re-open flatten has always done; preserve-in-place line surgery if it hurts.
+ * @param {string} text - Current decklist text
+ * @param {string[]} names - Commander names (order preserved in the section)
+ * @returns {string}
+ */
+export function rewriteDecklistCommanders(text, names) {
+  const parsed = parseDecklist(text);
+  const wanted = names.map(n => n.trim()).filter(Boolean);
+  const cards = parsed.cards.map(c => ({ ...c, isCommander: false }));
+
+  const commanders = [];
+  for (const name of wanted) {
+    const norm = normalizeCardName(name);
+    const idx = cards.findIndex(c => normalizeCardName(c.name) === norm);
+    if (idx >= 0) {
+      const [hit] = cards.splice(idx, 1);
+      commanders.push({ ...hit, isCommander: true });
+    } else {
+      commanders.push({ name, quantity: 1, isCommander: true, isBasicLand: isBasicLand(name) });
+    }
+  }
+
+  const parts = [cardsToDecklistText([...commanders, ...cards])];
+  if (parsed.errors.length > 0) {
+    parts.push(parsed.errors.map(e => e.content).join('\n'));
+  }
+  if (parsed.excludedLines.length > 0) {
+    parts.push(parsed.excludedLines.join('\n'));
+  }
+  return parts.join('\n\n');
 }
 
 /**

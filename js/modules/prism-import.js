@@ -4,7 +4,7 @@
  * page's Restore from backup dialog (imports as a new PRISM).
  */
 
-import { createPrism, createDeck } from './processor.js';
+import { createPrism, createDeck, applyCommanderFallback } from './processor.js';
 
 /**
  * Validate and construct a PRISM object from parsed backup JSON.
@@ -52,7 +52,6 @@ export function buildPrismFromJson(jsonData, { preserveId = true } = {}) {
     const newDeck = createDeck({
       id: deck.id,
       name: deck.name,
-      commander: deck.commander,
       bracket: deck.bracket,
       color: validHex(deck.color),
       stripePosition: deck.stripePosition,
@@ -62,6 +61,8 @@ export function buildPrismFromJson(jsonData, { preserveId = true } = {}) {
       updatedAt: deck.updatedAt,
       cardsUpdatedAt: deck.cardsUpdatedAt
     });
+    // Backup flags win; a pre-#147 backup's commander scalar is the fallback
+    applyCommanderFallback(newDeck, deck.commander);
     newPrism.decks.push(newDeck);
   }
 

@@ -5,7 +5,18 @@
 import { state } from '../core/state.js';
 import { downloadCSV, downloadJSON, openPrintableGuide, downloadUndoneTxt, copyUndoneToClipboard } from '../modules/export.js';
 import { showPreview, hidePreview, updatePosition, refreshOpenPreview } from '../modules/card-preview.js';
-import { handleDeckSubmit, resetDeckForm, updateColorSwatchSelection, checkColorWarning, handlePrismNameChange } from './deck-form.js';
+import {
+  handleDeckSubmit,
+  resetDeckForm,
+  updateColorSwatchSelection,
+  checkColorWarning,
+  handlePrismNameChange,
+  syncCommanderFieldsFromText,
+  applyCommanderFieldsToText,
+  handleTwoCommandersToggle,
+  addCommanderRefs,
+  editCommanderRefs,
+} from './deck-form.js';
 import { handleFileUpload, handleJsonImport, handleMoxfieldImport, handleEditFileUpload, handleEditUrlImport } from './deck-import.js';
 import { handleDeleteConfirm, handleEditConfirm, handleNewPrism, handleSplitConfirm, handleEditGroupConfirm } from './deck-list.js';
 import { renderResults } from './results.js';
@@ -33,6 +44,14 @@ export function setupEventListeners() {
 
   if (state.elements.btnResetForm) {
     state.elements.btnResetForm.addEventListener('click', resetDeckForm);
+  }
+
+  // Commander fields <-> decklist text sync (#147), Add form and Edit dialog
+  for (const refs of [addCommanderRefs(), editCommanderRefs()]) {
+    refs.textarea?.addEventListener('change', () => syncCommanderFieldsFromText(refs));
+    refs.field1?.addEventListener('change', () => applyCommanderFieldsToText(refs));
+    refs.field2?.addEventListener('change', () => applyCommanderFieldsToText(refs));
+    refs.toggle?.addEventListener('change', () => handleTwoCommandersToggle(refs));
   }
 
   // Color picker change

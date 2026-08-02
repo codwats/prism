@@ -5,9 +5,10 @@
 import { state } from "../core/state.js";
 import { showError, showSuccess } from "../core/notifications.js";
 import { escapeHtml, debugLog } from "../core/utils.js";
-import { parseDecklist, validateDecklist } from "../modules/parser.js";
+import { parseDecklist, validateDecklist, cardsToDecklistText } from "../modules/parser.js";
 import {
   processCards,
+  commanderNames,
   removeDeckFromPrism,
   moveStripeToPosition,
   getColorName,
@@ -26,7 +27,13 @@ import { savePrism, setCurrentPrism, recordUnmarkedCards } from "../modules/stor
 import { trackEvent } from "../modules/supabase-client.js";
 import { canonicalizeCards } from "../modules/scryfall.js";
 import { hideEditImportMessages } from "./deck-import.js";
-import { initColorSwatches, resetDeckForm } from "./deck-form.js";
+import {
+  initColorSwatches,
+  resetDeckForm,
+  syncCommanderFieldsFromText,
+  applyCommanderFieldsToText,
+  editCommanderRefs,
+} from "./deck-form.js";
 import { renderAll } from "./init.js";
 import { openStripeReorderDialog, openGroupReorderDialog } from "./stripe-reorder-dialog.js";
 import { toggleWhatIfAnalysis } from "./analysis.js";
@@ -276,19 +283,16 @@ export function handleEditClick(deckId) {
   if (state.elements.editDeckId) state.elements.editDeckId.value = deck.id;
   if (state.elements.editDeckName)
     state.elements.editDeckName.value = deck.name;
-  if (state.elements.editDeckCommander)
-    state.elements.editDeckCommander.value = deck.commander;
   if (state.elements.editDeckBracket)
     state.elements.editDeckBracket.value = String(deck.bracket);
   if (state.elements.editDeckColor)
     state.elements.editDeckColor.value = deck.color;
 
   if (state.elements.editDeckList) {
-    const decklistText = deck.cards
-      .map((card) => `${card.quantity} ${card.name}`)
-      .join("\n");
-    state.elements.editDeckList.value = decklistText;
+    // Sections carry the commander flags through the textarea round-trip (#147)
+    state.elements.editDeckList.value = cardsToDecklistText(deck.cards);
   }
+  syncCommanderFieldsFromText(editCommanderRefs());
 
   if (state.elements.editDeckListUpdated) {
     const ts = deck.cardsUpdatedAt || deck.createdAt;
@@ -322,6 +326,9 @@ export async function handleEditConfirm() {
   const beforeCounts = getStripeCountMap();
   const oldCards = [...deck.cards];
 
+  // Fields → text once at save entry (idempotent) — see handleDeckSubmit
+  applyCommanderFieldsToText(editCommanderRefs());
+
   const name = (state.elements.editDeckName?.value || "").trim();
   const commander = (state.elements.editDeckCommander?.value || "").trim();
   const bracket = state.elements.editDeckBracket?.value || "2";
@@ -350,7 +357,7 @@ export async function handleEditConfirm() {
     return;
   }
 
-  const parseResult = parseDecklist(decklistText, commander);
+  const parseResult = parseDecklist(decklistText);
 
   // Spinner for the Scryfall round-trip — the only network-bound wait here.
   const saveBtn = state.elements.btnConfirmEdit;
@@ -438,7 +445,6 @@ export async function handleEditConfirm() {
   const cardsChanged = cardListChanged(oldCards, parseResult.cards);
 
   deck.name = name;
-  deck.commander = commander;
   deck.bracket = parseInt(bracket, 10);
   deck.color = color;
   deck.cards = parseResult.cards;
@@ -843,7 +849,7 @@ export function renderDeckCard(deck, showActions = true, processedCards = null) 
               <wa-tag size="small" variant="neutral">Bracket ${deck.bracket}</wa-tag>
             </div>
             <div class="wa-caption-m" style="color: var(--wa-color-neutral-text-subtle);">
-              ${escapeHtml(deck.commander)}${processedCards ? (() => { const { pool, core } = getDeckPoolCoreCounts(deck, processedCards); return ` • ${pool} pool • ${core} core`; })() : ` • ${deck.cards.length} cards`}
+              ${escapeHtml(commanderNames(deck).join(' / '))}${processedCards ? (() => { const { pool, core } = getDeckPoolCoreCounts(deck, processedCards); return ` • ${pool} pool • ${core} core`; })() : ` • ${deck.cards.length} cards`}
             </div>
           </div>
         </div>
@@ -967,7 +973,7 @@ export function renderDecksList() {
                   </wa-tag>
                 </div>
                 <div class="wa-caption-m" style="color: var(--wa-color-neutral-text-subtle);">
-                  ${escapeHtml(children[0]?.commander || "")} • Split deck group
+                  ${escapeHtml(children[0] ? commanderNames(children[0]).join(' / ') : "")} • Split deck group
                 </div>
               </div>
             </div>

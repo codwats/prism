@@ -3,7 +3,7 @@
  * Handles CSV and JSON export generation
  */
 
-import { processCards, getColorName, formatSlotLabel } from './processor.js';
+import { processCards, getColorName, formatSlotLabel, commanderNames } from './processor.js';
 import { stripeNumberLabel, countVisibleMarks, STRIPE_SPARSE_MAX, escapeHtml, isCardDone } from '../core/utils.js';
 import { getPreferences, getStripeNumbersMode } from './storage.js';
 
@@ -155,7 +155,8 @@ export function exportToJSON(prism) {
       decks: prism.decks.map(deck => ({
         id: deck.id,
         name: deck.name,
-        commander: deck.commander,
+        // Derived at export time so existing backup consumers keep reading a string
+        commander: commanderNames(deck).join(' / '),
         bracket: deck.bracket,
         color: deck.color,
         colorName: getColorName(deck.color),
