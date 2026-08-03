@@ -4,6 +4,7 @@
  */
 
 import { DEFAULT_COLORS } from './processor.js';
+import { normalizeCardName } from './parser.js';
 import { getSupabase, isConfigured } from './supabase-client.js';
 import { getCurrentUser } from './auth.js';
 import { showToast } from '../core/notifications.js';
@@ -816,14 +817,14 @@ export function mergeRemovedCards(localArr, cloudArr) {
   // bad row from the cloud or an imported backup must not abort the whole
   // prism merge for the session.
   for (const entry of localArr) {
-    if (!entry?.cardName) continue;
-    const key = `${entry.cardName.toLowerCase()}|${entry.deckId}`;
+    if (typeof entry?.cardName !== 'string' || !entry.cardName) continue;
+    const key = `${normalizeCardName(entry.cardName)}|${entry.deckId}`;
     map.set(key, entry);
   }
 
   for (const entry of cloudArr) {
-    if (!entry?.cardName) continue;
-    const key = `${entry.cardName.toLowerCase()}|${entry.deckId}`;
+    if (typeof entry?.cardName !== 'string' || !entry.cardName) continue;
+    const key = `${normalizeCardName(entry.cardName)}|${entry.deckId}`;
     const existing = map.get(key);
     if (!existing) {
       map.set(key, entry);

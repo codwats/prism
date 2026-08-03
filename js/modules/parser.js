@@ -178,13 +178,9 @@ export function cardsToDecklistText(cards) {
   const commanders = (cards || []).filter(c => c.isCommander);
   const rest = (cards || []).filter(c => !c.isCommander);
   if (commanders.length === 0) return rest.map(line).join('\n');
-  return [
-    'Commander',
-    ...commanders.map(line),
-    '',
-    'Deck',
-    ...rest.map(line)
-  ].join('\n');
+  const head = ['Commander', ...commanders.map(line)];
+  if (rest.length === 0) return head.join('\n');
+  return [...head, '', 'Deck', ...rest.map(line)].join('\n');
 }
 
 /**

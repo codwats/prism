@@ -199,6 +199,14 @@ test('mergeRemovedCards keeps max previousQuantity with the latest row', () => {
 		[{ cardName: 'Sol Ring', deckId: 'd1', removedAt: '2026-01-03T00:00:00Z' }]
 	);
 	assert.equal(legacy.removedAt, '2026-01-03T00:00:00Z');
+
+	// names match via normalizeCardName: back face, printing suffix, whitespace
+	const merged = mergeRemovedCards(
+		[{ cardName: 'Dusk // Dawn ', deckId: 'd1', removedAt: '2026-01-01T00:00:00Z' }],
+		[{ cardName: 'dusk', deckId: 'd1', removedAt: '2026-01-02T00:00:00Z' }]
+	);
+	assert.equal(merged.length, 1);
+	assert.equal(merged[0].removedAt, '2026-01-02T00:00:00Z');
 });
 
 // --- #146 per-deck counts ------------------------------------------------------

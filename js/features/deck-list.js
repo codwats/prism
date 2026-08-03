@@ -5,7 +5,7 @@
 import { state } from "../core/state.js";
 import { showError, showSuccess } from "../core/notifications.js";
 import { escapeHtml, debugLog } from "../core/utils.js";
-import { parseDecklist, validateDecklist, cardsToDecklistText } from "../modules/parser.js";
+import { parseDecklist, validateDecklist, cardsToDecklistText, normalizeCardName } from "../modules/parser.js";
 import {
   processCards,
   commanderNames,
@@ -131,13 +131,15 @@ export function unmarkSharedCards(newCardNames) {
 export function autoClearRemovedCards(newCards) {
   if (!state.currentPrism?.removedCards?.length || !newCards?.length) return 0;
 
+  // normalizeCardName (not bare toLowerCase) so printing suffixes, back faces
+  // and stray whitespace match the same way processCards dedups cards.
   const newByName = new Map(
-    newCards.map((c) => [c.name.toLowerCase().trim(), c]),
+    newCards.map((c) => [normalizeCardName(c.name), c]),
   );
 
   const before = state.currentPrism.removedCards.length;
   state.currentPrism.removedCards = state.currentPrism.removedCards.filter((rc) => {
-    const newCard = newByName.get(rc.cardName.toLowerCase().trim());
+    const newCard = newByName.get(normalizeCardName(rc.cardName));
     if (!newCard) return true; // still absent — keep the row
     // Quantity-decrease rows (#151) only clear once the quantity is fully
     // restored — otherwise the very save that created the row would clear it.
@@ -155,8 +157,9 @@ export function autoClearRemovedCards(newCards) {
 // Mirrors mergeRemovedCards in storage.js. Returns true if the row is new.
 function trackRemovedCard(row) {
   const list = state.currentPrism.removedCards;
+  const rowName = normalizeCardName(row.cardName);
   const idx = list.findIndex(
-    (rc) => rc.cardName.toLowerCase() === row.cardName.toLowerCase() && rc.deckId === row.deckId,
+    (rc) => normalizeCardName(rc.cardName) === rowName && rc.deckId === row.deckId,
   );
   if (idx >= 0) {
     row.previousQuantity = Math.max(row.previousQuantity || 1, list[idx].previousQuantity || 0);

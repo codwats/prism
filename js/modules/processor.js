@@ -140,7 +140,9 @@ export function commanderNames(deck) {
  * @returns {boolean} Whether the deck changed
  */
 export function applyCommanderFallback(deck, commanderName) {
-	if (!commanderName) return false;
+	// Type-check, not just truthiness: the scalar can come from an untrusted
+	// backup file, where a number/object would throw inside normalizeCardName.
+	if (typeof commanderName !== 'string' || !commanderName) return false;
 	const cards = deck.cards || [];
 	if (cards.some(c => c.isCommander)) return false;
 	const norm = normalizeCardName(commanderName);

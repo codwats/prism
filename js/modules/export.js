@@ -524,22 +524,23 @@ export function generatePrintableGuide(prism) {
   // Add card rows. Multi-batch cards print one row per batch — the union of a
   // card's marks on paper is the same over-marking trap #149 closed on screen.
   for (const card of processedCards) {
-    const rowClass = card.logicalDeckCount > 1 ? 'shared' : '';
     const nameClass = card.isBasicLand ? 'basic-land' : '';
     const basicTag = card.isBasicLand ? ' (Basic)' : '';
     const batches = card.batches || [];
 
     if (batches.length > 1) {
+      // Pool/core is a per-batch property (#146), so each printed row is shaded
+      // by its own batch — not by the card's overall logical deck count.
       for (const b of batches) {
         html += `
-      <tr class="${rowClass}">
+      <tr class="${b.isPool ? 'shared' : ''}">
         <td class="${nameClass}">${escapeHtml(card.name)}${basicTag} — ${b.copyCount} ${b.copyCount === 1 ? 'copy' : 'copies'}</td>
         <td><div class="stripe-indicator">${stripeStripHtml(b.stripes)}</div></td>
       </tr>`;
       }
     } else {
       html += `
-      <tr class="${rowClass}">
+      <tr class="${card.logicalDeckCount > 1 ? 'shared' : ''}">
         <td class="${nameClass}">${escapeHtml(card.name)}${basicTag}</td>
         <td><div class="stripe-indicator">${stripeStripHtml(card.stripes)}</div></td>
       </tr>`;

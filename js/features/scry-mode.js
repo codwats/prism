@@ -73,9 +73,8 @@ async function renderCurrentScryCard() {
   const capturedIndex = scryIndex;
 
   try {
-    const cardName = card.isPassRow ? card.displayName : card.name;
     const stripes = card.stripes || [];
-    const el = await buildCardWithStripes(cardName, stripes);
+    const el = await buildCardWithStripes(displayName, stripes);
 
     if (scryIndex !== capturedIndex) return;
 
@@ -84,7 +83,7 @@ async function renderCurrentScryCard() {
     inner.appendChild(el);
     scryContent.appendChild(outer);
   } catch (err) {
-    console.warn(`SCRY: failed to load card image for "${card.isPassRow ? card.displayName : card.name}":`, err);
+    console.warn(`SCRY: failed to load card image for "${displayName}":`, err);
     if (scryIndex !== capturedIndex) return;
 
     scryContent.innerHTML = '';

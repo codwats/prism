@@ -316,12 +316,14 @@ export function renderResults() {
   const showNums = numbersMode !== 'none';
   const totalDecks = state.currentPrism?.decks?.length || 0;
 
-  // All used positions, for the show-all-slots ruler
+  // All used positions, for the show-all-slots ruler. Dot-style split variants
+  // have stripePosition === null (they share the group's Side A slot), so drop
+  // nulls before building the ruler — same as generatePrintableGuide.
   const allPositions = showAllSlots && totalDecks > 0
     ? [...new Set([
         ...state.currentPrism.decks.map(d => d.stripePosition),
         ...(state.currentPrism.splitGroups || []).map(g => g.sideAPosition)
-      ])].sort((a, b) => a - b)
+      ])].filter(p => p != null).sort((a, b) => a - b)
     : null;
 
   // Render a stripe-indicator strip for any stripe set (card row or batch row).
@@ -448,12 +450,14 @@ export function renderResults() {
 
     return parentRow + batches.map(b => {
       const marked = markedSetForRows.has(b.key);
+      // Two batches can share a copy count, so the class disambiguates the label.
+      const batchClass = b.isDedicated ? 'dedicated' : (b.isPool ? 'pool' : 'core');
       return `
         <tr class="batch-subrow ${marked ? 'marked-row' : ''}" data-card-key="${escapeHtml(b.key)}">
           <td style="text-align: center;">
-            <input type="checkbox" class="mark-checkbox" aria-label="Mark ${b.copyCount} ${escapeHtml(card.name)} copies done" ${marked ? 'checked' : ''}>
+            <input type="checkbox" class="mark-checkbox" aria-label="Mark ${b.copyCount} ${batchClass} ${escapeHtml(card.name)} copies done" ${marked ? 'checked' : ''}>
           </td>
-          <td class="batch-subrow-label" data-card-name="${escapeHtml(card.name)}">${b.copyCount} ${b.copyCount === 1 ? 'copy' : 'copies'} — ${b.isDedicated ? 'dedicated' : (b.isPool ? 'pool' : 'core')}</td>${copiesCell(b.copyCount)}
+          <td class="batch-subrow-label" data-card-name="${escapeHtml(card.name)}">${b.copyCount} ${b.copyCount === 1 ? 'copy' : 'copies'} — ${batchClass}</td>${copiesCell(b.copyCount)}
           <td><div class="stripe-indicators">${stripeHtml(b.stripes)}</div></td>
         </tr>
       `;
