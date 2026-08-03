@@ -4,7 +4,7 @@
 
 import { state } from '../core/state.js';
 import { getLogicalDeckCount, debugLog } from '../core/utils.js';
-import { createPrism, getUsedPositions, MAX_STRIPE_SLOTS } from '../modules/processor.js';
+import { createPrism, getUsedPositions, MAX_STRIPE_SLOTS, applyCommanderFallback } from '../modules/processor.js';
 import { getCurrentPrism, savePrism, setCurrentPrism, getPreferences, onSyncStatusChange, forceSyncCurrentPrism } from '../modules/storage.js';
 import { initAuth, setupAuthListeners, getCurrentUser } from '../modules/auth.js';
 import { logToSupabase } from '../modules/supabase-client.js';
@@ -33,10 +33,13 @@ function getElements() {
     deckForm: document.getElementById('deck-form'),
     deckName: document.getElementById('deck-name'),
     deckCommander: document.getElementById('deck-commander'),
+    deckCommander2: document.getElementById('deck-commander-2'),
+    deckTwoCommanders: document.getElementById('deck-two-commanders'),
     deckBracket: document.getElementById('deck-bracket'),
     deckColor: document.getElementById('deck-color'),
     deckList: document.getElementById('deck-list'),
     deckFileInput: document.getElementById('deck-file-input'),
+    dedicatedCommanderToggle: document.getElementById('dedicated-commander-copies'),
     colorSwatches: document.getElementById('color-swatches'),
     colorWarning: document.getElementById('color-warning'),
     parseErrors: document.getElementById('parse-errors'),
@@ -103,6 +106,8 @@ function getElements() {
     editDeckId: document.getElementById('edit-deck-id'),
     editDeckName: document.getElementById('edit-deck-name'),
     editDeckCommander: document.getElementById('edit-deck-commander'),
+    editDeckCommander2: document.getElementById('edit-deck-commander-2'),
+    editDeckTwoCommanders: document.getElementById('edit-deck-two-commanders'),
     editDeckBracket: document.getElementById('edit-deck-bracket'),
     editDeckColor: document.getElementById('edit-deck-color'),
     editDeckList: document.getElementById('edit-deck-list'),
@@ -189,6 +194,15 @@ export async function init() {
     state.currentPrism = createPrism();
     savePrism(state.currentPrism);
     setCurrentPrism(state.currentPrism.id);
+  } else {
+    // One-time #147 normalization: legacy form-added decks may carry only the
+    // commander scalar with zero card flags. Idempotent, saves only on change;
+    // the stale scalar is left in place, unread, and decays on its own.
+    let normalized = false;
+    for (const deck of state.currentPrism.decks || []) {
+      if (applyCommanderFallback(deck, deck.commander)) normalized = true;
+    }
+    if (normalized) savePrism(state.currentPrism);
   }
 
   if (state.elements.undoneFilter) {
@@ -214,6 +228,10 @@ export async function init() {
 
 export function renderAll() {
   renderPrismHeader();
+  // Per-PRISM toggle reflects the loaded/synced prism, not just user clicks
+  if (state.elements.dedicatedCommanderToggle) {
+    state.elements.dedicatedCommanderToggle.checked = !!state.currentPrism?.useDedicatedCommanderCopies;
+  }
   renderDecksList();
   renderResults();
   renderExport();

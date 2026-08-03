@@ -9,7 +9,12 @@ import { savePrism, setCurrentPrism } from '../modules/storage.js';
 import { buildPrismFromJson } from '../modules/prism-import.js';
 import { importFromMoxfield, toDecklistText, extractMoxfieldId } from '../modules/moxfield.js';
 import { importFromArchidekt, extractArchidektId } from '../modules/archidekt.js';
-import { initColorSwatches } from './deck-form.js';
+import {
+  initColorSwatches,
+  syncCommanderFieldsFromText,
+  addCommanderRefs,
+  editCommanderRefs,
+} from './deck-form.js';
 import { renderAll } from './init.js';
 
 // ============================================================================
@@ -39,6 +44,8 @@ export function handleFileUpload(e) {
   reader.onload = (event) => {
     const content = event.target.result;
     if (state.elements.deckList) state.elements.deckList.value = content;
+    // Programmatic .value writes fire no change event — sync fields explicitly
+    syncCommanderFieldsFromText(addCommanderRefs());
 
     if (state.elements.deckName && !state.elements.deckName.value) {
       const nameWithoutExt = file.name.replace(/\.(txt|dec|dek|mwDeck)$/i, '');
@@ -64,6 +71,7 @@ export function handleEditFileUpload(e) {
   reader.onload = (event) => {
     const content = event.target.result;
     if (state.elements.editDeckList) state.elements.editDeckList.value = content;
+    syncCommanderFieldsFromText(editCommanderRefs());
     showSuccess(`Loaded ${file.name}`);
   };
 
@@ -147,8 +155,9 @@ export async function handleMoxfieldImport() {
     const { serviceName, deckData } = await resolveDeckSource(urlOrId);
 
     if (state.elements.deckName) state.elements.deckName.value = deckData.name || '';
-    if (state.elements.deckCommander) state.elements.deckCommander.value = deckData.commander || '';
     if (state.elements.deckList) state.elements.deckList.value = toDecklistText(deckData);
+    // Commander fields auto-fill from the text's Commander section (#147)
+    syncCommanderFieldsFromText(addCommanderRefs());
 
     logToSupabase('info', 'url_import', { service: serviceName, name: deckData.name, cardCount: deckData.cards.length });
     showMoxfieldSuccess(`Imported "${deckData.name}" from ${serviceName} (${deckData.cards.length} cards). Review the form and click "Add Deck" to save.`);
@@ -181,6 +190,7 @@ export async function handleEditUrlImport() {
     const { serviceName, deckData } = await resolveDeckSource(urlOrId);
 
     if (state.elements.editDeckList) state.elements.editDeckList.value = toDecklistText(deckData);
+    syncCommanderFieldsFromText(editCommanderRefs());
 
     showEditImportSuccess(`Imported "${deckData.name}" from ${serviceName} (${deckData.cards.length} cards). Review and click "Save Changes" to update.`);
 

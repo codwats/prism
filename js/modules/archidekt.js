@@ -52,7 +52,6 @@ export async function fetchArchidektDeck(deckId) {
  */
 export function transformArchidektDeck(archidektDeck) {
   const cards = [];
-  let commander = null;
 
   // Process cards from the deck
   if (archidektDeck.cards && Array.isArray(archidektDeck.cards)) {
@@ -61,15 +60,12 @@ export function transformArchidektDeck(archidektDeck) {
       const quantity = cardEntry.quantity || 1;
       const categories = cardEntry.categories || [];
 
-      // Check if commander
+      // Exact `Commander` category only (#148): loose substring matching
+      // flagged user-authored categories like "Commander Damage" or
+      // "Partner Package" and produced false commander flags.
       const isCommander = categories.some(cat =>
-        cat.toLowerCase().includes('commander') ||
-        cat.toLowerCase().includes('partner')
+        cat.trim().toLowerCase() === 'commander'
       );
-
-      if (isCommander && !commander) {
-        commander = card.oracleCard?.name || card.name;
-      }
 
       const isBasicLand = isBasicLandCard(card);
 
@@ -84,7 +80,6 @@ export function transformArchidektDeck(archidektDeck) {
 
   return {
     name: archidektDeck.name || 'Imported Deck',
-    commander,
     format: archidektDeck.format?.name || 'commander',
     cards,
     source: 'archidekt',

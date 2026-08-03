@@ -231,6 +231,18 @@ BEGIN;
 COMMIT;
 
 -- ============================================
+-- MIGRATION: Add dedicated commander-copy setting (#145)
+-- ============================================
+-- Synced per-PRISM boolean with its own merge timestamp so the setting is
+-- merged independently rather than riding whole-prism last-write-wins.
+-- NOT NULL DEFAULT false backfills existing rows. Safe to re-run (IF NOT EXISTS).
+BEGIN;
+  ALTER TABLE prisms
+    ADD COLUMN IF NOT EXISTS use_dedicated_commander_copies BOOLEAN NOT NULL DEFAULT false,
+    ADD COLUMN IF NOT EXISTS use_dedicated_commander_copies_updated_at TIMESTAMPTZ DEFAULT NULL;
+COMMIT;
+
+-- ============================================
 -- MIGRATION: Remove server-side updated_at triggers
 -- ============================================
 -- The client always supplies updated_at on upsert. A trigger that overwrites

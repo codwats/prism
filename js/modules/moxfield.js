@@ -3,6 +3,8 @@
  * Handles importing decks from Moxfield URLs
  */
 
+import { cardsToDecklistText } from './parser.js';
+
 /**
  * Extract deck ID from a Moxfield URL or raw ID
  * @param {string} input - Moxfield URL or deck ID
@@ -52,15 +54,10 @@ export async function fetchMoxfieldDeck(publicId) {
  */
 export function transformMoxfieldDeck(moxfieldDeck) {
   const cards = [];
-  let commander = null;
 
-  // Process commanders first
+  // Process commanders first — every command-zone card keeps its flag (#148)
   if (moxfieldDeck.boards?.commanders?.cards) {
     for (const cardData of Object.values(moxfieldDeck.boards.commanders.cards)) {
-      // Use first commander as the deck's commander
-      if (!commander) {
-        commander = cardData.card.name;
-      }
       cards.push({
         name: cardData.card.name,
         quantity: cardData.quantity || 1,
@@ -99,7 +96,6 @@ export function transformMoxfieldDeck(moxfieldDeck) {
 
   return {
     name: moxfieldDeck.name || 'Imported Deck',
-    commander,
     format: moxfieldDeck.format || 'commander',
     cards,
     source: 'moxfield',
@@ -148,12 +144,11 @@ export async function importFromMoxfield(urlOrId) {
 }
 
 /**
- * Convert PRISM deck data to decklist text format
+ * Convert PRISM deck data to decklist text format with Commander/Deck
+ * sections so commander flags survive the textarea round-trip (#147).
  * @param {Object} deckData - Transformed deck data
  * @returns {string} Decklist in text format
  */
 export function toDecklistText(deckData) {
-  return deckData.cards
-    .map(card => `${card.quantity} ${card.name}`)
-    .join('\n');
+  return cardsToDecklistText(deckData.cards);
 }
