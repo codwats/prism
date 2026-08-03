@@ -56,7 +56,7 @@ const ORIGINALS_DIR = 'originals';
 
 const state = {
   sourceLabel: '',      // human description of the active source
-  corner: 'top-right',  // stripeStartCorner in effect for the active source
+  pinnedCorner: null,   // corner carried by an imported export; null = follow local prefs
   cards: [],            // [{ name, normalizedName, stripes }] with membership filtered out
   cardsByNorm: new Map(),
   dirHandle: null,
@@ -96,12 +96,21 @@ function saveGeometry() {
 // CARD SOURCE (local prism or imported JSON)
 // ============================================
 
+// The corner in effect right now. Resolved at every use, never snapshotted: the
+// preference can change in the settings drawer after this page loaded, or in
+// another tab (prism-settings-changed is a window event — it does not cross
+// tabs). Processing writes bytes to disk, so a stale corner stripes every image
+// on the wrong edge. An imported export pins its own corner — it is a snapshot
+// from another device and local prefs must not move its marks.
+export function activeCorner(pinned = state.pinnedCorner) {
+  return pinned || getPreferences().stripeStartCorner || 'top-right';
+}
+
 // Normalize either source into [{ name, normalizedName, stripes }] with
 // invisible 'membership' anchors removed (they carry no physical mark).
-function setCards(cards, sourceLabel, corner) {
+function setCards(cards, sourceLabel) {
   state.cards = cards;
   state.sourceLabel = sourceLabel;
-  state.corner = corner;
   state.cardsByNorm = new Map(cards.map(c => [c.normalizedName, c]));
   rematchEntries();
   renderSourceSummary();
@@ -124,8 +133,8 @@ function loadPrismSource(prism) {
     normalizedName: card.normalizedName || normalizeCardName(card.name),
     stripes: card.stripes.filter(s => s.markType !== 'membership'),
   }));
-  const corner = getPreferences().stripeStartCorner || 'top-right';
-  setCards(cards, `PRISM "${prism.name}"`, corner);
+  state.pinnedCorner = null; // local prism follows the live preference
+  setCards(cards, `PRISM "${prism.name}"`);
   debugLog('MPC: loaded prism source', prism.name, cards.length, 'cards');
 }
 
@@ -140,9 +149,8 @@ function loadJsonSource(data, filename) {
     stripes: card.stripes || [],
   }));
   // Exports carry the corner preference; older exports fall back to the local one.
-  const corner = prism.preferences?.stripeStartCorner
-    || getPreferences().stripeStartCorner || 'top-right';
-  setCards(cards, `Imported "${filename}" (${prism.name || 'unnamed'})`, corner);
+  state.pinnedCorner = prism.preferences?.stripeStartCorner || null;
+  setCards(cards, `Imported "${filename}" (${prism.name || 'unnamed'})`);
   debugLog('MPC: loaded JSON source', filename, cards.length, 'cards');
 }
 
@@ -437,7 +445,7 @@ function renderSourceSummary() {
   const cardCount = state.cards.length;
   const markCount = state.cards.reduce((n, c) => n + countVisibleMarks(c.stripes), 0);
   els.sourceSummary.textContent = cardCount
-    ? `${state.sourceLabel} — ${cardCount} unique cards, ${markCount} marks, corner: ${state.corner}`
+    ? `${state.sourceLabel} — ${cardCount} unique cards, ${markCount} marks, corner: ${activeCorner()}`
     : 'No decks in this PRISM yet — add decks in the builder first.';
 }
 
@@ -538,7 +546,7 @@ async function drawPreview() {
     bitmap.close();
 
     const card = state.cardsByNorm.get(entry.matchNorm);
-    const cornerConfig = cornerToConfig(state.corner);
+    const cornerConfig = cornerToConfig(activeCorner());
     const layout = drawMarks(ctx, canvas.width, canvas.height, card.stripes, state.geometry, cornerConfig);
     // Fall back to the attribute while the WA switch hasn't upgraded yet
     const isOn = el => el.checked ?? el.hasAttribute('checked');
@@ -630,7 +638,7 @@ async function handleProcessAll() {
   els.progress.setAttribute('value', '0');
   els.processLog.innerHTML = '';
 
-  const cornerConfig = cornerToConfig(state.corner);
+  const cornerConfig = cornerToConfig(activeCorner());
   const log = [];
   let done = 0;
   let failed = 0;
@@ -751,6 +759,14 @@ export function initMpcStripes() {
   }
   els.geomResetBtn.addEventListener('click', handleGeometryReset);
   els.processBtn.addEventListener('click', handleProcessAll);
+
+  // Settings drawer (injected by layout.js) — repaint when the corner is applied.
+  // Presentation only; activeCorner() is what keeps processed images correct.
+  window.addEventListener('prism-settings-changed', (e) => {
+    if (e.detail?.setting !== 'stripeStartCorner') return;
+    renderSourceSummary();
+    drawPreview();
+  });
 
   debugLog('MPC: compositor initialized');
 }
