@@ -69,10 +69,9 @@ function injectHeadResources() {
   const head = document.head;
 
   // Web Awesome CDN — CSS links
-  const WA_BASE = 'https://ka-p.webawesome.com/kit/da021fed1e5141f2/webawesome@3.10.0';
+  const WA_BASE = 'https://ka-p.webawesome.com/kit/da021fed1e5141f2/webawesome@3.11.0';
   const waStyles = [
-    `${WA_BASE}/styles/themes/matter.css`,
-    // `${WA_BASE}/styles/color/palettes/mild.css`,
+    `${WA_BASE}/styles/themes/default.css`,
     `${WA_BASE}/styles/native.css`,
     `${WA_BASE}/styles/utilities.css`,
   ];
@@ -187,7 +186,7 @@ function injectHeadResources() {
   }
 
   // Theme + palette always; dark mode honors the stored colorScheme preference
-  document.documentElement.classList.add('wa-theme-matter', 'wa-palette-mild');
+  document.documentElement.classList.add('wa-theme-default', 'wa-palette-default');
   applyColorScheme(getColorScheme());
 
   // Supabase SDK — eager-load only when a session may exist: a stored auth
@@ -294,7 +293,7 @@ function injectNav(activePage) {
 // ============================================================
 
 function injectHeader(ctaConfig) {
-  const waPage = document.querySelector('wa-page');
+  const waPage = document.querySelector('wa-page');Icon Size
   if (!waPage) return;
 
   // Don't inject if header already exists
