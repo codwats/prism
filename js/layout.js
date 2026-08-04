@@ -166,7 +166,7 @@ function injectHeadResources() {
     --wa-color-danger-70: #ff8883;
     --wa-color-danger-80: #ffb0aa;
     --wa-color-danger-90: #ffd7d3;
-    --wa-color-danger-95: #ffeae7;8029587+codwats@users.noreply.github.com
+    --wa-color-danger-95: #ffeae7;
     --wa-font-family-body: "halyard-micro",sans-serif;
     --wa-font-family-heading: "adobe-aldine", serif;
     --wa-font-family-code: "Geist Mono", monospace;
