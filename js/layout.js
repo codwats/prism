@@ -232,8 +232,8 @@ function injectNav(activePage) {
   // Build nav links
   const linksHtml = NAV_LINKS.map(link => {
     const isActive = link.page === activePage;
-    const activeClass = isActive ? ' class="wa-heading-m"' : '';
-    const activeColor = isActive ? ' color: var(--wa-color-brand-text);' : '';
+    const activeClass = isActive ? ' class="wa-body-m"' : '';
+    const activeColor = isActive ? ' color: var(--wa-color-brand-60);' : '';
     return `<a href="${link.href}"${activeClass} style="text-decoration: none; color: inherit;${activeColor}">${link.label}</a>`;
   }).join('\n          ');
 
