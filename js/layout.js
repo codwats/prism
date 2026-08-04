@@ -319,7 +319,7 @@ function injectHeader(ctaConfig) {
           <a href="index.html" class="wa-cluster wa-gap-xs wa-align-items-center" style="text-decoration: none; color: inherit;">
             <img src="./assets/Prism-Small-Icon-Invert.svg" alt="Prism Logo" style="height:1.5em;" class="wa-border-radius-square theme-logo-dark">
             <img src="./assets/Prism-Icon-Main.svg" alt="Prism Logo" style="height:1.5em;" class="wa-border-radius-square theme-logo-light">
-            <span class="wa-heading-m wa-desktop-only">PRISM</span>
+            <span class="wa-heading-l wa-desktop-only">PRISM</span>
           </a>
           <wa-tag size="small" variant="brand" appearance="outlined" title="PRISM is in open beta — expect rough edges and tell us about them">Beta</wa-tag>
         </div>
