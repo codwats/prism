@@ -206,6 +206,27 @@ function injectHeadResources() {
     head.appendChild(fav);
   }
 
+  // iOS Home Screen icon. No `sizes` attribute: the asset is a single
+  // 1024x1024 source and iOS downscales it for whichever slot it needs.
+  // Pages ship this as a static tag too — Safari reads the head when the user
+  // taps Add to Home Screen, so the static tag is the reliable path and this
+  // is the fallback (same arrangement as the WA/font tags above).
+  if (!head.querySelector('link[rel="apple-touch-icon"]')) {
+    const touchIcon = document.createElement('link');
+    touchIcon.rel = 'apple-touch-icon';
+    touchIcon.href = './assets/apple-touch-icon.png';
+    head.appendChild(touchIcon);
+  }
+
+  // Home Screen label. Without this iOS uses <title>, which is long enough on
+  // every page here to get truncated under the icon.
+  if (!head.querySelector('meta[name="apple-mobile-web-app-title"]')) {
+    const appTitle = document.createElement('meta');
+    appTitle.name = 'apple-mobile-web-app-title';
+    appTitle.content = 'PRISM';
+    head.appendChild(appTitle);
+  }
+
   // Custom CSS (skip if already loaded)
   if (!head.querySelector('link[href*="custom.css"]')) {
     const css = document.createElement('link');
