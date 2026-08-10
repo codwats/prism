@@ -206,15 +206,16 @@ function injectHeadResources() {
     head.appendChild(fav);
   }
 
-  // iOS Home Screen icon. No `sizes` attribute: the asset is a single
-  // 1024x1024 source and iOS downscales it for whichever slot it needs.
+  // iOS Home Screen icon. No `sizes` attribute: one 256x256 source that iOS
+  // scales to whichever slot it needs. The %40 is an encoded '@' from the
+  // filename — leave it encoded so the URL stays unambiguous.
   // Pages ship this as a static tag too — Safari reads the head when the user
   // taps Add to Home Screen, so the static tag is the reliable path and this
   // is the fallback (same arrangement as the WA/font tags above).
   if (!head.querySelector('link[rel="apple-touch-icon"]')) {
     const touchIcon = document.createElement('link');
     touchIcon.rel = 'apple-touch-icon';
-    touchIcon.href = './assets/apple-touch-icon.png';
+    touchIcon.href = './assets/Prism-iOS-Default-256%401x.png';
     head.appendChild(touchIcon);
   }
 
