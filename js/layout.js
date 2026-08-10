@@ -206,6 +206,46 @@ function injectHeadResources() {
     head.appendChild(fav);
   }
 
+  // iOS Home Screen icon. 180x180, opaque, square corners on purpose: iOS
+  // applies its own mask to web clips and composites transparent pixels
+  // against black, so a pre-rounded source shows black wedges at the corners.
+  // No `sizes` attribute — one source, iOS scales it per slot.
+  // Pages ship this as a static tag too — Safari reads the head when the user
+  // taps Add to Home Screen, so the static tag is the reliable path and this
+  // is the fallback (same arrangement as the WA/font tags above).
+  if (!head.querySelector('link[rel="apple-touch-icon"]')) {
+    const touchIcon = document.createElement('link');
+    touchIcon.rel = 'apple-touch-icon';
+    touchIcon.href = './assets/apple-touch-icon.png';
+    head.appendChild(touchIcon);
+  }
+
+  // Web App Manifest — Android/Chrome install metadata, and Safari 16.4+ reads
+  // it for Home Screen web apps too (notably `display`).
+  if (!head.querySelector('link[rel="manifest"]')) {
+    const manifest = document.createElement('link');
+    manifest.rel = 'manifest';
+    manifest.href = './assets/site.webmanifest';
+    head.appendChild(manifest);
+  }
+
+  // Browser UI tint; kept in sync with theme_color in site.webmanifest.
+  if (!head.querySelector('meta[name="theme-color"]')) {
+    const themeColor = document.createElement('meta');
+    themeColor.name = 'theme-color';
+    themeColor.content = '#281645';
+    head.appendChild(themeColor);
+  }
+
+  // Home Screen label. Without this iOS uses <title>, which is long enough on
+  // every page here to get truncated under the icon.
+  if (!head.querySelector('meta[name="apple-mobile-web-app-title"]')) {
+    const appTitle = document.createElement('meta');
+    appTitle.name = 'apple-mobile-web-app-title';
+    appTitle.content = 'PRISM';
+    head.appendChild(appTitle);
+  }
+
   // Custom CSS (skip if already loaded)
   if (!head.querySelector('link[href*="custom.css"]')) {
     const css = document.createElement('link');
