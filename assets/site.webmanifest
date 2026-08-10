@@ -1,10 +1,10 @@
 {
   "id": "/",
-  "name": "PRISM - MTG Collection Sharing",
+  "name": "PRISM - MTG Deck Sleeve Marking Tool",
   "short_name": "PRISM",
   "start_url": "/",
   "scope": "/",
-  "display": "standalone",
+  "display": "browser",
   "theme_color": "#281645",
   "background_color": "#281645",
   "icons": [
