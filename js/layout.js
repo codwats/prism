@@ -206,17 +206,35 @@ function injectHeadResources() {
     head.appendChild(fav);
   }
 
-  // iOS Home Screen icon. No `sizes` attribute: one 256x256 source that iOS
-  // scales to whichever slot it needs. The %40 is an encoded '@' from the
-  // filename — leave it encoded so the URL stays unambiguous.
+  // iOS Home Screen icon. 180x180, opaque, square corners on purpose: iOS
+  // applies its own mask to web clips and composites transparent pixels
+  // against black, so a pre-rounded source shows black wedges at the corners.
+  // No `sizes` attribute — one source, iOS scales it per slot.
   // Pages ship this as a static tag too — Safari reads the head when the user
   // taps Add to Home Screen, so the static tag is the reliable path and this
   // is the fallback (same arrangement as the WA/font tags above).
   if (!head.querySelector('link[rel="apple-touch-icon"]')) {
     const touchIcon = document.createElement('link');
     touchIcon.rel = 'apple-touch-icon';
-    touchIcon.href = './assets/Prism-iOS-Default-256%401x.png';
+    touchIcon.href = './assets/apple-touch-icon.png';
     head.appendChild(touchIcon);
+  }
+
+  // Web App Manifest — Android/Chrome install metadata, and Safari 16.4+ reads
+  // it for Home Screen web apps too (notably `display`).
+  if (!head.querySelector('link[rel="manifest"]')) {
+    const manifest = document.createElement('link');
+    manifest.rel = 'manifest';
+    manifest.href = './assets/site.webmanifest';
+    head.appendChild(manifest);
+  }
+
+  // Browser UI tint; kept in sync with theme_color in site.webmanifest.
+  if (!head.querySelector('meta[name="theme-color"]')) {
+    const themeColor = document.createElement('meta');
+    themeColor.name = 'theme-color';
+    themeColor.content = '#281645';
+    head.appendChild(themeColor);
   }
 
   // Home Screen label. Without this iOS uses <title>, which is long enough on
