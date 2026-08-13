@@ -69,10 +69,9 @@ function injectHeadResources() {
   const head = document.head;
 
   // Web Awesome CDN — CSS links
-  const WA_BASE = 'https://ka-p.webawesome.com/kit/da021fed1e5141f2/webawesome@3.10.0';
+  const WA_BASE = 'https://ka-p.webawesome.com/kit/da021fed1e5141f2/webawesome@3.11.0';
   const waStyles = [
-    `${WA_BASE}/styles/themes/matter.css`,
-    // `${WA_BASE}/styles/color/palettes/mild.css`,
+    `${WA_BASE}/styles/themes/default.css`,
     `${WA_BASE}/styles/native.css`,
     `${WA_BASE}/styles/utilities.css`,
   ];
@@ -87,9 +86,8 @@ function injectHeadResources() {
 
   // Fonts
   const fonts = [
-    'https://fonts.bunny.net/css2?family=Inter:ital,wght@0,100..900;1,100..900&display=swap',
     'https://fonts.bunny.net/css2?family=Geist+Mono:wght@100..900&display=swap',
-    'https://fonts.bunny.net/css2?family=Crimson+Pro:ital,wght@0,200..900;1,200..900&display=swap',
+    'https://use.typekit.net/gbw6ibc.css',
   ];
   fonts.forEach(href => {
     if (!head.querySelector(`link[href="${href}"]`)) {
@@ -169,10 +167,10 @@ function injectHeadResources() {
     --wa-color-danger-80: #ffb0aa;
     --wa-color-danger-90: #ffd7d3;
     --wa-color-danger-95: #ffeae7;
-    --wa-font-family-body: Inter, sans-serif;
-    --wa-font-family-heading: Inter, sans-serif;
+    --wa-font-family-body: "halyard-micro",sans-serif;
+    --wa-font-family-heading: "adobe-aldine", serif;
     --wa-font-family-code: "Geist Mono", monospace;
-    --wa-font-family-longform: "Crimson Pro", serif;
+    --wa-font-family-longform: "adobe-aldine", serif;
     --wa-font-weight-body: 400;
     --wa-font-weight-heading: 600;
     --wa-font-weight-code: 400;
@@ -186,7 +184,7 @@ function injectHeadResources() {
   }
 
   // Theme + palette always; dark mode honors the stored colorScheme preference
-  document.documentElement.classList.add('wa-theme-matter', 'wa-palette-mild');
+  document.documentElement.classList.add('wa-theme-default', 'wa-palette-default');
   applyColorScheme(getColorScheme());
 
   // Supabase SDK — eager-load only when a session may exist: a stored auth
@@ -274,8 +272,8 @@ function injectNav(activePage) {
   // Build nav links
   const linksHtml = NAV_LINKS.map(link => {
     const isActive = link.page === activePage;
-    const activeClass = isActive ? ' class="wa-heading-m"' : '';
-    const activeColor = isActive ? ' color: var(--wa-color-brand-text);' : '';
+    const activeClass = isActive ? ' class="wa-body-m"' : '';
+    const activeColor = isActive ? ' color: var(--wa-color-brand-60);' : '';
     return `<a href="${link.href}"${activeClass} style="text-decoration: none; color: inherit;${activeColor}">${link.label}</a>`;
   }).join('\n          ');
 
@@ -361,7 +359,7 @@ function injectHeader(ctaConfig) {
           <a href="index.html" class="wa-cluster wa-gap-xs wa-align-items-center" style="text-decoration: none; color: inherit;">
             <img src="./assets/Prism-Small-Icon-Invert.svg" alt="Prism Logo" style="height:1.5em;" class="wa-border-radius-square theme-logo-dark">
             <img src="./assets/Prism-Icon-Main.svg" alt="Prism Logo" style="height:1.5em;" class="wa-border-radius-square theme-logo-light">
-            <span class="wa-heading-m wa-desktop-only">PRISM</span>
+            <span class="wa-heading-l wa-desktop-only">PRISM</span>
           </a>
           <wa-tag size="small" variant="brand" appearance="outlined" title="PRISM is in open beta — expect rough edges and tell us about them">Beta</wa-tag>
         </div>
