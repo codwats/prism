@@ -14,6 +14,11 @@
     <title>Build Your PRISM - MTG Deck Sleeve Marking Tool</title>
     <style>.wa-cloak { visibility: hidden; }</style>
     <style>wa-page:not(:defined) { visibility: hidden; }</style>
+    <!-- iOS Home Screen icon (layout.js injects these as a fallback) -->
+    <link rel="apple-touch-icon" href="./assets/apple-touch-icon.png" />
+    <link rel="manifest" href="./assets/site.webmanifest" />
+    <meta name="theme-color" content="#281645" />
+    <meta name="apple-mobile-web-app-title" content="PRISM" />
     <!-- Preconnect to CDNs (Supabase SDK on cdn.jsdelivr.net is lazy-loaded for logged-in users) -->
     <link rel="preconnect" href="https://ka-p.webawesome.com" />
     <link rel="preconnect" href="https://ka-p.webawesome.com" crossorigin />
@@ -101,6 +106,14 @@
                 </div>
               </wa-card>
 
+              <!-- Per-PRISM marking settings -->
+              <div class="wa-stack wa-gap-2xs">
+                <wa-switch id="dedicated-commander-copies" size="small">Dedicated commander copies</wa-switch>
+                <p class="wa-caption-s" style="color: var(--wa-color-neutral-text-subtle); margin: 0;">
+                  Sleeve a dedicated copy of each commander instead of sharing it with other decks. Synced with this PRISM.
+                </p>
+              </div>
+
               <!-- Existing Decks List -->
               <section id="decks-list" class="wa-stack wa-gap-m">
                 <!-- Loading skeletons — replaced by the first renderDecksList() -->
@@ -138,7 +151,16 @@
                       placeholder="e.g., Alania, Divergent Storm"
                       required
                     ></wa-input>
+
+                    <wa-input
+                      id="deck-commander-2"
+                      label="Second Commander"
+                      placeholder="e.g., Partner commander"
+                      hidden
+                    ></wa-input>
                   </div>
+
+                  <wa-switch id="deck-two-commanders" size="small">Two commanders</wa-switch>
 
                   <wa-radio-group
                     id="deck-bracket"
@@ -336,7 +358,7 @@
                 <wa-radio-group id="results-filter" orientation="horizontal" value="all" size="small">
                   <wa-radio appearance="button" value="all" size="small">All Cards</wa-radio>
                   <wa-radio appearance="button" value="shared" size="small">POOL</wa-radio>
-                  <wa-radio appearance="button" value="basics-by-deck" size="small">Basics by Deck</wa-radio>
+                  <wa-radio appearance="button" value="basics-by-deck" size="small">One Mark at a Time</wa-radio>
                   <wa-radio appearance="button" value="removed" id="removed-filter-btn" size="small">Removed</wa-radio>
                 </wa-radio-group>
                 <!-- Search -->
@@ -475,7 +497,15 @@
             label="Commander"
             required
           ></wa-input>
+
+          <wa-input
+            id="edit-deck-commander-2"
+            label="Second Commander"
+            hidden
+          ></wa-input>
         </div>
+
+        <wa-switch id="edit-deck-two-commanders" size="small">Two commanders</wa-switch>
 
         <wa-radio-group
           id="edit-deck-bracket"

@@ -136,6 +136,35 @@ wa-page[view='desktop'] [data-toggle-nav] {
   font-size: var(--wa-font-size-s);
 }
 
+/* Marking-batch rows (#149): expandable multi-batch cards */
+.results-table .batch-toggle {
+  background: none;
+  border: none;
+  padding: 0 var(--wa-space-2xs) 0 0;
+  cursor: pointer;
+  color: var(--wa-color-neutral-text-subtle);
+  vertical-align: middle;
+}
+
+.results-table .batch-subrow td {
+  background: var(--wa-color-neutral-fill-quiet);
+}
+
+.results-table .batch-subrow .batch-subrow-label {
+  padding-left: var(--wa-space-xl);
+  color: var(--wa-color-neutral-text-subtle);
+  font-size: var(--wa-font-size-s);
+}
+
+/* Derived roll-up checkbox is informational, not a control */
+.results-table .batch-parent-check {
+  pointer-events: none;
+}
+
+.results-table .copies-cell {
+  text-align: center;
+}
+
 /* ============================================================================
    Stripe Indicators (in results table)
    ============================================================================ */

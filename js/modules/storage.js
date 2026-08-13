@@ -4,6 +4,7 @@
  */
 
 import { DEFAULT_COLORS } from './processor.js';
+import { normalizeCardName } from './parser.js';
 import { getSupabase, isConfigured } from './supabase-client.js';
 import { getCurrentUser } from './auth.js';
 import { showToast } from '../core/notifications.js';
@@ -327,6 +328,8 @@ function buildPrismFromRow(prism) {
     updatedAt: prism.updated_at,
     markedCards: prism.marked_cards || [],
     markedCardsUpdatedAt: prism.marked_cards_updated_at || null,
+    useDedicatedCommanderCopies: prism.use_dedicated_commander_copies || false,
+    useDedicatedCommanderCopiesUpdatedAt: prism.use_dedicated_commander_copies_updated_at || null,
     removedCards: prism.removed_cards || [],
     splitGroups: (prism.split_groups || []).map(group => ({
       ...group,
@@ -339,7 +342,6 @@ function buildPrismFromRow(prism) {
       bracket: deck.bracket,
       stripePosition: deck.stripe_position,
       splitGroupId: deck.split_group_id || null,
-      commander: deck.deck_cards?.find(c => c.is_commander)?.card_name || null,
       createdAt: deck.created_at,
       updatedAt: deck.updated_at,
       cardsUpdatedAt: deck.cards_updated_at || null,
@@ -353,7 +355,7 @@ function buildPrismFromRow(prism) {
   };
 }
 
-function mergePrismVersions(localPrism, cloudPrism, prismBaseline) {
+export function mergePrismVersions(localPrism, cloudPrism, prismBaseline) {
   const baseline = prismBaseline || {
     updatedAt: null,
     deckUpdatedAts: {},
@@ -393,6 +395,12 @@ function mergePrismVersions(localPrism, cloudPrism, prismBaseline) {
   const localMCTime = getTimestampMs(localPrism.markedCardsUpdatedAt);
   const cloudMCTime = getTimestampMs(cloudPrism.markedCardsUpdatedAt);
 
+  // Merged on its own timestamp, not via basePrism: prism.updatedAt is bumped
+  // by mark-toggle (high frequency), so whole-prism LWW would silently revert
+  // a toggle made on another device (#145).
+  const localDCTime = getTimestampMs(localPrism.useDedicatedCommanderCopiesUpdatedAt);
+  const cloudDCTime = getTimestampMs(cloudPrism.useDedicatedCommanderCopiesUpdatedAt);
+
   return {
     ...basePrism,
     markedCards: mergeMarkedCards(
@@ -404,6 +412,12 @@ function mergePrismVersions(localPrism, cloudPrism, prismBaseline) {
     markedCardsUpdatedAt: localMCTime >= cloudMCTime
       ? localPrism.markedCardsUpdatedAt
       : cloudPrism.markedCardsUpdatedAt,
+    useDedicatedCommanderCopies: localDCTime >= cloudDCTime
+      ? localPrism.useDedicatedCommanderCopies || false
+      : cloudPrism.useDedicatedCommanderCopies || false,
+    useDedicatedCommanderCopiesUpdatedAt: localDCTime >= cloudDCTime
+      ? localPrism.useDedicatedCommanderCopiesUpdatedAt || null
+      : cloudPrism.useDedicatedCommanderCopiesUpdatedAt || null,
     removedCards: mergeRemovedCards(
       localPrism.removedCards || [],
       cloudPrism.removedCards || []
@@ -422,6 +436,8 @@ const PRISM_SELECT = `
   split_groups,
   marked_cards,
   marked_cards_updated_at,
+  use_dedicated_commander_copies,
+  use_dedicated_commander_copies_updated_at,
   removed_cards,
   created_at,
   updated_at,
@@ -555,6 +571,8 @@ async function savePrismToSupabase(prism) {
         split_groups: prism.splitGroups || [],
         marked_cards: prism.markedCards || [],
         marked_cards_updated_at: prism.markedCardsUpdatedAt || null,
+        use_dedicated_commander_copies: prism.useDedicatedCommanderCopies || false,
+        use_dedicated_commander_copies_updated_at: prism.useDedicatedCommanderCopiesUpdatedAt || null,
         removed_cards: prism.removedCards || [],
         created_at: prism.createdAt || prismUpdatedAt,
         updated_at: prismUpdatedAt
@@ -792,24 +810,31 @@ function mergeMarkedCards(localArr, cloudArr, unmarkedTombstones, baselineUpdate
  * Merge removedCards arrays via union, deduplicated by (cardName, deckId).
  * When both contain the same entry, keep the one with the later removedAt.
  */
-function mergeRemovedCards(localArr, cloudArr) {
+export function mergeRemovedCards(localArr, cloudArr) {
   const map = new Map();
 
   // Skip malformed entries (missing cardName) instead of throwing — a single
   // bad row from the cloud or an imported backup must not abort the whole
   // prism merge for the session.
   for (const entry of localArr) {
-    if (!entry?.cardName) continue;
-    const key = `${entry.cardName.toLowerCase()}|${entry.deckId}`;
+    if (typeof entry?.cardName !== 'string' || !entry.cardName) continue;
+    const key = `${normalizeCardName(entry.cardName)}|${entry.deckId}`;
     map.set(key, entry);
   }
 
   for (const entry of cloudArr) {
-    if (!entry?.cardName) continue;
-    const key = `${entry.cardName.toLowerCase()}|${entry.deckId}`;
+    if (typeof entry?.cardName !== 'string' || !entry.cardName) continue;
+    const key = `${normalizeCardName(entry.cardName)}|${entry.deckId}`;
     const existing = map.get(key);
-    if (!existing || new Date(entry.removedAt) > new Date(existing.removedAt)) {
+    if (!existing) {
       map.set(key, entry);
+    } else {
+      // Latest row wins, but previousQuantity keeps the max of both (#151):
+      // successive edits (5→4→3) and cross-device edits must not collapse to
+      // the last delta and under-report the surplus copies to clear.
+      const newer = new Date(entry.removedAt) > new Date(existing.removedAt) ? entry : existing;
+      const maxPrev = Math.max(entry.previousQuantity || 0, existing.previousQuantity || 0);
+      map.set(key, maxPrev > 0 ? { ...newer, previousQuantity: maxPrev } : newer);
     }
   }
 
