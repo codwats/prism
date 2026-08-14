@@ -17,6 +17,8 @@ const RULES = [
 	{ cls: '#158 drift', re: /\bPOOL\b|\bCORE\b/g },
 	{ cls: '#158 drift', re: /shared cards|Basics by Deck|perfect-fit/gi },
 	{ cls: '#158 drift', re: /\bposition\b/g },
+	{ cls: '#161 drift', re: /\bRemoved\b/g },
+	{ cls: '#161 drift', re: /removed cards?|pending removal/gi },
 ];
 
 const ENTITIES = { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", nbsp: ' ', mdash: '—', ndash: '–', rsquo: '’', lsquo: '‘' };
