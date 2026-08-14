@@ -15,12 +15,10 @@ export function renderExport() {
 
   if (sortedDecks.length === 0) {
     if (state.elements.deckLegend) state.elements.deckLegend.style.display = 'none';
-    if (state.elements.noDecksLegend) state.elements.noDecksLegend.style.display = '';
     return;
   }
 
   if (state.elements.deckLegend) state.elements.deckLegend.style.display = '';
-  if (state.elements.noDecksLegend) state.elements.noDecksLegend.style.display = 'none';
 
   if (state.elements.deckLegend) {
     // Build legend items: standalone decks + split group headers with children
