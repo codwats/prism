@@ -42,6 +42,9 @@
       #step-bar {
         gap: var(--wa-space-xs);
         justify-content: flex-start;
+        /* One row, always: the bar scrolls sideways rather than wrapping, so its
+           height stays fixed and .guide-step's scroll-margin-top keeps clearing it. */
+        flex-wrap: nowrap;
         overflow-x: auto;
       }
       #step-bar .step-chip {
@@ -141,7 +144,6 @@
             <strong>Let the marks dry for 2 to 3 minutes before you sleeve the card.</strong> Wet paint transfers to the outer sleeve and to the card face.
           </wa-callout>
           <ol start="6" style="padding-left: var(--wa-space-xl); line-height: 1.8; margin: 0;">
-            <li>Let the marks dry for 2 to 3 minutes.</li>
             <li>Put the inner sleeve back inside the outer sleeve.</li>
             <li>Check the card off in PRISM.</li>
           </ol>
