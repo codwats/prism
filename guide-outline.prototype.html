@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="en" class="wa-cloak wa-theme-default wa-palette-default">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>PROTOTYPE — guide.html section outline (#160)</title>
+    <style>.wa-cloak { visibility: hidden; }</style>
+    <link rel="stylesheet" href="https://ka-p.webawesome.com/kit/da021fed1e5141f2/webawesome@3.10.0/styles/themes/matter.css" />
+    <link rel="stylesheet" href="https://ka-p.webawesome.com/kit/da021fed1e5141f2/webawesome@3.10.0/styles/color/palettes/mild.css" />
+    <link rel="stylesheet" href="https://ka-p.webawesome.com/kit/da021fed1e5141f2/webawesome@3.10.0/styles/native.css" />
+    <link rel="stylesheet" href="https://ka-p.webawesome.com/kit/da021fed1e5141f2/webawesome@3.10.0/styles/utilities.css" />
+    <script type="module" src="https://ka-p.webawesome.com/kit/da021fed1e5141f2/webawesome@3.10.0/webawesome.loader.js"></script>
+    <link rel="stylesheet" href="https://fonts.bunny.net/css2?family=Inter:ital,wght@0,100..900;1,100..900&display=swap" />
+    <link rel="stylesheet" href="https://fonts.bunny.net/css2?family=Geist+Mono:wght@100..900&display=swap" />
+    <link rel="stylesheet" href="css/custom.css" />
+    <style>wa-page:not(:defined) { visibility: hidden; }</style>
+    <style>
+      html, body { min-height: 100%; margin: 0; padding: 0; }
+      .shell { max-width: 62rem; margin: 0 auto; padding-block-end: 7rem; }
+      .switcher {
+        position: fixed;
+        inset-block-end: var(--wa-space-l);
+        inset-inline: 0;
+        z-index: 10;
+        pointer-events: none;
+      }
+      .switcher > * { pointer-events: auto; }
+      .switcher-inner {
+        background-color: var(--wa-color-surface-raised);
+        border: var(--wa-border-width-s) solid var(--wa-color-surface-border);
+        border-radius: var(--wa-border-radius-pill);
+        padding: var(--wa-space-xs) var(--wa-space-m);
+        box-shadow: var(--wa-shadow-l);
+      }
+      .anchor { font-family: var(--wa-font-family-code); font-size: var(--wa-font-size-s); }
+      .toc-preview {
+        border: var(--wa-border-width-s) dashed var(--wa-color-surface-border);
+        border-radius: var(--wa-border-radius-m);
+        padding: var(--wa-space-m);
+      }
+      .scheme { display: none; }
+      .scheme[data-active] { display: block; }
+      .leaf-indent { padding-inline-start: var(--wa-space-xl); }
+    </style>
+  </head>
+  <body>
+    <wa-page mobile-breakpoint="768">
+    <main class="shell wa-stack wa-gap-xl">
+      <wa-callout variant="warning">
+        <wa-icon slot="icon" name="flask"></wa-icon>
+        <strong>Throwaway prototype.</strong> Section outline for
+        <a href="https://github.com/codwats/prism/issues/160">Shape the guide's task-shaped sections</a>. Not production, not linked from
+        anywhere. Copy shown is a one-line statement of what each section carries, not draft prose.
+      </wa-callout>
+
+      <div class="wa-stack wa-gap-xs">
+        <h1 class="wa-heading-2xl">Three ways to cut the guide</h1>
+        <p>
+          Same seven jobs in every scheme. What changes is how they are grouped, how the reader is expected to move
+          through them, and what the table of contents has to carry. Switch with the bar at the bottom.
+        </p>
+      </div>
+
+      <!-- ============================= SCHEME A ============================= -->
+      <div class="scheme wa-stack wa-gap-l" id="scheme-a">
+        <div class="wa-stack wa-gap-2xs">
+          <h2 class="wa-heading-xl">A — Flat seven</h2>
+          <p>
+            Seven peer sections, one scroll, one level of table of contents. Every section is a deep-link target and no
+            section contains another. The reader is assumed to be arriving <em>at</em> a section, not reading from the top.
+          </p>
+        </div>
+
+        <div class="toc-preview wa-stack wa-gap-2xs">
+          <span class="wa-caption-s wa-color-text-quiet">TABLE OF CONTENTS — 7 entries, one level, fits the existing sticky subheader</span>
+          <div class="wa-cluster wa-gap-xs">
+            <wa-tag size="small" pill appearance="outlined">Read a marked sleeve</wa-tag>
+            <wa-tag size="small" pill appearance="outlined">Tell Pool from Core</wa-tag>
+            <wa-tag size="small" pill appearance="outlined">Choose your slots and corner</wa-tag>
+            <wa-tag size="small" pill appearance="outlined">Run a marking session</wa-tag>
+            <wa-tag size="small" pill appearance="outlined">Count the copies you need</wa-tag>
+            <wa-tag size="small" pill appearance="outlined">Mark a split group</wa-tag>
+            <wa-tag size="small" pill appearance="outlined">Fix a mark you no longer want</wa-tag>
+          </div>
+        </div>
+
+        <div class="wa-stack wa-gap-m" id="sections-a"></div>
+      </div>
+
+      <!-- ============================= SCHEME B ============================= -->
+      <div class="scheme wa-stack wa-gap-l" id="scheme-b">
+        <div class="wa-stack wa-gap-2xs">
+          <h2 class="wa-heading-xl">B — Three acts</h2>
+          <p>
+            The same seven jobs, grouped under three headings that name the reader's state: understanding the system,
+            marking cards, keeping it current. Deep links still target the seven leaves. The acts give a first-time reader
+            a shape and let a returning reader skip a whole act.
+          </p>
+        </div>
+
+        <div class="toc-preview wa-stack wa-gap-2xs">
+          <span class="wa-caption-s wa-color-text-quiet">TABLE OF CONTENTS — 3 groups, 7 leaves, two levels</span>
+          <div class="wa-stack wa-gap-2xs" id="toc-b"></div>
+        </div>
+
+        <wa-callout variant="neutral" appearance="outlined">
+          <wa-icon slot="icon" name="triangle-exclamation"></wa-icon>
+          <strong>Costs a layout change.</strong> A two-level list cannot live in the horizontally scrolling
+          <span class="anchor">slot="subheader"</span> the step bar uses today, and
+          <span class="anchor">slot="navigation"</span> is taken by the site nav that
+          <span class="anchor">layout.js</span> injects. Scheme B needs a table of contents block at the top of
+          <span class="anchor">&lt;main&gt;</span> instead of the sticky bar.
+        </wa-callout>
+
+        <div class="wa-stack wa-gap-m" id="sections-b"></div>
+      </div>
+
+      <!-- ============================= SCHEME C ============================= -->
+      <div class="scheme wa-stack wa-gap-l" id="scheme-c">
+        <div class="wa-stack wa-gap-2xs">
+          <h2 class="wa-heading-xl">C — Procedure first, reference below</h2>
+          <p>
+            One short numbered procedure at the top covering the whole physical job, each step one line and each step a
+            link down. Everything else sits below it as un-numbered reference sections in any order. The page serves two
+            readers at once: one follows it, one consults it.
+          </p>
+        </div>
+
+        <div class="toc-preview wa-stack wa-gap-xs">
+          <span class="wa-caption-s wa-color-text-quiet">TOP OF PAGE — the procedure block, strict mode, one line per step</span>
+          <ol class="wa-stack wa-gap-2xs" style="margin: 0;">
+            <li>Finalize every decklist. Do not edit a deck during a marking session.</li>
+            <li>Choose the corner your marks start from. This choice is permanent.</li>
+            <li>Give your most-played decks the slots you can read fastest.</li>
+            <li>Test your pen on a spare Perfect Fit inner.</li>
+            <li>Mark each copy, working down the results list.</li>
+            <li>Let the paint dry, then double-sleeve.</li>
+          </ol>
+          <span class="wa-caption-s wa-color-text-quiet">
+            Each step links to the reference section that explains it. Reference sections are the same seven from A.
+          </span>
+        </div>
+
+        <wa-callout variant="warning">
+          <wa-icon slot="icon" name="rotate-left"></wa-icon>
+          <strong>The risk to weigh.</strong> A numbered block at the top is close in shape to the 1-to-7 walkthrough the
+          map already ruled out. The defence is that these steps are physical rather than app instruction, so nothing in the
+          block goes stale when the interface changes. Decide whether that distinction survives contact with a reader.
+        </wa-callout>
+
+        <div class="wa-stack wa-gap-m" id="sections-c"></div>
+      </div>
+
+      <wa-divider></wa-divider>
+
+      <!-- ============================= FINDINGS ============================= -->
+      <div class="wa-stack wa-gap-m">
+        <h2 class="wa-heading-l">Findings</h2>
+        <p>Turned up while checking the ticket's inputs. These do not depend on which scheme wins.</p>
+        <div class="wa-stack wa-gap-s" id="findings"></div>
+      </div>
+    </main>
+    </wa-page>
+
+    <div class="switcher wa-cluster wa-justify-content-center">
+      <div class="switcher-inner wa-cluster wa-gap-xs wa-align-items-center">
+        <span class="wa-caption-s wa-color-text-quiet">SCHEME</span>
+        <wa-button size="small" data-scheme="a">A — Flat seven</wa-button>
+        <wa-button size="small" data-scheme="b">B — Three acts</wa-button>
+        <wa-button size="small" data-scheme="c">C — Procedure first</wa-button>
+      </div>
+    </div>
+
+    <script type="module">
+      // Real site chrome, so the table-of-contents weight can be judged in context.
+      import { initLayout } from './js/layout.js';
+      initLayout({ activePage: 'guide', headerCta: { href: 'build.html', label: 'Build PRISM', icon: 'wand-magic-sparkles' } });
+    </script>
+    <script type="module">
+      // The seven jobs. Shared by every scheme — schemes differ in grouping and entry, not in content.
+      const SECTIONS = [
+        {
+          anchor: '#read-a-sleeve',
+          heading: 'Read a marked sleeve',
+          act: 'Understand the system',
+          carries:
+            'One physical copy serves every deck that needs it, because each mark on its Perfect Fit inner names one deck by colour and slot.',
+          room: 'Large',
+          words: '250 to 400',
+          mode: 'Flavored prose',
+          visual:
+            'Drawing of a fanned stack, one edge in focus, three marks at different slots. assets/Cards.svg is already in the repo and referenced by nothing.',
+          from: 'Grows out of step 1',
+        },
+        {
+          anchor: '#pool-and-core',
+          heading: 'Tell Pool from Core',
+          act: 'Understand the system',
+          carries:
+            'A copy used by two or more logical decks is Pool. A copy used by exactly one is Core. Pool is the number that decides how few copies you buy.',
+          room: 'Medium',
+          words: '150 to 250',
+          mode: 'Flavored prose',
+          visual: 'Drawing of one copy feeding two deck boxes. Not a screenshot of the results table.',
+          from: 'Rescued from steps 2 and 3, which otherwise leave',
+        },
+        {
+          anchor: '#choose-slots',
+          heading: 'Choose your slots and corner',
+          act: 'Mark your cards',
+          carries:
+            'The two choices paint makes permanent: which corner every mark starts from, and which decks earn the slots you can read fastest.',
+          room: 'Medium',
+          words: '150 to 250',
+          mode: 'Mixed. Danger callout runs strict.',
+          visual: 'Diagram of one card edge with the 48 slots numbered and the corner origin called out.',
+          from: 'The physical half of step 6. The slot picker itself leaves.',
+        },
+        {
+          anchor: '#mark-a-session',
+          heading: 'Run a marking session',
+          act: 'Mark your cards',
+          carries:
+            'The physical procedure end to end: finalize the lists, test the pen, mark the inner, let it dry, double-sleeve.',
+          room: 'Large',
+          words: '300 to 450',
+          mode: 'Strict. Ordered list plus danger and warning callouts.',
+          visual:
+            'Existing photo assets/spiritguide.avif. The unused drawing assets/Spririt-Guide.svg is a candidate replacement.',
+          from: 'Grows out of step 4',
+        },
+        {
+          anchor: '#count-copies',
+          heading: 'Count the copies you need',
+          act: 'Understand the system',
+          carries:
+            'Quantity tiers add up to a Physical total, and each tier is a marking batch carrying its own set of marks. Basic lands are the loudest case, not a special case.',
+          room: 'Large',
+          words: '250 to 400',
+          mode: 'Flavored prose',
+          visual: 'Drawing with real numbers: twelve Islands, eight of them carrying the second deck’s mark.',
+          from: 'Grows out of the basics half of step 5',
+        },
+        {
+          anchor: '#mark-variants',
+          heading: 'Mark a split group',
+          act: 'Mark your cards',
+          carries:
+            'Variants share the parent’s Side A mark. Stripes add a Side B mark on the opposite edge, dots add one dot and cap the group at two.',
+          room: 'Medium',
+          words: '200 to 300',
+          mode: 'Flavored prose',
+          visual: 'Photo of two variants told apart by dots. Still a placeholder, still no asset.',
+          from: 'Grows out of the variants half of step 5',
+        },
+        {
+          anchor: '#fix-a-mark',
+          heading: 'Fix a mark you no longer want',
+          act: 'Keep it current',
+          carries:
+            'Cards cut from a deck, a mark in the wrong slot, paint that smeared. How to clear one mark without ruining the inner.',
+          room: 'Medium',
+          words: '150 to 250',
+          mode: 'Strict',
+          visual: 'Optional. A small photo of a cleaned inner, or none.',
+          from: 'New. Only one bullet of step 3 covers it today.',
+        },
+      ];
+
+      const ACTS = ['Understand the system', 'Mark your cards', 'Keep it current'];
+
+      const FINDINGS = [
+        {
+          id: 'F1',
+          title: 'Five image placeholders, not four',
+          body:
+            'The ticket says four. guide.html has five guide-img-placeholder divs, at lines 129, 142, 177, 186 and 198. Three of the five belong to sections that leave, so the guide loses more visual budget than the ticket assumes.',
+        },
+        {
+          id: 'F2',
+          title: 'Steps 6 and 7 have no empty state to move to',
+          body:
+            'The map records steps 2, 3, 6 and 7 as empty-state jobs. Only 2 and 3 are. The slot picker only exists once a deck exists, and the Export menu only once results exist, so both are populated-state controls with no empty state to carry their copy. That copy is currently homeless: it either stays in the guide as short app reference, becomes in-app help, or is dropped. This is a decision, not a drafting detail.',
+        },
+        {
+          id: 'F3',
+          title: 'The locked deep-link text does not match any legal heading',
+          body:
+            'The first-load callout ticket locked a deep link reading "How a marked sleeve works". The copy standard requires headings to be an imperative verb plus an object, and the report’s rule is that the link text and the heading are the same words. Proposal: the heading is "Read a marked sleeve" and the callout link text changes to match.',
+        },
+        {
+          id: 'F4',
+          title: 'Two unused drawings in the repo, not one',
+          body:
+            'assets/Cards.svg (961 by 403, three cards with edge marks) was already found. assets/Spririt-Guide.svg (508 by 391, filename misspelled) is a second drawn asset, a Spirit Guide holding a sleeve, which the guide currently shows as a photo. Neither file is referenced by any HTML, JS or CSS in the repo.',
+        },
+        {
+          id: 'F5',
+          title: 'The Overlap Matrix copy lands nowhere',
+          body:
+            'guide.html line 139 tells the reader to bring low-overlap decks to game night. That is a payoff claim about a populated-state feature. It is not a task section and not an empty state. Candidate for index.html or for deletion, but it should not be lost silently.',
+        },
+        {
+          id: 'F6',
+          title: 'A two-level table of contents cannot be a sidebar',
+          body:
+            'layout.js injects the site nav into slot="navigation" (line 265) and owns slot="header" (line 338). The guide can only use slot="subheader", which is the horizontally scrolling step bar today, or a block at the top of main. Scheme A fits the existing bar. Schemes B and C both need the in-page block.',
+        },
+      ];
+
+      const esc = (s) => String(s).replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' })[c]);
+
+      function sectionCard(s, index) {
+        return `
+          <wa-card>
+            <div class="wa-stack wa-gap-s">
+              <div class="wa-cluster wa-gap-xs wa-align-items-center">
+                <h3 class="wa-heading-m" style="margin: 0;">${index === null ? '' : index + '. '}${esc(s.heading)}</h3>
+                <code class="anchor">${esc(s.anchor)}</code>
+              </div>
+              <p style="margin: 0;">${esc(s.carries)}</p>
+              <div class="wa-cluster wa-gap-xs">
+                <wa-tag size="small" variant="brand" appearance="outlined">${esc(s.room)} &middot; ${esc(s.words)} words</wa-tag>
+                <wa-tag size="small" appearance="outlined">${esc(s.mode)}</wa-tag>
+              </div>
+              <div class="wa-stack wa-gap-3xs">
+                <span class="wa-caption-s wa-color-text-quiet">VISUAL</span>
+                <span class="wa-body-s">${esc(s.visual)}</span>
+              </div>
+              <div class="wa-stack wa-gap-3xs">
+                <span class="wa-caption-s wa-color-text-quiet">ORIGIN</span>
+                <span class="wa-body-s">${esc(s.from)}</span>
+              </div>
+            </div>
+          </wa-card>`;
+      }
+
+      // Scheme A — flat, numbered in reading order
+      document.getElementById('sections-a').innerHTML = SECTIONS.map((s, i) => sectionCard(s, i + 1)).join('');
+
+      // Scheme B — grouped by act
+      const byAct = ACTS.map((act) => ({ act, items: SECTIONS.filter((s) => s.act === act) }));
+      document.getElementById('sections-b').innerHTML = byAct
+        .map(
+          ({ act, items }) => `
+            <div class="wa-stack wa-gap-s">
+              <h3 class="wa-heading-l">${esc(act)}</h3>
+              <div class="wa-stack wa-gap-m leaf-indent">${items.map((s) => sectionCard(s, null)).join('')}</div>
+            </div>`
+        )
+        .join('');
+      document.getElementById('toc-b').innerHTML = byAct
+        .map(
+          ({ act, items }) => `
+            <div class="wa-stack wa-gap-3xs">
+              <strong>${esc(act)}</strong>
+              <div class="wa-cluster wa-gap-xs leaf-indent">
+                ${items.map((s) => `<wa-tag size="small" pill appearance="outlined">${esc(s.heading)}</wa-tag>`).join('')}
+              </div>
+            </div>`
+        )
+        .join('');
+
+      // Scheme C — reference sections, procedure lives above
+      document.getElementById('sections-c').innerHTML =
+        '<h3 class="wa-heading-l">Reference sections</h3>' + SECTIONS.map((s) => sectionCard(s, null)).join('');
+
+      document.getElementById('findings').innerHTML = FINDINGS.map(
+        (f) => `
+          <wa-callout variant="neutral" appearance="outlined">
+            <wa-icon slot="icon" name="magnifying-glass"></wa-icon>
+            <strong>${esc(f.id)} &mdash; ${esc(f.title)}</strong><br />${esc(f.body)}
+          </wa-callout>`
+      ).join('');
+
+      // Scheme switching via ?scheme= and the floating bar
+      const buttons = Array.from(document.querySelectorAll('[data-scheme]'));
+      function show(which) {
+        document.querySelectorAll('.scheme').forEach((el) => el.removeAttribute('data-active'));
+        document.getElementById('scheme-' + which)?.setAttribute('data-active', '');
+        buttons.forEach((b) => {
+          const on = b.dataset.scheme === which;
+          b.setAttribute('variant', on ? 'brand' : 'neutral');
+          b.setAttribute('appearance', on ? 'accent' : 'outlined');
+        });
+        const url = new URL(location.href);
+        url.searchParams.set('scheme', which);
+        history.replaceState(null, '', url);
+      }
+      buttons.forEach((b) => b.addEventListener('click', () => show(b.dataset.scheme)));
+      show(new URL(location.href).searchParams.get('scheme') || 'a');
+    </script>
+  </body>
+</html>
