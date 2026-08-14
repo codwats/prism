@@ -1,10 +1,24 @@
 <!DOCTYPE html>
-<html lang="en" class="wa-cloak wa-theme-default wa-palette-default">
+<html lang="en" class="wa-cloak">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>PROTOTYPE — guide.html section outline (#160)</title>
     <style>.wa-cloak { visibility: hidden; }</style>
+    <style>wa-page:not(:defined) { visibility: hidden; }</style>
+    <!-- iOS Home Screen icon (layout.js injects these as a fallback) -->
+    <link rel="apple-touch-icon" href="./assets/apple-touch-icon.png" />
+    <link rel="manifest" href="./assets/site.webmanifest" />
+    <meta name="theme-color" content="#281645" />
+    <meta name="apple-mobile-web-app-title" content="PRISM" />
+    <!-- Preconnect to CDNs (Supabase SDK on cdn.jsdelivr.net is lazy-loaded for logged-in users) -->
+    <link rel="preconnect" href="https://ka-p.webawesome.com" />
+    <link rel="preconnect" href="https://ka-p.webawesome.com" crossorigin />
+    <link rel="preconnect" href="https://fonts.bunny.net" />
+    <link rel="preconnect" href="https://fonts.bunny.net" crossorigin />
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" />
+    <!-- Web Awesome, fonts, and app CSS as static tags so the browser preload scanner
+         starts them immediately; layout.js injectHeadResources skips tags already present -->
     <link rel="stylesheet" href="https://ka-p.webawesome.com/kit/da021fed1e5141f2/webawesome@3.10.0/styles/themes/matter.css" />
     <link rel="stylesheet" href="https://ka-p.webawesome.com/kit/da021fed1e5141f2/webawesome@3.10.0/styles/color/palettes/mild.css" />
     <link rel="stylesheet" href="https://ka-p.webawesome.com/kit/da021fed1e5141f2/webawesome@3.10.0/styles/native.css" />
@@ -12,11 +26,11 @@
     <script type="module" src="https://ka-p.webawesome.com/kit/da021fed1e5141f2/webawesome@3.10.0/webawesome.loader.js"></script>
     <link rel="stylesheet" href="https://fonts.bunny.net/css2?family=Inter:ital,wght@0,100..900;1,100..900&display=swap" />
     <link rel="stylesheet" href="https://fonts.bunny.net/css2?family=Geist+Mono:wght@100..900&display=swap" />
+    <link rel="stylesheet" href="https://fonts.bunny.net/css2?family=Crimson+Pro:ital,wght@0,200..900;1,200..900&display=swap" />
     <link rel="stylesheet" href="css/custom.css" />
-    <style>wa-page:not(:defined) { visibility: hidden; }</style>
     <style>
       html, body { min-height: 100%; margin: 0; padding: 0; }
-      .shell { max-width: 62rem; margin: 0 auto; padding-block-end: 7rem; }
+      .shell { max-width: 62rem; margin: 0 auto; padding: var(--wa-space-xl) var(--wa-space-l) 7rem; }
       .switcher {
         position: fixed;
         inset-block-end: var(--wa-space-l);
@@ -172,7 +186,6 @@
     </div>
 
     <script type="module">
-      // Real site chrome, so the table-of-contents weight can be judged in context.
       import { initLayout } from './js/layout.js';
       initLayout({ activePage: 'guide', headerCta: { href: 'build.html', label: 'Build PRISM', icon: 'wand-magic-sparkles' } });
     </script>
