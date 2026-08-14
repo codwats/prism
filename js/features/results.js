@@ -90,10 +90,10 @@ export function updateRemovedFilterBadge() {
   const count = state.currentPrism?.removedCards?.length || 0;
 
   if (count > 0) {
-    removedBtn.textContent = `Removed (${count})`;
+    removedBtn.textContent = `Stale Marks (${count})`;
     removedBtn.style.setProperty('--wa-color-surface', 'var(--wa-color-warning-surface-subtle)');
   } else {
-    removedBtn.textContent = 'Removed';
+    removedBtn.textContent = 'Stale Marks';
     removedBtn.style.removeProperty('--wa-color-surface');
   }
 }

@@ -48,6 +48,11 @@ The number of physical copies of a card needed across a PRISM. It equals the sum
 **Mark**:
 A painted indicator on a sleeve edge. Every mark is either a stripe or a dot.
 
+**Stale mark**:
+A mark on a sleeve for a deck that no longer needs the card. Arises when a card leaves a decklist or its quantity drops. Lowercase in prose.
+_Avoid_: removed card, pending removal
+_In code_: `removedCards`, and the filter value is `removed`.
+
 **Slot**:
 One of the 48 places on a sleeve edge where a deck's mark goes. Lowercase in prose; capitalized only before a number, as in `Side A - Slot 3`.
 _Avoid_: stripe position, position
