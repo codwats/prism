@@ -76,7 +76,6 @@ function getElements() {
 
     // Export (Legend + Export dropdowns in the Results toolbar)
     deckLegend: document.getElementById('deck-legend'),
-    noDecksLegend: document.getElementById('no-decks-legend'),
     btnExportCSV: document.getElementById('btn-export-csv'),
     btnExportJSON: document.getElementById('btn-export-json'),
     btnPrintGuide: document.getElementById('btn-print-guide'),

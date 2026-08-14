@@ -501,12 +501,14 @@ export function renderResults() {
 
   // Handle empty states
   if (displayCards.length === 0) {
-    let emptyMessage = 'No cards match your filter.';
+    let emptyMessage = 'No cards match your filters. Clear All Filters shows every card again.';
 
     if (filter === 'removed') {
-      emptyMessage = 'No cards pending removal. Edit a deck to see cards that need marks cleared.';
+      emptyMessage = 'No stale marks. A stale mark belongs to a deck that no longer needs the card.';
     } else if (processedCards.length === 0) {
-      return; // Don't show message if no cards exist at all
+      // Decks exist but hold no cards: a blank table under live stats reads as
+      // lost data, so state the failure instead of returning silently.
+      emptyMessage = 'No cards in any deck. Edit a deck to paste its decklist.';
     }
 
     state.elements.resultsTbody.innerHTML = `
@@ -619,7 +621,7 @@ function renderResultsHeader() {
         </th>
         <th>Remove Mark From</th>
         <th style="width: 80px; text-align: center;">
-          <button id="clear-all-removed-btn" class="btn-clear-all-removed" title="Clear all removed cards">Clear All</button>
+          <button id="clear-all-removed-btn" class="btn-clear-all-removed" title="Clear all stale marks">Clear All</button>
         </th>
       </tr>
     `;
@@ -676,13 +678,8 @@ function renderDeckFilterMenu() {
 
   const sortedDecks = [...state.currentPrism.decks].sort((a, b) => a.stripePosition - b.stripePosition);
 
-  if (sortedDecks.length === 0) {
-    // Plain wa-button like the rest of this menu — wa-menu-item is avoided
-    // codebase-wide (flaky CDN autoload, see CLAUDE.md).
-    state.elements.deckFilterMenu.innerHTML =
-      '<wa-button disabled appearance="plain" variant="neutral" size="small">No decks added</wa-button>';
-    return;
-  }
+  // No zero-deck branch: results.js:155 hides the cluster holding this menu
+  // when there are no decks, so an empty state here is unreachable (#161).
 
   // Plain wa-buttons (not wa-menu-item) to match the deck-actions kebab menu
   // styling and dodge the flaky wa-menu CDN autoload (see CLAUDE.md).

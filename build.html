@@ -74,6 +74,9 @@
               </wa-dropdown>
             </div>
           </div>
+          <p class="wa-caption-s" style="color: var(--wa-color-neutral-text-subtle); margin: 0;">
+            A PRISM is one named container of decks and their marks. You can keep more than one.
+          </p>
         </section>
 
         <!-- Tab Navigation -->
@@ -95,9 +98,12 @@
                    wired by the inline onboarding script at the end of body) -->
               <wa-card id="onboarding-callout" style="display: none;">
                 <div class="wa-flank:end">
-                  <div class="wa-stack wa-gap-xs">
-                    <strong>Welcome to PRISM.</strong> Add the Commander decks that share cards, and PRISM works out a colored-stripe plan so every sleeve shows which decks it belongs to.
-                    <span>New to sleeve marking? Read the <a href="guide.html">marking guide</a> first.</span>
+                  <div class="wa-flank" style="--flank-size: 22rem;">
+                    <img src="assets/Cards.svg" alt="Three card sleeves, each with colored marks at a different place along its edge" style="inline-size: 22rem; max-inline-size: 100%; block-size: auto; flex: none;" />
+                    <div class="wa-stack wa-gap-xs">
+                      <span><strong>One physical copy can serve every deck that needs it.</strong> A copy that two or more decks share is Pool. It carries one colored mark per deck, so the sleeve edge shows where it belongs.</span>
+                      <span><a href="guide.html#read-a-sleeve">Read a marked sleeve</a></span>
+                    </div>
                   </div>
                   <wa-button id="onboarding-dismiss" appearance="filled-outlined" size="small">
                     <wa-icon slot="start" name="xmark"></wa-icon>
@@ -257,20 +263,19 @@
           <wa-tab-panel name="results">
             <div class="wa-stack wa-gap-l">
               <!-- Marking prerequisites at the point of action -->
-              <wa-card id="marking-prereq-callout" style="display: none;">
-              <div class="wa-flank:end"   >
-                  <div class="wa-stack wa-gap-xs">
-                <strong>Finalize your decks before you start marking.</strong> Mid-session edits lead to confusion, so make changes after your marking pass.
-                <br />
-                <strong>Remember:</strong> Marks go on the inner Perfect Fit sleeve, double-sleeved inside an outer sleeve which protects the mark.<br />
-                    <span>Read the <a href="guide.html">marking guide</a> first.</span>
-                    </div>
-                <wa-button slot="action" id="marking-prereq-dismiss" appearance="filled-outlined" size="small">
+              <div id="marking-prereq-callout" class="wa-stack wa-gap-xs" style="display: none;">
+                <wa-callout variant="warning">
+                  <wa-icon slot="icon" name="triangle-exclamation"></wa-icon>
+                  <strong>Finalize every decklist before you start marking.</strong> An edit made during a session changes the counts under you. Make the change after the pass.
+                </wa-callout>
+                <div class="wa-split wa-align-items-center wa-gap-s">
+                  <p style="margin: 0;">Marks go on the Perfect Fit inner. An outer sleeve goes over it and protects the paint. <a href="guide.html#mark-a-session">Run a marking session</a></p>
+                  <wa-button id="marking-prereq-dismiss" appearance="filled-outlined" size="small">
                     <wa-icon slot="start" name="xmark"></wa-icon>
                     Dismiss
-                </wa-button>
+                  </wa-button>
+                </div>
               </div>
-              </wa-card>
               <!-- Stats Summary -->
               <div id="results-stats" class="wa-grid wa-gap-m" style="--min-column-size: 30ch">
                 <wa-card>
@@ -357,7 +362,7 @@
                 <!--Results-->
                 <wa-radio-group id="results-filter" orientation="horizontal" value="all" size="small">
                   <wa-radio appearance="button" value="all" size="small">All Cards</wa-radio>
-                  <wa-radio appearance="button" value="shared" size="small">POOL</wa-radio>
+                  <wa-radio appearance="button" value="shared" size="small">Pool</wa-radio>
                   <wa-radio appearance="button" value="basics-by-deck" size="small">One Mark at a Time</wa-radio>
                   <wa-radio appearance="button" value="removed" id="removed-filter-btn" size="small">Stale Marks</wa-radio>
                 </wa-radio-group>
@@ -376,9 +381,6 @@
                     <div id="deck-legend" class="wa-stack wa-gap-s">
                       <!-- Deck legend items will be inserted here -->
                     </div>
-                    <div id="no-decks-legend" style="color: var(--wa-color-neutral-text-subtle);">
-                      No decks added yet.
-                    </div>
                   </div>
                 </wa-dropdown>
                 <!-- Export actions -->
@@ -387,6 +389,7 @@
                     <wa-icon slot="start" name="download"></wa-icon>
                     Export
                   </wa-button>
+                  <span class="wa-caption-s" style="display: block; padding: var(--wa-space-s) var(--wa-space-m) 0; color: var(--wa-color-neutral-text-subtle);">The printable guide lists every card with its colors and slots, plus the deck legend.</span>
                   <wa-dropdown-item id="btn-print-guide">
                     <wa-icon slot="icon" name="print"></wa-icon>
                     Printable guide
@@ -434,11 +437,11 @@
               </div>
 
               <div id="no-results" class="wa-stack wa-gap-m wa-align-items-center" style="padding: var(--wa-space-2xl); display: none;">
-                <wa-icon name="inbox" style="font-size: 3rem; color: var(--wa-color-neutral-text-subtle);"></wa-icon>
-                <p style="color: var(--wa-color-neutral-text-subtle);">Add some decks to see your card analysis here.</p>
+                <wa-icon name="layer-group" style="font-size: 3rem; color: var(--wa-color-neutral-text-subtle);"></wa-icon>
+                <p style="color: var(--wa-color-neutral-text-subtle);">No decks yet.</p>
                 <wa-button variant="brand" id="btn-go-to-decks">
                   <wa-icon slot="start" name="plus"></wa-icon>
-                  Add Your First Deck
+                  Add Deck
                 </wa-button>
               </div>
             </div>

@@ -15,7 +15,7 @@ const RULES = [
 	{ cls: 'glyph', re: /;/g, proseOnly: true },
 	{ cls: 'contraction', re: /\b(don|can|won|isn|doesn)['’]t\b|\b(it|that)['’]s\b|\byou['’]re\b/gi },
 	{ cls: '#158 drift', re: /\bPOOL\b|\bCORE\b/g },
-	{ cls: '#158 drift', re: /shared cards|Basics by Deck|perfect-fit/gi },
+	{ cls: '#158 drift', re: /shared cards|Basics by Deck|perfect-fit|inner Perfect Fit sleeve|Perfect Fit inner sleeve/gi },
 	{ cls: '#158 drift', re: /\bposition\b/g },
 	{ cls: '#161 drift', re: /\bRemoved\b/g },
 	{ cls: '#161 drift', re: /removed cards?|pending removal/gi },

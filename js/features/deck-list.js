@@ -733,7 +733,7 @@ function getMoveButtonHtml(deck, isInGroup) {
     const parentName = escapeHtml(group?.name || 'parent deck');
     return `
       <wa-button appearance="plain" variant="neutral" size="small" disabled
-        title="Dot variants don't own a slot. Move &quot;${parentName}&quot; instead."
+        title="Dot variants do not own a slot. Move &quot;${parentName}&quot; instead."
         aria-label="Move ${escapeHtml(deck.name)} (unavailable for dot variants)">
         <wa-icon name="up-down-left-right"></wa-icon>
       </wa-button>
@@ -889,7 +889,7 @@ export function renderDecksList() {
     state.elements.decksList.innerHTML = `
       <div class="wa-stack wa-gap-m wa-align-items-center" style="padding: var(--wa-space-xl); text-align: center;">
         <wa-icon name="layer-group" style="font-size: 2.5rem; color: var(--wa-color-neutral-text-subtle);"></wa-icon>
-        <p style="color: var(--wa-color-neutral-text-subtle);">No decks added yet. Add your first deck below!</p>
+        <p style="color: var(--wa-color-neutral-text-subtle);">No decks yet.</p>
       </div>
     `;
     return;
