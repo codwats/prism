@@ -353,7 +353,7 @@ function injectHeader(ctaConfig) {
 
   header.innerHTML = `
         <div class="wa-cluster wa-gap-m wa-align-items-center">
-          <wa-button data-toggle-nav appearance="plain" variant="neutral" size="small">
+          <wa-button data-toggle-nav appearance="plain" variant="neutral" size="small" aria-label="Menu">
             <wa-icon name="bars"></wa-icon>
           </wa-button>
           <a href="index.html" class="wa-cluster wa-gap-xs wa-align-items-center" style="text-decoration: none; color: inherit;">
@@ -407,10 +407,10 @@ function injectFooter() {
                 <span style="color: var(--wa-color-neutral-text-subtle);">Made for Commander players, by Commander players</span>
               </div>
               <div class="wa-cluster wa-gap-m" style="color: var(--wa-color-neutral-text-subtle);">
-                <a href="https://github.com/codwats/prism" target="_blank" rel="noopener" title="PRISM on GitHub">
+                <a href="https://github.com/codwats/prism" target="_blank" rel="noopener" title="PRISM on GitHub" aria-label="PRISM on GitHub">
                   <wa-icon name="github" family="brands"></wa-icon>
                 </a>
-                <a href="https://discord.gg/Jp84QUPSe" target="_blank" rel="noopener" title="Join the PRISM Discord">
+                <a href="https://discord.gg/Jp84QUPSe" target="_blank" rel="noopener" title="Join the PRISM Discord" aria-label="Join the PRISM Discord">
                   <wa-icon name="discord" family="brands"></wa-icon>
                 </a>
               </div>
