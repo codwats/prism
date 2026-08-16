@@ -1,0 +1,159 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-08-16T00:00:00.000Z",
+  "title": "Design System: PRISM",
+  "extensions": {
+    "colorMeta": {
+      "primary": {
+        "role": "primary",
+        "displayName": "Deep Violet",
+        "canonical": "#4d4169",
+        "tonalRamp": ["#180a2e", "#23173b", "#3a2e55", "#4d4169", "#60547e", "#7d719c", "#9c90bd", "#b5a9d7", "#cec2f2", "#eadeff", "#f6eeff"]
+      },
+      "neutral-text": {
+        "role": "neutral",
+        "displayName": "Cool Violet-Neutral",
+        "canonical": "#34353c",
+        "tonalRamp": ["#121218", "#1e1e25", "#34353c", "#47474f", "#5a5a62", "#76767f", "#9797a0", "#b0b0b9", "#c9c9d3", "#e5e5ef", "#f2f2fc"]
+      },
+      "success-fill": {
+        "role": "success",
+        "displayName": "Success Green",
+        "canonical": "#42882e",
+        "tonalRamp": ["#001900", "#002500", "#003d00", "#025200", "#216802", "#42882e", "#60a74d", "#79c066", "#90d97d", "#aef89b", "#bbffa8"]
+      },
+      "warning-fill": {
+        "role": "warning",
+        "displayName": "Warning Amber",
+        "canonical": "#9c7100",
+        "tonalRamp": ["#1d0e00", "#2b1900", "#472e00", "#5f4000", "#795300", "#9c7100", "#bb8f24", "#d5a843", "#eec05d", "#ffdc7a", "#ffeca9"]
+      },
+      "danger-fill": {
+        "role": "danger",
+        "displayName": "Danger Red",
+        "canonical": "#c64f4e",
+        "tonalRamp": ["#330000", "#480001", "#700006", "#89101c", "#a22e31", "#c64f4e", "#e96f6b", "#ff8883", "#ffb0aa", "#ffd7d3", "#ffeae7"]
+      },
+      "wubrg-w": { "role": "accent", "displayName": "WUBRG Gold (White)", "canonical": "#EEB41B" },
+      "wubrg-u": { "role": "accent", "displayName": "WUBRG Blue", "canonical": "#3995D9" },
+      "wubrg-b": { "role": "accent", "displayName": "WUBRG Purple (Black)", "canonical": "#8662D2" },
+      "wubrg-r": { "role": "accent", "displayName": "WUBRG Red", "canonical": "#E2484B" },
+      "wubrg-g": { "role": "accent", "displayName": "WUBRG Green", "canonical": "#4FAB33" }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Display", "purpose": "Marketing heroes only." },
+      "h1": { "displayName": "Heading 1", "purpose": "Page-level titles." },
+      "h2": { "displayName": "Heading 2", "purpose": "Section titles." },
+      "h3": { "displayName": "Heading 3", "purpose": "Subsection titles." },
+      "h4": { "displayName": "Heading 4 / Card title", "purpose": "Card and panel headers." },
+      "sectionLabel": { "displayName": "Section Label", "purpose": "Grouped-content headers within a panel." },
+      "body": { "displayName": "Body", "purpose": "Default UI text." },
+      "bodySmall": { "displayName": "Body Small / UI", "purpose": "Buttons, inputs, table cells." },
+      "caption": { "displayName": "Caption / Meta", "purpose": "Tags, hints, table headers." },
+      "eyebrow": { "displayName": "Eyebrow", "purpose": "The \"One card. Every deck.\" tagline line and similar kickers." },
+      "longform": { "displayName": "Longform", "purpose": "Guide pages, editorial copy." },
+      "code": { "displayName": "Code / Data", "purpose": "Decklists, exported marking guides, aligned data columns." }
+    },
+    "shadows": [
+      { "name": "shadow-s", "value": "0 1px 2px rgba(24,10,46,.08)", "purpose": "Switch thumb, tiny lifts." },
+      { "name": "shadow-m", "value": "0 2px 6px rgba(24,10,46,.10), 0 1px 2px rgba(24,10,46,.06)", "purpose": "Card hover." },
+      { "name": "shadow-l", "value": "0 6px 16px rgba(24,10,46,.12), 0 2px 4px rgba(24,10,46,.06)", "purpose": "Dropdowns, menus." },
+      { "name": "shadow-xl", "value": "0 12px 32px rgba(24,10,46,.16), 0 4px 8px rgba(24,10,46,.08)", "purpose": "Dialogs, card-preview popovers only." }
+    ],
+    "motion": [
+      { "name": "transition-fast", "value": "0.1s ease", "purpose": "Micro state changes." },
+      { "name": "transition-normal", "value": "0.15s ease", "purpose": "Default: color, border-color, box-shadow." },
+      { "name": "transition-slow", "value": "0.25s ease", "purpose": "Larger surface transitions." }
+    ],
+    "breakpoints": [
+      { "name": "sm", "value": "640px" },
+      { "name": "tablet", "value": "768px" },
+      { "name": "desktop", "value": "1024px" },
+      { "name": "wide", "value": "1280px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Solid violet, the single primary action per view.",
+      "html": "<button class=\"ds-btn-primary\">Build Your PRISM</button>",
+      "css": ".ds-btn-primary { height: 2.5rem; padding: 0 1rem; border: none; border-radius: 4px; font-family: halyard-micro, system-ui, sans-serif; font-size: 14px; font-weight: 500; background: #4d4169; color: #ffffff; cursor: pointer; transition: background-color 0.15s ease, box-shadow 0.15s ease; } .ds-btn-primary:hover { background: #3a2e55; } .ds-btn-primary:focus-visible { outline: none; box-shadow: 0 0 0 3px #eadeff; } .ds-btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }"
+    },
+    {
+      "name": "Outlined Button",
+      "kind": "button",
+      "refersTo": "button-outlined",
+      "description": "Secondary and tertiary actions; white fill with a neutral stroke.",
+      "html": "<button class=\"ds-btn-outlined\">Cancel</button>",
+      "css": ".ds-btn-outlined { height: 2.5rem; padding: 0 1rem; border: 1px solid #c9c9d3; border-radius: 4px; font-family: halyard-micro, system-ui, sans-serif; font-size: 14px; font-weight: 500; background: #ffffff; color: #34353c; cursor: pointer; transition: background-color 0.15s ease; } .ds-btn-outlined:hover { background: #f2f2fc; } .ds-btn-outlined:focus-visible { outline: none; box-shadow: 0 0 0 3px #eadeff; }"
+    },
+    {
+      "name": "Card",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "Flat white surface, 1px border, radius 6px, optional hover lift.",
+      "html": "<div class=\"ds-card\"><div class=\"ds-card-header\">Commander Precons</div><div class=\"ds-card-body\">3 decks &middot; 2 shared cards</div></div>",
+      "css": ".ds-card { background: #ffffff; border: 1px solid #c9c9d3; border-radius: 6px; overflow: hidden; transition: box-shadow 0.15s ease; } .ds-card:hover { box-shadow: 0 2px 6px rgba(24,10,46,.10), 0 1px 2px rgba(24,10,46,.06); } .ds-card-header { padding: 14px 21px; border-bottom: 1px solid #c9c9d3; font-family: adobe-aldine, Georgia, serif; font-size: 22px; font-weight: 600; color: #34353c; } .ds-card-body { padding: 21px; font-family: halyard-micro, system-ui, sans-serif; font-size: 14px; color: #47474f; }"
+    },
+    {
+      "name": "Text Input",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "White fill, 1px neutral stroke, brand focus ring.",
+      "html": "<input class=\"ds-input\" type=\"text\" placeholder=\"Deck name\">",
+      "css": ".ds-input { height: 2.5rem; padding: 0 0.75rem; border: 1px solid #b0b0b9; border-radius: 4px; background: #ffffff; font-family: halyard-micro, system-ui, sans-serif; font-size: 14px; color: #34353c; } .ds-input::placeholder { color: #76767f; } .ds-input:focus { outline: none; border-color: #7d719c; box-shadow: 0 0 0 3px #eadeff; }"
+    },
+    {
+      "name": "Tag",
+      "kind": "chip",
+      "refersTo": "tag",
+      "description": "Pill tag, brand-subtle fill, used for feature labels and states.",
+      "html": "<span class=\"ds-tag\">POOL</span>",
+      "css": ".ds-tag { display: inline-flex; align-items: center; padding: 0.35em 0.7em; border-radius: 9999px; background: #eadeff; color: #4d4169; font-family: halyard-micro, system-ui, sans-serif; font-size: 12px; font-weight: 500; line-height: 1; }"
+    },
+    {
+      "name": "Stripe Indicator",
+      "kind": "custom",
+      "refersTo": "stripe-indicator",
+      "description": "PRISM primitive: 18x18 slot marker. Dashed border means empty or unassigned; solid means occupied.",
+      "html": "<span class=\"ds-stripe ds-stripe--filled\" style=\"--stripe-color:#3995D9\"></span><span class=\"ds-stripe\"></span>",
+      "css": ".ds-stripe { display: inline-block; width: 18px; height: 18px; border-radius: 3px; border: 1px dashed #c9c9d3; background: transparent; margin-right: 4px; } .ds-stripe--filled { border-style: solid; border-color: rgba(0,0,0,0.25); background: var(--stripe-color); }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Marked Sleeve",
+    "overview": "Minimal structure, maximal color. The layout is quiet so the color can talk. PRISM is a tool for marking Perfect Fit inner sleeves with colored stripes, so every color in the UI is functional: it either identifies a deck, signals a state, or it does not belong. The mood is clever, clean, confident, direct: a precise workshop instrument, not a toy and not a luxury object. Density is compact and data-heavy; card lists and result tables are meant to be scanned, not admired. Decoration budget is near zero: no gradients, no textures, no patterns, no photography, no blur, no glass. Flat surfaces, 1px borders, one violet accent. Light and dark are both first-class.",
+    "keyCharacteristics": [
+      "Minimal structure, maximal color",
+      "Compact, data-heavy density",
+      "Near-zero decoration budget: no gradients, textures, blur, or glass",
+      "One violet accent; WUBRG reserved strictly for deck identity",
+      "Light and dark both first-class"
+    ],
+    "rules": [
+      { "name": "The One Accent Rule", "body": "Let the accent be violet and the field be white. One accent, one job.", "section": "colors" },
+      { "name": "The Identity-Only Rule", "body": "WUBRG is identity only: stripes, deck swatches, the logo gem. Never text color, never a state color, never a button fill.", "section": "colors" },
+      { "name": "The Signature Contrast Rule", "body": "Serif heading over sans body is the system's signature contrast: editorial headline, instrument body. Never invert it.", "section": "typography" },
+      { "name": "The Flat-By-Default Rule", "body": "Elevation is carried by borders and surface steps first, shadow second. Surfaces are flat at rest.", "section": "elevation" }
+    ],
+    "dos": [
+      "Use semantic tokens (--wa-color-brand-fill-loud) in app UI; reserve raw ramp steps for marketing and collateral.",
+      "Keep WUBRG strictly for stripes, deck swatches, and the gem.",
+      "Write in second person with the player as the actor: \"Mark your sleeves.\"",
+      "Compose Web Awesome components; extend with css/custom.css only for what WA cannot express.",
+      "Load the /webawesome-design skill before building or restyling any page, panel, or layout. Prefer an existing <wa-*> component over a custom-built equivalent every time one is available.",
+      "Validate every text/background pair against WCAG AA."
+    ],
+    "donts": [
+      "No gradients, textures, patterns, photography, glassmorphism, or blur.",
+      "No new fonts beyond halyard-micro, adobe-aldine, Geist Mono.",
+      "Never a sans heading over serif body.",
+      "No WUBRG color as text, state color, or button fill.",
+      "No emoji anywhere in product UI or marketing copy.",
+      "No exclamation points and no em-dashes in copy.",
+      "No decorative animation, and nothing that moves on scroll."
+    ]
+  }
+}
