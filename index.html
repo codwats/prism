@@ -66,10 +66,13 @@
       <main>
         <!-- Hero Section -->
         <section class="wa-stack wa-gap-m wa-align-items-center" style="padding-block: var(--wa-space-3xl);">
-          <div class="wa-heading-m" style="text-align: center; letter-spacing: 0.05em;">One card. Every deck.&#8482;</div>
+          <!-- Eyebrow role per DESIGN.md §3: halyard-micro 14px/500, 0.05em tracking.
+               This string is named there as the eyebrow, so it takes the body face,
+               not the heading serif it was rendering in. -->
+          <div class="wa-body-s" style="text-align: center; letter-spacing: 0.05em; font-weight: 500;">One card. Every deck.&#8482;</div>
           <img src="./assets/Prism-Logo-Invert.svg" alt="PRISM logo" style="width:275px;" class="theme-logo-dark">
           <img src="./assets/Prism-Logo-Main.svg" alt="PRISM logo" style="width:275px;" class="theme-logo-light">
-          <div class="wa-caption-m" style="text-align: center; letter-spacing: 0.05em; color: var(--wa-color-neutral-text-subtle);">Personal Reference Index &amp; Sleeve Marking</div>
+          <div class="wa-caption-s" style="text-align: center; letter-spacing: 0.05em; color: var(--wa-color-neutral-text-subtle);">Personal Reference Index &amp; Sleeve Marking</div>
           <!-- Display step per DESIGN.md §8: 64px desktop down to 36px mobile. -->
           <h1 class="wa-heading-3xl" style="text-align: center; max-width: 22ch; margin: 0; font-size: clamp(2.25rem, 6vw, 4rem); text-wrap: balance;">
             Stop buying the same card ten times.
@@ -165,7 +168,7 @@
               </tbody>
             </table>
 
-            <p class="wa-caption-m" style="text-align: center; color: var(--wa-color-neutral-text-subtle);">
+            <p class="wa-caption-s" style="text-align: center; color: var(--wa-color-neutral-text-subtle);">
               Based on average EDHREC decklists for top commanders. Your collection will differ.
             </p>
           </div>
@@ -179,7 +182,7 @@
             <wa-card>
               <div slot="header" class="wa-cluster wa-gap-s wa-align-items-center">
                 <wa-icon name="code-branch" style="font-size: 1.25em; color: var(--wa-color-brand-fill);"></wa-icon>
-                <h3 class="wa-body-l">Deck Variants</h3>
+                <h3 class="wa-heading-l">Deck Variants</h3>
               </div>
               <p>Run one commander shell with several themes. Mark the copies every variant uses once, then mark each variant on its own. PRISM tracks the shell and its variants as one group.</p>
             </wa-card>
@@ -188,7 +191,7 @@
             <wa-card>
               <div slot="header" class="wa-cluster wa-gap-s wa-align-items-center">
                 <wa-icon name="arrows-rotate" style="font-size: 1.25em; color: var(--wa-color-brand-fill);"></wa-icon>
-                <h3 class="wa-body-l">Track Changes</h3>
+                <h3 class="wa-heading-l">Track Changes</h3>
               </div>
               <p>Add a new deck later and PRISM shows what changed. You mark only the new cards. You do not re-mark hundreds of sleeves.</p>
             </wa-card>
@@ -196,7 +199,7 @@
             <wa-card>
               <div slot="header" class="wa-cluster wa-gap-s wa-align-items-center">
                 <wa-icon name="download" style="font-size: 1.25em; color: var(--wa-color-brand-fill);"></wa-icon>
-                <h3 class="wa-body-l">Export Anywhere</h3>
+                <h3 class="wa-heading-l">Export Anywhere</h3>
               </div>
               <p>Use the web app here, or download your marking guide as CSV, JSON, or a printable reference.</p>
             </wa-card>
@@ -204,7 +207,7 @@
             <wa-card>
               <div slot="header" class="wa-cluster wa-gap-s wa-align-items-center">
                 <wa-icon name="floppy-disk" style="font-size: 1.25em; color: var(--wa-color-brand-fill);"></wa-icon>
-                <h3 class="wa-body-l">Auto-Save</h3>
+                <h3 class="wa-heading-l">Auto-Save</h3>
               </div>
               <p>PRISM saves your work in your browser. Return at any time to update or export it. Login to sync across multiple devices.</p>
             </wa-card>
@@ -236,28 +239,28 @@
 
           
           <wa-details>
-            <span slot="summary" class="wa-caption-m">What markers should I use?</span>
+            <span slot="summary" class="wa-body-m" style="font-weight: 500;">What markers should I use?</span>
             <p>Use fine-tip acrylic paint pens. They work on most sleeves. PRISM defaults to colors that match standard paint pen sets. The <a href="tools.html">Tools page</a> lists specific products.</p>
           </wa-details>
 
           <wa-details>
-            <span slot="summary" class="wa-caption-m">What about all my extra cards now?</span>
+            <span slot="summary" class="wa-body-m" style="font-weight: 500;">What about all my extra cards now?</span>
             <p>Sell them. After you mark your sleeves, you need only one copy of each card. Your duplicates become trade fodder or cash. Many players cover the cost of their marking supplies this way.</p>
           </wa-details>
 
          
           <wa-details>
-            <span slot="summary" class="wa-caption-m">Where is my data stored?</span>
+            <span slot="summary" class="wa-body-m" style="font-weight: 500;">Where is my data stored?</span>
             <p>PRISM is local-first. Your decks and marks stay in your browser and work without an account. If you create an account, PRISM also syncs your data to our database so you can use it across devices. We use aggregate analytics that do not identify you. The <a href="privacy.html">Privacy Policy</a> has the details. You can export your data as JSON at any time.</p>
           </wa-details>
 
           <wa-details>
-            <span slot="summary" class="wa-caption-m">Can I reorder the slots?</span>
+            <span slot="summary" class="wa-body-m" style="font-weight: 500;">Can I reorder the slots?</span>
             <p>Yes. On each deck card, select Move to open the slot picker. To reorder several decks at once, use the dropdown list on the Export tab. Group your decks by color identity, or put your most-played decks in the slots that are easiest to see.</p>
           </wa-details>
 
           <wa-details>
-            <span slot="summary" class="wa-caption-m">Is this tournament legal?</span>
+            <span slot="summary" class="wa-body-m" style="font-weight: 500;">Is this tournament legal?</span>
             <p>Yes. <a href="https://blogs.magicjudges.org/rules/mtr3-12/" target="_blank" rel="noopener">MTR 3.12</a> defines a card as marked if the marking lets a player identify it without seeing its face. Sleeve edge marks add no noticeable thickness and do not change the card's profile in the deck. If you must look from a specific angle to see the mark, the card is not marked under the rule.</p>
           </wa-details>
         </section>
