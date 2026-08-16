@@ -97,7 +97,7 @@
               <!-- First-run orientation (dismissal persisted in localStorage,
                    wired by the inline onboarding script at the end of body) -->
               <wa-card id="onboarding-callout" style="display: none;">
-                <div class="wa-flank:end">
+                <div class="wa-flank:end" style="align-items: flex-start;">
                   <div class="wa-flank" style="--flank-size: 22rem;">
                     <img src="assets/Cards.svg" alt="Three card sleeves, each with colored marks at a different place along its edge" style="inline-size: 22rem; max-inline-size: 100%; block-size: auto; flex: none;" />
                     <div class="wa-stack wa-gap-xs">
@@ -183,7 +183,7 @@
 
                   <div class="wa-flank wa-align-items-start">
                     <div class="wa-stack wa-gap-xs" style="--flank-size:175px;">
-                      <label class="wa-caption-m">Current Marker</label>
+                      <label class="wa-caption-m" for="deck-color">Current Marker</label>
                         <input type="color" id="deck-color" value="#EEB41B" title="Pick a custom color" style="width: 40px; height: 32px; border: 2px dashed var(--wa-color-neutral-stroke); border-radius: var(--wa-border-radius-m); cursor: pointer;" />
                         <div id="color-warning" class="wa-caption-s" style="color: var(--wa-color-warning-text); display: none;">
                           <wa-icon name="triangle-exclamation" style="font-size: 0.9em;"></wa-icon>
@@ -191,9 +191,9 @@
                         </div>
                     </div>
                     <div class="wa-stack wa-gap-xs">
-                      <label class="wa-caption-m">Select a Color</label>
+                      <label class="wa-caption-m" id="color-swatches-label">Select a Color</label>
                       <div class="wa-cluster wa-gap-s wa-align-items-center">
-                       <div id="color-swatches" class="wa-cluster wa-gap-xs">
+                       <div id="color-swatches" class="wa-cluster wa-gap-xs" role="group" aria-labelledby="color-swatches-label">
                          <!-- Color swatches will be inserted here -->
                         </div>
                         <wa-divider vertical style="height: 12px;"></wa-divider>
@@ -524,7 +524,7 @@
         </wa-radio-group>
 
         <div class="wa-stack wa-gap-xs">
-          <label class="wa-caption-m">Marker Color</label>
+          <label class="wa-caption-m" for="edit-deck-color">Marker Color</label>
           <input type="color" id="edit-deck-color" style="width: 60px; height: 40px; border: none; border-radius: var(--wa-border-radius-m); cursor: pointer;" />
         </div>
 
@@ -613,7 +613,7 @@
         <input type="hidden" id="edit-group-id" />
         <wa-input id="edit-group-name" label="Group Name" required></wa-input>
         <div class="wa-stack wa-gap-xs">
-          <label class="wa-caption-m">Shared Stripe Color</label>
+          <label class="wa-caption-m" for="edit-group-color">Shared Stripe Color</label>
           <wa-color-picker id="edit-group-color" format="hex" no-format-toggle></wa-color-picker>
         </div>
       </div>
