@@ -54,6 +54,18 @@
       #step-bar .step-chip wa-tag {
         cursor: pointer;
       }
+      /* Persistent hint that the bar scrolls sideways past the last visible
+         chip — sticky so it rides the trailing edge as the user scrolls. */
+      #step-bar-hint {
+        position: sticky;
+        right: 0;
+        flex: none;
+        align-self: center;
+        padding-inline-start: var(--wa-space-xs);
+        color: var(--wa-color-neutral-text-subtle);
+        background: var(--wa-color-surface-default);
+        pointer-events: none;
+      }
       .guide-step {
         padding-block: var(--wa-space-xl);
         scroll-margin-top: 9rem;
@@ -70,6 +82,7 @@
         <a href="#count-copies" data-step="count-copies" class="step-chip"><wa-tag variant="neutral" appearance="outlined" size="small" pill>Count the copies you need</wa-tag></a>
         <a href="#mark-variants" data-step="mark-variants" class="step-chip"><wa-tag variant="neutral" appearance="outlined" size="small" pill>Mark a split group</wa-tag></a>
         <a href="#fix-a-mark" data-step="fix-a-mark" class="step-chip"><wa-tag variant="neutral" appearance="outlined" size="small" pill>Fix a mark you no longer want</wa-tag></a>
+        <wa-icon id="step-bar-hint" name="chevron-right" aria-hidden="true"></wa-icon>
       </div>
 
       <main style="max-width: 800px; margin: 0 auto;">
