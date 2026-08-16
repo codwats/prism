@@ -538,7 +538,7 @@ function renderArtist(root, id) {
           <h1 class="wa-heading-xl">${escapeHtml(artist.name)}</h1>
           ${artist.isPartner ? '<wa-tag variant="brand"><wa-icon slot="start" name="handshake-angle"></wa-icon>PRISM Partner</wa-tag>' : ''}
         </div>
-        <p style="color: var(--wa-color-neutral-text-normal); margin: var(--wa-space-xs) 0 0; max-width: 64ch;">${escapeHtml(artist.bio)}</p>
+        <p style="color: var(--wa-color-neutral-text); margin: var(--wa-space-xs) 0 0; max-width: 64ch;">${escapeHtml(artist.bio)}</p>
         ${artist.links.length ? `<div class="wa-cluster wa-gap-m" style="margin-top: var(--wa-space-s); font-size: var(--wa-font-size-s);">${artist.links.map(l => `<a href="${escapeHtml(safeUrl(l.href))}" target="_blank" rel="noopener"><wa-icon name="${escapeHtml(l.icon || 'globe')}"${l.family ? ` family="${escapeHtml(l.family)}"` : ''}></wa-icon> ${escapeHtml(l.label)}</a>`).join('')}</div>` : ''}
         ${artist.isPartner ? `
         <div class="gallery-stats">

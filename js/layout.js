@@ -167,6 +167,32 @@ function injectHeadResources() {
     --wa-color-danger-80: #ffb0aa;
     --wa-color-danger-90: #ffd7d3;
     --wa-color-danger-95: #ffeae7;
+
+    /* Semantic tokens (DESIGN.md §2.5). WA 3.11 renamed/dropped its own
+       versions of these (neutral-text -> text-normal, etc.), so PRISM now
+       defines them itself rather than relying on the CDN theme to. */
+    --wa-color-surface-1: var(--wa-color-surface-default);
+    --wa-color-surface-2: var(--wa-color-neutral-95);
+    --wa-color-surface-3: var(--wa-color-neutral-90);
+    --wa-color-neutral-stroke: var(--wa-color-neutral-80);
+    --wa-color-neutral-text: var(--wa-color-neutral-20);
+    --wa-color-neutral-text-subtle: var(--wa-color-neutral-40);
+    --wa-color-brand-text: var(--wa-color-brand-30);
+    --wa-color-brand-fill: var(--wa-color-brand-40);
+    --wa-color-brand-fill-subtle: var(--wa-color-brand-90);
+    --wa-color-brand-stroke: var(--wa-color-brand-50);
+    --wa-color-brand-stroke-subtle: var(--wa-color-brand-70);
+    --wa-color-success-text: var(--wa-color-success-40);
+    --wa-color-success-fill: var(--wa-color-success-50);
+    --wa-color-warning-text: var(--wa-color-warning-40);
+    --wa-color-warning-surface: var(--wa-color-warning-90);
+    --wa-color-warning-surface-subtle: var(--wa-color-warning-95);
+    --wa-color-warning-stroke-subtle: var(--wa-color-warning-70);
+    --wa-color-danger-text: var(--wa-color-danger-40);
+    --wa-color-danger-surface: var(--wa-color-danger-90);
+    --wa-color-danger-surface-subtle: var(--wa-color-danger-95);
+    --wa-color-danger-border: var(--wa-color-danger-70);
+
     --wa-font-family-body: "halyard-micro",sans-serif;
     --wa-font-family-heading: "adobe-aldine", serif;
     --wa-font-family-code: "Geist Mono", monospace;
@@ -178,6 +204,28 @@ function injectHeadResources() {
     --wa-border-radius-scale: 0.5;
     --wa-border-width-scale: 1;
     --wa-space-scale: 1.125;
+      }
+
+      /* Dark-mode remap for the ramp-derived semantic tokens above (DESIGN.md
+         §2.5: "surfaces to neutral-10/20/30, neutral-text to neutral-95,
+         brand-text to brand-80, state text to the 80 step, state surfaces to
+         the 20 step"). Tokens built from WA's own native tokens (surface-1,
+         via surface-default) don't need a remap here — WA already themes those. */
+      .wa-dark {
+    --wa-color-surface-2: var(--wa-color-neutral-20);
+    --wa-color-surface-3: var(--wa-color-neutral-30);
+    --wa-color-neutral-stroke: var(--wa-color-neutral-30);
+    --wa-color-neutral-text: var(--wa-color-neutral-95);
+    --wa-color-neutral-text-subtle: var(--wa-color-neutral-80);
+    --wa-color-brand-text: var(--wa-color-brand-80);
+    --wa-color-brand-stroke: var(--wa-color-brand-70);
+    --wa-color-success-text: var(--wa-color-success-80);
+    --wa-color-warning-text: var(--wa-color-warning-80);
+    --wa-color-warning-surface: var(--wa-color-warning-20);
+    --wa-color-warning-surface-subtle: var(--wa-color-warning-10);
+    --wa-color-danger-text: var(--wa-color-danger-80);
+    --wa-color-danger-surface: var(--wa-color-danger-20);
+    --wa-color-danger-surface-subtle: var(--wa-color-danger-10);
       }
     `;
     head.appendChild(style);
