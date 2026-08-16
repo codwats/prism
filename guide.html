@@ -15,6 +15,29 @@
     <meta name="description" content="How PRISM sleeve marking works: read a marked sleeve, tell Pool from Core, choose slots, run a marking session, count copies, mark split groups, and fix a mark." />
     <style>.wa-cloak { visibility: hidden; }</style>
     <style>wa-page:not(:defined) { visibility: hidden; }</style>
+    <!-- CDN resilience. Both rules above hide the page until Web Awesome loads, and
+         nothing removes them if it never does, so a blocked or stalled kit leaves a
+         blank white document. Reveal at 5s regardless: unstyled but readable beats
+         invisible. WA removes the class itself on a normal load, well before this. -->
+    <style>
+      @keyframes prism-uncloak { to { visibility: visible; } }
+      .wa-cloak,
+      wa-page:not(:defined) { animation: prism-uncloak 0s linear 5s forwards; }
+    </style>
+    <script>
+      // <wa-button href> only navigates once WA upgrades the element, so every CTA on
+      // this page is dead until then. Delegated from document so it also covers the
+      // header button layout.js injects later. No-op once WA is defined.
+      document.addEventListener('click', function (event) {
+        if (window.customElements && customElements.get('wa-button')) return;
+        var btn = event.target.closest && event.target.closest('wa-button[href]');
+        if (!btn || btn.hasAttribute('disabled')) return;
+        var href = btn.getAttribute('href');
+        if (!href) return;
+        if (btn.getAttribute('target') === '_blank') window.open(href, '_blank', 'noopener');
+        else window.location.href = href;
+      });
+    </script>
     <!-- iOS Home Screen icon (layout.js injects these as a fallback) -->
     <link rel="apple-touch-icon" href="./assets/apple-touch-icon.png" />
     <link rel="manifest" href="./assets/site.webmanifest" />
