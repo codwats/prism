@@ -40,7 +40,8 @@ const NAV_LINKS = [
  * Initialize shared layout components.
  * @param {Object} options
  * @param {string} options.activePage - Which nav link to highlight ('home'|'guide'|'tools'|'build'|'profile'|'privacy'|'terms')
- * @param {Object} [options.headerCta] - Header CTA button config
+ * @param {Object|null} [options.headerCta] - Header CTA button config. Pass
+ *   null to render no CTA; omit for the default "Build PRISM" link.
  * @param {string} [options.headerCta.id] - Button id (e.g. 'btn-new-prism')
  * @param {string} [options.headerCta.label] - Button label text
  * @param {string} [options.headerCta.href] - Link destination (omit for button-only)
@@ -204,6 +205,14 @@ function injectHeadResources() {
     --wa-color-neutral-stroke: var(--wa-color-neutral-80);
     --wa-color-neutral-text: var(--wa-color-neutral-20);
     --wa-color-neutral-text-subtle: var(--wa-color-neutral-40);
+    /* WA's own token, used by every wa-caption-* utility and several components.
+       PRISM never defined it, so caption color came from the CDN theme alone and
+       a WA update could recolor it sitewide. Aliased to the PRISM subtle role so
+       both stay in step. This also fixes dark mode: WA drops text-quiet to
+       neutral-60, which DESIGN.md §2.6 forbids on dark (never darker than step
+       80). The .wa-dark remap below resolves through this alias automatically,
+       and PRISM's block is unlayered so it outranks @layer wa-theme either way. */
+    --wa-color-text-quiet: var(--wa-color-neutral-text-subtle);
     --wa-color-brand-text: var(--wa-color-brand-30);
     --wa-color-brand-fill: var(--wa-color-brand-40);
     --wa-color-brand-fill-subtle: var(--wa-color-brand-90);
@@ -411,6 +420,12 @@ function injectHeader(ctaConfig) {
   header.slot = 'header';
   header.className = 'wa-split';
 
+  // Pass `headerCta: null` to ship a header with no CTA at all. build.html does
+  // this: its only header action used to be "New PRISM", and a mis-click in the
+  // primary-action slot swapped the whole PRISM out. That action now lives in
+  // the ... overflow menu next to the PRISM switcher.
+  const suppressCta = ctaConfig === null;
+
   // Default CTA: link to build.html with brand variant
   const cta = ctaConfig || { href: 'build.html', label: 'Build PRISM', icon: 'wand-magic-sparkles' };
   const ctaId = cta.id ? ` id="${cta.id}"` : '';
@@ -438,10 +453,10 @@ function injectHeader(ctaConfig) {
             <wa-icon name="gear"></wa-icon>
           </wa-button>
           <wa-tooltip for="btn-settings">Settings</wa-tooltip>
-          <wa-button${ctaId}${ctaHref} variant="${ctaVariant}"${ctaAppearanceAttr} size="small">
+          ${suppressCta ? '' : `<wa-button${ctaId}${ctaHref} variant="${ctaVariant}"${ctaAppearanceAttr} size="small">
             <wa-icon slot="start" name="${ctaIcon}"></wa-icon>
             ${ctaLabel}
-          </wa-button>
+          </wa-button>`}
         </div>`;
 
   // Insert after nav (if exists) or as first child
