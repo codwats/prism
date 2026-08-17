@@ -322,8 +322,22 @@ wa-page[view='desktop'] [data-toggle-nav] {
 
 .impact-table {
   width: 100%;
+  /* Capped well inside the 720px section container. At full width the row
+     stretched to 720px and left ~285px of dead space between "5 decks" and
+     "~$919", so the two halves of a single fact read as separate items. The
+     same table is legible on a 390px phone precisely because that gap is small;
+     this brings the desktop gap back to roughly the same absolute distance. */
+  max-width: 30rem;
+  margin-inline: auto;
   border-collapse: collapse;
 }
+
+/* Deliberately no `font-variant-numeric: tabular-nums` here. It is the obvious
+   move for a column of figures, but halyard-micro's tnum feature also widens
+   the space glyph: it stretched the pure-text header "Duplicates freed" by
+   4.4px and left visible gaps in "5 decks" and "166 cards". The money column is
+   right-aligned with values of differing length, so lining figures buy almost
+   nothing here and cost legibility in every other cell. */
 
 .impact-table caption {
   /* The visible lead paragraph already frames the table, so this is for
@@ -342,7 +356,12 @@ wa-page[view='desktop'] [data-toggle-nav] {
 .impact-table td {
   padding: var(--wa-space-m) var(--wa-space-s);
   text-align: left;
-  border-bottom: 1px solid var(--wa-color-surface-border);
+  /* `surface-border` is picked for a white page. This table sits on the sunken
+     `surface-2` ground, where that token resolves to the same value as the
+     ground itself in dark mode (both rgb(52,53,60)) — a 1.00 contrast ratio, so
+     the rules were literally invisible, and only 1.12 in light. `neutral-stroke`
+     is the token that stays one step off the surface in both themes. */
+  border-bottom: 1px solid var(--wa-color-neutral-stroke);
 }
 
 .impact-table thead th {
