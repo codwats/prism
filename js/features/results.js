@@ -384,7 +384,7 @@ export function renderResults() {
   // NOT live inside the stripes <td>: on a phone the table scrolls horizontally
   // and that column sits past the right edge, so text placed there would be
   // unreadable without scrolling and would inflate the row height besides.
-  const stripesCell = (stripes) => {
+  const stripesCell = (stripes, band = '') => {
     const marks = markDescriptors(stripes);
     const strip = `<div class="stripe-indicators">${stripeHtml(stripes)}</div>`;
     if (marks.length === 0) return { cell: `<td>${strip}</td>`, detailRow: '' };
@@ -406,7 +406,7 @@ export function renderResults() {
       cell: `<td>
         <button type="button" class="stripe-cell-toggle" aria-expanded="false" aria-controls="${id}" aria-label="${escapeHtml(summary)}">${strip}</button>
       </td>`,
-      detailRow: `<tr class="stripe-detail-row" id="${id}" hidden>
+      detailRow: `<tr class="stripe-detail-row${band}" id="${id}" hidden>
         <td colspan="${detailColspan}"><ul class="stripe-detail">${items}</ul></td>
       </tr>`,
     };
@@ -417,7 +417,13 @@ export function renderResults() {
   // common singleton path gains no text at all.
   const copiesCell = (q) => `<td class="copies-cell">${q > 1 ? q : ''}</td>`;
 
-  state.elements.resultsTbody.innerHTML = displayCards.map(card => {
+  // Zebra banding is applied per card, not per <tr>: a multi-batch card's
+  // sub-rows and a row's stripe-detail row all share their card's band, so an
+  // expanded card still reads as one block. It cannot be done with
+  // :nth-child() — the detail rows interleave, and cards with no marks emit
+  // none, so row parity is not even uniform.
+  state.elements.resultsTbody.innerHTML = displayCards.map((card, cardIndex) => {
+    const band = cardIndex % 2 === 1 ? ' alt-row' : '';
     // Handle removed cards differently
     if (card.isRemoved) {
       const removedKey = `${card.name}|${card.removedDeckId}`;
@@ -430,7 +436,7 @@ export function renderResults() {
         ? ` — clear ${clearCopies} ${clearCopies === 1 ? 'copy' : 'copies'}`
         : '';
       return `
-        <tr class="removed-row" data-removed-key="${escapeHtml(removedKey)}">
+        <tr class="removed-row${band}" data-removed-key="${escapeHtml(removedKey)}">
           <td>${escapeHtml(card.name)}</td>
           <td>
             <div class="wa-cluster wa-gap-xs wa-align-items-center">
@@ -470,9 +476,9 @@ export function renderResults() {
       // `<name>|<deckName>` key.
       const cardKey = card.isPassRow ? `${card.displayName}|${card.deckName}` : card.name;
       const isMarked = markedSetForRows.has(cardKey);
-      const stripes = stripesCell(card.stripes);
+      const stripes = stripesCell(card.stripes, band);
       return `
-        <tr class="${isMarked ? 'marked-row' : ''}" data-card-key="${escapeHtml(cardKey)}">
+        <tr class="${isMarked ? 'marked-row' : ''}${band}" data-card-key="${escapeHtml(cardKey)}">
           <td style="text-align: center;">
             <label class="mark-checkbox-hit"><input type="checkbox" class="mark-checkbox" aria-label="Mark ${escapeHtml(card.name)} done" ${isMarked ? "checked" : ""}></label>
           </td>
@@ -490,7 +496,7 @@ export function renderResults() {
     const allDone = doneCount === batches.length;
     const isExpanded = expandedCards.has(card.name);
     const parentRow = `
-      <tr class="${allDone ? 'marked-row' : ''} batch-parent">
+      <tr class="${allDone ? 'marked-row' : ''} batch-parent${band}">
         <td style="text-align: center;">
           <input type="checkbox" class="batch-parent-check" disabled
             aria-label="${escapeHtml(card.name)} roll-up: ${doneCount} of ${batches.length} batches done"
@@ -511,9 +517,9 @@ export function renderResults() {
       const marked = markedSetForRows.has(b.key);
       // Two batches can share a copy count, so the class disambiguates the label.
       const batchClass = b.isDedicated ? 'dedicated' : (b.isPool ? 'pool' : 'core');
-      const stripes = stripesCell(b.stripes);
+      const stripes = stripesCell(b.stripes, band);
       return `
-        <tr class="batch-subrow ${marked ? 'marked-row' : ''}" data-card-key="${escapeHtml(b.key)}">
+        <tr class="batch-subrow ${marked ? 'marked-row' : ''}${band}" data-card-key="${escapeHtml(b.key)}">
           <td style="text-align: center;">
             <label class="mark-checkbox-hit"><input type="checkbox" class="mark-checkbox" aria-label="Mark ${b.copyCount} ${batchClass} ${escapeHtml(card.name)} copies done" ${marked ? "checked" : ""}></label>
           </td>

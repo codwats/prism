@@ -115,12 +115,27 @@ wa-page[view='desktop'] [data-toggle-nav] {
   background: var(--wa-color-surface-2);
 }
 
-.results-table tbody tr:nth-child(even) {
-  background: rgba(255, 255, 255, 0.015);
+/* Zebra banding. The old rule was `tr:nth-child(even)` filled with
+   rgba(255,255,255,0.015) — a 1.5%-opacity white wash over a white surface,
+   which rendered nothing in light mode and almost nothing in dark. It is now
+   driven by an `alt-row` class set per card in results.js, because the
+   stripe-detail rows interleave and only some cards emit one, so :nth-child()
+   parity no longer tracks cards at all.
+
+   Kept well below the hover fill so hover still reads as the stronger state.
+   The band colour is a variable rather than two competing rules, so the class
+   selector stays at one level: row hover and the stale-mark tint then win on
+   specificity and source order without needing overrides. */
+:root {
+  --prism-zebra: color-mix(in srgb, var(--wa-color-neutral-90) 45%, transparent);
 }
 
-.results-table tbody tr:nth-child(even):hover {
-  background: var(--wa-color-surface-2);
+.wa-dark {
+  --prism-zebra: color-mix(in srgb, var(--wa-color-neutral-30) 30%, transparent);
+}
+
+.results-table .alt-row {
+  background: var(--prism-zebra);
 }
 
 /* No Pool row tint. Pool is already legible three ways: the Stripes column
