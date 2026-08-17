@@ -65,18 +65,16 @@
     <wa-page mobile-breakpoint="768">
       <main style="max-width: 900px; margin: 0 auto;">
         <!-- Page Header -->
-        <div class="wa-flank" style="--flank-size: 8rem;">
-  <div class="wa-frame wa-border-radius-m">
-    <img src="assets/spiritguide.avif" alt="A white 3D-printed Spirit Guide, embossed with the PRISM wordmark, held in front of a fanned stack of Magic: The Gathering cards" />
-  </div>
-  <div class="wa-flank:end" style="--content-percentage: 45%">
-    <div class="wa-stack wa-gap-xs">
-      <h1 class="wa-heading-2xl">Tools and Supplies</h1>
-
-    </div>
-
-  </div>
-</div>
+        <!-- wa-flank sizes its first child from --flank-size and gives the rest to
+             the content, so the heading needs no wrapper. The previous markup put
+             the ":end" modifier and --content-percentage on the child instead of the
+             container, where neither applies, and wrapped the h1 in an empty stack. -->
+        <div class="wa-flank wa-gap-l wa-align-items-center" style="--flank-size: 8rem;">
+          <div class="wa-frame wa-border-radius-m">
+            <img src="assets/spiritguide.avif" alt="A white 3D-printed Spirit Guide, embossed with the PRISM wordmark, held in front of a fanned stack of Magic: The Gathering cards" />
+          </div>
+          <h1 class="wa-heading-2xl">Tools and Supplies</h1>
+        </div>
 
 
 
@@ -96,7 +94,7 @@
           <div class="wa-grid wa-gap-m" style="--min-column-size: 280px;">
             <wa-card>
               <div class="wa-stack wa-gap-s">
-                <wa-tag variant="success">Recommended</wa-tag>
+                <wa-tag variant="success" style="align-self: start;">Recommended</wa-tag>
                 <h3 class="wa-heading-m">
                   <a href="https://amzn.to/4t5Ue1i" target="_blank" rel="noopener" style="color: inherit; text-decoration: none;">
                     Uni Posca Paint Pens
@@ -114,7 +112,7 @@
 
             <wa-card>
               <div class="wa-stack wa-gap-s">
-                <wa-tag variant="neutral">Alternative</wa-tag>
+                <wa-tag variant="neutral" style="align-self: start;">Alternative</wa-tag>
                 <h3 class="wa-heading-m">
                   <a href="https://amzn.to/3Q1aO3G" target="_blank" rel="noopener" style="color: inherit; text-decoration: none;">
                     Oil-Based Paint Pens
@@ -132,7 +130,7 @@
 
             <wa-card>
               <div class="wa-stack wa-gap-s">
-                <wa-tag variant="warning">Budget</wa-tag>
+                <wa-tag variant="warning" style="align-self: start;">Budget</wa-tag>
                 <h3 class="wa-heading-m">
                   <a href="https://amzn.to/41r7Ckq" target="_blank" rel="noopener" style="color: inherit; text-decoration: none;">
                     Acrylic Paint Pen Sets
@@ -150,7 +148,7 @@
 
             <wa-card>
               <div class="wa-stack wa-gap-s">
-                <wa-tag variant="brand">Precision</wa-tag>
+                <wa-tag variant="brand" style="align-self: start;">Precision</wa-tag>
                 <h3 class="wa-heading-m">
                   <a href="https://amzn.to/47SXzYU" target="_blank" rel="noopener" style="color: inherit; text-decoration: none;">
                     Pentel Matte Hop Gel Pens
@@ -172,8 +170,10 @@
             <strong>Whichever pen you pick, let the marks dry for 2 to 3 minutes before you sleeve the card.</strong> Touch-dry is not sleeve-ready. Wet paint transfers to the outer sleeve and to the card face. See <a href="guide.html#mark-a-session">Run a marking session</a>.
           </wa-callout>
 
-          <wa-callout variant="warning">
-            <wa-icon slot="icon" name="triangle-exclamation"></wa-icon>
+          <!-- Neutral, not warning: this is a preference, and stacking two amber
+               callouts flattened the dry-time warning above into the same tone. -->
+          <wa-callout variant="neutral">
+            <wa-icon slot="icon" name="circle-info"></wa-icon>
             <strong>Avoid brush-tip pens that are too flexible</strong> if possible. They make it hard to keep your lines consistent, even with the Spirit Guide.
           </wa-callout>
         </section>

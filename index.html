@@ -175,10 +175,13 @@
         </section>
 
         <!-- Features -->
-        <section id="features" class="wa-stack wa-gap-xl">
+        <!-- Same 900px measure as How It Works. At 280px minimum the four cards
+             laid out 3 + 1, orphaning the last one beside a half-empty row; 380px
+             forces a 2x2 block and gives each card a ~49ch reading measure. -->
+        <section id="features" class="wa-stack wa-gap-xl" style="max-width: 900px; margin: 0 auto;">
           <h2 class="wa-heading-2xl" style="text-align: center;">Features</h2>
 
-          <div class="wa-grid wa-gap-l" style="--min-column-size: 280px;">
+          <div class="wa-grid wa-gap-l" style="--min-column-size: 380px;">
             <wa-card>
               <div slot="header" class="wa-cluster wa-gap-s wa-align-items-center">
                 <wa-icon name="code-branch" style="font-size: 1.25em; color: var(--wa-color-brand-fill);"></wa-icon>
