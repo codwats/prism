@@ -52,6 +52,7 @@ export function initLayout(options = {}) {
   const { activePage = '' } = options;
 
   initGlobalErrorReporting();
+  initButtonHrefFallback();
   injectHeadResources();
   injectNav(activePage);
   injectHeader(options.headerCta);
@@ -59,6 +60,32 @@ export function initLayout(options = {}) {
   injectAuthDialog();
   injectSettingsDrawer();
   initAuthModule();
+}
+
+/**
+ * `<wa-button href>` only navigates once Web Awesome upgrades the element, so
+ * until the kit arrives every link-button on the page is dead. On a slow or
+ * blocked CDN that includes each page's primary CTA.
+ *
+ * Delegated from `document` rather than bound per element, so it also covers
+ * the header CTA and nav buttons injected below, and anything a page adds
+ * later. It bails as soon as `wa-button` is defined: `customElements.define`
+ * upgrades every matching element already in the document synchronously, so a
+ * resolved constructor means WA owns the click and nothing should navigate twice.
+ */
+function initButtonHrefFallback() {
+  if (document.__prismHrefFallback) return;
+  document.__prismHrefFallback = true;
+
+  document.addEventListener('click', (event) => {
+    if (window.customElements && customElements.get('wa-button')) return;
+    const btn = event.target.closest?.('wa-button[href]');
+    if (!btn || btn.hasAttribute('disabled')) return;
+    const href = btn.getAttribute('href');
+    if (!href) return;
+    if (btn.getAttribute('target') === '_blank') window.open(href, '_blank', 'noopener');
+    else window.location.href = href;
+  });
 }
 
 // ============================================================
@@ -364,14 +391,9 @@ function injectNav(activePage) {
   // Insert nav as first child of wa-page (before header and main)
   waPage.insertBefore(nav, waPage.firstChild);
 
-  // Fallback: <wa-button href> only navigates after WA upgrades the element.
-  // Add a click listener so navigation works even before WA loads.
-  const profileNavBtn = nav.querySelector('wa-button[href="profile.html"]');
-  if (profileNavBtn) {
-    profileNavBtn.addEventListener('click', () => {
-      window.location.href = 'profile.html';
-    });
-  }
+  // The profile button used to carry its own pre-upgrade click fallback here.
+  // initButtonHrefFallback() now covers every <wa-button href> on the page,
+  // including this one and the header CTA, so the per-element listener is gone.
 }
 
 // ============================================================
