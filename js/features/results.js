@@ -7,7 +7,7 @@ import { escapeHtml, stripeNumberLabel, countVisibleMarks, STRIPE_SPARSE_MAX, is
 import { getStripeNumbersMode } from '../modules/storage.js';
 import { processCards, formatSlotLabel } from '../modules/processor.js';
 import { prefetchCards } from '../modules/scryfall.js';
-import { handleMarkToggle, handleClearRemoved, handleClearAllRemoved } from './deck-list.js';
+import { handleMarkToggle, handleClearRemoved, handleClearAllRemovedClick } from './deck-list.js';
 import { renderOverlapMatrix } from './analysis.js';
 
 // ============================================================================
@@ -491,10 +491,11 @@ export function renderResults() {
     });
   });
 
-  // Add event listener for "Clear All" removed button
+  // Add event listener for "Clear All" removed button (opens a confirm dialog —
+  // the rows it drops are paint still on sleeves and cannot be rebuilt)
   const clearAllBtn = document.getElementById('clear-all-removed-btn');
   if (clearAllBtn) {
-    clearAllBtn.addEventListener('click', handleClearAllRemoved);
+    clearAllBtn.addEventListener('click', handleClearAllRemovedClick);
   }
 
   const colspan = 4;
@@ -621,7 +622,7 @@ function renderResultsHeader() {
         </th>
         <th>Remove Mark From</th>
         <th style="width: 80px; text-align: center;">
-          <button id="clear-all-removed-btn" class="btn-clear-all-removed" title="Clear all stale marks">Clear All</button>
+          <wa-button id="clear-all-removed-btn" appearance="outlined" variant="danger" size="small">Clear All</wa-button>
         </th>
       </tr>
     `;

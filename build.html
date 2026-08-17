@@ -49,6 +49,10 @@
   <body>
     <wa-page mobile-breakpoint="768">
       <main class="wa-stack wa-gap-xl">
+        <!-- The page's real title. The visible PRISM name is an editable input,
+             so without this the document outline started at an <h3> stat label. -->
+        <h1 class="visually-hidden">Build Your PRISM</h1>
+
         <!-- PRISM Name -->
         <section class="wa-stack wa-gap-s">
           <div class="wa-split wa-align-items-center">
@@ -74,6 +78,15 @@
                 <wa-button slot="trigger" appearance="plain" variant="neutral" size="small" aria-label="More actions">
                   <wa-icon name="ellipsis"></wa-icon>
                 </wa-button>
+                <!-- Switch-PRISM entries are injected before this divider by
+                     renderPrismSwitcher() in features/init.js. Without them a
+                     logged-out user has no route back to an earlier PRISM. -->
+                <wa-divider id="prism-switch-divider"></wa-divider>
+                <wa-dropdown-item id="btn-new-prism">
+                  <wa-icon slot="icon" name="plus"></wa-icon>
+                  New PRISM
+                </wa-dropdown-item>
+                <wa-divider></wa-divider>
                 <wa-dropdown-item id="btn-export-json">
                   <wa-icon slot="icon" name="file-code"></wa-icon>
                   Download backup (.json)
@@ -132,7 +145,8 @@
               </div>
 
               <!-- Existing Decks List -->
-              <section id="decks-list" class="wa-stack wa-gap-m">
+              <h2 class="visually-hidden">Your Decks</h2>
+              <section id="decks-list" class="wa-stack wa-gap-m" aria-label="Your decks">
                 <!-- Loading skeletons — replaced by the first renderDecksList() -->
                 <div class="skeleton-deck-card">
                   <wa-skeleton effect="pulse" class="skeleton-line-title"></wa-skeleton>
@@ -150,7 +164,7 @@
               <wa-card id="add-deck-card">
                 <div slot="header" class="wa-cluster wa-gap-s wa-align-items-center">
                   <wa-icon name="plus-circle" style="color: var(--wa-color-brand-fill);"></wa-icon>
-                  <span class="wa-heading-m">Add a Deck</span>
+                  <h2 class="wa-heading-m" style="margin: 0;">Add a Deck</h2>
                 </div>
 
                 <form id="deck-form" class="wa-stack wa-gap-l">
@@ -214,10 +228,12 @@
                   </div>
 
 
-                  <wa-file-input id="deck-file-input" accept=".txt,.dec,.dek,.mwDeck" label="Decklist" hint="Drag & drop or click to upload a .txt, .dec, .dek, or .mwDeck file" size="small"></wa-file-input>
+                  <wa-file-input id="deck-file-input" accept=".txt,.dec,.dek,.mwDeck" label="Decklist file" hint="Drag & drop or click to upload a .txt, .dec, .dek, or .mwDeck file" size="small"></wa-file-input>
 
                   <wa-textarea
                     id="deck-list"
+                    label="Decklist"
+                    hint="One card per line, quantity first. Paste from any deck builder."
                     placeholder="1 Sol Ring&#10;1 Arcane Signet&#10;1 Command Tower&#10;12 Island&#10;..."
                     rows="8"
                     required
@@ -273,6 +289,7 @@
           <!-- Results Panel -->
           <wa-tab-panel name="results">
             <div class="wa-stack wa-gap-l">
+              <h2 class="visually-hidden">Marking Results</h2>
               <!-- Marking prerequisites at the point of action -->
               <div id="marking-prereq-callout" class="wa-stack wa-gap-xs" style="display: none;">
                 <wa-callout variant="warning">
@@ -295,7 +312,7 @@
                       <wa-icon slot="icon" name="box-open"></wa-icon>
                     </wa-avatar>
                     <div class="wa-stack wa-gap-2xs">
-                      <h3 class="wa-caption-s">Total Cards</h3>
+                      <p class="wa-caption-s" style="margin: 0;">Total Cards</p>
                       <div class="wa-cluster wa-gap-xs">
                         <span class="wa-heading-xl" id="stat-total">0</span>
                         <wa-badge variant="neutral" appearance="outlined" pill>
@@ -311,7 +328,7 @@
                       <wa-icon slot="icon" name="object-group"></wa-icon>
                     </wa-avatar>
                     <div class="wa-stack wa-gap-2xs">
-                      <h3 class="wa-caption-s">Pool Cards</h3>
+                      <p class="wa-caption-s" style="margin: 0;">Pool Cards</p>
                       <div class="wa-cluster wa-gap-xs">
                         <span class="wa-heading-xl" id="stat-shared">0</span>
                         <wa-badge variant="neutral" appearance="outlined" pill>
@@ -326,7 +343,7 @@
                     <wa-progress-ring value="0" id="marked-progress" style="--track-width: 6px; --indicator-width: 8px; --size: 48px;">
                     </wa-progress-ring>
                     <div class="wa-stack wa-gap-2xs">
-                      <h3 class="wa-caption-s">Marked</h3>
+                      <p class="wa-caption-s" style="margin: 0;">Marked</p>
                       <div class="wa-cluster wa-gap-xs">
                         <span class="wa-heading-xl" id="stat-marked">0/0</span>
                         <wa-badge variant="neutral" appearance="outlined" pill>
@@ -487,10 +504,27 @@
 
     <!-- New PRISM Confirmation Dialog -->
     <wa-dialog id="new-prism-dialog" label="Create New PRISM">
-      <p>This will create a new empty PRISM. Your current PRISM will be saved and can be accessed later.</p>
+      <p>This will create a new empty PRISM and switch you to it.</p>
+      <p style="color: var(--wa-color-neutral-text-subtle);">
+        <strong id="new-prism-current-name">Your current PRISM</strong> is saved on this device. To come back to it,
+        open the <wa-icon name="ellipsis" style="vertical-align: -0.1em;"></wa-icon> menu beside the PRISM name and pick it from the list.
+      </p>
       <div slot="footer" class="wa-cluster wa-gap-s">
         <wa-button id="btn-cancel-new" variant="neutral" appearance="outlined">Cancel</wa-button>
         <wa-button id="btn-confirm-new" variant="brand">Create New</wa-button>
+      </div>
+    </wa-dialog>
+
+    <!-- Clear All Stale Marks Confirmation Dialog -->
+    <wa-dialog id="clear-all-removed-dialog" label="Clear all stale marks">
+      <p>Clear all <strong id="clear-all-removed-count"></strong> stale marks from this list?</p>
+      <p style="color: var(--wa-color-neutral-text-subtle);">
+        Each row is a mark still painted on a sleeve for a deck that no longer needs the card.
+        Clearing the list does not remove the paint, and the list cannot be rebuilt.
+      </p>
+      <div slot="footer" class="wa-cluster wa-gap-s">
+        <wa-button id="btn-cancel-clear-all-removed" variant="neutral" appearance="outlined">Cancel</wa-button>
+        <wa-button id="btn-confirm-clear-all-removed" variant="danger">Clear All</wa-button>
       </div>
     </wa-dialog>
 
@@ -566,12 +600,13 @@
           </div>
         </wa-details>
 
-        <wa-file-input id="edit-deck-file-input" accept=".txt,.dec,.dek,.mwDeck" label="Decklist" hint="Drag & drop or click to upload a .txt, .dec, .dek, or .mwDeck file" size="small"></wa-file-input>
+        <wa-file-input id="edit-deck-file-input" accept=".txt,.dec,.dek,.mwDeck" label="Decklist file" hint="Drag & drop or click to upload a .txt, .dec, .dek, or .mwDeck file" size="small"></wa-file-input>
 
         <div id="edit-deck-list-updated" class="wa-caption-s" style="color: var(--wa-color-neutral-text-subtle);"></div>
 
         <wa-textarea
           id="edit-deck-list"
+          label="Decklist"
           placeholder="1 Sol Ring&#10;1 Arcane Signet&#10;..."
           rows="10"
           required
@@ -662,10 +697,10 @@
 
     <script type="module">
       import { initLayout } from './js/layout.js';
-      initLayout({
-        activePage: 'build',
-        headerCta: { id: 'btn-new-prism', label: 'New PRISM', icon: 'plus', variant: 'neutral', appearance: 'outlined' }
-      });
+      // No headerCta: "New PRISM" lives in the PRISM overflow menu beside the
+      // switcher, so a mis-click in the primary-action slot can no longer
+      // swap the PRISM out from under the user.
+      initLayout({ activePage: 'build', headerCta: null });
     </script>
     <script type="module" src="js/app.js"></script>
     <script>

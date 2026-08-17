@@ -104,8 +104,27 @@ function renderSlot(position, activeDeck, slotMap) {
   const slot = document.createElement('div');
   slot.dataset.position = String(position);
   slot.title = info
-    ? `${info.name} — ${formatSlotLabel(position)}`
-    : `Empty — ${formatSlotLabel(position)}`;
+    ? `${info.name}, ${formatSlotLabel(position)}`
+    : `Empty, ${formatSlotLabel(position)}`;
+
+  // A title attribute is invisible to touch and unreliable for screen readers,
+  // and 48 bare divs are unreachable by keyboard. The picker is a single-choice
+  // widget, so model it as a radiogroup with a roving tabindex (see
+  // wireSlotKeyboard) rather than 48 tab stops.
+  const slotLabel = formatSlotLabel(position);
+  slot.setAttribute('role', 'radio');
+  slot.setAttribute('aria-checked', isActive ? 'true' : 'false');
+  slot.tabIndex = -1;
+  if (isDisabled) {
+    slot.setAttribute('aria-disabled', 'true');
+    slot.setAttribute('aria-label', `${slotLabel}, unavailable`);
+  } else if (isActive) {
+    slot.setAttribute('aria-label', `${slotLabel}, current position of ${activeDeck.name}`);
+  } else if (info) {
+    slot.setAttribute('aria-label', `${slotLabel}, taken by ${info.name}, activate to swap`);
+  } else {
+    slot.setAttribute('aria-label', `${slotLabel}, empty, activate to move here`);
+  }
 
   const classes = ['stripe-reorder-slot'];
   if (isDisabled) {
@@ -131,6 +150,101 @@ function renderSlot(position, activeDeck, slotMap) {
   }
 
   return slot;
+}
+
+// ============================================================================
+// Keyboard navigation across the two sleeve edges
+// ============================================================================
+
+/**
+ * Give the 48 slots one tab stop and arrow-key movement.
+ *
+ * Up/Down walk the current edge, Left/Right cross to the other edge at the same
+ * depth, Home/End jump to the ends of the edge, Enter/Space activate. Disabled
+ * slots are skipped rather than focused, so a keyboard user never lands on a
+ * dead target.
+ */
+function wireSlotKeyboard(sleeve, activeDeck, slotMap) {
+  const edges = [...sleeve.querySelectorAll('.stripe-reorder-edge')];
+  if (edges.length === 0) return;
+
+  const slotsOf = (edge) => [...edge.querySelectorAll('.stripe-reorder-slot')];
+  const isFocusable = (el) => el.getAttribute('aria-disabled') !== 'true';
+  const allSlots = edges.flatMap(slotsOf);
+
+  // Roving tabindex: the checked slot owns the tab stop, else the first
+  // focusable one, so Tab reaches the picker in a single press.
+  const initial =
+    allSlots.find((s) => s.getAttribute('aria-checked') === 'true') ||
+    allSlots.find(isFocusable);
+  if (initial) initial.tabIndex = 0;
+
+  const focus = (el) => {
+    if (!el) return;
+    for (const s of allSlots) s.tabIndex = -1;
+    el.tabIndex = 0;
+    el.focus();
+  };
+
+  const step = (edgeSlots, from, dir) => {
+    for (let i = from + dir; i >= 0 && i < edgeSlots.length; i += dir) {
+      if (isFocusable(edgeSlots[i])) return edgeSlots[i];
+    }
+    return null;
+  };
+
+  sleeve.addEventListener('keydown', (e) => {
+    const slot = e.target.closest?.('.stripe-reorder-slot');
+    if (!slot || !sleeve.contains(slot)) return;
+
+    const edge = slot.closest('.stripe-reorder-edge');
+    const edgeIndex = edges.indexOf(edge);
+    const edgeSlots = slotsOf(edge);
+    const index = edgeSlots.indexOf(slot);
+    let target = null;
+
+    switch (e.key) {
+      case 'ArrowDown':
+      case 'ArrowUp':
+        target = step(edgeSlots, index, e.key === 'ArrowDown' ? 1 : -1);
+        break;
+      case 'ArrowRight':
+      case 'ArrowLeft': {
+        const otherEdge = edges[edgeIndex === 0 ? 1 : 0];
+        if (!otherEdge) break;
+        const others = slotsOf(otherEdge);
+        // Cross at the same depth, then fan outwards for the nearest live slot.
+        const at = others[Math.min(index, others.length - 1)];
+        if (at && isFocusable(at)) { target = at; break; }
+        const start = Math.min(index, others.length - 1);
+        for (let d = 1; d < others.length; d++) {
+          const down = others[start + d];
+          const up = others[start - d];
+          if (down && isFocusable(down)) { target = down; break; }
+          if (up && isFocusable(up)) { target = up; break; }
+        }
+        break;
+      }
+      case 'Home':
+        target = edgeSlots.find(isFocusable) || null;
+        break;
+      case 'End':
+        target = [...edgeSlots].reverse().find(isFocusable) || null;
+        break;
+      case 'Enter':
+      case ' ':
+        e.preventDefault();
+        if (isFocusable(slot)) slot.click();
+        return;
+      default:
+        return;
+    }
+
+    if (target) {
+      e.preventDefault();
+      focus(target);
+    }
+  });
 }
 
 // ============================================================================
@@ -240,6 +354,8 @@ function renderSleeveVisualization(activeDeck, slotMap) {
   // Sleeve card
   const sleeve = document.createElement('div');
   sleeve.className = 'stripe-reorder-sleeve';
+  sleeve.setAttribute('role', 'radiogroup');
+  sleeve.setAttribute('aria-label', `Choose a slot for ${activeDeck.name}`);
 
   // Left edge
   const leftEdge = document.createElement('div');
@@ -254,7 +370,7 @@ function renderSleeveVisualization(activeDeck, slotMap) {
   cardBody.innerHTML = `
     <div class="stripe-reorder-card-hint">
       <wa-icon name="hand-pointer" style="font-size: 1.5rem; display: block; margin-bottom: var(--wa-space-2xs);"></wa-icon>
-      <span>Click a slot</span>
+      <span>Choose a slot</span>
     </div>
   `;
 
@@ -268,6 +384,7 @@ function renderSleeveVisualization(activeDeck, slotMap) {
   sleeve.appendChild(leftEdge);
   sleeve.appendChild(cardBody);
   sleeve.appendChild(rightEdge);
+  wireSlotKeyboard(sleeve, activeDeck, slotMap);
   wrapper.appendChild(sleeve);
 
   // Edge labels

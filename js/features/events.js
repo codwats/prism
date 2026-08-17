@@ -18,7 +18,7 @@ import {
   editCommanderRefs,
 } from './deck-form.js';
 import { handleFileUpload, handleJsonImport, handleMoxfieldImport, handleEditFileUpload, handleEditUrlImport } from './deck-import.js';
-import { handleDeleteConfirm, handleEditConfirm, handleNewPrism, handleSplitConfirm, handleEditGroupConfirm } from './deck-list.js';
+import { handleDeleteConfirm, handleEditConfirm, handleNewPrism, handleSplitConfirm, handleEditGroupConfirm, handleClearAllRemoved } from './deck-list.js';
 import { renderResults } from './results.js';
 import { openScryMode } from './scry-mode.js';
 import { renderOverlapMatrix } from './analysis.js';
@@ -201,6 +201,11 @@ export function setupEventListeners() {
   // New PRISM dialog
   if (state.elements.btnNewPrism) {
     state.elements.btnNewPrism.addEventListener('click', () => {
+      // Name the PRISM being left behind so the recovery route is concrete.
+      if (state.elements.newPrismCurrentName) {
+        const name = state.currentPrism?.name?.trim();
+        state.elements.newPrismCurrentName.textContent = name || 'Your current PRISM';
+      }
       state.elements.newPrismDialog.setAttribute('open', '');
     });
   }
@@ -211,6 +216,16 @@ export function setupEventListeners() {
   }
   if (state.elements.btnConfirmNew) {
     state.elements.btnConfirmNew.addEventListener('click', handleNewPrism);
+  }
+
+  // Clear-all stale marks confirmation
+  if (state.elements.btnCancelClearAllRemoved) {
+    state.elements.btnCancelClearAllRemoved.addEventListener('click', () => {
+      state.elements.clearAllRemovedDialog.removeAttribute('open');
+    });
+  }
+  if (state.elements.btnConfirmClearAllRemoved) {
+    state.elements.btnConfirmClearAllRemoved.addEventListener('click', handleClearAllRemoved);
   }
 
   // Edit dialog
