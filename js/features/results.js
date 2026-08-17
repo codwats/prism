@@ -460,7 +460,6 @@ export function renderResults() {
       `;
     }
 
-    const rowClass = card.logicalDeckCount > 1 ? 'shared-row' : '';
     const nameClass = card.isBasicLand ? 'basic-land' : '';
     const basicTag = card.isBasicLand && !card.isPassRow ? ' <span class="basic-tag">(Basic)</span>' : '';
     const batches = card.batches || [];
@@ -473,7 +472,7 @@ export function renderResults() {
       const isMarked = markedSetForRows.has(cardKey);
       const stripes = stripesCell(card.stripes);
       return `
-        <tr class="${rowClass} ${isMarked ? 'marked-row' : ''}" data-card-key="${escapeHtml(cardKey)}">
+        <tr class="${isMarked ? 'marked-row' : ''}" data-card-key="${escapeHtml(cardKey)}">
           <td style="text-align: center;">
             <label class="mark-checkbox-hit"><input type="checkbox" class="mark-checkbox" aria-label="Mark ${escapeHtml(card.name)} done" ${isMarked ? "checked" : ""}></label>
           </td>
@@ -491,7 +490,7 @@ export function renderResults() {
     const allDone = doneCount === batches.length;
     const isExpanded = expandedCards.has(card.name);
     const parentRow = `
-      <tr class="${rowClass} ${allDone ? 'marked-row' : ''} batch-parent">
+      <tr class="${allDone ? 'marked-row' : ''} batch-parent">
         <td style="text-align: center;">
           <input type="checkbox" class="batch-parent-check" disabled
             aria-label="${escapeHtml(card.name)} roll-up: ${doneCount} of ${batches.length} batches done"

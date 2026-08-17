@@ -123,13 +123,12 @@ wa-page[view='desktop'] [data-toggle-nav] {
   background: var(--wa-color-surface-2);
 }
 
-.results-table .shared-row {
-  background: var(--wa-color-warning-surface-subtle);
-}
-
-.results-table .shared-row:hover {
-  background: var(--wa-color-warning-surface);
-}
+/* No Pool row tint. Pool is already legible three ways: the Stripes column
+   shows one mark per deck, the default sort puts many-mark cards on top, and
+   the Pool filter isolates them. A fourth encoding on the row background
+   added nothing, and it used the warning ramp — amber reading as caution on
+   the rows that are actually saving the user money. The stale-mark tint below
+   stays: that one marks real outstanding work. */
 
 .results-table .mark-checkbox {
   width: 18px;
