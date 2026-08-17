@@ -158,11 +158,27 @@ wa-page[view='desktop'] [data-toggle-nav] {
   }
 }
 
-.results-table .marked-row {
-  opacity: 0.45;
+/* A done row recedes without becoming unreadable.
+
+   This replaced `opacity: 0.45`, which computed body text (#34353c) to roughly
+   #a3a3a7 on white — about 2.6:1, failing WCAG AA in what becomes the majority
+   state of the table by the end of a marking session. It also dimmed the stripe
+   swatches, so the colour you had just painted got harder to compare against the
+   pen in your hand, which is exactly the check you want before sleeving a card
+   back into a deck.
+
+   So: the name goes quiet and struck through, while the swatches and the
+   checkbox stay at full strength and the row stays auditable. */
+.results-table .marked-row .card-name-cell,
+.results-table .marked-row .batch-subrow-label,
+.results-table .marked-row .copies-cell {
+  color: var(--wa-color-neutral-text-subtle);
 }
 
-.results-table .marked-row td:first-child {
+/* DESIGN.md §"Results table" specifies the card name struck through. The old
+   rule targeted td:first-child, which is the checkbox cell. */
+.results-table .marked-row .card-name-cell,
+.results-table .marked-row .batch-subrow-label {
   text-decoration: line-through;
 }
 
