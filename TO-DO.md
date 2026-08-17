@@ -137,26 +137,26 @@ positions has three public pages with no color and no positions.
 Scored **24/40**, cognitive load HIGH (5 of 8 checks fail). Snapshot in
 `.impeccable/critique/2026-08-17T00-30-00Z__build-html.md`.
 
-Fixed on `fix/static-page-font-loading` in `1dd614b` and `7cf854e`: the P0 PRISM
-strand, the unconfirmed stale-mark wipe, the missing heading spine, the unlabeled
-decklist textareas, keyboard access to the slot picker, `title`-only deck
-identity in the Stripes column, and the undersized mark checkbox.
+Fixed on `fix/static-page-font-loading` in `1dd614b`, `7cf854e`, and `db8bbe0`:
+the P0 PRISM strand, the unconfirmed stale-mark wipe, the missing heading spine,
+the unlabeled decklist textareas, keyboard access to the slot picker,
+`title`-only deck identity in the Stripes column, the undersized mark checkbox,
+and marked-row legibility.
 
-**One P1 from that plan was never run** — the marked-row legibility pass below.
-It is the first item deliberately, not by score order.
+**Every P0 and P1 from this critique is now closed.** What follows is the P2 and
+below, plus four design questions.
 
-### Marked rows (P1, WCAG AA)
+### Marked rows (P1, WCAG AA) — done
 
-- [ ] **Marked rows fall to roughly 2.6:1.** `css/custom.css:161` sets
-  `opacity: 0.45` on `.marked-row`, which computes body text `#34353c` to about
-  `#a3a3a7` on white — failing AA (4.5:1) by a wide margin. By the end of a
-  session this is the majority state of the table, so it is not an edge case.
-  Replace the opacity with an explicit `--wa-color-neutral-text-subtle` on the
-  name cell and hold the checkbox and `.stripe-indicators` at full opacity, so
-  what you already painted stays auditable against the pen in your hand.
-- [ ] **The strikethrough is on the wrong cell.** `css/custom.css:165` applies
-  `line-through` to `td:first-child`, which is the checkbox cell. DESIGN.md
-  §"Results table" specifies the card name. Move it to `.card-name-cell`.
+- [x] **Marked rows fell to roughly 2.6:1.** `.marked-row` used `opacity: 0.45`,
+  computing body text to about `#a3a3a7` on white and failing AA in what becomes
+  the majority state of the table. Replaced with a quiet token colour on the name
+  cell, leaving the swatches and checkbox at full strength. Measured against the
+  warning-tinted Pool row, the worst-case background: **5.80:1** light, **10.29:1**
+  dark. Fixed in `db8bbe0`.
+- [x] **The strikethrough was on the wrong cell.** It applied to `td:first-child`,
+  the checkbox cell, where DESIGN.md §"Results table" specifies the card name.
+  Moved to `.card-name-cell` and `.batch-subrow-label`. Fixed in `db8bbe0`.
 
 ### Settings and vocabulary
 
