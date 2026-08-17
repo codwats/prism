@@ -138,6 +138,26 @@ wa-page[view='desktop'] [data-toggle-nav] {
   accent-color: var(--wa-color-brand-fill);
 }
 
+/* The most-repeated target in a marking session. A <label> wrapper carries the
+   hit area natively (no JS, no ::before on a replaced element) while the box
+   itself stays 18px, per DESIGN.md §8: pad the target, don't shrink the block.
+   Sized by input method rather than viewport — a touchscreen laptop needs the
+   big target too, and a mouse-driven phone-width window does not. */
+.mark-checkbox-hit {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+@media (pointer: coarse) {
+  .mark-checkbox-hit {
+    min-width: 44px;
+    min-height: 44px;
+    margin: calc(var(--wa-space-xs) * -1) 0;
+  }
+}
+
 .results-table .marked-row {
   opacity: 0.45;
 }
@@ -372,6 +392,78 @@ wa-page[view='desktop'] [data-toggle-nav] {
 }
 
 /* ============================================================================
+   Stripes Cell — tap to decode
+   ============================================================================ */
+
+/* One focusable control wrapping the whole strip: a keyboard user gets a single
+   tab stop per row carrying every mark in its accessible name, and a touch user
+   gets a way to read deck names that `title` never gave them. */
+.stripe-cell-toggle {
+  display: block;
+  width: 100%;
+  padding: var(--wa-space-2xs);
+  margin: calc(var(--wa-space-2xs) * -1);
+  background: none;
+  border: 1px solid transparent;
+  border-radius: var(--wa-border-radius-s);
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+}
+
+.stripe-cell-toggle:hover {
+  background: var(--wa-color-surface-2);
+}
+
+.stripe-cell-toggle:focus-visible {
+  outline: 2px solid var(--wa-color-brand-fill);
+  outline-offset: 1px;
+}
+
+.stripe-cell-toggle[aria-expanded='true'] {
+  border-color: var(--wa-color-surface-border);
+  background: var(--wa-color-surface-2);
+}
+
+/* Full-width row under the card, so the decode reads at the left edge instead
+   of inside the Stripes column, which sits past the right edge of a phone. */
+.results-table .stripe-detail-row > td {
+  background: var(--wa-color-surface-2);
+  padding-top: var(--wa-space-xs);
+  padding-bottom: var(--wa-space-xs);
+}
+
+.stripe-detail {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--wa-space-2xs) var(--wa-space-l);
+  font-size: var(--wa-font-size-xs);
+  color: var(--wa-color-neutral-text-subtle);
+}
+
+.stripe-detail li {
+  display: flex;
+  align-items: center;
+  gap: var(--wa-space-xs);
+}
+
+.stripe-detail-swatch {
+  flex: none;
+  width: 12px;
+  height: 12px;
+  border-radius: var(--wa-border-radius-s);
+  border: 1px solid var(--wa-color-neutral-stroke);
+}
+
+.stripe-detail-swatch-dot {
+  border-radius: 50%;
+}
+
+/* ============================================================================
    Loading Skeletons
    ============================================================================ */
 
@@ -479,10 +571,9 @@ wa-page[view='desktop'] [data-toggle-nav] {
     font-size: var(--wa-font-size-s);
   }
 
-  .stripe-indicator {
-    width: 14px;
-    height: 14px;
-  }
+  /* The stripe block is the thing being matched against a pen at the table, so
+     it keeps its 18px size on narrow screens. DESIGN.md §8: pad the target,
+     never shrink the visual block. */
 }
 
 /* Toast styles handled by <wa-toast> component */
