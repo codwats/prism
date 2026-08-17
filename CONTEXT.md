@@ -23,7 +23,7 @@ A result line describing a quantity of interchangeable physical copies that rece
 **Marking pass**:
 One deck mark applied to a quantity of copies, summed across marking batches. Distinct from a marking batch, which is copies sharing the same _set_ of marks — a pass is a single mark that may draw copies from several batches.
 _Avoid_: marking group, basics by deck
-_In code_: the filter value is `basics-by-deck`; the control reads "Grouped by Mark". The mismatch is deliberate.
+_In code_: the filter value is `basics-by-deck`; the control reads "One Mark at a Time" (`build.html`). Both mismatches are deliberate, and the control label is the one to use in reader-facing prose.
 
 **Quantity tier**:
 A quantity of one card needed by the same set of decks. Tier boundaries occur where decklist quantities differ.
