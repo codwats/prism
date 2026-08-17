@@ -640,7 +640,7 @@ function injectSettingsDrawer() {
           <p class="wa-caption-s" style="color: var(--wa-color-neutral-text-subtle); margin: 0;">Slot numbers stay the same — stripes move so Slot 1 starts at the chosen corner.</p>
           <wa-slider
             id="stripe-position-numbers-mode"
-            label="Position Numbers"
+            label="Slot Numbers"
             name="position-numbers"
             min="1"
             max="3"

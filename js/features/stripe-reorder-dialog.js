@@ -119,7 +119,7 @@ function renderSlot(position, activeDeck, slotMap) {
     slot.setAttribute('aria-disabled', 'true');
     slot.setAttribute('aria-label', `${slotLabel}, unavailable`);
   } else if (isActive) {
-    slot.setAttribute('aria-label', `${slotLabel}, current position of ${activeDeck.name}`);
+    slot.setAttribute('aria-label', `${slotLabel}, current slot of ${activeDeck.name}`);
   } else if (info) {
     slot.setAttribute('aria-label', `${slotLabel}, taken by ${info.name}, activate to swap`);
   } else {
