@@ -32,7 +32,7 @@ test('getNextVariantPosition returns null when all 48 slots are occupied', () =>
 test('splitDeck throws when all 48 slots are occupied instead of assigning a bad position', () => {
 	const prism = fullPrism();
 	const deckId = prism.decks[0].id;
-	assert.throws(() => splitDeck(prism, deckId, 2), /No available stripe positions/);
+	assert.throws(() => splitDeck(prism, deckId, 2), /All 48 slots are occupied/);
 });
 
 // All 48 slots occupied, but one slot belongs to a stripe split group with a
@@ -76,6 +76,6 @@ test('addSplitToGroup throws and does not mutate prism when all 48 slots are occ
 	const prism = fullPrismWithGroup();
 	const groupId = prism.splitGroups[0].id;
 	const before = structuredClone(prism);
-	assert.throws(() => addSplitToGroup(prism, groupId), /No available stripe positions/);
+	assert.throws(() => addSplitToGroup(prism, groupId), /All 48 slots are occupied/);
 	assert.deepEqual(prism, before);
 });

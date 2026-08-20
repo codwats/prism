@@ -103,7 +103,7 @@
       "refersTo": "input",
       "description": "White fill, 1px neutral stroke, brand focus ring.",
       "html": "<input class=\"ds-input\" type=\"text\" placeholder=\"Deck name\">",
-      "css": ".ds-input { height: 2.5rem; padding: 0 0.75rem; border: 1px solid #b0b0b9; border-radius: 4px; background: #ffffff; font-family: halyard-micro, system-ui, sans-serif; font-size: 14px; color: #34353c; } .ds-input::placeholder { color: #76767f; } .ds-input:focus { outline: none; border-color: #7d719c; box-shadow: 0 0 0 3px #eadeff; }"
+      "css": ".ds-input { height: 2.5rem; padding: 0 0.75rem; border: 1px solid #b0b0b9; border-radius: 4px; background: #ffffff; font-family: halyard-micro, system-ui, sans-serif; font-size: 14px; color: #34353c; } .ds-input::placeholder { color: #5a5a62; } .ds-input:focus { outline: none; border-color: #7d719c; box-shadow: 0 0 0 3px #eadeff; }"
     },
     {
       "name": "Tag",

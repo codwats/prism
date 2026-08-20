@@ -21,8 +21,9 @@ import {
   createPrism,
   isDotVariant,
   updateSplitGroupInPrism,
+  applyCommanderFallback,
 } from "../modules/processor.js";
-import { savePrism, setCurrentPrism, recordUnmarkedCards } from "../modules/storage.js";
+import { savePrism, setCurrentPrism, recordUnmarkedCards, getPrism } from "../modules/storage.js";
 import { trackEvent } from "../modules/supabase-client.js";
 import { canonicalizeCards } from "../modules/scryfall.js";
 import { hideEditImportMessages } from "./deck-import.js";
@@ -274,6 +275,28 @@ export function handleClearRemoved(cardName, deckId) {
   showSuccess(`Cleared "${cardName}" from removed list.`);
 }
 
+/**
+ * Open the confirm dialog for clearing every stale mark. Each row is paint
+ * still on a sleeve, and the list cannot be rebuilt once dropped, so the bulk
+ * path is gated the same way deck deletion is.
+ */
+export function handleClearAllRemovedClick() {
+  if (!state.currentPrism || !state.currentPrism.removedCards?.length) return;
+
+  const count = state.currentPrism.removedCards.length;
+  const { clearAllRemovedDialog, clearAllRemovedCount } = state.elements;
+  if (!clearAllRemovedDialog) {
+    // No dialog on this page — fall back to acting directly rather than
+    // leaving the button dead.
+    handleClearAllRemoved();
+    return;
+  }
+  if (clearAllRemovedCount) {
+    clearAllRemovedCount.textContent = `${count} ${count === 1 ? 'mark' : 'marks'}`;
+  }
+  clearAllRemovedDialog.setAttribute('open', '');
+}
+
 export function handleClearAllRemoved() {
   if (!state.currentPrism || !state.currentPrism.removedCards?.length) return;
 
@@ -282,9 +305,10 @@ export function handleClearAllRemoved() {
   state.currentPrism.updatedAt = new Date().toISOString();
   savePrism(state.currentPrism);
 
+  state.elements.clearAllRemovedDialog?.removeAttribute('open');
   updateRemovedFilterBadge();
   renderResults();
-  showSuccess(`Cleared all ${count} card(s) from removed list.`);
+  showSuccess(`Cleared ${count} stale ${count === 1 ? 'mark' : 'marks'}.`);
 }
 
 // ============================================================================
@@ -652,6 +676,38 @@ export function handleNewPrism() {
   renderAll();
 }
 
+/**
+ * Switch the active PRISM. The current one is saved first so nothing in
+ * progress is lost, then the target is loaded from storage.
+ * @param {string} prismId
+ */
+export function handleSwitchPrism(prismId) {
+  if (!prismId || prismId === state.currentPrism?.id) return;
+
+  const target = getPrism(prismId);
+  if (!target) {
+    showError('That PRISM could not be loaded.');
+    return;
+  }
+
+  savePrism(state.currentPrism);
+  setCurrentPrism(prismId);
+  state.currentPrism = target;
+
+  // Legacy scalar-commander decks are normalized once at page load; a PRISM
+  // switched to at runtime never passed through that, so do it here too.
+  let normalized = false;
+  for (const deck of state.currentPrism.decks || []) {
+    if (applyCommanderFallback(deck, deck.commander)) normalized = true;
+  }
+  if (normalized) savePrism(state.currentPrism);
+
+  resetDeckForm();
+  initColorSwatches();
+  renderAll();
+  showSuccess(`Switched to "${target.name}".`);
+}
+
 export function handleStripeReorder(deckId, direction) {
   // Dot variants own no slot (stripePosition null) — exclude them so the
   // neighbour-swap logic only ever targets decks with a real position.
@@ -819,7 +875,7 @@ export function renderDeckCard(deck, showActions = true, processedCards = null) 
           <div class="deck-color-indicator" style="background-color: ${deck.color};" title="${getColorName(deck.color)}"></div>
           <div class="wa-stack wa-gap-2xs">
             <div class="wa-cluster wa-gap-s wa-align-items-center">
-              <span class="${isInGroup ? "wa-heading-s" : "wa-heading-m"}">${escapeHtml(deck.name)}</span>
+              <${isInGroup ? "h4" : "h3"} class="${isInGroup ? "wa-heading-s" : "wa-heading-m"}" style="margin: 0;">${escapeHtml(deck.name)}</${isInGroup ? "h4" : "h3"}>
               ${slotTagHtml}
               <wa-tag size="small" variant="neutral">Bracket ${deck.bracket}</wa-tag>
             </div>
@@ -936,7 +992,7 @@ export function renderDecksList() {
               <div class="deck-color-indicator" style="background-color: ${group.sideAColor};" title="${getColorName(group.sideAColor)}"></div>
               <div class="wa-stack wa-gap-2xs">
                 <div class="wa-cluster wa-gap-s wa-align-items-center">
-                  <span class="wa-heading-m">${escapeHtml(group.name)}</span>
+                  <h3 class="wa-heading-m" style="margin: 0;">${escapeHtml(group.name)}</h3>
                   <wa-tag size="small" variant="neutral">${formatSlotLabel(group.sideAPosition, "a")}</wa-tag>
                   <wa-tag size="small" variant="brand" appearance="outlined">
                     <wa-icon name="code-branch" style="font-size: 0.8em;"></wa-icon>

@@ -4,6 +4,25 @@
  */
 
 /* ============================================================================
+   Visually Hidden
+   ============================================================================ */
+
+/* Structural headings that give the page a navigable outline without changing
+   the visual design. Not display:none — that would hide them from assistive
+   tech too, which is the opposite of the point. */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ============================================================================
    Sync Status Indicator
    ============================================================================ */
 
@@ -96,21 +115,35 @@ wa-page[view='desktop'] [data-toggle-nav] {
   background: var(--wa-color-surface-2);
 }
 
-.results-table tbody tr:nth-child(even) {
-  background: rgba(255, 255, 255, 0.015);
+/* Zebra banding. The old rule was `tr:nth-child(even)` filled with
+   rgba(255,255,255,0.015) — a 1.5%-opacity white wash over a white surface,
+   which rendered nothing in light mode and almost nothing in dark. It is now
+   driven by an `alt-row` class set per card in results.js, because the
+   stripe-detail rows interleave and only some cards emit one, so :nth-child()
+   parity no longer tracks cards at all.
+
+   Kept well below the hover fill so hover still reads as the stronger state.
+   The band colour is a variable rather than two competing rules, so the class
+   selector stays at one level: row hover and the stale-mark tint then win on
+   specificity and source order without needing overrides. */
+:root {
+  --prism-zebra: color-mix(in srgb, var(--wa-color-neutral-90) 45%, transparent);
 }
 
-.results-table tbody tr:nth-child(even):hover {
-  background: var(--wa-color-surface-2);
+.wa-dark {
+  --prism-zebra: color-mix(in srgb, var(--wa-color-neutral-30) 30%, transparent);
 }
 
-.results-table .shared-row {
-  background: var(--wa-color-warning-surface-subtle);
+.results-table .alt-row {
+  background: var(--prism-zebra);
 }
 
-.results-table .shared-row:hover {
-  background: var(--wa-color-warning-surface);
-}
+/* No Pool row tint. Pool is already legible three ways: the Stripes column
+   shows one mark per deck, the default sort puts many-mark cards on top, and
+   the Pool filter isolates them. A fourth encoding on the row background
+   added nothing, and it used the warning ramp — amber reading as caution on
+   the rows that are actually saving the user money. The stale-mark tint below
+   stays: that one marks real outstanding work. */
 
 .results-table .mark-checkbox {
   width: 18px;
@@ -119,11 +152,47 @@ wa-page[view='desktop'] [data-toggle-nav] {
   accent-color: var(--wa-color-brand-fill);
 }
 
-.results-table .marked-row {
-  opacity: 0.45;
+/* The most-repeated target in a marking session. A <label> wrapper carries the
+   hit area natively (no JS, no ::before on a replaced element) while the box
+   itself stays 18px, per DESIGN.md §8: pad the target, don't shrink the block.
+   Sized by input method rather than viewport — a touchscreen laptop needs the
+   big target too, and a mouse-driven phone-width window does not. */
+.mark-checkbox-hit {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
 }
 
-.results-table .marked-row td:first-child {
+@media (pointer: coarse) {
+  .mark-checkbox-hit {
+    min-width: 44px;
+    min-height: 44px;
+    margin: calc(var(--wa-space-xs) * -1) 0;
+  }
+}
+
+/* A done row recedes without becoming unreadable.
+
+   This replaced `opacity: 0.45`, which computed body text (#34353c) to roughly
+   #a3a3a7 on white — about 2.6:1, failing WCAG AA in what becomes the majority
+   state of the table by the end of a marking session. It also dimmed the stripe
+   swatches, so the colour you had just painted got harder to compare against the
+   pen in your hand, which is exactly the check you want before sleeving a card
+   back into a deck.
+
+   So: the name goes quiet and struck through, while the swatches and the
+   checkbox stay at full strength and the row stays auditable. */
+.results-table .marked-row .card-name-cell,
+.results-table .marked-row .batch-subrow-label,
+.results-table .marked-row .copies-cell {
+  color: var(--wa-color-neutral-text-subtle);
+}
+
+/* DESIGN.md §"Results table" specifies the card name struck through. The old
+   rule targeted td:first-child, which is the checkbox cell. */
+.results-table .marked-row .card-name-cell,
+.results-table .marked-row .batch-subrow-label {
   text-decoration: line-through;
 }
 
@@ -259,6 +328,95 @@ wa-page[view='desktop'] [data-toggle-nav] {
 }
 
 /* ============================================================================
+   Landing page: Duplicates You Free Up table (index.html #payoff)
+   Same structural DNA as .results-table (collapsed borders, 1px rules, token
+   spacing), scaled up for marketing: the resale column carries the heading
+   serif at display size, because that number is the point of the section.
+   ============================================================================ */
+
+.impact-table {
+  width: 100%;
+  /* Capped well inside the 720px section container. At full width the row
+     stretched to 720px and left ~285px of dead space between "5 decks" and
+     "~$919", so the two halves of a single fact read as separate items. The
+     same table is legible on a 390px phone precisely because that gap is small;
+     this brings the desktop gap back to roughly the same absolute distance. */
+  max-width: 30rem;
+  margin-inline: auto;
+  border-collapse: collapse;
+}
+
+/* Deliberately no `font-variant-numeric: tabular-nums` here. It is the obvious
+   move for a column of figures, but halyard-micro's tnum feature also widens
+   the space glyph: it stretched the pure-text header "Duplicates freed" by
+   4.4px and left visible gaps in "5 decks" and "166 cards". The money column is
+   right-aligned with values of differing length, so lining figures buy almost
+   nothing here and cost legibility in every other cell. */
+
+.impact-table caption {
+  /* The visible lead paragraph already frames the table, so this is for
+     screen readers only rather than a second on-screen summary. */
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.impact-table th,
+.impact-table td {
+  padding: var(--wa-space-m) var(--wa-space-s);
+  text-align: left;
+  /* `surface-border` is picked for a white page. This table sits on the sunken
+     `surface-2` ground, where that token resolves to the same value as the
+     ground itself in dark mode (both rgb(52,53,60)) — a 1.00 contrast ratio, so
+     the rules were literally invisible, and only 1.12 in light. `neutral-stroke`
+     is the token that stays one step off the surface in both themes. */
+  border-bottom: 1px solid var(--wa-color-neutral-stroke);
+}
+
+.impact-table thead th {
+  font-size: var(--wa-font-size-s);
+  font-weight: 600;
+  color: var(--wa-color-neutral-text-subtle);
+  white-space: nowrap;
+}
+
+.impact-table tbody tr:last-child th,
+.impact-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.impact-table .impact-collection {
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.impact-table .impact-value {
+  font-family: var(--wa-font-family-heading);
+  font-size: var(--wa-font-size-2xl);
+  font-weight: var(--wa-font-weight-heading);
+  line-height: 1.2;
+  color: var(--wa-color-brand-text);
+  text-align: right;
+  white-space: nowrap;
+}
+
+@media (max-width: 480px) {
+  .impact-table th,
+  .impact-table td {
+    padding: var(--wa-space-s) var(--wa-space-2xs);
+  }
+
+  .impact-table .impact-value {
+    font-size: var(--wa-font-size-xl);
+  }
+}
+
+/* ============================================================================
    Dark Mode Overrides
    ============================================================================ */
 
@@ -280,6 +438,78 @@ wa-page[view='desktop'] [data-toggle-nav] {
 .deck-color-indicator[style*="#FFFFFF" i],
 .stripe-indicator[style*="#FFFFFF" i] {
   border-color: var(--wa-color-neutral-stroke);
+}
+
+/* ============================================================================
+   Stripes Cell — tap to decode
+   ============================================================================ */
+
+/* One focusable control wrapping the whole strip: a keyboard user gets a single
+   tab stop per row carrying every mark in its accessible name, and a touch user
+   gets a way to read deck names that `title` never gave them. */
+.stripe-cell-toggle {
+  display: block;
+  width: 100%;
+  padding: var(--wa-space-2xs);
+  margin: calc(var(--wa-space-2xs) * -1);
+  background: none;
+  border: 1px solid transparent;
+  border-radius: var(--wa-border-radius-s);
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+}
+
+.stripe-cell-toggle:hover {
+  background: var(--wa-color-surface-2);
+}
+
+.stripe-cell-toggle:focus-visible {
+  outline: 2px solid var(--wa-color-brand-fill);
+  outline-offset: 1px;
+}
+
+.stripe-cell-toggle[aria-expanded='true'] {
+  border-color: var(--wa-color-surface-border);
+  background: var(--wa-color-surface-2);
+}
+
+/* Full-width row under the card, so the decode reads at the left edge instead
+   of inside the Stripes column, which sits past the right edge of a phone. */
+.results-table .stripe-detail-row > td {
+  background: var(--wa-color-surface-2);
+  padding-top: var(--wa-space-xs);
+  padding-bottom: var(--wa-space-xs);
+}
+
+.stripe-detail {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--wa-space-2xs) var(--wa-space-l);
+  font-size: var(--wa-font-size-xs);
+  color: var(--wa-color-neutral-text-subtle);
+}
+
+.stripe-detail li {
+  display: flex;
+  align-items: center;
+  gap: var(--wa-space-xs);
+}
+
+.stripe-detail-swatch {
+  flex: none;
+  width: 12px;
+  height: 12px;
+  border-radius: var(--wa-border-radius-s);
+  border: 1px solid var(--wa-color-neutral-stroke);
+}
+
+.stripe-detail-swatch-dot {
+  border-radius: 50%;
 }
 
 /* ============================================================================
@@ -390,10 +620,9 @@ wa-page[view='desktop'] [data-toggle-nav] {
     font-size: var(--wa-font-size-s);
   }
 
-  .stripe-indicator {
-    width: 14px;
-    height: 14px;
-  }
+  /* The stripe block is the thing being matched against a pen at the table, so
+     it keeps its 18px size on narrow screens. DESIGN.md §8: pad the target,
+     never shrink the visual block. */
 }
 
 /* Toast styles handled by <wa-toast> component */
@@ -460,21 +689,13 @@ wa-page[view='desktop'] [data-toggle-nav] {
   background: var(--wa-color-danger-surface);
 }
 
-.btn-clear-all-removed {
-  background: none;
-  border: 1px solid var(--wa-color-surface-border);
-  border-radius: var(--wa-border-radius-medium);
-  color: var(--wa-color-neutral-text);
-  font-size: var(--wa-font-size-x-small);
-  padding: var(--wa-space-2x-small) var(--wa-space-x-small);
-  cursor: pointer;
+/* "Clear All" is a <wa-button appearance="outlined" variant="danger">; the
+   hand-rolled rules that lived here referenced five WA 2.x token names that no
+   longer resolve in 3.11 (--wa-border-radius-medium, --wa-font-size-x-small,
+   --wa-space-2x-small, --wa-space-x-small, --wa-color-danger-border), so every
+   declaration was being dropped. */
+#clear-all-removed-btn {
   white-space: nowrap;
-}
-
-.btn-clear-all-removed:hover {
-  background: var(--wa-color-danger-surface-subtle);
-  border-color: var(--wa-color-danger-border);
-  color: var(--wa-color-danger-text);
 }
 
 .removed-deck-label {
@@ -891,6 +1112,16 @@ wa-page[view='desktop'] [data-toggle-nav] {
 .stripe-reorder-slot--occupied:active {
   border-color: var(--wa-color-warning-70) !important;
   box-shadow: 0 0 0 2px var(--wa-color-warning-70);
+}
+
+/* Keyboard focus. The slots carry a roving tabindex, so this ring is the only
+   thing telling a keyboard user where they are on the sleeve. It must read
+   against both the empty (dashed) and the deck-colored occupied slots, so it
+   sits outside the border rather than replacing it. */
+.stripe-reorder-slot:focus-visible {
+  outline: 2px solid var(--wa-color-brand-fill);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 4px var(--wa-color-brand-fill-subtle);
 }
 
 .stripe-reorder-edge-labels {

@@ -7,7 +7,7 @@ import { escapeHtml, stripeNumberLabel, countVisibleMarks, STRIPE_SPARSE_MAX, is
 import { getStripeNumbersMode } from '../modules/storage.js';
 import { processCards, formatSlotLabel } from '../modules/processor.js';
 import { prefetchCards } from '../modules/scryfall.js';
-import { handleMarkToggle, handleClearRemoved, handleClearAllRemoved } from './deck-list.js';
+import { handleMarkToggle, handleClearRemoved, handleClearAllRemovedClick } from './deck-list.js';
 import { renderOverlapMatrix } from './analysis.js';
 
 // ============================================================================
@@ -354,12 +354,76 @@ export function renderResults() {
     return html;
   };
 
+  // The stripes strip answers "which pen, which slot" — but deck identity lived
+  // only in a `title`, which touch devices never fire and screen readers do not
+  // reliably announce. The strip is therefore wrapped in one focusable control
+  // (one tab stop per row, not one per mark) carrying the full list as its
+  // accessible name, and activating it reveals the same list as text.
+  const markDescriptors = (stripes) =>
+    (stripes || [])
+      .filter((s) => s.markType !== 'membership')
+      .slice()
+      .sort((a, b) => a.position - b.position)
+      .map((s) => ({
+        position: s.position,
+        deckName: s.deckName,
+        color: s.color,
+        isDot: s.markType === 'dot',
+      }));
+
+  const describeMark = (m) =>
+    `${m.isDot ? 'Dot, ' : ''}${formatSlotLabel(m.position)}, ${m.deckName}`;
+
+  let detailRowSeq = 0;
+  // Done / Card Name / Copies / Stripes. The Copies column is unconditional
+  // (#149) and the stale-marks view uses its own row markup, so this is stable.
+  const detailColspan = 4;
+
+  // Returns the <td> plus, when there is anything to decode, a full-width
+  // sibling <tr> holding the legend for that row. The detail deliberately does
+  // NOT live inside the stripes <td>: on a phone the table scrolls horizontally
+  // and that column sits past the right edge, so text placed there would be
+  // unreadable without scrolling and would inflate the row height besides.
+  const stripesCell = (stripes, band = '') => {
+    const marks = markDescriptors(stripes);
+    const strip = `<div class="stripe-indicators">${stripeHtml(stripes)}</div>`;
+    if (marks.length === 0) return { cell: `<td>${strip}</td>`, detailRow: '' };
+
+    const id = `stripe-detail-${++detailRowSeq}`;
+    const summary = `${marks.length} ${marks.length === 1 ? 'mark' : 'marks'}: ${marks
+      .map(describeMark)
+      .join('; ')}`;
+    const items = marks
+      .map(
+        (m) => `<li>
+          <span class="stripe-detail-swatch${m.isDot ? ' stripe-detail-swatch-dot' : ''}" style="background-color: ${m.color};"></span>
+          <span>${escapeHtml(describeMark(m))}</span>
+        </li>`,
+      )
+      .join('');
+
+    return {
+      cell: `<td>
+        <button type="button" class="stripe-cell-toggle" aria-expanded="false" aria-controls="${id}" aria-label="${escapeHtml(summary)}">${strip}</button>
+      </td>`,
+      detailRow: `<tr class="stripe-detail-row${band}" id="${id}" hidden>
+        <td colspan="${detailColspan}"><ul class="stripe-detail">${items}</ul></td>
+      </tr>`,
+    };
+  };
+
   const markedSetForRows = new Set(state.currentPrism.markedCards || []);
   // Copies cell renders only when the quantity exceeds one (#149) — the
   // common singleton path gains no text at all.
   const copiesCell = (q) => `<td class="copies-cell">${q > 1 ? q : ''}</td>`;
 
-  state.elements.resultsTbody.innerHTML = displayCards.map(card => {
+  // Zebra banding is applied per card, not per <tr>: a multi-batch card's
+  // sub-rows and a row's stripe-detail row all share their card's band, so an
+  // expanded card still reads as one block. It cannot be done with
+  // :nth-child() — the detail rows interleave, and cards with no marks emit
+  // none, so row parity is not even uniform.
+  state.elements.resultsTbody.innerHTML = displayCards.map((card, cardIndex) => {
+    const band = cardIndex % 2 === 1 ? ' alt-row' : '';
     // Handle removed cards differently
     if (card.isRemoved) {
       const removedKey = `${card.name}|${card.removedDeckId}`;
@@ -372,7 +436,7 @@ export function renderResults() {
         ? ` — clear ${clearCopies} ${clearCopies === 1 ? 'copy' : 'copies'}`
         : '';
       return `
-        <tr class="removed-row" data-removed-key="${escapeHtml(removedKey)}">
+        <tr class="removed-row${band}" data-removed-key="${escapeHtml(removedKey)}">
           <td>${escapeHtml(card.name)}</td>
           <td>
             <div class="wa-cluster wa-gap-xs wa-align-items-center">
@@ -402,7 +466,6 @@ export function renderResults() {
       `;
     }
 
-    const rowClass = card.logicalDeckCount > 1 ? 'shared-row' : '';
     const nameClass = card.isBasicLand ? 'basic-land' : '';
     const basicTag = card.isBasicLand && !card.isPassRow ? ' <span class="basic-tag">(Basic)</span>' : '';
     const batches = card.batches || [];
@@ -413,14 +476,16 @@ export function renderResults() {
       // `<name>|<deckName>` key.
       const cardKey = card.isPassRow ? `${card.displayName}|${card.deckName}` : card.name;
       const isMarked = markedSetForRows.has(cardKey);
+      const stripes = stripesCell(card.stripes, band);
       return `
-        <tr class="${rowClass} ${isMarked ? 'marked-row' : ''}" data-card-key="${escapeHtml(cardKey)}">
+        <tr class="${isMarked ? 'marked-row' : ''}${band}" data-card-key="${escapeHtml(cardKey)}">
           <td style="text-align: center;">
-            <input type="checkbox" class="mark-checkbox" aria-label="Mark ${escapeHtml(card.name)} done" ${isMarked ? 'checked' : ''}>
+            <label class="mark-checkbox-hit"><input type="checkbox" class="mark-checkbox" aria-label="Mark ${escapeHtml(card.name)} done" ${isMarked ? "checked" : ""}></label>
           </td>
           <td class="${nameClass} card-name-cell" data-card-name="${escapeHtml(card.isPassRow ? card.displayName : card.name)}">${escapeHtml(card.name)}${basicTag}</td>${copiesCell(card.totalQuantity)}
-          <td><div class="stripe-indicators">${stripeHtml(card.stripes)}</div></td>
+          ${stripes.cell}
         </tr>
+        ${stripes.detailRow}
       `;
     }
 
@@ -431,7 +496,7 @@ export function renderResults() {
     const allDone = doneCount === batches.length;
     const isExpanded = expandedCards.has(card.name);
     const parentRow = `
-      <tr class="${rowClass} ${allDone ? 'marked-row' : ''} batch-parent">
+      <tr class="${allDone ? 'marked-row' : ''} batch-parent${band}">
         <td style="text-align: center;">
           <input type="checkbox" class="batch-parent-check" disabled
             aria-label="${escapeHtml(card.name)} roll-up: ${doneCount} of ${batches.length} batches done"
@@ -452,14 +517,16 @@ export function renderResults() {
       const marked = markedSetForRows.has(b.key);
       // Two batches can share a copy count, so the class disambiguates the label.
       const batchClass = b.isDedicated ? 'dedicated' : (b.isPool ? 'pool' : 'core');
+      const stripes = stripesCell(b.stripes, band);
       return `
-        <tr class="batch-subrow ${marked ? 'marked-row' : ''}" data-card-key="${escapeHtml(b.key)}">
+        <tr class="batch-subrow ${marked ? 'marked-row' : ''}${band}" data-card-key="${escapeHtml(b.key)}">
           <td style="text-align: center;">
-            <input type="checkbox" class="mark-checkbox" aria-label="Mark ${b.copyCount} ${batchClass} ${escapeHtml(card.name)} copies done" ${marked ? 'checked' : ''}>
+            <label class="mark-checkbox-hit"><input type="checkbox" class="mark-checkbox" aria-label="Mark ${b.copyCount} ${batchClass} ${escapeHtml(card.name)} copies done" ${marked ? "checked" : ""}></label>
           </td>
           <td class="batch-subrow-label" data-card-name="${escapeHtml(card.name)}">${b.copyCount} ${b.copyCount === 1 ? 'copy' : 'copies'} — ${batchClass}</td>${copiesCell(b.copyCount)}
-          <td><div class="stripe-indicators">${stripeHtml(b.stripes)}</div></td>
+          ${stripes.cell}
         </tr>
+        ${stripes.detailRow}
       `;
     }).join('');
   }).join('');
@@ -477,6 +544,18 @@ export function renderResults() {
     cb.indeterminate = true;
   });
 
+  // Reveal the deck name and slot behind each mark. Kept local to the row so a
+  // marking session never loses its place in the table to a popover.
+  state.elements.resultsTbody.querySelectorAll('.stripe-cell-toggle').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const detail = document.getElementById(btn.getAttribute('aria-controls'));
+      if (!detail) return;
+      const open = btn.getAttribute('aria-expanded') === 'true';
+      btn.setAttribute('aria-expanded', open ? 'false' : 'true');
+      detail.hidden = open;
+    });
+  });
+
   // Add event listeners for checkboxes
   state.elements.resultsTbody.querySelectorAll('.mark-checkbox').forEach(checkbox => {
     checkbox.addEventListener('change', handleMarkToggle);
@@ -491,10 +570,11 @@ export function renderResults() {
     });
   });
 
-  // Add event listener for "Clear All" removed button
+  // Add event listener for "Clear All" removed button (opens a confirm dialog —
+  // the rows it drops are paint still on sleeves and cannot be rebuilt)
   const clearAllBtn = document.getElementById('clear-all-removed-btn');
   if (clearAllBtn) {
-    clearAllBtn.addEventListener('click', handleClearAllRemoved);
+    clearAllBtn.addEventListener('click', handleClearAllRemovedClick);
   }
 
   const colspan = 4;
@@ -621,7 +701,7 @@ function renderResultsHeader() {
         </th>
         <th>Remove Mark From</th>
         <th style="width: 80px; text-align: center;">
-          <button id="clear-all-removed-btn" class="btn-clear-all-removed" title="Clear all stale marks">Clear All</button>
+          <wa-button id="clear-all-removed-btn" appearance="outlined" variant="danger" size="small">Clear All</wa-button>
         </th>
       </tr>
     `;
