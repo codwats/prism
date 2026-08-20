@@ -1,6 +1,6 @@
 # PRISM
 
-PRISM models Commander decks and the physical sleeved cards shared between them.
+PRISM models Commander decks and the physical sleeved cards shared between them, and hosts the community gallery of artwork for those cards.
 
 ## Language
 
@@ -61,3 +61,34 @@ _In code_: `stripePosition` and `sideAPosition`. The mismatch is deliberate — 
 **Perfect Fit inner**:
 The inner sleeve of a double-sleeved card, and the only sleeve that is ever marked. Its partner is the outer sleeve, which protects the mark.
 _Avoid_: perfect-fit inner sleeve, inner Perfect Fit sleeve, Perfect Fit inner sleeve
+
+### Gallery
+
+**Artist**:
+A person whose gallery profile is claimed by their PRISM account. The artist asks to claim the profile; an admin approves it.
+_Avoid_: creator, contributor, and uploader when the maker is meant
+_In code_: a `gallery_artists` row with `user_id` set.
+
+**Attribution**:
+The credit naming who made a work, carried whether or not that person has an account. Most makers never sign up, and their work is credited all the same.
+_Avoid_: unclaimed artist, artist name
+_In code_: `gallery_artworks.artist_name`, and `gallery_artists` rows with `user_id` null. A claim sets `user_id` on the same row, so an Attribution becomes an Artist in place and the credit never changes.
+
+**Uploader**:
+The account that submitted a work. Often not the Artist — the two are only the same person when an Artist uploads their own work.
+_Avoid_: submitter, poster
+_In code_: `gallery_artworks.uploader_id`.
+
+**Alter**:
+A real card painted over by hand. The gallery shows a photograph of one, never a file to print, so an Alter is commissioned rather than downloaded.
+_Avoid_: altered art, custom card, proxy
+_In code_: `type = 'alter'`. The view filtered to Alters is called Alter Alley in reader-facing prose.
+
+**Highlight**:
+An admin's mark that a work is editorially featured. It says nothing about whether the work can be bought — the store link alone decides that.
+_Avoid_: featured, promoted, and any sense of "merch exists"
+_In code_: `gallery_artworks.highlighted`, deliberately independent of `store_url`.
+
+**Commission**:
+A request from a signed-in visitor to an Artist who has commissions open. PRISM relays it once and keeps both addresses private; the conversation continues by reply, away from PRISM.
+_Avoid_: contact request, inquiry, order
