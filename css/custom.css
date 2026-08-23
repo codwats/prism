@@ -1701,3 +1701,27 @@ wa-page[view='desktop'] [data-toggle-nav] {
     --min-column-size: 140px;
   }
 }
+
+/* ============================================================================
+   Before / After Comparison (index.html)
+   ============================================================================ */
+
+/* The section centers its children, so the comparison needs an explicit width
+   or it collapses to content size. */
+.prism-comparison {
+  inline-size: 100%;
+}
+
+/* Round the outer wrapper via the documented `comparison` part — the host
+   itself has no documented background/radius support. */
+.prism-comparison::part(comparison) {
+  border-radius: var(--wa-border-radius-l);
+  overflow: hidden;
+}
+
+/* Both slotted images are 1000x750, so each side fills the frame identically. */
+.prism-comparison img {
+  display: block;
+  inline-size: 100%;
+  block-size: auto;
+}
