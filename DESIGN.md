@@ -8,7 +8,7 @@ colors:
   primary-quiet: "#f6eeff"
   primary-stroke: "#7d719c"
   neutral-text: "#34353c"
-  neutral-text-subtle: "#76767f"
+  neutral-text-subtle: "#5a5a62"
   surface-default: "#ffffff"
   surface-2: "#f2f2fc"
   surface-3: "#e5e5ef"
@@ -231,28 +231,40 @@ Extended deck colors continue past WUBRG when a PRISM holds more than five decks
 
 ### 2.5 Semantic tokens (build against these)
 
+WA 3.11 renamed or dropped its own versions of most of these (`neutral-text` → `text-normal`, `neutral-text-subtle` → `text-quiet`, no bare `brand-fill`, no `surface-2`/`surface-3`, no state `-surface`/`-text` roles, etc.). PRISM now defines every token below itself, in `js/layout.js`'s injected `:root` block — do not rely on the CDN theme to provide them.
+
 ```css
 /* Surfaces */
---wa-color-surface-default: #ffffff;      /* page + cards (light) */
+--wa-color-surface-default: #ffffff;      /* page + cards (light) — WA-native */
+--wa-color-surface-1:  var(--wa-color-surface-default);  /* raised/bordered popovers (tooltips, previews) */
 --wa-color-surface-2:  var(--wa-color-neutral-95);  /* sunken panels, table heads */
 --wa-color-surface-3:  var(--wa-color-neutral-90);  /* deepest sunken */
---wa-color-surface-border: var(--wa-color-neutral-80);
+--wa-color-surface-border: var(--wa-color-neutral-80);  /* WA-native */
+--wa-color-neutral-stroke: var(--wa-color-neutral-80);  /* borders, ColorSwatch ring on light colors */
 
 /* Text */
 --wa-color-neutral-text:        var(--wa-color-neutral-20);
---wa-color-neutral-text-subtle: var(--wa-color-neutral-50);
+--wa-color-neutral-text-subtle: var(--wa-color-neutral-40);  /* step 40, not 50 — see §2.6 */
 
 /* Brand */
 --wa-color-brand-text:         var(--wa-color-brand-30);
 --wa-color-brand-fill:         var(--wa-color-brand-40);  /* icons, selection */
---wa-color-brand-fill-loud:    var(--wa-color-brand-30);  /* solid buttons */
+--wa-color-brand-fill-loud:    var(--wa-color-brand-30);  /* solid buttons — WA-native */
 --wa-color-brand-fill-subtle:  var(--wa-color-brand-90);
---wa-color-brand-fill-quiet:   var(--wa-color-brand-95);
---wa-color-brand-on-loud:      #ffffff;
+--wa-color-brand-fill-quiet:   var(--wa-color-brand-95);  /* WA-native */
+--wa-color-brand-on-loud:      #ffffff;                   /* WA-native */
 --wa-color-brand-stroke:       var(--wa-color-brand-50);
+--wa-color-brand-stroke-subtle: var(--wa-color-brand-70);  /* split-group card borders */
+
+/* State (success/warning/danger — same pattern for each) */
+--wa-color-warning-text:            var(--wa-color-warning-40);
+--wa-color-warning-fill:            var(--wa-color-warning-50);  /* WA-native as -fill-loud/-normal/-quiet */
+--wa-color-warning-surface:         var(--wa-color-warning-90);
+--wa-color-warning-surface-subtle:  var(--wa-color-warning-95);
+--wa-color-warning-stroke-subtle:   var(--wa-color-warning-70);
 ```
 
-Dark mode (`.wa-dark`) remaps: surfaces to `neutral-10/20/30`, `neutral-text` to `neutral-95`, `brand-text` to `brand-80`, state text to the 80 step, state surfaces to the 20 step.
+Dark mode (`.wa-dark`) remaps the ramp-derived tokens above: surfaces to `neutral-10/20/30`, `neutral-text` to `neutral-95`, `neutral-text-subtle` to `neutral-80`, `neutral-stroke` to `neutral-30`, `brand-text`/`brand-stroke` to `brand-80`/`brand-70`, state text to the 80 step, state surface to the 20 step (surface-subtle one step further, the 10 step). Tokens that resolve through a WA-native token (`surface-1` via `surface-default`, `brand-fill-loud`, etc.) don't need a PRISM-authored dark remap — WA already themes those itself.
 
 ### 2.6 Contrast rules (non-negotiable)
 
@@ -538,6 +550,7 @@ Motion  0.1–0.15s ease, color + shadow only
 
 ## Changelog
 
+- **v2.3** — Semantic tokens are now PRISM-authored, not borrowed from the WA CDN theme. The 3.10→3.11 WA upgrade renamed or dropped ~22 token names this codebase relies on (`neutral-text`, `neutral-text-subtle`, `brand-fill`, `surface-2`/`-3`, every state `-text`/`-surface`/`-surface-subtle`, etc.) — every `var()` reference to them was silently resolving to nothing sitewide. `js/layout.js` now defines all of them explicitly, plus a `.wa-dark` remap block, with `neutral-text-subtle` corrected to step 40 (was 50, which §2.6 already forbade for anything but large text) in the same pass. See §2.5.
 - **v2.2** — WUBRG accent hexes corrected to the shipped values (`js/modules/processor.js` `DEFAULT_COLORS`): W `#EEB41B`, U `#3995D9`, B `#8662D2`, R `#E2484B`, G `#4FAB33` — more vibrant/higher-pop than the prior draft values, matched to on-screen RGB rather than print-mixed intuition.
 - **v2.1** — Typography moved to Adobe Fonts: **halyard-micro** replaces Inter for all UI, **adobe-aldine** replaces Crimson Pro and now carries headings as well as longform. Geist Mono unchanged. Weight roles: body 400, heading 600, longform 400, code 400.
 - **v2.0** — 11-step ramps, semantic token layer, WUBRG restricted to identity use.

@@ -15,6 +15,15 @@
     <meta name="description" content="How PRISM sleeve marking works: read a marked sleeve, tell Pool from Core, choose slots, run a marking session, count copies, mark split groups, and fix a mark." />
     <style>.wa-cloak { visibility: hidden; }</style>
     <style>wa-page:not(:defined) { visibility: hidden; }</style>
+    <!-- CDN resilience. Both rules above hide the page until Web Awesome loads, and
+         nothing removes them if it never does, so a blocked or stalled kit leaves a
+         blank white document. Reveal at 5s regardless: unstyled but readable beats
+         invisible. WA removes the class itself on a normal load, well before this. -->
+    <style>
+      @keyframes prism-uncloak { to { visibility: visible; } }
+      .wa-cloak,
+      wa-page:not(:defined) { animation: prism-uncloak 0s linear 5s forwards; }
+    </style>
     <!-- iOS Home Screen icon (layout.js injects these as a fallback) -->
     <link rel="apple-touch-icon" href="./assets/apple-touch-icon.png" />
     <link rel="manifest" href="./assets/site.webmanifest" />
@@ -26,15 +35,16 @@
     <link rel="preconnect" href="https://fonts.bunny.net" />
     <link rel="preconnect" href="https://fonts.bunny.net" crossorigin />
     <link rel="preconnect" href="https://cdn.jsdelivr.net" />
+    <link rel="preconnect" href="https://use.typekit.net" />
+    <link rel="preconnect" href="https://use.typekit.net" crossorigin />
     <!-- Web Awesome, fonts, and app CSS as static tags so the browser preload scanner
          starts them immediately; layout.js injectHeadResources skips tags already present -->
-   <link rel="stylesheet" href="https://ka-p.webawesome.com/kit/da021fed1e5141f2/webawesome@3.11.0/styles/themes/default.css">
-         <link rel="stylesheet" href="https://ka-p.webawesome.com/kit/da021fed1e5141f2/webawesome@3.11.0/styles/native.css" />
+    <link rel="stylesheet" href="https://ka-p.webawesome.com/kit/da021fed1e5141f2/webawesome@3.11.0/styles/themes/default.css" />
+    <link rel="stylesheet" href="https://ka-p.webawesome.com/kit/da021fed1e5141f2/webawesome@3.11.0/styles/native.css" />
     <link rel="stylesheet" href="https://ka-p.webawesome.com/kit/da021fed1e5141f2/webawesome@3.11.0/styles/utilities.css" />
     <script type="module" src="https://ka-p.webawesome.com/kit/da021fed1e5141f2/webawesome@3.11.0/webawesome.loader.js"></script>
-    <link rel="stylesheet" href="https://fonts.bunny.net/css2?family=Inter:ital,wght@0,100..900;1,100..900&display=swap" />
     <link rel="stylesheet" href="https://fonts.bunny.net/css2?family=Geist+Mono:wght@100..900&display=swap" />
-    <link rel="stylesheet" href="https://fonts.bunny.net/css2?family=Crimson+Pro:ital,wght@0,200..900;1,200..900&display=swap" />
+    <link rel="stylesheet" href="https://use.typekit.net/gbw6ibc.css" />
     <link rel="stylesheet" href="css/custom.css" />
     <style>
       /* Guide step bar (sticky subheader) */
@@ -49,13 +59,35 @@
       #step-bar .step-chip {
         flex: none;
         text-decoration: none;
+        /* DESIGN.md §8 wants a 44px minimum touch target, met by padding the hit
+           area rather than inflating the chip: this bar is the only navigation
+           on a page people scroll one-handed with a wet pen in the other. */
+        display: inline-flex;
+        align-items: center;
+        min-block-size: 44px;
       }
       #step-bar .step-chip wa-tag {
         cursor: pointer;
       }
+      /* Persistent hint that the bar scrolls sideways past the last visible
+         chip — sticky so it rides the trailing edge as the user scrolls. */
+      #step-bar-hint {
+        position: sticky;
+        right: 0;
+        flex: none;
+        align-self: center;
+        padding-inline-start: var(--wa-space-xs);
+        color: var(--wa-color-neutral-text-subtle);
+        background: var(--wa-color-surface-default);
+        pointer-events: none;
+      }
       .guide-step {
         padding-block: var(--wa-space-xl);
-        scroll-margin-top: 9rem;
+        /* Clears the sticky header plus the step bar when a chip jumps to a
+           section. Measured at ~135px with the 44px chips; 10rem leaves room for
+           the horizontal scrollbar the bar shows on platforms without overlay
+           scrollbars, which would otherwise hide the heading behind it. */
+        scroll-margin-top: 10rem;
       }
     </style>
   </head>
@@ -69,6 +101,7 @@
         <a href="#count-copies" data-step="count-copies" class="step-chip"><wa-tag variant="neutral" appearance="outlined" size="small" pill>Count the copies you need</wa-tag></a>
         <a href="#mark-variants" data-step="mark-variants" class="step-chip"><wa-tag variant="neutral" appearance="outlined" size="small" pill>Mark a split group</wa-tag></a>
         <a href="#fix-a-mark" data-step="fix-a-mark" class="step-chip"><wa-tag variant="neutral" appearance="outlined" size="small" pill>Fix a mark you no longer want</wa-tag></a>
+        <wa-icon id="step-bar-hint" name="chevron-right" aria-hidden="true"></wa-icon>
       </div>
 
       <main style="max-width: 800px; margin: 0 auto;">
@@ -125,7 +158,7 @@
 
         <section id="mark-a-session" class="wa-stack wa-gap-m guide-step">
           <h2 class="wa-heading-xl">Run a marking session</h2>
-          <p>A marking session is one sitting that takes a stack of cards from unmarked to marked. Work one card at a time, not one deck at a time. Mark the Pool cards first, because they carry the most marks.</p>
+          <p>A marking session is one sitting that takes a stack of cards from unmarked to marked. Work one card at a time, not one deck at a time. Mark the Pool cards first, because they carry the most marks. Make your first card a cheap one, a basic land or a bulk common that still carries several marks, so a miscount costs you a sleeve and not a Mana Crypt.</p>
           <p>PRISM builds an undone list of every card that still needs a mark, with the number of copies for each one. Take that list to the table and work from it.</p>
           <wa-callout variant="danger">
             <wa-icon slot="icon" name="triangle-exclamation"></wa-icon>
@@ -134,7 +167,7 @@
           <ol style="padding-left: var(--wa-space-xl); line-height: 1.8; margin: 0;">
             <li>Test the pen on a spare sleeve. Make sure the paint shows against the sleeve color. See <a href="tools.html">Tools</a> for pens that work.</li>
             <li>Take the inner sleeve out of the outer sleeve.</li>
-            <li>Hold the sleeve in the jig, or against a straight edge.</li>
+            <li>Hold the sleeve in the Spirit Guide, or against a straight edge.</li>
             <li>Paint a short line at the slot for the deck. A line of 3 to 7mm is enough.</li>
             <li>Paint the other marks that copy needs in the same pass.</li>
           </ol>
@@ -146,14 +179,18 @@
             <li>Put the inner sleeve back inside the outer sleeve.</li>
             <li>Check the card off in PRISM.</li>
           </ol>
+          <wa-callout variant="danger">
+            <wa-icon slot="icon" name="circle-check"></wa-icon>
+            <strong>Stop after the first card and check it against PRISM.</strong> Find that card in the list and confirm every mark you painted matches the color and slot PRISM shows for it. Step 1 tests the pen. This tests your reading of the slots, and it is the last point where a miscount costs one inner sleeve instead of two hundred.
+          </wa-callout>
           <p>Set a line length you can repeat and keep to it. Marks that vary in length are harder to read at a glance than marks that vary only in color and place.</p>
           <div class="wa-grid wa-gap-m" style="--min-column-size: 240px;">
-            <img src="assets/Spririt-Guide.svg" alt="The Spirit Guide jig over a sleeve, with a mark drawn through one slot of its comb" style="max-inline-size: 100%; block-size: auto;" />
-            <img src="assets/spiritguide.avif" alt="The printed Spirit Guide jig holding a sleeve" style="max-inline-size: 100%; block-size: auto; border-radius: var(--wa-border-radius-m);" />
+            <img src="assets/Spririt-Guide.svg" alt="The Spirit Guide over a sleeve, with a mark drawn through one slot of its comb" style="max-inline-size: 100%; block-size: auto;" />
+            <img src="assets/spiritguide.avif" alt="The printed Spirit Guide holding a sleeve" style="max-inline-size: 100%; block-size: auto; border-radius: var(--wa-border-radius-m);" />
           </div>
           <wa-callout variant="brand" appearance="outlined">
             <wa-icon slot="icon" name="handshake-angle"></wa-icon>
-            <strong>Use the Spirit Guide.</strong> It holds the sleeve and shows every slot, so you paint all of a card's colors in one pass. Until the STL lands on <a href="tools.html">Tools</a>, any straight-edge jig works.
+            <strong>Use the Spirit Guide.</strong> It holds the sleeve and shows every slot, so you paint all of a card's colors in one pass. Until the STL lands on <a href="tools.html">Tools</a>, any straight edge works.
           </wa-callout>
           <p><strong>Double-sleeve every marked card.</strong> The outer sleeve protects the paint from handling. It also keeps the deck legal for play, because every card in it shows the same outer sleeve.</p>
         </section>
@@ -171,7 +208,7 @@
           <p>Add the batches together and you get the Physical total, which is the number of copies to own. For the Islands above, the Physical total is 12.</p>
           <p>You never mark all twelve Islands for both decks. Eight marked for Deck B is exactly enough, because Deck B never needs a ninth.</p>
           <p>Basic lands are the loudest case, not a special case. Any card you run more than one of works the same way. So does a card that one deck runs four of and another runs two.</p>
-          <p>The Grouped by Mark filter shows the work one mark at a time. Each row is a single deck's mark on a number of copies, which is what your hand does at the table.</p>
+          <p>The One Mark at a Time filter shows exactly that. Each row is a single deck's mark on a number of copies, which is what your hand does at the table.</p>
         </section>
 
         <wa-divider></wa-divider>
@@ -185,7 +222,7 @@
           <div>
             <img src="assets/split-variant.svg" alt="Cards sorted into two variants of one deck, each variant marked at its own Side B slot" style="max-inline-size: 100%; block-size: auto;" />
           </div>
-          <p><strong>Dots.</strong> Each variant gets a colored dot next to the group's Side A mark, on the same edge. This style holds exactly two variants, because the jig has one dot hole.</p>
+          <p><strong>Dots.</strong> Each variant gets a colored dot next to the group's Side A mark, on the same edge. This style holds exactly two variants, because the Spirit Guide has one dot hole.</p>
           <p>Pick dots when the group has two variants and you want the opposite edge left clear. Pick stripes for anything larger.</p>
         </section>
 

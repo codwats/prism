@@ -40,7 +40,8 @@ const NAV_LINKS = [
  * Initialize shared layout components.
  * @param {Object} options
  * @param {string} options.activePage - Which nav link to highlight ('home'|'guide'|'tools'|'build'|'profile'|'privacy'|'terms')
- * @param {Object} [options.headerCta] - Header CTA button config
+ * @param {Object|null} [options.headerCta] - Header CTA button config. Pass
+ *   null to render no CTA; omit for the default "Build PRISM" link.
  * @param {string} [options.headerCta.id] - Button id (e.g. 'btn-new-prism')
  * @param {string} [options.headerCta.label] - Button label text
  * @param {string} [options.headerCta.href] - Link destination (omit for button-only)
@@ -52,6 +53,7 @@ export function initLayout(options = {}) {
   const { activePage = '' } = options;
 
   initGlobalErrorReporting();
+  initButtonHrefFallback();
   injectHeadResources();
   injectNav(activePage);
   injectHeader(options.headerCta);
@@ -59,6 +61,32 @@ export function initLayout(options = {}) {
   injectAuthDialog();
   injectSettingsDrawer();
   initAuthModule();
+}
+
+/**
+ * `<wa-button href>` only navigates once Web Awesome upgrades the element, so
+ * until the kit arrives every link-button on the page is dead. On a slow or
+ * blocked CDN that includes each page's primary CTA.
+ *
+ * Delegated from `document` rather than bound per element, so it also covers
+ * the header CTA and nav buttons injected below, and anything a page adds
+ * later. It bails as soon as `wa-button` is defined: `customElements.define`
+ * upgrades every matching element already in the document synchronously, so a
+ * resolved constructor means WA owns the click and nothing should navigate twice.
+ */
+function initButtonHrefFallback() {
+  if (document.__prismHrefFallback) return;
+  document.__prismHrefFallback = true;
+
+  document.addEventListener('click', (event) => {
+    if (window.customElements && customElements.get('wa-button')) return;
+    const btn = event.target.closest?.('wa-button[href]');
+    if (!btn || btn.hasAttribute('disabled')) return;
+    const href = btn.getAttribute('href');
+    if (!href) return;
+    if (btn.getAttribute('target') === '_blank') window.open(href, '_blank', 'noopener');
+    else window.location.href = href;
+  });
 }
 
 // ============================================================
@@ -167,6 +195,40 @@ function injectHeadResources() {
     --wa-color-danger-80: #ffb0aa;
     --wa-color-danger-90: #ffd7d3;
     --wa-color-danger-95: #ffeae7;
+
+    /* Semantic tokens (DESIGN.md §2.5). WA 3.11 renamed/dropped its own
+       versions of these (neutral-text -> text-normal, etc.), so PRISM now
+       defines them itself rather than relying on the CDN theme to. */
+    --wa-color-surface-1: var(--wa-color-surface-default);
+    --wa-color-surface-2: var(--wa-color-neutral-95);
+    --wa-color-surface-3: var(--wa-color-neutral-90);
+    --wa-color-neutral-stroke: var(--wa-color-neutral-80);
+    --wa-color-neutral-text: var(--wa-color-neutral-20);
+    --wa-color-neutral-text-subtle: var(--wa-color-neutral-40);
+    /* WA's own token, used by every wa-caption-* utility and several components.
+       PRISM never defined it, so caption color came from the CDN theme alone and
+       a WA update could recolor it sitewide. Aliased to the PRISM subtle role so
+       both stay in step. This also fixes dark mode: WA drops text-quiet to
+       neutral-60, which DESIGN.md §2.6 forbids on dark (never darker than step
+       80). The .wa-dark remap below resolves through this alias automatically,
+       and PRISM's block is unlayered so it outranks @layer wa-theme either way. */
+    --wa-color-text-quiet: var(--wa-color-neutral-text-subtle);
+    --wa-color-brand-text: var(--wa-color-brand-30);
+    --wa-color-brand-fill: var(--wa-color-brand-40);
+    --wa-color-brand-fill-subtle: var(--wa-color-brand-90);
+    --wa-color-brand-stroke: var(--wa-color-brand-50);
+    --wa-color-brand-stroke-subtle: var(--wa-color-brand-70);
+    --wa-color-success-text: var(--wa-color-success-40);
+    --wa-color-success-fill: var(--wa-color-success-50);
+    --wa-color-warning-text: var(--wa-color-warning-40);
+    --wa-color-warning-surface: var(--wa-color-warning-90);
+    --wa-color-warning-surface-subtle: var(--wa-color-warning-95);
+    --wa-color-warning-stroke-subtle: var(--wa-color-warning-70);
+    --wa-color-danger-text: var(--wa-color-danger-40);
+    --wa-color-danger-surface: var(--wa-color-danger-90);
+    --wa-color-danger-surface-subtle: var(--wa-color-danger-95);
+    --wa-color-danger-border: var(--wa-color-danger-70);
+
     --wa-font-family-body: "halyard-micro",sans-serif;
     --wa-font-family-heading: "adobe-aldine", serif;
     --wa-font-family-code: "Geist Mono", monospace;
@@ -178,6 +240,28 @@ function injectHeadResources() {
     --wa-border-radius-scale: 0.5;
     --wa-border-width-scale: 1;
     --wa-space-scale: 1.125;
+      }
+
+      /* Dark-mode remap for the ramp-derived semantic tokens above (DESIGN.md
+         §2.5: "surfaces to neutral-10/20/30, neutral-text to neutral-95,
+         brand-text to brand-80, state text to the 80 step, state surfaces to
+         the 20 step"). Tokens built from WA's own native tokens (surface-1,
+         via surface-default) don't need a remap here — WA already themes those. */
+      .wa-dark {
+    --wa-color-surface-2: var(--wa-color-neutral-20);
+    --wa-color-surface-3: var(--wa-color-neutral-30);
+    --wa-color-neutral-stroke: var(--wa-color-neutral-30);
+    --wa-color-neutral-text: var(--wa-color-neutral-95);
+    --wa-color-neutral-text-subtle: var(--wa-color-neutral-80);
+    --wa-color-brand-text: var(--wa-color-brand-80);
+    --wa-color-brand-stroke: var(--wa-color-brand-70);
+    --wa-color-success-text: var(--wa-color-success-80);
+    --wa-color-warning-text: var(--wa-color-warning-80);
+    --wa-color-warning-surface: var(--wa-color-warning-20);
+    --wa-color-warning-surface-subtle: var(--wa-color-warning-10);
+    --wa-color-danger-text: var(--wa-color-danger-80);
+    --wa-color-danger-surface: var(--wa-color-danger-20);
+    --wa-color-danger-surface-subtle: var(--wa-color-danger-10);
       }
     `;
     head.appendChild(style);
@@ -316,14 +400,9 @@ function injectNav(activePage) {
   // Insert nav as first child of wa-page (before header and main)
   waPage.insertBefore(nav, waPage.firstChild);
 
-  // Fallback: <wa-button href> only navigates after WA upgrades the element.
-  // Add a click listener so navigation works even before WA loads.
-  const profileNavBtn = nav.querySelector('wa-button[href="profile.html"]');
-  if (profileNavBtn) {
-    profileNavBtn.addEventListener('click', () => {
-      window.location.href = 'profile.html';
-    });
-  }
+  // The profile button used to carry its own pre-upgrade click fallback here.
+  // initButtonHrefFallback() now covers every <wa-button href> on the page,
+  // including this one and the header CTA, so the per-element listener is gone.
 }
 
 // ============================================================
@@ -341,6 +420,12 @@ function injectHeader(ctaConfig) {
   header.slot = 'header';
   header.className = 'wa-split';
 
+  // Pass `headerCta: null` to ship a header with no CTA at all. build.html does
+  // this: its only header action used to be "New PRISM", and a mis-click in the
+  // primary-action slot swapped the whole PRISM out. That action now lives in
+  // the ... overflow menu next to the PRISM switcher.
+  const suppressCta = ctaConfig === null;
+
   // Default CTA: link to build.html with brand variant
   const cta = ctaConfig || { href: 'build.html', label: 'Build PRISM', icon: 'wand-magic-sparkles' };
   const ctaId = cta.id ? ` id="${cta.id}"` : '';
@@ -353,7 +438,7 @@ function injectHeader(ctaConfig) {
 
   header.innerHTML = `
         <div class="wa-cluster wa-gap-m wa-align-items-center">
-          <wa-button data-toggle-nav appearance="plain" variant="neutral" size="small">
+          <wa-button data-toggle-nav appearance="plain" variant="neutral" size="small" aria-label="Menu">
             <wa-icon name="bars"></wa-icon>
           </wa-button>
           <a href="index.html" class="wa-cluster wa-gap-xs wa-align-items-center" style="text-decoration: none; color: inherit;">
@@ -368,10 +453,10 @@ function injectHeader(ctaConfig) {
             <wa-icon name="gear"></wa-icon>
           </wa-button>
           <wa-tooltip for="btn-settings">Settings</wa-tooltip>
-          <wa-button${ctaId}${ctaHref} variant="${ctaVariant}"${ctaAppearanceAttr} size="small">
+          ${suppressCta ? '' : `<wa-button${ctaId}${ctaHref} variant="${ctaVariant}"${ctaAppearanceAttr} size="small">
             <wa-icon slot="start" name="${ctaIcon}"></wa-icon>
             ${ctaLabel}
-          </wa-button>
+          </wa-button>`}
         </div>`;
 
   // Insert after nav (if exists) or as first child
@@ -407,10 +492,10 @@ function injectFooter() {
                 <span style="color: var(--wa-color-neutral-text-subtle);">Made for Commander players, by Commander players</span>
               </div>
               <div class="wa-cluster wa-gap-m" style="color: var(--wa-color-neutral-text-subtle);">
-                <a href="https://github.com/codwats/prism" target="_blank" rel="noopener" title="PRISM on GitHub">
+                <a href="https://github.com/codwats/prism" target="_blank" rel="noopener" title="PRISM on GitHub" aria-label="PRISM on GitHub">
                   <wa-icon name="github" family="brands"></wa-icon>
                 </a>
-                <a href="https://discord.gg/Jp84QUPSe" target="_blank" rel="noopener" title="Join the PRISM Discord">
+                <a href="https://discord.gg/Jp84QUPSe" target="_blank" rel="noopener" title="Join the PRISM Discord" aria-label="Join the PRISM Discord">
                   <wa-icon name="discord" family="brands"></wa-icon>
                 </a>
               </div>
@@ -555,7 +640,7 @@ function injectSettingsDrawer() {
           <p class="wa-caption-s" style="color: var(--wa-color-neutral-text-subtle); margin: 0;">Slot numbers stay the same — stripes move so Slot 1 starts at the chosen corner.</p>
           <wa-slider
             id="stripe-position-numbers-mode"
-            label="Position Numbers"
+            label="Slot Numbers"
             name="position-numbers"
             min="1"
             max="3"

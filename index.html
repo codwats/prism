@@ -15,6 +15,15 @@
     <meta name="description" content="Share MTG Commander cards across multiple decks without buying duplicates. PRISM helps you mark sleeves so one card can live in many decks." />
     <style>.wa-cloak { visibility: hidden; }</style>
     <style>wa-page:not(:defined) { visibility: hidden; }</style>
+    <!-- CDN resilience. Both rules above hide the page until Web Awesome loads, and
+         nothing removes them if it never does, so a blocked or stalled kit leaves a
+         blank white document. Reveal at 5s regardless: unstyled but readable beats
+         invisible. WA removes the class itself on a normal load, well before this. -->
+    <style>
+      @keyframes prism-uncloak { to { visibility: visible; } }
+      .wa-cloak,
+      wa-page:not(:defined) { animation: prism-uncloak 0s linear 5s forwards; }
+    </style>
     <!-- iOS Home Screen icon (layout.js injects these as a fallback) -->
     <link rel="apple-touch-icon" href="./assets/apple-touch-icon.png" />
     <link rel="manifest" href="./assets/site.webmanifest" />
@@ -26,6 +35,8 @@
     <link rel="preconnect" href="https://fonts.bunny.net" />
     <link rel="preconnect" href="https://fonts.bunny.net" crossorigin />
     <link rel="preconnect" href="https://cdn.jsdelivr.net" />
+    <link rel="preconnect" href="https://use.typekit.net" />
+    <link rel="preconnect" href="https://use.typekit.net" crossorigin />
     <!-- Web Awesome, fonts, and app CSS as static tags so the browser preload scanner
          starts them immediately; layout.js injectHeadResources skips tags already present -->
     <link rel="stylesheet" href="https://ka-p.webawesome.com/kit/da021fed1e5141f2/webawesome@3.11.0/styles/themes/default.css" />
@@ -41,11 +52,18 @@
       <main>
         <!-- Hero Section -->
         <section class="wa-stack wa-gap-m wa-align-items-center" style="padding-block: var(--wa-space-3xl);">
-          <div class="wa-heading-m" style="text-align: center; letter-spacing: 0.05em;">One card. Every deck.&#8482;</div>
+          <!-- Eyebrow role per DESIGN.md §3: halyard-micro 14px/500, 0.05em tracking.
+               This string is named there as the eyebrow, so it takes the body face,
+               not the heading serif it was rendering in. -->
+          <div class="wa-body-s" style="text-align: center; letter-spacing: 0.05em; font-weight: 500;">One card. Every deck.&#8482;</div>
           <img src="./assets/Prism-Logo-Invert.svg" alt="PRISM logo" style="width:275px;" class="theme-logo-dark">
           <img src="./assets/Prism-Logo-Main.svg" alt="PRISM logo" style="width:275px;" class="theme-logo-light">
-          <div class="wa-heading-l" style="text-align: center;">Personal Reference Index &amp; Sleeve Marking</div>
-          <p class="wa-caption-l" style="text-align: center; max-width: 600px;">
+          <div class="wa-caption-s" style="text-align: center; letter-spacing: 0.05em; color: var(--wa-color-neutral-text-subtle);">Personal Reference Index &amp; Sleeve Marking</div>
+          <!-- Display step per DESIGN.md §8: 64px desktop down to 36px mobile. -->
+          <h1 class="wa-heading-3xl" style="text-align: center; max-width: 22ch; margin: 0; font-size: clamp(2.25rem, 6vw, 4rem); text-wrap: balance;">
+            Stop buying the same card ten times.
+          </h1>
+          <p style="text-align: center; max-width: 600px;">
             Own one copy of each card. Mark its sleeve with a stripe for every deck the card belongs to. Fan, pull, play.
           </p>
           <div class="wa-flank wa-gap-s" style="margin-top: var(--wa-space-l);">
@@ -69,24 +87,24 @@
           <div class="wa-grid wa-gap-xl" style="--min-column-size: 250px;">
             <div class="wa-stack wa-gap-s wa-align-items-center" style="text-align: center;">
               <div class="wa-frame" style="block-size: 11rem; inline-size: 100%;">
-                <img src="./assets/Deck-List.svg" alt="icon-of-deck-list" style="object-fit: contain;" />
+                <img src="./assets/Deck-List.svg" alt="Three decklists shown as columns of stacked placeholder rows, side by side" style="object-fit: contain;" />
               </div>
               <h3 class="wa-heading-xl">Import Your Decks</h3>
               <p>Paste a deck URL from Moxfield or Archidekt. You can also type a list by hand. PRISM gives each deck one color and one slot. A single PRISM holds up to 48 decks, or 96 with dot splits.</p>
             </div>
             <div class="wa-stack wa-gap-s wa-align-items-center" style="text-align: center;">
               <div class="wa-frame" style="block-size: 11rem; inline-size: 100%;">
-                <img src="./assets/Web-App.svg" alt="icon-of-web-app" style="object-fit: contain;" />
+                <img src="./assets/Web-App.svg" alt="A results table mockup with a card checklist on the left and a grid of colored deck-color squares on the right, showing which decks share each card" style="object-fit: contain;" />
               </div>
 
               <h3 class="wa-heading-xl">Find Your Pool Copies</h3>
               <p>A copy that two or more decks use is Pool. PRISM finds every one of them, so one Sol Ring is all you need.</p>
             </div>
             <div class="wa-stack wa-gap-s wa-align-items-center" style="text-align: center;">
-              <!-- Full width, not 75%: this is a diagram of the jig's slot comb
+              <!-- Full width, not 75%: this is a diagram of the Spirit Guide's slot comb
                    with a mark passing through it, unreadable at icon scale (#163 F1). -->
               <div class="wa-frame" style="block-size: 11rem; inline-size: 100%;">
-                <img src="./assets/Spririt-Guide.svg" alt="The Spirit Guide jig over a sleeve, with a mark drawn through one slot of its comb" style="object-fit: contain;" />
+                <img src="./assets/Spririt-Guide.svg" alt="The Spirit Guide over a sleeve, with a mark drawn through one slot of its comb" style="object-fit: contain;" />
               </div>
 
               <h3 class="wa-heading-xl">Mark Your Sleeves</h3>
@@ -96,41 +114,76 @@
           </div>
         </section>
 
-        <wa-divider style="--spacing: var(--wa-space-2xl);"></wa-divider>
+        <!-- Duplicates You Free Up. Figures are the README "Real World Impact" table,
+             computed from average EDHREC decklists for top commanders. Real math,
+             not illustrative: do not round or dramatize them. Tinted ground rather
+             than a divider so the section reads as a peak in the scroll; surface-2
+             is used because it is the one sunken token remapped for dark mode. -->
+        <section id="payoff" style="background: var(--wa-color-surface-2); padding: var(--wa-space-3xl) var(--wa-space-l); margin-block: var(--wa-space-2xl);">
+          <div class="wa-stack wa-gap-l" style="max-width: 720px; margin: 0 auto;">
+            <h2 class="wa-heading-2xl" style="text-align: center;">Duplicates You Free Up</h2>
+            <p style="text-align: center; max-width: 60ch; margin-inline: auto;">
+              Every deck you add overlaps the decks you already own. Those overlaps are copies you stop needing, and copies you can sell.
+            </p>
+
+            <table class="impact-table">
+              <caption>Duplicate copies a marked collection frees up, by collection size.</caption>
+              <thead>
+                <tr>
+                  <th scope="col">Collection</th>
+                  <th scope="col">Duplicates freed</th>
+                  <th scope="col" style="text-align: right;">Resale value</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <th scope="row" class="impact-collection">5 decks</th>
+                  <td>166 cards</td>
+                  <td class="impact-value">~$919</td>
+                </tr>
+                <tr>
+                  <th scope="row" class="impact-collection">10 decks</th>
+                  <td>358 cards</td>
+                  <td class="impact-value">~$1,637</td>
+                </tr>
+                <tr>
+                  <th scope="row" class="impact-collection">48 decks</th>
+                  <td>2,295 cards</td>
+                  <td class="impact-value">~$9,680</td>
+                </tr>
+              </tbody>
+            </table>
+
+            <p class="wa-caption-s" style="text-align: center; color: var(--wa-color-neutral-text-subtle);">
+              Based on average EDHREC decklists for top commanders. Your collection will differ.
+            </p>
+
+            <!-- Affiliate CTA. Placed after the figures because the table is what
+                 makes the argument; disclosure wording matches tools.html. -->
+            <div class="wa-stack wa-gap-xs wa-align-items-center">
+              <wa-button href="https://cardconduit.com/defcat" target="_blank" rel="noopener" appearance="outlined">
+                <wa-icon slot="start" name="box-open"></wa-icon>
+                Sell Your Duplicates with Card Conduit
+              </wa-button>
+              <p class="wa-caption-s" style="text-align: center; color: var(--wa-color-neutral-text-subtle); margin: 0;">
+                Support your local game store, or use the affiliate link above to help cover hosting costs.
+              </p>
+            </div>
+          </div>
+        </section>
 
         <!-- Features -->
-        <section id="features" class="wa-stack wa-gap-xl">
+        <!-- Same 900px measure as How It Works. At 280px minimum the four cards
+             laid out 3 + 1, orphaning the last one beside a half-empty row; 380px
+             forces a 2x2 block and gives each card a ~49ch reading measure. -->
+        <section id="features" class="wa-stack wa-gap-xl" style="max-width: 900px; margin: 0 auto;">
           <h2 class="wa-heading-2xl" style="text-align: center;">Features</h2>
 
-          <div class="wa-grid wa-gap-l" style="--min-column-size: 280px;">
-            <wa-card>
-              <div slot="header" class="wa-cluster wa-gap-s wa-align-items-center">
-                <wa-icon name="file-import" style="font-size: 1.25em; color: var(--wa-color-brand-fill);"></wa-icon>
-                <span class="wa-body-l">Import Decks</span>
-              </div>
-              <p>Paste a deck URL, or type a list in standard MTGO format. PRISM parses the list, and organizes the cards.</p>
-            </wa-card>
-
-            <wa-card>
-              <div slot="header" class="wa-cluster wa-gap-s wa-align-items-center">
-                <wa-icon name="paintbrush" style="font-size: 1.25em; color: var(--wa-color-brand-fill);"></wa-icon>
-                <span class="wa-body-l">Smart Marking</span>
-              </div>
-              <p>Each deck gets one color and one fixed slot. Fan your cards, find the stripes, and pull the deck.</p>
-            </wa-card>
-
-            <wa-card>
-              <div slot="header" class="wa-cluster wa-gap-s wa-align-items-center">
-                <wa-icon name="object-group" style="font-size: 1.25em; color: var(--wa-color-brand-fill);"></wa-icon>
-                <span class="wa-body-l">Overlap View</span>
-              </div>
-              <p>See how much each pair of decks shares. Find the decks with no overlap, which is useful when someone borrows a deck. Or use the overlaps to fit more decks into fewer cards.</p>
-            </wa-card>
-            
+          <div class="wa-grid wa-gap-l" style="--min-column-size: 380px;">
             <wa-card>
               <div slot="header" class="wa-cluster wa-gap-s wa-align-items-center">
                 <wa-icon name="code-branch" style="font-size: 1.25em; color: var(--wa-color-brand-fill);"></wa-icon>
-                <span class="wa-body-l">Deck Variants</span>
+                <h3 class="wa-heading-l">Deck Variants</h3>
               </div>
               <p>Run one commander shell with several themes. Mark the copies every variant uses once, then mark each variant on its own. PRISM tracks the shell and its variants as one group.</p>
             </wa-card>
@@ -139,7 +192,7 @@
             <wa-card>
               <div slot="header" class="wa-cluster wa-gap-s wa-align-items-center">
                 <wa-icon name="arrows-rotate" style="font-size: 1.25em; color: var(--wa-color-brand-fill);"></wa-icon>
-                <span class="wa-body-l">Track Changes</span>
+                <h3 class="wa-heading-l">Track Changes</h3>
               </div>
               <p>Add a new deck later and PRISM shows what changed. You mark only the new cards. You do not re-mark hundreds of sleeves.</p>
             </wa-card>
@@ -147,7 +200,7 @@
             <wa-card>
               <div slot="header" class="wa-cluster wa-gap-s wa-align-items-center">
                 <wa-icon name="download" style="font-size: 1.25em; color: var(--wa-color-brand-fill);"></wa-icon>
-                <span class="wa-body-l">Export Anywhere</span>
+                <h3 class="wa-heading-l">Export Anywhere</h3>
               </div>
               <p>Use the web app here, or download your marking guide as CSV, JSON, or a printable reference.</p>
             </wa-card>
@@ -155,18 +208,11 @@
             <wa-card>
               <div slot="header" class="wa-cluster wa-gap-s wa-align-items-center">
                 <wa-icon name="floppy-disk" style="font-size: 1.25em; color: var(--wa-color-brand-fill);"></wa-icon>
-                <span class="wa-body-l">Auto-Save</span>
+                <h3 class="wa-heading-l">Auto-Save</h3>
               </div>
               <p>PRISM saves your work in your browser. Return at any time to update or export it. Login to sync across multiple devices.</p>
             </wa-card>
 
-            <wa-card>
-              <div slot="header" class="wa-cluster wa-gap-s wa-align-items-center">
-                <wa-icon name="layer-group" style="font-size: 1.25em; color: var(--wa-color-brand-fill);"></wa-icon>
-                <span class="wa-body-l">Up to 48 Decks</span>
-              </div>
-              <p>A single PRISM holds up to 48 decks, or 96 with dot splits. Each deck gets its own slot. For a larger collection, create more than one PRISM.</p>
-            </wa-card>
           </div>
         </section>
 
@@ -194,28 +240,28 @@
 
           
           <wa-details>
-            <span slot="summary" class="wa-caption-m">What markers should I use?</span>
+            <span slot="summary" class="wa-body-m" style="font-weight: 500;">What markers should I use?</span>
             <p>Use fine-tip acrylic paint pens. They work on most sleeves. PRISM defaults to colors that match standard paint pen sets. The <a href="tools.html">Tools page</a> lists specific products.</p>
           </wa-details>
 
           <wa-details>
-            <span slot="summary" class="wa-caption-m">What about all my extra cards now?</span>
-            <p>Sell them. After you mark your sleeves, you need only one copy of each card. Your duplicates become trade fodder or cash. Many players cover the cost of their marking supplies this way.</p>
+            <span slot="summary" class="wa-body-m" style="font-weight: 500;">What about all my extra cards now?</span>
+            <p>Sell them. After you mark your sleeves, you need only one copy of each card. Your duplicates become trade fodder or cash. Many players cover the cost of their marking supplies this way. Support your local game store, or ship the pile to <a href="https://cardconduit.com/defcat" target="_blank" rel="noopener">Card Conduit</a> instead of listing singles one at a time. That is an affiliate link, and it helps cover hosting costs.</p>
           </wa-details>
 
          
           <wa-details>
-            <span slot="summary" class="wa-caption-m">Where is my data stored?</span>
+            <span slot="summary" class="wa-body-m" style="font-weight: 500;">Where is my data stored?</span>
             <p>PRISM is local-first. Your decks and marks stay in your browser and work without an account. If you create an account, PRISM also syncs your data to our database so you can use it across devices. We use aggregate analytics that do not identify you. The <a href="privacy.html">Privacy Policy</a> has the details. You can export your data as JSON at any time.</p>
           </wa-details>
 
           <wa-details>
-            <span slot="summary" class="wa-caption-m">Can I reorder the stripe positions?</span>
-            <p>Yes. On each deck card, select Move to open the slot picker. To reorder several decks at once, use the dropdown list on the Export tab. Group your decks by color identity, or put your most-played decks in the positions that are easiest to see.</p>
+            <span slot="summary" class="wa-body-m" style="font-weight: 500;">Can I reorder the slots?</span>
+            <p>Yes. On each deck card, select Move to open the slot picker. To reorder several decks at once, use the dropdown list on the Export tab. Group your decks by color identity, or put your most-played decks in the slots that are easiest to see.</p>
           </wa-details>
 
           <wa-details>
-            <span slot="summary" class="wa-caption-m">Is this tournament legal?</span>
+            <span slot="summary" class="wa-body-m" style="font-weight: 500;">Is this tournament legal?</span>
             <p>Yes. <a href="https://blogs.magicjudges.org/rules/mtr3-12/" target="_blank" rel="noopener">MTR 3.12</a> defines a card as marked if the marking lets a player identify it without seeing its face. Sleeve edge marks add no noticeable thickness and do not change the card's profile in the deck. If you must look from a specific angle to see the mark, the card is not marked under the rule.</p>
           </wa-details>
         </section>

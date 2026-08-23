@@ -15,6 +15,15 @@
     <meta name="description" content="Partnered and community artwork for MTG proxies, tokens, and showcase treatments. Personal, non-commercial use with artist credit." />
     <style>.wa-cloak { visibility: hidden; }</style>
     <style>wa-page:not(:defined) { visibility: hidden; }</style>
+    <!-- CDN resilience. Both rules above hide the page until Web Awesome loads, and
+         nothing removes them if it never does, so a blocked or stalled kit leaves a
+         blank white document. Reveal at 5s regardless: unstyled but readable beats
+         invisible. WA removes the class itself on a normal load, well before this. -->
+    <style>
+      @keyframes prism-uncloak { to { visibility: visible; } }
+      .wa-cloak,
+      wa-page:not(:defined) { animation: prism-uncloak 0s linear 5s forwards; }
+    </style>
     <!-- iOS Home Screen icon (layout.js injects these as a fallback) -->
     <link rel="apple-touch-icon" href="./assets/apple-touch-icon.png" />
     <link rel="manifest" href="./assets/site.webmanifest" />
@@ -26,15 +35,16 @@
     <link rel="preconnect" href="https://fonts.bunny.net" />
     <link rel="preconnect" href="https://fonts.bunny.net" crossorigin />
     <link rel="preconnect" href="https://cdn.jsdelivr.net" />
+    <link rel="preconnect" href="https://use.typekit.net" />
+    <link rel="preconnect" href="https://use.typekit.net" crossorigin />
     <!-- Web Awesome, fonts, and app CSS as static tags so the browser preload scanner
          starts them immediately; layout.js injectHeadResources skips tags already present -->
-         <link rel="stylesheet" href="https://ka-p.webawesome.com/kit/da021fed1e5141f2/webawesome@3.11.0/styles/themes/default.css">
-               <link rel="stylesheet" href="https://ka-p.webawesome.com/kit/da021fed1e5141f2/webawesome@3.11.0/styles/native.css" />
-          <link rel="stylesheet" href="https://ka-p.webawesome.com/kit/da021fed1e5141f2/webawesome@3.11.0/styles/utilities.css" />
-          <script type="module" src="https://ka-p.webawesome.com/kit/da021fed1e5141f2/webawesome@3.11.0/webawesome.loader.js"></script>
-    <link rel="stylesheet" href="https://fonts.bunny.net/css2?family=Inter:ital,wght@0,100..900;1,100..900&display=swap" />
+    <link rel="stylesheet" href="https://ka-p.webawesome.com/kit/da021fed1e5141f2/webawesome@3.11.0/styles/themes/default.css" />
+    <link rel="stylesheet" href="https://ka-p.webawesome.com/kit/da021fed1e5141f2/webawesome@3.11.0/styles/native.css" />
+    <link rel="stylesheet" href="https://ka-p.webawesome.com/kit/da021fed1e5141f2/webawesome@3.11.0/styles/utilities.css" />
+    <script type="module" src="https://ka-p.webawesome.com/kit/da021fed1e5141f2/webawesome@3.11.0/webawesome.loader.js"></script>
     <link rel="stylesheet" href="https://fonts.bunny.net/css2?family=Geist+Mono:wght@100..900&display=swap" />
-    <link rel="stylesheet" href="https://fonts.bunny.net/css2?family=Crimson+Pro:ital,wght@0,200..900;1,200..900&display=swap" />
+    <link rel="stylesheet" href="https://use.typekit.net/gbw6ibc.css" />
     <link rel="stylesheet" href="css/custom.css" />
   </head>
   <body>

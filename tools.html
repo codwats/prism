@@ -12,9 +12,18 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Tools & Supplies - PRISM</title>
-    <meta name="description" content="Recommended paint pens, sleeves, and 3D printable marking jigs for the PRISM sleeve marking system." />
+    <meta name="description" content="Recommended paint pens, sleeves, and the 3D printable Spirit Guide alignment tool for the PRISM sleeve marking system." />
     <style>.wa-cloak { visibility: hidden; }</style>
     <style>wa-page:not(:defined) { visibility: hidden; }</style>
+    <!-- CDN resilience. Both rules above hide the page until Web Awesome loads, and
+         nothing removes them if it never does, so a blocked or stalled kit leaves a
+         blank white document. Reveal at 5s regardless: unstyled but readable beats
+         invisible. WA removes the class itself on a normal load, well before this. -->
+    <style>
+      @keyframes prism-uncloak { to { visibility: visible; } }
+      .wa-cloak,
+      wa-page:not(:defined) { animation: prism-uncloak 0s linear 5s forwards; }
+    </style>
     <!-- iOS Home Screen icon (layout.js injects these as a fallback) -->
     <link rel="apple-touch-icon" href="./assets/apple-touch-icon.png" />
     <link rel="manifest" href="./assets/site.webmanifest" />
@@ -26,35 +35,32 @@
     <link rel="preconnect" href="https://fonts.bunny.net" />
     <link rel="preconnect" href="https://fonts.bunny.net" crossorigin />
     <link rel="preconnect" href="https://cdn.jsdelivr.net" />
+    <link rel="preconnect" href="https://use.typekit.net" />
+    <link rel="preconnect" href="https://use.typekit.net" crossorigin />
     <!-- Web Awesome, fonts, and app CSS as static tags so the browser preload scanner
          starts them immediately; layout.js injectHeadResources skips tags already present -->
-         <link rel="stylesheet" href="https://ka-p.webawesome.com/kit/da021fed1e5141f2/webawesome@3.11.0/styles/themes/default.css">
-               <link rel="stylesheet" href="https://ka-p.webawesome.com/kit/da021fed1e5141f2/webawesome@3.11.0/styles/native.css" />
-          <link rel="stylesheet" href="https://ka-p.webawesome.com/kit/da021fed1e5141f2/webawesome@3.11.0/styles/utilities.css" />
-          <script type="module" src="https://ka-p.webawesome.com/kit/da021fed1e5141f2/webawesome@3.11.0/webawesome.loader.js"></script>
-    <link rel="stylesheet" href="https://fonts.bunny.net/css2?family=Inter:ital,wght@0,100..900;1,100..900&display=swap" />
+    <link rel="stylesheet" href="https://ka-p.webawesome.com/kit/da021fed1e5141f2/webawesome@3.11.0/styles/themes/default.css" />
+    <link rel="stylesheet" href="https://ka-p.webawesome.com/kit/da021fed1e5141f2/webawesome@3.11.0/styles/native.css" />
+    <link rel="stylesheet" href="https://ka-p.webawesome.com/kit/da021fed1e5141f2/webawesome@3.11.0/styles/utilities.css" />
+    <script type="module" src="https://ka-p.webawesome.com/kit/da021fed1e5141f2/webawesome@3.11.0/webawesome.loader.js"></script>
     <link rel="stylesheet" href="https://fonts.bunny.net/css2?family=Geist+Mono:wght@100..900&display=swap" />
-    <link rel="stylesheet" href="https://fonts.bunny.net/css2?family=Crimson+Pro:ital,wght@0,200..900;1,200..900&display=swap" />
+    <link rel="stylesheet" href="https://use.typekit.net/gbw6ibc.css" />
     <link rel="stylesheet" href="css/custom.css" />
   </head>
   <body>
     <wa-page mobile-breakpoint="768">
       <main style="max-width: 900px; margin: 0 auto;">
         <!-- Page Header -->
-        <div class="wa-flank" style="--flank-size: 8rem;">
-  <div class="wa-frame wa-border-radius-m">
-    <img src="assets/spiritguide.avif" alt="3dprinted-cardguide" />
-  </div>
-  <div class="wa-flank:end" style="--content-percentage: 45%">
-    <div class="wa-stack wa-gap-xs">
-      <h1 class="wa-heading-2xl">Tools and Supplies</h1>
-
-    </div>
-
-  </div>
-</div>
-
-
+        <!-- wa-flank sizes its first child from --flank-size and gives the rest to
+             the content, so the heading needs no wrapper. The previous markup put
+             the ":end" modifier and --content-percentage on the child instead of the
+             container, where neither applies, and wrapped the h1 in an empty stack. -->
+        <div class="wa-flank wa-gap-l wa-align-items-center" style="--flank-size: 8rem;">
+          <div class="wa-frame wa-border-radius-m">
+            <img src="assets/spiritguide.avif" alt="A white 3D-printed Spirit Guide, embossed with the PRISM wordmark, held in front of a fanned stack of Magic: The Gathering cards" />
+          </div>
+          <h1 class="wa-heading-2xl">Tools and Supplies</h1>
+        </div>
 
         <!-- Paint Pens -->
         <section class="wa-stack wa-gap-l" style="padding-block: var(--wa-space-xl);">
@@ -72,7 +78,7 @@
           <div class="wa-grid wa-gap-m" style="--min-column-size: 280px;">
             <wa-card>
               <div class="wa-stack wa-gap-s">
-                <wa-tag variant="success">Recommended</wa-tag>
+                <wa-tag variant="success" style="align-self: start;">Recommended</wa-tag>
                 <h3 class="wa-heading-m">
                   <a href="https://amzn.to/4t5Ue1i" target="_blank" rel="noopener" style="color: inherit; text-decoration: none;">
                     Uni Posca Paint Pens
@@ -82,7 +88,7 @@
                 <ul style="padding-left: var(--wa-space-m); font-size: var(--wa-font-size-s);">
                   <li>PC-1M (extra fine) recommended</li>
                   <li>Wide color range</li>
-                  <li>Dries in seconds</li>
+                  <li>Touch-dry in about a minute</li>
                   <li>Does not smear once dry</li>
                 </ul>
               </div>
@@ -90,7 +96,7 @@
 
             <wa-card>
               <div class="wa-stack wa-gap-s">
-                <wa-tag variant="neutral">Alternative</wa-tag>
+                <wa-tag variant="neutral" style="align-self: start;">Alternative</wa-tag>
                 <h3 class="wa-heading-m">
                   <a href="https://amzn.to/3Q1aO3G" target="_blank" rel="noopener" style="color: inherit; text-decoration: none;">
                     Oil-Based Paint Pens
@@ -108,7 +114,7 @@
 
             <wa-card>
               <div class="wa-stack wa-gap-s">
-                <wa-tag variant="warning">Budget</wa-tag>
+                <wa-tag variant="warning" style="align-self: start;">Budget</wa-tag>
                 <h3 class="wa-heading-m">
                   <a href="https://amzn.to/41r7Ckq" target="_blank" rel="noopener" style="color: inherit; text-decoration: none;">
                     Acrylic Paint Pen Sets
@@ -126,7 +132,7 @@
 
             <wa-card>
               <div class="wa-stack wa-gap-s">
-                <wa-tag variant="brand">Precision</wa-tag>
+                <wa-tag variant="brand" style="align-self: start;">Precision</wa-tag>
                 <h3 class="wa-heading-m">
                   <a href="https://amzn.to/47SXzYU" target="_blank" rel="noopener" style="color: inherit; text-decoration: none;">
                     Pentel Matte Hop Gel Pens
@@ -144,7 +150,14 @@
           </div>
 
           <wa-callout variant="warning">
-            <wa-icon slot="icon" name="triangle-exclamation"></wa-icon>
+            <wa-icon slot="icon" name="hourglass"></wa-icon>
+            <strong>Whichever pen you pick, let the marks dry for 2 to 3 minutes before you sleeve the card.</strong> Touch-dry is not sleeve-ready. Wet paint transfers to the outer sleeve and to the card face. See <a href="guide.html#mark-a-session">Run a marking session</a>.
+          </wa-callout>
+
+          <!-- Neutral, not warning: this is a preference, and stacking two amber
+               callouts flattened the dry-time warning above into the same tone. -->
+          <wa-callout variant="neutral">
+            <wa-icon slot="icon" name="circle-info"></wa-icon>
             <strong>Avoid brush-tip pens that are too flexible</strong> if possible. They make it hard to keep your lines consistent, even with the Spirit Guide.
           </wa-callout>
         </section>
@@ -157,7 +170,7 @@
             <wa-icon name="layer-group" style="margin-right: var(--wa-space-s);"></wa-icon>
             Sleeve Recommendations
           </h2>
-          <p>Most Perfect Fit inner sleeves work well. We recommend:</p>
+          <p>Most Perfect Fit inners work well. We recommend:</p>
 
           <ul style="padding-left: var(--wa-space-xl); line-height: 2;">
             <li>
@@ -196,7 +209,7 @@
             <wa-icon name="handshake-angle" style="margin-right: var(--wa-space-s);"></wa-icon>
             PRISM Spirit Guide
           </h2>
-          <p>The Spirit Guide is a marking jig that holds your sleeve in place with guides for each slot. It makes marking faster, more consistent, and lets you work one-handed with its magnetic hold.</p>
+          <p>The Spirit Guide is an alignment tool that holds your sleeve in place with guides for each slot. It makes marking faster, more consistent, and lets you work one-handed with its magnetic hold.</p>
 
           <wa-card appearance="filled" style="background: var(--wa-color-surface-2);">
             <div class="wa-stack wa-gap-m">

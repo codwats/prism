@@ -5,11 +5,11 @@
 import { state } from '../core/state.js';
 import { getLogicalDeckCount, debugLog } from '../core/utils.js';
 import { createPrism, getUsedPositions, MAX_STRIPE_SLOTS, applyCommanderFallback } from '../modules/processor.js';
-import { getCurrentPrism, savePrism, setCurrentPrism, getPreferences, onSyncStatusChange, forceSyncCurrentPrism } from '../modules/storage.js';
+import { getCurrentPrism, savePrism, setCurrentPrism, getPreferences, onSyncStatusChange, forceSyncCurrentPrism, getAllPrisms } from '../modules/storage.js';
 import { initAuth, setupAuthListeners, getCurrentUser } from '../modules/auth.js';
 import { logToSupabase } from '../modules/supabase-client.js';
 import { initColorSwatches } from './deck-form.js';
-import { renderDecksList } from './deck-list.js';
+import { renderDecksList, handleSwitchPrism } from './deck-list.js';
 import { setupStripeReorderDialog } from './stripe-reorder-dialog.js';
 import { setupScryMode } from './scry-mode.js';
 import { renderResults, updateRemovedFilterBadge } from './results.js';
@@ -98,6 +98,17 @@ function getElements() {
     btnNewPrism: document.getElementById('btn-new-prism'),
     btnCancelNew: document.getElementById('btn-cancel-new'),
     btnConfirmNew: document.getElementById('btn-confirm-new'),
+    newPrismCurrentName: document.getElementById('new-prism-current-name'),
+
+    // PRISM switcher (injected into the ... overflow menu)
+    prismOverflow: document.getElementById('prism-overflow'),
+    prismSwitchDivider: document.getElementById('prism-switch-divider'),
+
+    // Clear-all stale marks confirmation
+    clearAllRemovedDialog: document.getElementById('clear-all-removed-dialog'),
+    clearAllRemovedCount: document.getElementById('clear-all-removed-count'),
+    btnCancelClearAllRemoved: document.getElementById('btn-cancel-clear-all-removed'),
+    btnConfirmClearAllRemoved: document.getElementById('btn-confirm-clear-all-removed'),
 
     // Edit dialog
     editDialog: document.getElementById('edit-dialog'),
@@ -237,10 +248,67 @@ export function renderAll() {
   updateRemovedFilterBadge();
 }
 
+/**
+ * Populate the ... overflow menu with one entry per stored PRISM.
+ *
+ * This is the only route back to a previous PRISM for a logged-out user —
+ * profile.html lists PRISMs inside its logged-in block only — so without it
+ * creating a new PRISM strands every deck and every mark record.
+ */
+function renderPrismSwitcher() {
+  const { prismOverflow, prismSwitchDivider } = state.elements;
+  if (!prismOverflow || !prismSwitchDivider) return;
+
+  // Drop previously injected entries; everything from the divider down is static.
+  prismOverflow
+    .querySelectorAll('[data-prism-switch]')
+    .forEach((el) => el.remove());
+
+  const prisms = getAllPrisms();
+  const currentId = state.currentPrism?.id;
+
+  // A lone PRISM needs no switcher; the divider would then float above
+  // "New PRISM" with nothing over it, so hide it too.
+  const showSwitcher = prisms.length > 1;
+  prismSwitchDivider.hidden = !showSwitcher;
+  if (!showSwitcher) return;
+
+  const label = document.createElement('span');
+  label.dataset.prismSwitch = '';
+  label.className = 'wa-caption-s';
+  label.style.cssText =
+    'display:block;padding:var(--wa-space-s) var(--wa-space-m) var(--wa-space-2xs);color:var(--wa-color-neutral-text-subtle);';
+  label.textContent = 'Switch PRISM';
+  prismOverflow.insertBefore(label, prismSwitchDivider);
+
+  for (const prism of prisms) {
+    const isCurrent = prism.id === currentId;
+    const item = document.createElement('wa-dropdown-item');
+    item.dataset.prismSwitch = '';
+    item.dataset.prismId = prism.id;
+    if (isCurrent) item.setAttribute('checked', '');
+
+    const count = getLogicalDeckCount(prism);
+    const icon = document.createElement('wa-icon');
+    icon.setAttribute('slot', 'icon');
+    icon.setAttribute('name', isCurrent ? 'circle-check' : 'gem');
+    item.appendChild(icon);
+    item.appendChild(
+      document.createTextNode(
+        `${prism.name || 'Untitled PRISM'} (${count} ${count === 1 ? 'deck' : 'decks'})`,
+      ),
+    );
+
+    item.addEventListener('click', () => handleSwitchPrism(prism.id));
+    prismOverflow.insertBefore(item, prismSwitchDivider);
+  }
+}
+
 function renderPrismHeader() {
   if (state.elements.prismName) {
     state.elements.prismName.value = state.currentPrism.name;
   }
+  renderPrismSwitcher();
   if (state.elements.deckCountTag) {
     const logicalCount = getLogicalDeckCount(state.currentPrism);
     state.elements.deckCountTag.textContent = `${logicalCount} ${logicalCount === 1 ? 'deck' : 'decks'}`;

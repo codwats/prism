@@ -43,6 +43,8 @@ export function initColorSwatches() {
     swatch.className = "color-swatch";
     swatch.style.backgroundColor = color;
     swatch.title = getColorName(color);
+    swatch.setAttribute("aria-label", getColorName(color));
+    swatch.setAttribute("aria-pressed", "false");
     swatch.dataset.color = color;
 
     swatch.addEventListener("click", () => {
@@ -68,6 +70,7 @@ export function updateColorSwatchSelection() {
     .forEach((swatch) => {
       const isSelected = swatch.dataset.color.toUpperCase() === selectedColor;
       swatch.classList.toggle("selected", isSelected);
+      swatch.setAttribute("aria-pressed", String(isSelected));
     });
 }
 
