@@ -205,7 +205,7 @@ Feature modules have circular imports. This is safe because:
 
 ### Scryfall Rate Limiting
 
-`scryfall.js` implements 100ms delay between requests, localStorage cache with 24h TTL, and request queuing. `canonicalizeCards()` corrects card name spelling/capitalization. Fuzzy fallback (on 404) is also rate-limited. 429 responses trigger a single retry with backoff. Entries with null `image_uri` are not cached (prevents 24h cache poisoning from transient errors). `card-preview.js` strips DFC back-face names before lookup and dual-caches under both the front-face and full Oracle name.
+`scryfall.js` implements 100ms delay between requests, localStorage cache with 24h TTL, and request queuing. The 100ms spacing is enforced by **one shared promise chain** (`rateLimit()`) that every request path awaits — the single-name GET queue, the fuzzy fallback, the 429 backoff, and `canonicalizeCards`' batched `/cards/collection` POST. A shared mutable timestamp is not enough: two loops read it, sleep to the same deadline and fire in the same tick (#194). `/cards/collection` is a batched POST and deliberately does not go through `requestQueue`, whose entries are single-name GETs — gate it, don't queue it. `canonicalizeCards()` corrects card name spelling/capitalization. Fuzzy fallback (on 404) is also rate-limited. 429 responses trigger a single retry with backoff. Entries with null `image_uri` are not cached (prevents 24h cache poisoning from transient errors). `card-preview.js` strips DFC back-face names before lookup and dual-caches under both the front-face and full Oracle name.
 
 ### Edge Function Proxies
 

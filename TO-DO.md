@@ -72,11 +72,6 @@ These render on all nine pages, so each one is a sitewide defect.
 - [ ] **Affiliate disclosure sits below the links it discloses.** It is in the
   Sleeves section, under four undisclosed `amzn.to` links in Paint Pens. Move it
   above the pen grid.
-- [ ] **"Coming Soon" STL button.** A disabled brand button under a heading
-  reading "Print Settings (v1)", above five concrete print settings for a file
-  that does not exist. The 2026-06 beta review asked for this to be softened and
-  it is unchanged. Either give it a date or state plainly that the file is not
-  released yet.
 - [ ] **Four products × four attributes is a comparison table wearing a card
   grid.** Consider the results-table treatment DESIGN.md §4 already specifies.
 

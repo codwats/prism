@@ -164,7 +164,7 @@ function renderSlot(position, activeDeck, slotMap) {
  * slots are skipped rather than focused, so a keyboard user never lands on a
  * dead target.
  */
-function wireSlotKeyboard(sleeve, activeDeck, slotMap) {
+function wireSlotKeyboard(sleeve) {
   const edges = [...sleeve.querySelectorAll('.stripe-reorder-edge')];
   if (edges.length === 0) return;
 
@@ -384,7 +384,7 @@ function renderSleeveVisualization(activeDeck, slotMap) {
   sleeve.appendChild(leftEdge);
   sleeve.appendChild(cardBody);
   sleeve.appendChild(rightEdge);
-  wireSlotKeyboard(sleeve, activeDeck, slotMap);
+  wireSlotKeyboard(sleeve);
   wrapper.appendChild(sleeve);
 
   // Edge labels

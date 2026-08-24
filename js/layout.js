@@ -688,7 +688,7 @@ function injectSettingsDrawer() {
       const hasMarks = getAllPrisms().some((p) => (p.markedCards || []).length > 0);
       // ponytail: native confirm(); upgrade to wa-dialog if UX polish needed
       if (hasMarks && !window.confirm(
-        "You've already marked cards. Marks you've made on sleeves won't move — stripe positions will now start from the new corner. Continue?"
+        "You've already marked cards. Marks already on your sleeves won't move, but new marks will be painted from the new corner — so your existing marks won't match the new ones. Continue?"
       )) {
         cornerGroup.value = currentCorner;
         applyBtn.setAttribute('disabled', '');
