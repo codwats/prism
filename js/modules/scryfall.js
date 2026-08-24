@@ -7,13 +7,30 @@ const REQUEST_DELAY = 100; // ms between requests
 const API_BASE = 'https://api.scryfall.com';
 
 // Rate limiting state
-let lastRequestTime = 0;
 const requestQueue = [];
 let isProcessing = false;
 
 // Sleep utility
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+// Every Scryfall request — the single-card queue and the batched
+// /cards/collection POSTs — awaits this one promise chain. A bare shared
+// timestamp is not a lock: two loops read it, sleep to the same deadline and
+// fire in the same tick, doubling the effective rate. The chain serializes
+// them; `lastRelease` is only touched inside it, so it cannot be raced, and it
+// keeps naturally-spaced requests (the first one, or one after a slow fetch)
+// from paying a delay they don't owe.
+let gate = Promise.resolve();
+let lastRelease = 0;
+function rateLimit(ms = REQUEST_DELAY) {
+  gate = gate.then(async () => {
+    const owed = ms - (Date.now() - lastRelease);
+    if (owed > 0) await sleep(owed);
+    lastRelease = Date.now();
+  });
+  return gate;
 }
 
 // Load cache from localStorage
@@ -87,12 +104,13 @@ export function clearCache() {
 
 // Fetch a single URL with 429 retry (one attempt after backoff)
 async function fetchWithRetry(url) {
+  await rateLimit();
   const response = await fetch(url);
 
   if (response.status === 429) {
     logToSupabase('warn', 'scryfall_rate_limited', { url });
-    await sleep(REQUEST_DELAY * 10);
-    lastRequestTime = Date.now();
+    // Hold the gate through the backoff so every request path backs off.
+    await rateLimit(REQUEST_DELAY * 10);
     const retry = await fetch(url);
     if (!retry.ok) {
       throw new Error(`Rate limited by Scryfall (retry failed: ${retry.status})`);
@@ -111,10 +129,6 @@ async function fetchFromScryfall(cardName) {
   const response = await fetchWithRetry(url);
 
   if (response.status === 404) {
-    // Rate-limit the fuzzy fallback request
-    await sleep(REQUEST_DELAY);
-    lastRequestTime = Date.now();
-
     const fuzzyUrl = `${API_BASE}/cards/named?fuzzy=${encodedName}`;
     const fuzzyResponse = await fetchWithRetry(fuzzyUrl);
 
@@ -139,12 +153,6 @@ async function processQueue() {
 
   while (requestQueue.length > 0) {
     const { cardName, resolve, reject } = requestQueue.shift();
-    const now = Date.now();
-    const timeSinceLastRequest = now - lastRequestTime;
-
-    if (timeSinceLastRequest < REQUEST_DELAY) {
-      await sleep(REQUEST_DELAY - timeSinceLastRequest);
-    }
 
     try {
       const scryfallData = await fetchFromScryfall(cardName);
@@ -160,8 +168,6 @@ async function processQueue() {
     } catch (error) {
       reject(error);
     }
-
-    lastRequestTime = Date.now();
   }
 
   isProcessing = false;
@@ -269,19 +275,13 @@ export async function canonicalizeCards(cards) {
     const identifiers = chunk.map(c => ({ name: c.name }));
 
     try {
-      // Rate limit
-      const now = Date.now();
-      if (now - lastRequestTime < REQUEST_DELAY) {
-        await sleep(REQUEST_DELAY - (now - lastRequestTime));
-      }
+      await rateLimit();
 
       const response = await fetch(`${API_BASE}/cards/collection`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ identifiers }),
       });
-
-      lastRequestTime = Date.now();
 
       if (!response.ok) {
         console.warn(`Scryfall collection lookup failed: ${response.status}`);
