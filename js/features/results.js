@@ -80,6 +80,67 @@ function renderSlot(slot, opts) {
 const expandedCards = new Set();
 
 // ============================================================================
+// Chunked row rendering
+// ============================================================================
+
+// A full 1575-row table is ~15k DOM nodes and measured ~160ms of innerHTML
+// parse + table layout per render — paid again on every sort click and, with
+// the undone filter on, on every checkbox tick. So the first paint builds only
+// CHUNK_ROWS rows and an IntersectionObserver appends the rest as the user
+// scrolls toward them.
+// ponytail: append-only — rows are never removed again on scroll-up, so a user
+// who scrolls to the bottom still ends up with the full table in the DOM. That
+// is fine (they paid for it gradually, one chunk per frame); swap in real
+// windowing only if the fully-scrolled state ever becomes the common one.
+// Known limit: browser find-in-page only sees rendered rows. The search box
+// above the table covers that.
+const CHUNK_ROWS = 60;
+let rowObserver = null;
+let renderedRowCount = 0;
+let delegationBound = false;
+
+// One delegated handler set on the tbody, bound once. Chunked rows are added
+// after render, so per-render `querySelectorAll(...).forEach(addEventListener)`
+// would leave every appended row dead. (Measured at 0.7ms for 1575 elements —
+// this is a correctness requirement, not a performance one.)
+function bindResultsDelegation(tbody) {
+  if (delegationBound) return;
+  delegationBound = true;
+
+  tbody.addEventListener('click', (e) => {
+    const batchToggle = e.target.closest('.batch-toggle');
+    if (batchToggle) {
+      const name = batchToggle.dataset.cardName;
+      if (expandedCards.has(name)) expandedCards.delete(name);
+      else expandedCards.add(name);
+      // Preserve depth: expanding a card at row 400 must not yank the list
+      // back to the first 60 rows.
+      renderResults({ preserveRows: true });
+      return;
+    }
+
+    // Reveal the deck name and slot behind each mark. Kept local to the row so
+    // a marking session never loses its place in the table to a popover.
+    const stripeToggle = e.target.closest('.stripe-cell-toggle');
+    if (stripeToggle) {
+      const detail = document.getElementById(stripeToggle.getAttribute('aria-controls'));
+      if (!detail) return;
+      const open = stripeToggle.getAttribute('aria-expanded') === 'true';
+      stripeToggle.setAttribute('aria-expanded', open ? 'false' : 'true');
+      detail.hidden = open;
+      return;
+    }
+
+    const clearBtn = e.target.closest('.btn-clear-removed');
+    if (clearBtn) handleClearRemoved(clearBtn.dataset.cardName, clearBtn.dataset.deckId);
+  });
+
+  tbody.addEventListener('change', (e) => {
+    if (e.target.closest('.mark-checkbox')) handleMarkToggle(e);
+  });
+}
+
+// ============================================================================
 // Removed filter badge
 // ============================================================================
 
@@ -130,7 +191,13 @@ export function updateMarkedProgress() {
 // Results rendering
 // ============================================================================
 
-export function renderResults() {
+export function renderResults({ preserveRows = false } = {}) {
+  // Any re-render invalidates the pending tail observer; a new one is attached
+  // once the fresh rows exist.
+  rowObserver?.disconnect();
+  rowObserver = null;
+  if (state.elements.resultsTbody) bindResultsDelegation(state.elements.resultsTbody);
+
   const processedCards = processCards(state.currentPrism);
   state.processedCards = processedCards;
   const totalCardCount = processedCards.reduce((sum, c) => sum + c.totalQuantity, 0);
@@ -422,7 +489,7 @@ export function renderResults() {
   // expanded card still reads as one block. It cannot be done with
   // :nth-child() — the detail rows interleave, and cards with no marks emit
   // none, so row parity is not even uniform.
-  state.elements.resultsTbody.innerHTML = displayCards.map((card, cardIndex) => {
+  const rowHtml = (card, cardIndex) => {
     const band = cardIndex % 2 === 1 ? ' alt-row' : '';
     // Handle removed cards differently
     if (card.isRemoved) {
@@ -529,46 +596,63 @@ export function renderResults() {
         ${stripes.detailRow}
       `;
     }).join('');
-  }).join('');
+  };
 
-  // Batch expand/collapse + derived parent checkbox states
-  state.elements.resultsTbody.querySelectorAll('.batch-toggle').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const name = btn.dataset.cardName;
-      if (expandedCards.has(name)) expandedCards.delete(name);
-      else expandedCards.add(name);
-      renderResults();
+  const tbody = state.elements.resultsTbody;
+
+  // `indeterminate` is a property, not an attribute, so the parent roll-up
+  // checkboxes have to be set after their markup lands — for appended chunks
+  // too. Idempotent, so re-running it over the whole tbody is fine.
+  const applyRowState = () => {
+    tbody.querySelectorAll('.batch-parent-check[data-indeterminate="1"]').forEach(cb => {
+      cb.indeterminate = true;
     });
-  });
-  state.elements.resultsTbody.querySelectorAll('.batch-parent-check[data-indeterminate="1"]').forEach(cb => {
-    cb.indeterminate = true;
-  });
+  };
 
-  // Reveal the deck name and slot behind each mark. Kept local to the row so a
-  // marking session never loses its place in the table to a popover.
-  state.elements.resultsTbody.querySelectorAll('.stripe-cell-toggle').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const detail = document.getElementById(btn.getAttribute('aria-controls'));
-      if (!detail) return;
-      const open = btn.getAttribute('aria-expanded') === 'true';
-      btn.setAttribute('aria-expanded', open ? 'false' : 'true');
-      detail.hidden = open;
-    });
-  });
+  // Watch a row a few short of the end so the next chunk lands before the user
+  // reaches blank space. Stripe-detail rows are `hidden` and never intersect,
+  // so the anchor must come from the visible rows or the loader stalls.
+  const observeTail = () => {
+    rowObserver?.disconnect();
+    rowObserver = null;
+    if (renderedRowCount >= displayCards.length) return;
 
-  // Add event listeners for checkboxes
-  state.elements.resultsTbody.querySelectorAll('.mark-checkbox').forEach(checkbox => {
-    checkbox.addEventListener('change', handleMarkToggle);
-  });
+    const visible = tbody.querySelectorAll('tr:not([hidden])');
+    const anchor = visible[Math.max(0, visible.length - 8)];
+    if (!anchor) return;
 
-  // Add event listeners for "Clear removed" buttons
-  state.elements.resultsTbody.querySelectorAll('.btn-clear-removed').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const cardName = btn.dataset.cardName;
-      const deckId = btn.dataset.deckId;
-      handleClearRemoved(cardName, deckId);
-    });
-  });
+    rowObserver = new IntersectionObserver((entries) => {
+      if (entries.some(entry => entry.isIntersecting)) appendChunk();
+    }, { rootMargin: '400px 0px' });
+    rowObserver.observe(anchor);
+  };
+
+  function appendChunk() {
+    const next = Math.min(renderedRowCount + CHUNK_ROWS, displayCards.length);
+    if (next <= renderedRowCount) return;
+    tbody.insertAdjacentHTML(
+      'beforeend',
+      displayCards.slice(renderedRowCount, next)
+        .map((card, i) => rowHtml(card, renderedRowCount + i))
+        .join(''),
+    );
+    renderedRowCount = next;
+    applyRowState();
+    // Re-observing an anchor that is already on screen fires immediately, so
+    // this cascades until the tail is genuinely below the fold.
+    observeTail();
+  }
+
+  // Sort/filter/search restart at the top; mark and batch toggles keep the
+  // depth the user had already scrolled to.
+  const initialRows = Math.min(
+    preserveRows ? Math.max(renderedRowCount, CHUNK_ROWS) : CHUNK_ROWS,
+    displayCards.length,
+  );
+  tbody.innerHTML = displayCards.slice(0, initialRows).map(rowHtml).join('');
+  renderedRowCount = initialRows;
+  applyRowState();
+  observeTail();
 
   // Add event listener for "Clear All" removed button (opens a confirm dialog —
   // the rows it drops are paint still on sleeves and cannot be rebuilt)
@@ -581,6 +665,7 @@ export function renderResults() {
 
   // Handle empty states
   if (displayCards.length === 0) {
+    renderedRowCount = 0;
     let emptyMessage = 'No cards match your filters. Clear All Filters shows every card again.';
 
     if (filter === 'removed') {
