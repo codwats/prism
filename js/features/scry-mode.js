@@ -190,7 +190,7 @@ export function setupScryMode() {
   if (scryDialog) {
     // Re-render results once when dialog closes to sync marked rows
     scryDialog.addEventListener('wa-hide', () => {
-      renderResults();
+      renderResults({ preserveRows: true });
     });
   }
 

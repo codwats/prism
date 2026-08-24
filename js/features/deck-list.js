@@ -211,11 +211,13 @@ export function setCardMarked(cardKey, marked) {
 }
 
 export function handleMarkToggle(event) {
-  const checkbox = event.currentTarget;
-  const row = checkbox.closest("tr");
+  // Delegated from the results tbody, so `currentTarget` is the tbody itself —
+  // the checkbox has to come off the event target.
+  const checkbox = event.target.closest(".mark-checkbox");
+  const row = checkbox?.closest("tr");
   const cardKey = row?.dataset?.cardKey;
 
-  if (!cardKey || !state.currentPrism) {
+  if (!checkbox || !cardKey || !state.currentPrism) {
     console.warn("Mark toggle failed:", {
       cardKey,
       hasPrism: !!state.currentPrism,
@@ -237,7 +239,7 @@ export function handleMarkToggle(event) {
   // sort is by "marked" column (row order needs to update) OR a batch sub-row
   // toggled (the derived parent roll-up checkbox must update).
   if (state.elements.undoneFilter?.checked || state.sortState?.column === 'marked' || row.classList.contains('batch-subrow')) {
-    renderResults();
+    renderResults({ preserveRows: true });
   } else {
     updateMarkedProgress();
   }
@@ -271,7 +273,7 @@ export function handleClearRemoved(cardName, deckId) {
   savePrism(state.currentPrism);
 
   updateRemovedFilterBadge();
-  renderResults();
+  renderResults({ preserveRows: true });
   showSuccess(`Cleared "${cardName}" from removed list.`);
 }
 

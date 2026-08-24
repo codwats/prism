@@ -297,7 +297,7 @@ export function setupEventListeners() {
       state.currentPrism = getCurrentPrism();
       renderAll();
     } else if (setting === 'stripeNumbersMode') {
-      renderResults();
+      renderResults({ preserveRows: true });
       refreshOpenPreview();
     }
   });
