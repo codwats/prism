@@ -62,6 +62,11 @@ _In code_: `stripePosition` and `sideAPosition`. The mismatch is deliberate — 
 The inner sleeve of a double-sleeved card, and the only sleeve that is ever marked. Its partner is the outer sleeve, which protects the mark.
 _Avoid_: perfect-fit inner sleeve, inner Perfect Fit sleeve, Perfect Fit inner sleeve
 
+**Founder**:
+A person whose account existed when payment enforcement was switched on, entitled to PRISM permanently and without paying. One word in prose and in code — never Founding Member or Founding Supporter, and never *membership*, which already means a card belonging to a deck.
+_Avoid_: grandfathered user, founding member, founding supporter, early adopter
+_In code_: the `founders` table. Entitlement is read through `is_entitled()`, which hides whether it came from a Founder row or a subscription.
+
 ### Gallery
 
 **Artist**:
