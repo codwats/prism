@@ -21,12 +21,15 @@ prism/
 ├── build.html              Main PRISM builder (the core app)
 ├── guide.html              Marking guide
 ├── tools.html              Paint pen recommendations
+├── gallery.html            Community artwork gallery (see Gallery section)
+├── mpc-stripes.html        MPC Stripe Compositor — a paid Extra; self-contained page
 ├── profile.html            User account management
 ├── privacy.html / terms.html
 ├── css/custom.css          Styles beyond Web Awesome
 ├── js/
 │   ├── app.js              Entry point for build.html (~12 lines, imports init)
 │   ├── profile.js          Entry point for profile.html
+│   ├── gallery.js          Entry point for gallery.html
 │   ├── layout.js           Shared layout injection (nav, header, footer, auth dialog)
 │   ├── core/
 │   │   ├── state.js        Singleton mutable state (ES module = same reference everywhere)
@@ -213,13 +216,17 @@ Moxfield and Archidekt APIs don't allow direct browser requests (CORS). Edge fun
 
 ### Billing (Stripe)
 
-Payment pipe for a future paid tier — built and testable ahead of launch, **not wired to restrict any feature**. No gating model is decided yet (may be deck-count, may be feature-based).
+The paid tier is a **Membership**: $3/mo or $30/yr USD for cloud sync, up to 25 cloud PRISMs, the Extras and a Discord role, on Stripe or Patreon at identical prices. The gating model is **decided and written down** — `PRODUCT.md` (the policy and its brand rules), `CONTEXT.md` (Membership / Member / Extras / Founder / Lapse), `docs/adr/0002-membership-gates-sync-not-deck-count.md` (why sync and not deck count), and `docs/runbooks/enforcement-cutover.md` (the flip).
+
+**Cloud sync is the paid line; there is no deck or slot cap.** Anonymous local-only use stays fully functional forever. Enforcement gates INSERT on `prisms` and `decks` only and **never** gates reads or edits — see "Gate adding, never access" in `PRODUCT.md`. Entitlement reads fail open.
+
+**Nothing is wired yet.** `payment_enforcement` in `app_config` defaults to `false`, and the entitlement machinery the policy assumes — the `founders` table and the `is_entitled()` predicate — is specified in the runbook but **not yet in `supabase-schema.sql`**. Flipping enforcement is deliberately sequenced after the Kickstarter campaign closes. Build work is tracked in issues #207–#218; do not assume a gate exists because the policy names it.
 
 - **Tables** (supabase-schema.sql): `stripe_customers`, `subscriptions` (one row per user; `updated_at` = Stripe event `created` so out-of-order webhook deliveries never overwrite newer state), `processed_stripe_events` (idempotency — dedupe redelivered event ids), `app_config` (publicly readable; `payment_enforcement` row defaults to `false` — flipping it to `true` in the SQL editor is the only launch step).
 - **RLS**: users SELECT their own `stripe_customers`/`subscriptions` row only; no client write policies. All writes happen in edge functions via `SUPABASE_SERVICE_ROLE_KEY` (bypasses RLS). `processed_stripe_events` has zero policies.
 - **Edge functions** (Netlify, Deno): `/api/stripe-checkout` verifies the Supabase access token, reuses/creates a Stripe customer, returns a Checkout session URL. `/api/stripe-webhook` verifies the Stripe signature on the raw body first (fail → 400 + log), dedupes on event id, handles `checkout.session.completed`, `customer.subscription.updated/deleted`, `invoice.payment_failed`, and records the event id only after successful processing (failures return 500 so Stripe retries). Subscription upserts are insert-if-missing + update-only-if-older (`updated_at=lt.` filter).
 - **Env vars** (Netlify dashboard only, never in code): `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRICE_ID`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`. Dev runs against a personal Stripe account; swapping to the business account is env-only.
-- **Client** (`js/modules/billing.js`): `isPaymentEnforced()` (reads `app_config`, defaults false on any error), `getSubscription()`/`hasActiveSubscription()`, `startCheckout()`. Profile page has a Subscription section, hidden unless the enforcement flag is on or `PRISM_DEBUG` is set. Nothing calls `isPaymentEnforced()` to gate features yet.
+- **Client** (`js/modules/billing.js`): `isPaymentEnforced()` (reads `app_config`, defaults false on any error), `getSubscription()`/`hasActiveSubscription()`, `startCheckout()`. Profile page has a Membership section, hidden unless the enforcement flag is on or `PRISM_DEBUG` is set. Reader-facing strings say Membership/Member/join; **code names do not follow** — `subscriptions`, `getSubscription()`, `#btn-subscribe` stay, on the `Slot`/`stripePosition` precedent.
 - Pure helpers (`safeReturnPath`, `subscriptionRow`) are unit-tested in `tests/stripe-billing.test.js` — both edge modules keep Deno/network access inside functions so Node can import them.
 
 ## Development
