@@ -63,7 +63,7 @@ The inner sleeve of a double-sleeved card, and the only sleeve that is ever mark
 _Avoid_: perfect-fit inner sleeve, inner Perfect Fit sleeve, Perfect Fit inner sleeve
 
 **Lapse**:
-The moment a subscription stops entitling its holder — the billing rail has
+The moment a Membership stops entitling its holder — the billing rail has
 given up retrying a failed payment, or a cancelled subscription has reached the
 end of the period already paid for. A Founder never lapses and a free account
 has nothing to lapse from. Verb and noun; the person is a *lapsed member*, never
@@ -73,16 +73,25 @@ _In code_: no field of its own — a lapse is `is_entitled()` turning false, rea
 
 **Paused sync**:
 The state of a lapsed member's cloud copy: retained forever and still readable
-on any device, but never written again until they subscribe again. The word
+on any device, but never written again until they become a member again. The word
 shown to the reader is *paused*, always with the date of the last sync — never
 *frozen*, *locked*, *disabled* or *lost*, all of which suggest the collection
 itself is at risk when only the uploading has stopped.
 _Avoid_: frozen, locked, suspended, sync disabled
 
+**Membership**:
+The paid tier: cloud sync, up to 25 cloud PRISMs, the Extras and the paid Discord role, for $3 a month or $30 a year on either billing rail. A **Member** is anyone entitled to it, a Founder included. The verb is **join** on buttons, always with the price attached so it does not collide with the open Discord, and **become a member** in prose. The unpaid state has no name — the profile tag reads Member or shows nothing at all.
+_Avoid_: subscribe, subscription, subscriber (reader-facing prose only), upgrade, downgrade, plan, tier, premium, pro, plus, free trial. *Unlock* is fine: it names a perk gained, not data walled.
+_In code_: `subscriptions`, `getSubscription()`, `hasActiveSubscription()`, `#btn-subscribe`. The mismatch is deliberate — the table is webhook-owned and mirrors Stripe's own object — so do not align either direction. Stripe's hosted Checkout says "Subscribe" and we do not control it. Unrelated: `markType: 'membership'` (`processor.js`) is a card's membership in a split-group variant, and is never rendered.
+
+**Extras**:
+The bundled perks a Membership includes beyond sync, reached from a paid-only area linked from build.html. Today that is the MPC Stripe Compositor (`mpc-stripes.html`). Always capitalized. The modest register is deliberate — Extras is not the sell.
+_Avoid_: premium features, bonus content, perks (as a proper noun)
+
 **Founder**:
-A person whose account existed when payment enforcement was switched on, entitled to PRISM permanently and without paying. One word in prose and in code — never Founding Member or Founding Supporter, and never *membership*, which already means a card belonging to a deck.
+A person whose account existed when payment enforcement was switched on, entitled to PRISM permanently and without paying. A Founder **is** a Member — it is *how* someone holds a Membership, not an alternative to holding one. One word in prose and in code — never founding member or founding supporter.
 _Avoid_: grandfathered user, founding member, founding supporter, early adopter
-_In code_: the `founders` table. Entitlement is read through `is_entitled()`, which hides whether it came from a Founder row or a subscription.
+_In code_: the `founders` table. Entitlement is read through `is_entitled()`, which hides whether it came from a Founder row or a subscription. The grant is app-only: a Founder gets no Patreon content library, and pays like anyone else for that.
 
 ### Gallery
 
