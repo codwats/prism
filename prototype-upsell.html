@@ -1,0 +1,828 @@
+<!DOCTYPE html>
+<!--
+  THROWAWAY PROTOTYPE — issue #189 "Design the upsell surface and PRISM Extras"
+
+  Three structurally different takes on the three surfaces (pitch / wall / Extras),
+  switchable with ?variant=A|B|C or the floating bar at the bottom.
+
+    A — Ledger    a narrow column of labelled rows. No cards. Wall is a dialog.
+    B — Scene     editorial, leads with the multi-device story. Wall is an inline panel.
+    C — Panel     app-native. Everything lives in a drawer over build.html.
+
+  Not production code: no tests, no error handling, nothing wired to Stripe.
+  Delete this file once a direction wins.
+
+  KNOWN TRAP (see issue #189 comment): the Founder sell-suppression here uses a
+  [data-sell] attribute that must be remembered on every selling element. It
+  leaked twice during this prototype — once on the drawer's membership card,
+  once on the pitch's price line. Do NOT carry this pattern into production;
+  branch on is_entitled() once and render one block or the other.
+-->
+<html lang="en" class="wa-cloak">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>PROTOTYPE — Upsell surface</title>
+    <style>.wa-cloak { visibility: hidden; }</style>
+    <style>wa-page:not(:defined) { visibility: hidden; }</style>
+    <style>
+      @keyframes prism-uncloak { to { visibility: visible; } }
+      .wa-cloak,
+      wa-page:not(:defined) { animation: prism-uncloak 0s linear 5s forwards; }
+    </style>
+    <link rel="preconnect" href="https://ka-p.webawesome.com" />
+    <link rel="preconnect" href="https://ka-p.webawesome.com" crossorigin />
+    <link rel="preconnect" href="https://fonts.bunny.net" />
+    <link rel="preconnect" href="https://fonts.bunny.net" crossorigin />
+    <link rel="preconnect" href="https://use.typekit.net" />
+    <link rel="preconnect" href="https://use.typekit.net" crossorigin />
+    <link rel="stylesheet" href="https://ka-p.webawesome.com/kit/da021fed1e5141f2/webawesome@3.11.0/styles/themes/default.css" />
+    <link rel="stylesheet" href="https://ka-p.webawesome.com/kit/da021fed1e5141f2/webawesome@3.11.0/styles/native.css" />
+    <link rel="stylesheet" href="https://ka-p.webawesome.com/kit/da021fed1e5141f2/webawesome@3.11.0/styles/utilities.css" />
+    <script type="module" src="https://ka-p.webawesome.com/kit/da021fed1e5141f2/webawesome@3.11.0/webawesome.loader.js"></script>
+    <link rel="stylesheet" href="https://fonts.bunny.net/css2?family=Geist+Mono:wght@100..900&display=swap" />
+    <link rel="stylesheet" href="https://use.typekit.net/gbw6ibc.css" />
+    <link rel="stylesheet" href="css/custom.css" />
+    <style>
+      html, body { min-height: 100%; padding: 0; margin: 0; }
+      /* wa-stack sets display:flex, which beats the hidden attribute's UA
+         display:none — without this every variant renders at once. */
+      [hidden] { display: none !important; }
+
+      /* --- prototype scaffolding (not part of any design being judged) --- */
+      .proto-bar {
+        position: fixed;
+        inset-block-end: var(--wa-space-m);
+        inset-inline-start: 50%;
+        translate: -50% 0;
+        z-index: 1000;
+        background: var(--wa-color-neutral-fill-loud);
+        color: var(--wa-color-neutral-on-loud);
+        border-radius: var(--wa-border-radius-pill);
+        padding: var(--wa-space-2xs) var(--wa-space-xs);
+        box-shadow: var(--wa-shadow-l);
+      }
+      .proto-bar__sep {
+        inline-size: var(--wa-border-width-s);
+        block-size: var(--wa-space-m);
+        background: var(--wa-color-neutral-on-loud);
+        opacity: 0.35;
+      }
+      .proto-bar__label {
+        font-family: var(--wa-font-family-code);
+        font-size: var(--wa-font-size-s);
+        min-width: 14rem;
+        text-align: center;
+      }
+      .proto-note {
+        font-family: var(--wa-font-family-code);
+        font-size: var(--wa-font-size-xs);
+        color: var(--wa-color-neutral-on-quiet);
+      }
+      .surface-frame {
+        border: var(--wa-border-width-s) dashed var(--wa-color-neutral-border-quiet);
+        border-radius: var(--wa-border-radius-l);
+        padding: var(--wa-space-l);
+      }
+
+      /* --- shared to all variants --- */
+      .price-figure {
+        font-family: var(--wa-font-family-heading);
+        font-size: var(--wa-font-size-3xl);
+        line-height: 1;
+      }
+      .measure { max-width: 34rem; }
+      .measure-wide { max-width: 52rem; }
+
+      /* --- A: ledger --- */
+      .ledger { max-width: 34rem; }
+      /* wa-flank does the fixed-label-beside-flexible-value layout; only the
+         row divider below is a genuine addition. */
+      .ledger__row {
+        --flank-size: 11rem;
+        padding-block: var(--wa-space-s);
+        border-block-start: var(--wa-border-width-s) solid var(--wa-color-surface-border);
+      }
+      .ledger__row:first-of-type { border-block-start: 0; }
+      .ledger__key {
+        font-family: var(--wa-font-family-heading);
+        font-weight: var(--wa-font-weight-semibold);
+      }
+      @media (max-width: 768px) {
+        .ledger__row { --flank-size: 100%; }
+      }
+
+      /* --- B: scene --- */
+      .scene-band {
+        background: var(--wa-color-brand-fill-quiet);
+        border-radius: var(--wa-border-radius-l);
+        padding: var(--wa-space-2xl) var(--wa-space-xl);
+      }
+      .scene-hed {
+        font-family: var(--wa-font-family-heading);
+        font-size: var(--wa-font-size-3xl);
+        line-height: 1.1;
+        max-width: 18ch;
+      }
+      .scene-step {
+        border-block-start: var(--wa-border-width-l) solid var(--wa-color-brand-border-loud);
+        padding-block-start: var(--wa-space-s);
+      }
+      .step-icon { font-size: var(--wa-font-size-xl); }
+      .shelf-icon { font-size: var(--wa-font-size-2xl); }
+      .shelf {
+        display: grid;
+        grid-auto-flow: column;
+        grid-auto-columns: minmax(15rem, 1fr);
+        gap: var(--wa-space-m);
+        overflow-x: auto;
+        padding-block-end: var(--wa-space-2xs);
+      }
+
+      /* --- C: panel --- */
+      .fake-app {
+        border: var(--wa-border-width-s) solid var(--wa-color-surface-border);
+        border-radius: var(--wa-border-radius-l);
+        padding: var(--wa-space-l);
+        background: var(--wa-color-surface-lowered);
+      }
+    </style>
+  </head>
+  <body>
+    <wa-page mobile-breakpoint="768">
+      <main class="wa-stack wa-gap-2xl">
+        <h1 class="visually-hidden">Upsell surface prototype</h1>
+
+        <wa-callout variant="warning">
+          <wa-icon slot="icon" name="flask"></wa-icon>
+          <strong>Throwaway prototype for issue #189.</strong>
+          Three takes on the same three surfaces. Switch with the bar at the bottom, or
+          <code>?variant=A|B|C</code>. Nothing here is wired to Stripe, and no copy is final.
+        </wa-callout>
+
+        <!-- ============================= VARIANT A ============================= -->
+        <div data-variant="A" class="wa-stack wa-gap-2xl" hidden>
+
+          <section class="surface-frame wa-stack wa-gap-l">
+            <p class="proto-note">SURFACE 1 — THE PITCH · a section inside index.html — no route of its own</p>
+            <div class="ledger wa-stack wa-gap-m">
+              <div class="wa-stack wa-gap-2xs">
+                <h2>Membership</h2>
+                <p class="wa-color-text-quiet">
+                  PRISM works on this device without an account, and it always will.
+                  Membership adds the parts that need a server.
+                </p>
+              </div>
+
+              <div>
+                <div class="ledger__row wa-flank wa-align-items-start wa-gap-m">
+                  <span class="ledger__key">Sync</span>
+                  <span>Your PRISMs on every device you sign in to. Build at the desk, check a slot on your phone at the shop.</span>
+                </div>
+                <div class="ledger__row wa-flank wa-align-items-start wa-gap-m">
+                  <span class="ledger__key">Every device</span>
+                  <span>Separate PRISMs for separate sleeve sets, each one on the phone in your pocket as well as the desk you built it at.</span>
+                </div>
+                <div class="ledger__row wa-flank wa-align-items-start wa-gap-m">
+                  <span class="ledger__key">Extras</span>
+                  <span>The MPC Stripe Compositor, and the tools that follow it.</span>
+                </div>
+                <div class="ledger__row wa-flank wa-align-items-start wa-gap-m">
+                  <span class="ledger__key">Discord role</span>
+                  <span>A member role and a members' channel. The Discord itself is open to anyone.</span>
+                </div>
+                <div class="ledger__row wa-flank wa-align-items-start wa-gap-m">
+                  <span class="ledger__key">Price</span>
+                  <span class="wa-stack wa-gap-3xs">
+                    <span><span class="price-figure">$3</span> a month, or <strong>$30</strong> a year — two months free.</span>
+                    <small class="wa-color-text-quiet">Your price stays where it is for as long as the membership runs.</small>
+                  </span>
+                </div>
+                <div class="ledger__row wa-flank wa-align-items-start wa-gap-m">
+                  <span class="ledger__key">Where you pay</span>
+                  <span class="wa-stack wa-gap-3xs">
+                    <span>Stripe or Patreon, same price.</span>
+                    <small class="wa-color-text-quiet">Patreon also carries our videos, extra media and site updates.</small>
+                  </span>
+                </div>
+                <div class="ledger__row wa-flank wa-align-items-start wa-gap-m">
+                  <span class="ledger__key">Stays free</span>
+                  <span class="wa-stack wa-gap-3xs">
+                    <span>Every deck, every slot, every export — on this device, with no account.</span>
+                    <small class="wa-color-text-quiet">A free account adds gallery participation: upload your alters and proxies, and like other people's.</small>
+                  </span>
+                </div>
+              </div>
+
+              <div class="wa-cluster wa-gap-s" data-sell>
+                <wa-button variant="brand">Start membership</wa-button>
+                <wa-button appearance="plain">Keep using PRISM free</wa-button>
+              </div>
+              <wa-callout variant="neutral" data-founder-only hidden>
+                <wa-icon slot="icon" name="circle-check"></wa-icon>
+                You are a <strong>Founder</strong>. Membership does not expire and there is
+                nothing here to buy.
+              </wa-callout>
+            </div>
+          </section>
+
+          <section class="surface-frame wa-stack wa-gap-m">
+            <p class="proto-note">SURFACE 2 — THE WALL · a dialog on the New PRISM action</p>
+            <p class="measure wa-color-text-quiet">
+              The create always succeeds. What the notice says is where the new PRISM lives.
+            </p>
+            <div class="wa-cluster wa-gap-s">
+              <wa-button id="a-wall-open" variant="neutral" appearance="outlined">
+                <wa-icon slot="start" name="plus"></wa-icon>
+                New PRISM
+              </wa-button>
+            </div>
+
+            <wa-divider></wa-divider>
+            <p class="proto-note">…and the slot message at <code>deck-form.js:199</code>, rewritten</p>
+            <wa-callout variant="neutral">
+              <wa-icon slot="icon" name="circle-info"></wa-icon>
+              All 48 slots in this PRISM carry a mark. Remove a deck to free one, or start another PRISM.
+            </wa-callout>
+          </section>
+
+          <section class="surface-frame wa-stack wa-gap-m">
+            <p class="proto-note">SURFACE 3 — PRISM EXTRAS · linked from build.html</p>
+            <div class="ledger wa-stack wa-gap-m">
+              <div class="wa-stack wa-gap-2xs">
+                <h2>PRISM Extras</h2>
+                <p class="wa-color-text-quiet">Included with membership.</p>
+              </div>
+              <div>
+                <div class="ledger__row wa-flank wa-align-items-start wa-gap-m">
+                  <span class="ledger__key">MPC Stripe Compositor</span>
+                  <span class="wa-stack wa-gap-3xs">
+                    <span>Lay your stripe marks onto MPC Autofill card images before you order, so the mark is printed instead of painted.</span>
+                    <small class="wa-color-text-quiet">Needs a finished MPC Autofill order, a local card folder, and Chrome.</small>
+                    <span><wa-button size="small" variant="brand" appearance="outlined">Open compositor</wa-button></span>
+                  </span>
+                </div>
+                <div class="ledger__row wa-flank wa-align-items-start wa-gap-m">
+                  <span class="ledger__key">More to come</span>
+                  <span class="wa-color-text-quiet">Extras is where paid tools land as they are built.</span>
+                </div>
+              </div>
+            </div>
+          </section>
+        </div>
+
+        <!-- ============================= VARIANT B ============================= -->
+        <div data-variant="B" class="wa-stack wa-gap-2xl" hidden>
+
+          <section class="surface-frame wa-stack wa-gap-l">
+            <p class="proto-note">SURFACE 1 — THE PITCH · full-bleed band, leads with the story not the price</p>
+
+            <div class="scene-band wa-stack wa-gap-l">
+              <h2 class="scene-hed">Your PRISM, at the desk and at the shop.</h2>
+              <p class="measure-wide">
+                You build at the desk. You paint at the kitchen table. You check a slot at the
+                shop with a phone in one hand and a deck box in the other. Membership keeps
+                the same PRISM in all three places.
+              </p>
+
+              <div class="wa-grid wa-gap-l" style="--min-column-size: 13rem;">
+                <div class="scene-step wa-stack wa-gap-2xs">
+                  <wa-icon name="desktop" class="step-icon"></wa-icon>
+                  <h3>At the desk</h3>
+                  <p>Import the decklist, let PRISM work out the batches, assign the slots.</p>
+                </div>
+                <div class="scene-step wa-stack wa-gap-2xs">
+                  <wa-icon name="paintbrush" class="step-icon"></wa-icon>
+                  <h3>At the table</h3>
+                  <p>Follow the marking pass on a tablet with the paint pen in your other hand.</p>
+                </div>
+                <div class="scene-step wa-stack wa-gap-2xs">
+                  <wa-icon name="store" class="step-icon"></wa-icon>
+                  <h3>At the shop</h3>
+                  <p>Check which slot a sleeve belongs to before you pull the deck apart.</p>
+                </div>
+              </div>
+            </div>
+
+            <div class="measure-wide wa-stack wa-gap-s">
+              <p>
+                Everything you can do today stays free and stays on this device.
+                A free account adds gallery participation. Membership adds sync across
+                devices, PRISM Extras, and a role in the Discord.
+              </p>
+              <p data-sell>
+                <span class="price-figure">$3</span> a month, or <strong>$30</strong> a year — two months free.
+                Stripe or Patreon, same price; Patreon also carries our videos, extra media and site updates.
+              </p>
+              <div class="wa-cluster wa-gap-s" data-sell>
+                <wa-button variant="brand" size="large">Start membership</wa-button>
+                <wa-button appearance="plain" size="large">Keep using PRISM free</wa-button>
+              </div>
+              <wa-callout variant="neutral" data-founder-only hidden>
+                <wa-icon slot="icon" name="circle-check"></wa-icon>
+                You are a <strong>Founder</strong>. Membership does not expire and there is
+                nothing here to buy.
+              </wa-callout>
+            </div>
+          </section>
+
+          <section class="surface-frame wa-stack wa-gap-m">
+            <p class="proto-note">SURFACE 2 — THE WALL · inline panel where the create form would be, no dialog</p>
+            <div class="fake-app wa-stack wa-gap-m">
+              <div class="wa-split wa-align-items-center">
+                <h3>Your PRISMs</h3>
+                <wa-button size="small" appearance="outlined">
+                  <wa-icon slot="start" name="plus"></wa-icon>
+                  New PRISM
+                </wa-button>
+              </div>
+              <wa-card>
+                <div class="wa-split wa-align-items-center">
+                  <div class="wa-stack wa-gap-3xs">
+                    <strong>Modern Horizons Cube</strong>
+                    <small class="wa-color-text-quiet">12 decks · 31 of 48 slots marked</small>
+                  </div>
+                  <wa-tag variant="success" size="small">Open</wa-tag>
+                </div>
+              </wa-card>
+
+              <div class="scene-band wa-stack wa-gap-s" data-wall-slot></div>
+            </div>
+          </section>
+
+          <section class="surface-frame wa-stack wa-gap-m">
+            <p class="proto-note">SURFACE 3 — PRISM EXTRAS · a shelf you scroll</p>
+            <div class="wa-stack wa-gap-2xs">
+              <h2>PRISM Extras</h2>
+              <p class="wa-color-text-quiet">Included with membership.</p>
+            </div>
+            <div class="shelf">
+              <wa-card>
+                <div class="wa-stack wa-gap-s">
+                  <wa-icon name="layer-group" class="shelf-icon"></wa-icon>
+                  <h3>MPC Stripe Compositor</h3>
+                  <p>Burn your stripe marks into MPC Autofill images before you order, so the mark is printed rather than painted.</p>
+                  <small class="wa-color-text-quiet">Needs an MPC Autofill order and Chrome.</small>
+                  <wa-button size="small" variant="brand">Open</wa-button>
+                </div>
+              </wa-card>
+              <wa-card>
+                <div class="wa-stack wa-gap-s">
+                  <wa-icon name="comments" class="shelf-icon"></wa-icon>
+                  <h3>Members' channel</h3>
+                  <p>A role in the PRISM Discord and a channel that comes with it. The Discord is open to everyone either way.</p>
+                  <wa-button size="small" appearance="outlined">Link your account</wa-button>
+                </div>
+              </wa-card>
+              <wa-card>
+                <div class="wa-stack wa-gap-s">
+                  <wa-icon name="plus" class="shelf-icon"></wa-icon>
+                  <h3>More to come</h3>
+                  <p>Extras is where paid tools land as they are built.</p>
+                </div>
+              </wa-card>
+            </div>
+          </section>
+        </div>
+
+        <!-- ============================= VARIANT C ============================= -->
+        <div data-variant="C" class="wa-stack wa-gap-2xl" hidden>
+
+          <section class="surface-frame wa-stack wa-gap-m">
+            <p class="proto-note">SURFACES 1 + 2 + 3 — one drawer over build.html, opened at different sections</p>
+            <p class="measure wa-color-text-quiet">
+              No separate page. Membership is one object in a drawer; the wall opens the same
+              drawer scrolled to the top; Extras is a tab inside it.
+            </p>
+            <div class="wa-cluster wa-gap-s">
+              <wa-button id="c-open-pitch" variant="brand" appearance="outlined">Open membership drawer</wa-button>
+              <wa-button id="c-open-wall" variant="neutral" appearance="outlined">
+                <wa-icon slot="start" name="plus"></wa-icon>
+                New PRISM
+              </wa-button>
+            </div>
+
+            <div class="fake-app wa-stack wa-gap-s">
+              <div class="wa-split wa-align-items-center">
+                <strong>Modern Horizons Cube</strong>
+                <wa-tag size="small" data-state-tag>Free account</wa-tag>
+              </div>
+              <small class="wa-color-text-quiet">12 decks · 31 of 48 slots marked · saved on this device</small>
+            </div>
+          </section>
+        </div>
+
+
+        <!-- ===================== VARIANT D — the chosen composition ===================== -->
+        <div data-variant="D" class="wa-stack wa-gap-2xl" hidden>
+
+          <section class="surface-frame wa-stack wa-gap-l">
+            <p class="proto-note">SURFACE 1 — THE PITCH · a section inside index.html · its CTA hands off to the drawer on build.html</p>
+
+            <div class="scene-band wa-stack wa-gap-l">
+              <h2 class="scene-hed">Your PRISM, at the desk and at the shop.</h2>
+              <p class="measure-wide">
+                You build at the desk. You paint at the kitchen table. You check a slot at the
+                shop with a phone in one hand and a deck box in the other. Membership keeps
+                the same PRISM in all three places.
+              </p>
+
+              <div class="wa-grid wa-gap-l" style="--min-column-size: 13rem;">
+                <div class="scene-step wa-stack wa-gap-2xs">
+                  <wa-icon name="desktop" class="step-icon"></wa-icon>
+                  <h3>At the desk</h3>
+                  <p>Import the decklist, let PRISM work out the batches, assign the slots.</p>
+                </div>
+                <div class="scene-step wa-stack wa-gap-2xs">
+                  <wa-icon name="paintbrush" class="step-icon"></wa-icon>
+                  <h3>At the table</h3>
+                  <p>Follow the marking pass on a tablet with the paint pen in your other hand.</p>
+                </div>
+                <div class="scene-step wa-stack wa-gap-2xs">
+                  <wa-icon name="store" class="step-icon"></wa-icon>
+                  <h3>At the shop</h3>
+                  <p>Check which slot a sleeve belongs to before you pull the deck apart.</p>
+                </div>
+              </div>
+            </div>
+
+            <div class="measure-wide wa-stack wa-gap-s">
+              <p>
+                Everything you can do today stays free and stays on this device.
+                A free account adds gallery participation. Membership adds sync across
+                devices, PRISM Extras, and a role in the Discord.
+              </p>
+              <p data-sell>
+                <span class="price-figure">$3</span> a month, or <strong>$30</strong> a year — two months free.
+                Stripe or Patreon, same price.
+              </p>
+              <div class="wa-cluster wa-gap-s" data-sell>
+                <wa-button id="d-pitch-cta" variant="brand" size="large">Start membership</wa-button>
+                <wa-button appearance="plain" size="large">Keep using PRISM free</wa-button>
+              </div>
+              <small class="proto-note">↑ hands off to build.html and opens the drawer — one checkout surface, not two</small>
+              <wa-callout variant="neutral" data-founder-only hidden>
+                <wa-icon slot="icon" name="circle-check"></wa-icon>
+                You are a <strong>Founder</strong>. Membership does not expire and there is
+                nothing here to buy.
+              </wa-callout>
+            </div>
+          </section>
+
+          <section class="surface-frame wa-stack wa-gap-m">
+            <p class="proto-note">SURFACES 2 + 3 — the drawer · build.html and profile.html only, never index.html</p>
+            <div class="wa-cluster wa-gap-s">
+              <wa-button id="d-open-pitch" variant="brand" appearance="outlined">Open membership drawer</wa-button>
+              <wa-button id="d-open-wall" variant="neutral" appearance="outlined">
+                <wa-icon slot="start" name="plus"></wa-icon>
+                New PRISM
+              </wa-button>
+            </div>
+            <div class="fake-app wa-stack wa-gap-s">
+              <div class="wa-split wa-align-items-center">
+                <strong>Modern Horizons Cube</strong>
+                <wa-tag size="small" data-state-tag>Free account</wa-tag>
+              </div>
+              <small class="wa-color-text-quiet">12 decks · 31 of 48 slots marked · saved on this device</small>
+            </div>
+          </section>
+        </div>
+
+        <div style="block-size: var(--wa-space-3xl);"></div>
+      </main>
+    </wa-page>
+
+    <!-- A: the wall, as a dialog -->
+    <wa-dialog id="a-wall" label="Saved on this device">
+      <div class="wa-stack wa-gap-m" data-wall-slot></div>
+      <wa-button slot="footer" appearance="plain" data-close>Close</wa-button>
+    </wa-dialog>
+
+    <!-- C: the drawer -->
+    <wa-drawer id="c-drawer" label="Membership" placement="end" style="--size: 27rem;">
+      <div class="wa-stack wa-gap-l">
+        <div id="c-wall-note" hidden>
+          <div data-wall-slot></div>
+        </div>
+
+        <wa-card data-sell>
+          <div class="wa-stack wa-gap-m">
+          <div class="wa-split wa-align-items-center">
+            <h3>PRISM membership</h3>
+            <wa-tag variant="brand" size="small">Not active</wa-tag>
+          </div>
+
+          <div class="wa-stack wa-gap-3xs">
+            <span><span class="price-figure">$3</span> <span class="wa-color-text-quiet">a month</span></span>
+            <small class="wa-color-text-quiet">or $30 a year, two months free. Your price stays where it is for as long as the membership runs.</small>
+          </div>
+
+          <wa-divider></wa-divider>
+
+          <ul class="wa-stack wa-gap-2xs" style="list-style: none; padding: 0; margin: 0;">
+            <li class="wa-flank wa-gap-xs wa-align-items-start">
+              <wa-icon name="cloud-arrow-up"></wa-icon>
+              <span>Your PRISMs on every device you sign in to</span>
+            </li>
+            <li class="wa-flank wa-gap-xs wa-align-items-start">
+              <wa-icon name="layer-group"></wa-icon>
+              <span>Every PRISM you build, not just the one you are looking at</span>
+            </li>
+            <li class="wa-flank wa-gap-xs wa-align-items-start">
+              <wa-icon name="wand-magic-sparkles"></wa-icon>
+              <span>PRISM Extras, including the MPC Stripe Compositor</span>
+            </li>
+            <li class="wa-flank wa-gap-xs wa-align-items-start">
+              <wa-icon name="comments"></wa-icon>
+              <span>A member role in the Discord</span>
+            </li>
+          </ul>
+
+          <wa-divider></wa-divider>
+
+          <wa-radio-group label="Where would you like to pay?" name="rail" value="stripe" hint="Same price either way.">
+            <wa-radio value="stripe">Stripe</wa-radio>
+            <wa-radio value="patreon">Patreon — also carries our videos, extra media and site updates</wa-radio>
+          </wa-radio-group>
+
+          <wa-button variant="brand">Start membership</wa-button>
+          <small class="wa-color-text-quiet">
+            PRISM keeps working on this device without an account, and always will.
+          </small>
+          </div>
+        </wa-card>
+
+        <wa-tab-group>
+          <wa-tab panel="extras">Extras</wa-tab>
+          <wa-tab panel="free">What stays free</wa-tab>
+
+          <wa-tab-panel name="extras" active>
+            <div class="wa-stack wa-gap-m">
+              <div class="wa-stack wa-gap-2xs">
+                <strong>MPC Stripe Compositor</strong>
+                <span>Lay your stripe marks onto MPC Autofill card images before you order, so the mark is printed instead of painted.</span>
+                <small class="wa-color-text-quiet">Needs a finished MPC Autofill order, a local card folder, and Chrome.</small>
+              </div>
+              <wa-divider></wa-divider>
+              <small class="wa-color-text-quiet">Extras is where paid tools land as they are built.</small>
+            </div>
+          </wa-tab-panel>
+
+          <wa-tab-panel name="free">
+            <div class="wa-stack wa-gap-2xs">
+              <span>Every deck, every slot, every marking pass and every export — with no account, stored on this device.</span>
+              <small class="wa-color-text-quiet">Membership adds the parts that need a server. It never gates what you have already built.</small>
+            </div>
+          </wa-tab-panel>
+        </wa-tab-group>
+      </div>
+    </wa-drawer>
+
+
+    <!-- D: the trimmed drawer -->
+    <wa-drawer id="d-drawer" label="Membership" placement="end" style="--size: 25rem;">
+      <div class="wa-stack wa-gap-m">
+        <div data-wall-slot-compact></div>
+
+        <wa-card data-sell>
+          <div class="wa-stack wa-gap-s">
+            <div class="wa-split wa-align-items-center">
+              <strong>PRISM membership</strong>
+              <wa-tag size="small">Not active</wa-tag>
+            </div>
+            <p><span class="price-figure">$3</span> a month · <strong>$30</strong> a year</p>
+            <ul class="wa-stack wa-gap-3xs" style="list-style: none; padding: 0; margin: 0;">
+              <li class="wa-flank wa-gap-xs wa-align-items-start">
+                <wa-icon name="cloud-arrow-up"></wa-icon><span>Your PRISMs on every device</span>
+              </li>
+              <li class="wa-flank wa-gap-xs wa-align-items-start">
+                <wa-icon name="wand-magic-sparkles"></wa-icon><span>PRISM Extras</span>
+              </li>
+              <li class="wa-flank wa-gap-xs wa-align-items-start">
+                <wa-icon name="comments"></wa-icon><span>A member role in the Discord</span>
+              </li>
+            </ul>
+            <wa-radio-group label="Where would you like to pay?" name="rail-d" value="stripe" hint="Same price either way. Patreon also carries our videos, extra media and site updates.">
+              <wa-radio value="stripe">Here, through Stripe</wa-radio>
+              <wa-radio value="patreon">On Patreon</wa-radio>
+            </wa-radio-group>
+            <wa-button variant="brand">Start membership</wa-button>
+          </div>
+        </wa-card>
+
+        <div class="wa-stack wa-gap-3xs">
+          <strong>Extras</strong>
+          <span>MPC Stripe Compositor — burn your stripe marks into MPC Autofill images before you order.</span>
+          <small class="wa-color-text-quiet">Needs a finished MPC Autofill order and Chrome.</small>
+        </div>
+      </div>
+    </wa-drawer>
+
+    <!-- floating variant switcher — prototype scaffolding, not part of the design -->
+    <div class="proto-bar wa-cluster wa-gap-2xs wa-align-items-center">
+      <wa-button id="proto-prev" size="small" appearance="plain">
+        <wa-icon name="chevron-left" label="Previous variant"></wa-icon>
+      </wa-button>
+      <span class="proto-bar__label" id="proto-label">A — Ledger</span>
+      <wa-button id="proto-next" size="small" appearance="plain">
+        <wa-icon name="chevron-right" label="Next variant"></wa-icon>
+      </wa-button>
+      <span class="proto-bar__sep" aria-hidden="true"></span>
+      <wa-button id="proto-state" size="small" appearance="plain">
+        <span id="proto-state-label">free account</span>
+      </wa-button>
+    </div>
+
+    <script type="module">
+      import { initLayout } from './js/layout.js';
+      initLayout({ activePage: 'build', headerCta: null });
+    </script>
+
+    <script type="module">
+      const NAMES = { D: 'D — Chosen (B pitch + trimmed drawer)', A: 'A — Ledger', B: 'B — Scene', C: 'C — Panel' };
+      const KEYS = Object.keys(NAMES);
+
+      // Account states. The create ALWAYS succeeds — #187 puts the cap on cloud
+      // PRISMs, not on PRISMs, and #188 says making one needs no account. So this
+      // is a notice about where the new PRISM lives, never a refusal.
+      const STATES = {
+        anonymous: {
+          label: 'anonymous',
+          title: 'Saved on this device',
+          body: `
+            <h3>Modern Horizons Cube is saved on this device</h3>
+            <p class="measure">
+              It will still be here next time you open PRISM in this browser. To reach it
+              from your phone or another computer, it has to live in the cloud — that is
+              what an account and a membership are for.
+            </p>
+            <p class="measure">
+              <span class="price-figure">$3</span> a month, or <strong>$30</strong> a year.
+              A free account is enough to join the gallery.
+            </p>
+            <div class="wa-cluster wa-gap-s">
+              <wa-button variant="brand">See membership</wa-button>
+              <wa-button variant="neutral" appearance="outlined">Create a free account</wa-button>
+            </div>`
+        },
+        free: {
+          label: 'free account',
+          title: 'Saved on this device',
+          body: `
+            <h3>Modern Horizons Cube stays on this device</h3>
+            <p class="measure">
+              A free account keeps everything local. Your PRISMs live in this browser and
+              none of them reach the cloud, so this one works exactly like the rest — it
+              just will not be there when you open PRISM somewhere else.
+            </p>
+            <p class="measure">
+              <span class="price-figure">$3</span> a month, or <strong>$30</strong> a year — two months free.
+            </p>
+            <small class="wa-color-text-quiet">
+              Stripe or Patreon, same price. Patreon also carries our videos, extra media and site updates.
+            </small>
+            <div class="wa-cluster wa-gap-s">
+              <wa-button variant="brand">See membership</wa-button>
+              <wa-button variant="neutral" appearance="outlined">Not now</wa-button>
+            </div>`
+        },
+        founder: {
+          label: 'Founder',
+          title: 'Syncing to the cloud',
+          body: `
+            <h3>Modern Horizons Cube is syncing</h3>
+            <p class="measure">
+              You are a <strong>Founder</strong> — your membership does not expire and there is
+              nothing here to buy. This PRISM is on its way to the cloud like the rest.
+            </p>
+            <wa-divider></wa-divider>
+            <p class="measure">
+              Our videos, extra media and site updates live on the Patreon, which is
+              separate from your Founder membership.
+            </p>
+            <div class="wa-cluster wa-gap-s">
+              <wa-button variant="neutral" appearance="outlined">See the Patreon</wa-button>
+            </div>`
+        }
+      };
+      const STATE_KEYS = Object.keys(STATES);
+
+      // The drawer's card states the price two inches below, so the notice must not.
+      const COMPACT = {
+        anonymous: `<wa-callout variant="neutral">
+            <wa-icon slot="icon" name="circle-info"></wa-icon>
+            <strong>Modern Horizons Cube is saved on this device.</strong>
+            To reach it from your phone it has to live in the cloud.
+          </wa-callout>`,
+        free: `<wa-callout variant="neutral">
+            <wa-icon slot="icon" name="circle-info"></wa-icon>
+            <strong>Modern Horizons Cube stays on this device.</strong>
+            A free account keeps everything local, so it will not be there when you open
+            PRISM somewhere else.
+          </wa-callout>`,
+        founder: `<wa-callout variant="neutral">
+            <wa-icon slot="icon" name="circle-check"></wa-icon>
+            <strong>Modern Horizons Cube is syncing.</strong> You are a Founder — nothing
+            here to buy. Our videos, extra media and site updates live on the Patreon.
+          </wa-callout>
+          <div class="wa-cluster wa-gap-s" style="margin-block-start: var(--wa-space-s);">
+            <wa-button size="small" appearance="outlined">See the Patreon</wa-button>
+          </div>`
+      };
+
+      function currentState() {
+        const v = (new URLSearchParams(location.search).get('state') || 'free').toLowerCase();
+        return STATE_KEYS.includes(v) ? v : 'free';
+      }
+
+      const STATE_TAG = { anonymous: 'Not signed in', free: 'Free account', founder: 'Founder' };
+
+      function renderState() {
+        const key = currentState();
+        const st = STATES[key];
+        for (const slot of document.querySelectorAll('[data-wall-slot]')) {
+          slot.innerHTML = st.body;
+        }
+        for (const slot of document.querySelectorAll('[data-wall-slot-compact]')) {
+          slot.innerHTML = COMPACT[key];
+        }
+        // #189: a Founder must never be sold the app. Only the Patreon content is a
+        // live offer to them, and that lives in the wall copy.
+        const isFounder = key === 'founder';
+        for (const el of document.querySelectorAll('[data-sell]')) el.hidden = isFounder;
+        for (const el of document.querySelectorAll('[data-founder-only]')) el.hidden = !isFounder;
+        for (const el of document.querySelectorAll('[data-state-tag]')) el.textContent = STATE_TAG[key];
+        // A's dialog label is state-dependent too, or it contradicts the body
+        document.getElementById('a-wall').setAttribute('label', st.title);
+        document.getElementById('proto-state-label').textContent = st.label;
+      }
+
+      function current() {
+        const v = (new URLSearchParams(location.search).get('variant') || 'D').toUpperCase();
+        return KEYS.includes(v) ? v : 'D';
+      }
+
+      function render() {
+        const v = current();
+        for (const key of KEYS) {
+          document.querySelector(`[data-variant="${key}"]`).hidden = key !== v;
+        }
+        document.getElementById('proto-label').textContent = NAMES[v];
+        renderState();
+      }
+
+      function go(step) {
+        const i = KEYS.indexOf(current());
+        const next = KEYS[(i + step + KEYS.length) % KEYS.length];
+        const url = new URL(location.href);
+        url.searchParams.set('variant', next);
+        history.replaceState(null, '', url);
+        render();
+      }
+
+      const dDrawer = document.getElementById('d-drawer');
+      document.getElementById('d-open-pitch').addEventListener('click', () => dDrawer.setAttribute('open', ''));
+      document.getElementById('d-open-wall').addEventListener('click', () => dDrawer.setAttribute('open', ''));
+      // index.html's CTA is a handoff: navigate to build.html, then open this drawer
+      document.getElementById('d-pitch-cta').addEventListener('click', () => dDrawer.setAttribute('open', ''));
+
+      document.getElementById('proto-state').addEventListener('click', () => {
+        const i = STATE_KEYS.indexOf(currentState());
+        const next = STATE_KEYS[(i + 1) % STATE_KEYS.length];
+        const url = new URL(location.href);
+        url.searchParams.set('state', next);
+        history.replaceState(null, '', url);
+        renderState();
+      });
+
+      document.getElementById('proto-prev').addEventListener('click', () => go(-1));
+      document.getElementById('proto-next').addEventListener('click', () => go(1));
+
+      document.addEventListener('keydown', (e) => {
+        const t = e.target;
+        if (t && (t.matches('input, textarea, [contenteditable]') || t.closest('wa-input, wa-textarea'))) return;
+        if (e.key === 'ArrowLeft') go(-1);
+        if (e.key === 'ArrowRight') go(1);
+      });
+
+      // A — dialog wall
+      const aWall = document.getElementById('a-wall');
+      document.getElementById('a-wall-open').addEventListener('click', () => aWall.setAttribute('open', ''));
+      aWall.querySelector('[data-close]').addEventListener('click', () => aWall.removeAttribute('open'));
+
+      // C — drawer, opened at two different entry points
+      const drawer = document.getElementById('c-drawer');
+      const wallNote = document.getElementById('c-wall-note');
+      document.getElementById('c-open-pitch').addEventListener('click', () => {
+        wallNote.hidden = true;
+        drawer.setAttribute('open', '');
+      });
+      document.getElementById('c-open-wall').addEventListener('click', () => {
+        wallNote.hidden = false;
+        drawer.setAttribute('open', '');
+      });
+
+      render();
+    </script>
+  </body>
+</html>
