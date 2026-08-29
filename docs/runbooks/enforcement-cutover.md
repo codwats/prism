@@ -14,8 +14,15 @@ Three states. A user is entitled if **any** of the first two hold:
 | State | Where it lives | Lapses? |
 | --- | --- | --- |
 | Founder | `founders` row | Never |
-| Active subscriber | `subscriptions.status` in (`active`, `trialing`) | Yes — see [#190](https://github.com/codwats/prism/issues/190) |
+| Active subscriber | `subscriptions.status` in (`active`, `trialing`, `past_due`, `unpaid`) | Yes — see [#187](https://github.com/codwats/prism/issues/187) |
 | Free | no row anywhere | n/a |
+
+`past_due` and `unpaid` are entitled on purpose. The grace period after a
+failed payment is the billing rail's own dunning window — Stripe's Smart
+Retries, Patreon's decline retries — rather than a number PRISM invents and has
+to keep in sync across two rails. A member is unentitled when the rail gives up
+and the subscription reaches `canceled`. Decided in
+[#187](https://github.com/codwats/prism/issues/187).
 
 One read answers the question: `is_entitled()`, a STABLE SECURITY DEFINER
 function that also folds in the enforcement flag, so it returns true for

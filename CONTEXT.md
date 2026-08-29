@@ -62,6 +62,23 @@ _In code_: `stripePosition` and `sideAPosition`. The mismatch is deliberate — 
 The inner sleeve of a double-sleeved card, and the only sleeve that is ever marked. Its partner is the outer sleeve, which protects the mark.
 _Avoid_: perfect-fit inner sleeve, inner Perfect Fit sleeve, Perfect Fit inner sleeve
 
+**Lapse**:
+The moment a subscription stops entitling its holder — the billing rail has
+given up retrying a failed payment, or a cancelled subscription has reached the
+end of the period already paid for. A Founder never lapses and a free account
+has nothing to lapse from. Verb and noun; the person is a *lapsed member*, never
+a churned or expired one.
+_Avoid_: churn, expiry, downgrade, cancellation (which is the request, not the state)
+_In code_: no field of its own — a lapse is `is_entitled()` turning false, read from `subscriptions.status`.
+
+**Paused sync**:
+The state of a lapsed member's cloud copy: retained forever and still readable
+on any device, but never written again until they subscribe again. The word
+shown to the reader is *paused*, always with the date of the last sync — never
+*frozen*, *locked*, *disabled* or *lost*, all of which suggest the collection
+itself is at risk when only the uploading has stopped.
+_Avoid_: frozen, locked, suspended, sync disabled
+
 **Founder**:
 A person whose account existed when payment enforcement was switched on, entitled to PRISM permanently and without paying. One word in prose and in code — never Founding Member or Founding Supporter, and never *membership*, which already means a card belonging to a deck.
 _Avoid_: grandfathered user, founding member, founding supporter, early adopter
