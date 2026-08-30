@@ -1753,3 +1753,10 @@ wa-page[view='desktop'] [data-toggle-nav] {
   inline-size: 100%;
   box-sizing: border-box;
 }
+
+/* The nav column sizes to its content, so the "couldn't reach auth" sentence
+   would otherwise widen the whole sidebar to fit on one line. Cap it so it
+   wraps instead; the cap is the nav's own natural width. */
+#auth-unavailable {
+  max-inline-size: 11rem;
+}

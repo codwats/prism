@@ -68,9 +68,11 @@ for (const r of results) {
   });
 
   // profile.js gates its own initial render on the same predicate, so it has to
-  // agree with what the nav painted: paint iff we reached a verdict.
+  // agree with what the nav painted: paint iff auth reached a verdict. Both
+  // "skeleton" (still trying) and "unavailable" (gave up) mean it did not.
   test(`canPaintAuthState agrees with the paint — ${r.name}`, () => {
-    assert.equal(r.canPaint, r.expected !== 'skeleton');
+    const reachedVerdict = r.expected === 'signed-in' || r.expected === 'signed-out';
+    assert.equal(r.canPaint, reachedVerdict);
   });
 
   test(`nav paints ${r.expected} — ${r.name}`, () => {

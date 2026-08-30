@@ -54,7 +54,7 @@ class FakeEl {
  */
 function installDom({ sdkScriptPresent, outcome, sdkArrivalDelay, sdkFactory }) {
   const byId = new Map();
-  for (const id of ['auth-loading', 'auth-logged-out', 'auth-logged-in']) {
+  for (const id of ['auth-loading', 'auth-logged-out', 'auth-logged-in', 'auth-unavailable']) {
     byId.set(id, new FakeEl(id));
   }
   const outcomes = Array.isArray(outcome) ? outcome : [outcome];
@@ -161,22 +161,26 @@ const SCENARIOS = {
   'anonymous-no-sdk':         { sdkScriptPresent: false, outcome: 'error', signedOut: true, storedSession: false },
 
   // --- #199: the SDK is permanently unavailable ---
-  // The session can never be verified, so "signed-in" is unknowable. The nav
-  // must NOT claim signed-out — that is the bug. Holding the loading skeleton
-  // is the only honest branch.
+  // The session can never be verified, so "signed-in" is unknowable and the nav
+  // must NOT claim signed-out — that is the bug. Once the retry budget is spent
+  // it says so instead, with a Retry button; until then it stays on the
+  // skeleton, because "still trying" and "gave up" are different claims.
   //
   // Blocked by an ad blocker / DNS failure, error fires after initAuth listens.
-  'sdk-script-errors':        { sdkScriptPresent: true,  outcome: 'error', sdkArrivalDelay: 130, expected: 'skeleton', trailingWait: 3000 },
+  'sdk-script-errors':        { sdkScriptPresent: true,  outcome: 'error', sdkArrivalDelay: 130, expected: 'unavailable', trailingWait: 3000 },
   // Same, but the error fires inside layout.js's 100ms sleep, so a listener
   // attached afterwards would never see it.
-  'sdk-error-before-listen':  { sdkScriptPresent: true,  outcome: 'error', sdkArrivalDelay: 30, expected: 'skeleton', trailingWait: 3000 },
-  // Slow CDN: the request never settles.
+  'sdk-error-before-listen':  { sdkScriptPresent: true,  outcome: 'error', sdkArrivalDelay: 30, expected: 'unavailable', trailingWait: 4000 },
+  // Slow CDN: the request never settles. Still inside the retry budget here, so
+  // the nav must stay on the skeleton and NOT yet claim it gave up.
   'sdk-hangs':                { sdkScriptPresent: true,  outcome: 'hang', expected: 'skeleton', trailingWait: 1000 },
+  // The same hang, waited out past the whole retry budget: now it gives up.
+  'sdk-hangs-past-budget':    { sdkScriptPresent: true,  outcome: 'hang', expected: 'unavailable', trailingWait: 11000 },
   // hasStoredSession() true but no tag in the DOM yet when initAuth runs.
-  'no-script-tag':            { sdkScriptPresent: false, outcome: 'error', expected: 'skeleton', trailingWait: 3000 },
+  'no-script-tag':            { sdkScriptPresent: false, outcome: 'error', expected: 'unavailable', trailingWait: 3000 },
   // Minimised: the only load-bearing element is that window.supabase is unset
   // when initAuth() reaches getSupabase(). No delays, no prior tag.
-  'minimal-sdk-absent':       { sdkScriptPresent: false, outcome: 'error', layoutDelay: 0, expected: 'skeleton', trailingWait: 3000 },
+  'minimal-sdk-absent':       { sdkScriptPresent: false, outcome: 'error', layoutDelay: 0, expected: 'unavailable', trailingWait: 3000 },
 
   // --- #199: the SDK is late but does arrive ---
   // Green only if a failed/hung SDK load is retried and the nav then repainted.
@@ -249,6 +253,8 @@ async function main() {
   const painted =
     disp('auth-logged-in') === '' ? 'signed-in'
     : disp('auth-logged-out') === '' ? 'signed-out'
+    // "unavailable" means we gave up; "skeleton" means we're still trying.
+    : disp('auth-unavailable') === '' ? 'unavailable'
     : 'skeleton';
 
   emitLine(JSON.stringify({
@@ -257,7 +263,8 @@ async function main() {
     expected: expected || (session ? 'signed-in' : 'signed-out'),
     painted,
     threw,
-    display: { loading: disp('auth-loading') ?? null, out: disp('auth-logged-out') ?? null, in: disp('auth-logged-in') ?? null },
+    display: { loading: disp('auth-loading') ?? null, out: disp('auth-logged-out') ?? null,
+               in: disp('auth-logged-in') ?? null, unavailable: disp('auth-unavailable') ?? null },
   }));
 }
 

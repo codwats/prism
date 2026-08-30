@@ -386,6 +386,20 @@ function injectNav(activePage) {
             </wa-button>
           </div>
 
+          <!-- Couldn't Reach Auth State. Shown only once the SDK is out of
+               retries AND a stored session says the user is probably signed
+               in — see showAuthUnavailable. Anything less definite stays on
+               the skeleton above. -->
+          <div id="auth-unavailable" class="wa-stack wa-gap-2xs" style="display: none;">
+            <span class="wa-caption-s" style="color: var(--wa-color-neutral-text-subtle);">
+              Couldn't reach the login service. Your decks are saved on this device.
+            </span>
+            <wa-button id="btn-auth-retry" variant="neutral" appearance="outlined" size="small" style="width: 100%;">
+              <wa-icon slot="start" name="rotate-right"></wa-icon>
+              Retry
+            </wa-button>
+          </div>
+
           <!-- Logged In State -->
           <div id="auth-logged-in" class="wa-stack wa-gap-s" style="display: none;">
             <wa-button href="profile.html" variant="neutral" appearance="outlined" style="width: 100%;">
