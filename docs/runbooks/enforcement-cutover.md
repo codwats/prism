@@ -57,6 +57,31 @@ and no explanation.
 Steps 1 and 2 are safe to deploy days early: `is_entitled()` returns true for
 everyone while the flag is false.
 
+### Verifying steps 1 and 2
+
+Run all three. The first two confirm the deploy is dark; the third confirms it
+is reachable.
+
+```sql
+SELECT is_entitled();                                              -- true
+SELECT value FROM app_config WHERE key = 'payment_enforcement';    -- false
+SELECT has_function_privilege('authenticated', 'is_entitled()', 'EXECUTE');  -- true
+```
+
+**The third one is not redundant.** The SQL editor runs as the postgres/service
+role, so `SELECT is_entitled()` returns true whether or not the grant to
+`authenticated` landed — the migration revokes execute from `public` and grants
+it only to `authenticated`. Without that grant every signed-in user's PRISM
+insert fails with `permission denied for function is_entitled`, breaking cloud
+sync for everyone *while the flag is still false*. `has_function_privilege` is
+the only one of the three that catches it.
+
+A green result here proves **nothing broke**. It does not prove the gate
+refuses anyone: the enforcement branch has not executed, which is what step 6
+of the cutover is for.
+
+Applied and verified in [#220](https://github.com/codwats/prism/issues/220).
+
 ## The cutover — in order
 
 1. **Stamp.** Every row in `auth.users`, no predicate. Idempotent.
