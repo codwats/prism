@@ -63,15 +63,19 @@ export function loadSupabaseSdk() {
       resolve(loaded);
     };
 
-    const attach = (script) => {
+    // `done` cancels this attempt's own deadline, so a settled attempt can
+    // never have its timer fire later.
+    const attach = (script, done) => {
       // Listeners go on before the tag enters the document. Attaching them
       // later — as initAuth() used to, after a 100ms sleep — means a load or
       // error firing inside that window is missed entirely (#199).
       script.addEventListener('load', () => {
+        done();
         if (window.supabase) finish(true);
         else retry();
       }, { once: true });
       script.addEventListener('error', () => {
+        done();
         script.remove();
         retry();
       }, { once: true });
@@ -88,6 +92,11 @@ export function loadSupabaseSdk() {
       if (settled) return;
       if (window.supabase) { finish(true); return; }
       attempts += 1;
+      const thisAttempt = attempts;
+      let deadline = null;
+      const cancelDeadline = () => {
+        if (deadline !== null) { clearTimeout(deadline); deadline = null; }
+      };
       // Adopt a tag already in the document on the first pass — layout.js
       // injects one eagerly for returning users — rather than racing a
       // duplicate against it. Later attempts always need a fresh request.
@@ -95,14 +104,22 @@ export function loadSupabaseSdk() {
         ? document.head.querySelector('script[src*="supabase"]')
         : null;
       if (script) {
-        attach(script);
+        attach(script, cancelDeadline);
       } else {
         script = document.createElement('script');
         script.src = SDK_URL;
-        attach(script);
+        attach(script, cancelDeadline);
         document.head.appendChild(script);
       }
-      setTimeout(() => { if (!window.supabase) retry(); }, SDK_ATTEMPT_TIMEOUT_MS);
+      // A hung request fires neither event, so this attempt needs a deadline.
+      // Only the current attempt may act on its own: an earlier attempt that
+      // already errored would otherwise fire here mid-flight and either burn a
+      // retry or settle the promise false while a live request is still going.
+      deadline = setTimeout(() => {
+        deadline = null;
+        if (thisAttempt !== attempts) return;
+        if (!window.supabase) retry();
+      }, SDK_ATTEMPT_TIMEOUT_MS);
     };
 
     inject();

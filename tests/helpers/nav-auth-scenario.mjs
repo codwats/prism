@@ -13,6 +13,12 @@
  * event fires, and on whether a failed load is ever retried.
  */
 
+import { writeSync } from 'node:fs';
+
+// process.exit() can truncate a pending async stdout write to a pipe, which is
+// exactly how this runner is invoked. Write the one result line synchronously.
+const emitLine = (text) => writeSync(1, `${text}\n`);
+
 const SESSION = { user: { id: 'u1', email: 'user@example.com' } };
 
 class FakeEl {
@@ -29,7 +35,13 @@ class FakeEl {
   dispatch(ev) { (this._listeners[ev] || []).slice().forEach((cb) => cb({ type: ev })); }
   setAttribute() {}
   removeAttribute() {}
-  remove() { this.parent?.children.splice(this.parent.children.indexOf(this), 1); }
+  remove() {
+    // Clearing parent is what lets scheduleOutcome's `script.parent !== head`
+    // guard suppress a detached tag's pending load/error — and, for a load,
+    // its window.supabase assignment.
+    this.parent?.children.splice(this.parent.children.indexOf(this), 1);
+    this.parent = null;
+  }
   appendChild(c) { this.children.push(c); c.parent = this; return c; }
 }
 
@@ -170,19 +182,28 @@ const SCENARIOS = {
   // Green only if a failed/hung SDK load is retried and the nav then repainted.
   'sdk-recovers-after-hang':  { sdkScriptPresent: true,  outcome: ['hang', 'load'], trailingWait: 4000 },
   'sdk-recovers-after-error': { sdkScriptPresent: true,  outcome: ['error', 'load'], trailingWait: 2000 },
+  // Two different failures before a success — the retry path has to survive a
+  // mixed sequence, not just a repeated one. This does not discriminate the
+  // per-attempt deadline fix in supabase-client (both versions end signed-in;
+  // the difference there is which attempt owns the timer that schedules the
+  // retry, which the nav never sees). It is here for the sequence coverage.
+  //
+  // sdkScriptPresent:false so attempt 1 injects its own tag and its error is
+  // actually observed — a pre-existing tag settles before loadSupabaseSdk
+  // attaches listeners, which would make attempt 1 look like a hang instead.
+  'sdk-error-then-hang-then-load': { sdkScriptPresent: false, outcome: ['error', 'hang', 'load'], trailingWait: 4000 },
   // The SDK lands only AFTER initAuth stopped waiting and the page rendered.
   // Exercises the background continuation specifically, not the inline wait.
   'sdk-arrives-after-give-up': { sdkScriptPresent: true, outcome: ['hang', 'load'], sdkArrivalDelay: 2000, trailingWait: 5000 },
 };
 
 if (process.argv[2] === '--list') {
-  console.log(JSON.stringify(Object.keys(SCENARIOS)));
+  emitLine(JSON.stringify(Object.keys(SCENARIOS)));
   process.exit(0);
 }
 
 async function main() {
   // App-level console chatter would drown the one line the test parses.
-  const emit = console.log.bind(console);
   console.log = () => {};
 
   const name = process.argv[2];
@@ -230,7 +251,7 @@ async function main() {
     : disp('auth-logged-out') === '' ? 'signed-out'
     : 'skeleton';
 
-  emit(JSON.stringify({
+  emitLine(JSON.stringify({
     scenario: name,
     canPaint: auth.canPaintAuthState(),
     expected: expected || (session ? 'signed-in' : 'signed-out'),
