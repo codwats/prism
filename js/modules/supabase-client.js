@@ -24,14 +24,91 @@ export function hasStoredSession() {
   }
 }
 
-// Inject the Supabase SDK script on demand. Idempotent. Anonymous visitors
-// never pay for the SDK unless they open the login dialog.
+const SDK_URL = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2';
+// A hung request fires neither load nor error, so each attempt needs its own
+// deadline. The dead tag is left in the document — if it lands late its own
+// load listener still resolves us — and only a tag that errored is removed.
+const SDK_ATTEMPT_TIMEOUT_MS = 3000;
+const SDK_LOAD_ATTEMPTS = 3;
+
+let sdkReadyPromise = null;
+
+// Load the Supabase SDK on demand. Idempotent. Anonymous visitors never pay
+// for the SDK unless they open the login dialog.
+//
+// Resolves true once window.supabase exists, false once every attempt has
+// failed; never rejects. Callers that only want the tag injected can ignore
+// the promise.
+//
+// Retrying matters: a single failed load used to leave auth permanently
+// unresolvable, and the nav painted "signed out" at a signed-in user with
+// nothing left to correct it (#199).
 export function loadSupabaseSdk() {
-  if (window.supabase) return;
-  if (document.head.querySelector('script[src*="supabase"]')) return;
-  const sb = document.createElement('script');
-  sb.src = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2';
-  document.head.appendChild(sb);
+  if (window.supabase) return Promise.resolve(true);
+  if (sdkReadyPromise) return sdkReadyPromise;
+
+  sdkReadyPromise = new Promise(resolve => {
+    let attempts = 0;
+    let settled = false;
+
+    // Timers and listeners from abandoned attempts can still fire after we've
+    // given up. Without this guard a stale one would clear sdkReadyPromise
+    // out from under a later caller that had already started fresh attempts.
+    const finish = (loaded) => {
+      if (settled) return;
+      settled = true;
+      // Don't cache a failure for the page's lifetime — a later caller (login
+      // click, another navigation) gets a fresh set of attempts.
+      if (!loaded) sdkReadyPromise = null;
+      resolve(loaded);
+    };
+
+    const attach = (script) => {
+      // Listeners go on before the tag enters the document. Attaching them
+      // later — as initAuth() used to, after a 100ms sleep — means a load or
+      // error firing inside that window is missed entirely (#199).
+      script.addEventListener('load', () => {
+        if (window.supabase) finish(true);
+        else retry();
+      }, { once: true });
+      script.addEventListener('error', () => {
+        script.remove();
+        retry();
+      }, { once: true });
+    };
+
+    const retry = () => {
+      if (settled) return;
+      if (window.supabase) { finish(true); return; }
+      if (attempts >= SDK_LOAD_ATTEMPTS) { finish(false); return; }
+      setTimeout(inject, 300 * attempts);
+    };
+
+    const inject = () => {
+      if (settled) return;
+      if (window.supabase) { finish(true); return; }
+      attempts += 1;
+      // Adopt a tag already in the document on the first pass — layout.js
+      // injects one eagerly for returning users — rather than racing a
+      // duplicate against it. Later attempts always need a fresh request.
+      let script = attempts === 1
+        ? document.head.querySelector('script[src*="supabase"]')
+        : null;
+      if (script) {
+        attach(script);
+      } else {
+        script = document.createElement('script');
+        script.src = SDK_URL;
+        attach(script);
+        document.head.appendChild(script);
+      }
+      setTimeout(() => { if (!window.supabase) retry(); }, SDK_ATTEMPT_TIMEOUT_MS);
+    };
+
+    inject();
+  });
+
+  return sdkReadyPromise;
 }
 
 export function getSupabase() {

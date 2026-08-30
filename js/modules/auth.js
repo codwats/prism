@@ -1,5 +1,5 @@
 // Authentication module for Prism
-import { getSupabase, isConfigured, logToSupabase, loadSupabaseSdk } from './supabase-client.js';
+import { getSupabase, isConfigured, logToSupabase, loadSupabaseSdk, hasStoredSession } from './supabase-client.js';
 import { syncWithSupabase } from './storage.js';
 import { clearEntitlementCache } from './billing.js';
 import { debugLog } from '../core/utils.js';
@@ -9,6 +9,15 @@ let currentUser = null;
 let authListeners = [];
 let wasLoggedOut = true; // Track if user was logged out before sign-in
 let authInitPromise = null; // Cached init promise — all callers await the same one
+// Whether auth has reached a definitive verdict. A null `currentUser` is
+// ambiguous on its own: it means "signed out" only once this is true,
+// otherwise it means "we never got an answer". Conflating the two is #199.
+let authResolved = false;
+
+// How long a page load will wait on the SDK before rendering without a verdict.
+// Shorter than loadSupabaseSdk's full retry budget on purpose: the retries
+// continue in the background and repaint the nav if they succeed.
+const SDK_WAIT_MS = 3500;
 
 // Subscribe to auth state changes
 export function onAuthChange(callback) {
@@ -22,6 +31,7 @@ export function onAuthChange(callback) {
 // Notify all listeners
 function notifyAuthChange(user) {
   currentUser = user;
+  authResolved = true;
   // Entitlement is per-user and cached for the page's lifetime. Every auth
   // transition funnels through here (initAuth's initial session and every
   // onAuthStateChange event), so this is the one place that cannot be missed —
@@ -44,15 +54,29 @@ export function initAuth() {
       return null;
     }
 
-    // Wait for Supabase CDN if the script hasn't executed yet
-    if (!window.supabase) {
-      const sbScript = document.querySelector('script[src*="supabase"]');
-      if (sbScript) {
-        await new Promise(resolve => {
-          if (window.supabase) { resolve(); return; }
-          sbScript.addEventListener('load', resolve, { once: true });
-          sbScript.addEventListener('error', resolve, { once: true });
-          setTimeout(resolve, 5000);
+    // Wait for the Supabase CDN if the script hasn't executed yet. Only when
+    // something has actually asked for the SDK: layout.js injects it eagerly
+    // for returning users and ensureAuthReady() does so on demand, while an
+    // anonymous visitor has neither and must not be made to pay for it.
+    // loadSupabaseSdk owns the retries — a single failed load used to be fatal.
+    if (!window.supabase &&
+        (document.head.querySelector('script[src*="supabase"]') || hasStoredSession())) {
+      const sdkPromise = loadSupabaseSdk();
+      // Bound how long the page waits. build.html blocks its whole render on
+      // this call, and PRISM is local-first — a blocked CDN must not hold the
+      // app hostage for the full retry budget.
+      const ready = await Promise.race([
+        sdkPromise,
+        new Promise(resolve => setTimeout(() => resolve(false), SDK_WAIT_MS))
+      ]);
+      if (!ready) {
+        // Stop waiting, but don't stop trying: if a later attempt lands, run
+        // init again so the nav repaints instead of sitting on the skeleton
+        // forever (#199).
+        sdkPromise.then(loaded => {
+          if (!loaded || authResolved) return;
+          authInitPromise = null;
+          initAuth().catch(err => console.error('Auth retry failed:', err));
         });
       }
     }
@@ -63,8 +87,10 @@ export function initAuth() {
       return null;
     }
 
-    // Get initial session
+    // Get initial session. Reaching this point is the verdict — a session or
+    // a definite absence of one — regardless of which branch follows.
     const { data: { session } } = await supabase.auth.getSession();
+    authResolved = true;
     if (session?.user) {
       wasLoggedOut = false; // User already logged in, don't reload on SIGNED_IN
       notifyAuthChange(session.user);
@@ -121,6 +147,21 @@ export function initAuth() {
 // Get current user
 export function getCurrentUser() {
   return currentUser;
+}
+
+// Whether a caller may paint UI from getCurrentUser() yet.
+//
+// A null user is ambiguous until auth resolves: it means "signed out" only
+// once we've heard from Supabase, and "we don't know" before that — a
+// blocked or slow CDN leaves getSupabase() null and no verdict is ever
+// reached. Painting the second as the first showed Log In to signed-in users
+// with nothing left to correct it (#199).
+//
+// A visitor with no stored session is the one case where the two coincide:
+// there is nothing to resolve, so paint immediately rather than stalling the
+// nav behind an SDK anonymous visitors deliberately never load.
+export function canPaintAuthState() {
+  return authResolved || !hasStoredSession();
 }
 
 // Load the SDK on demand and run init. Anonymous visitors don't get the SDK
@@ -496,7 +537,13 @@ export function setupAuthListeners() {
 
   // Subscribe to auth changes to update UI
   onAuthChange(updateAuthUI);
+
   // Sync nav UI immediately — INITIAL_SESSION may have fired during initAuth()
-  // (before this listener was registered) when session was already in memory
-  updateAuthUI(currentUser);
+  // (before this listener was registered) when session was already in memory.
+  //
+  // But only once auth has a verdict — otherwise leave the loading skeleton up
+  // and let the SDK retry repaint through onAuthChange. See canPaintAuthState.
+  if (canPaintAuthState()) {
+    updateAuthUI(currentUser);
+  }
 }

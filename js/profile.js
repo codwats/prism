@@ -3,7 +3,7 @@
  * Handles user profile, PRISM management, and account settings
  */
 
-import { initAuth, setupAuthListeners, onAuthChange, getCurrentUser, signOut, updatePassword, updateEmail, updateAuthUI, ensureAuthReady } from './modules/auth.js';
+import { initAuth, setupAuthListeners, onAuthChange, getCurrentUser, signOut, updatePassword, updateEmail, updateAuthUI, ensureAuthReady, canPaintAuthState } from './modules/auth.js';
 import { getAllPrisms, setCurrentPrism, deletePrism, savePrism, getCurrentPrism } from './modules/storage.js';
 import { createPrism, processCards } from './modules/processor.js';
 import { downloadJSON } from './modules/export.js';
@@ -103,8 +103,11 @@ async function init() {
   // Subscribe to auth changes
   onAuthChange(handleAuthChange);
 
-  // Initial render based on current auth state
-  handleAuthChange(getCurrentUser());
+  // Initial render based on current auth state — but only once auth has a
+  // verdict. Before that a null user means "unknown", and rendering the
+  // logged-out page (and repainting the nav) at a signed-in user is #199.
+  // The loading skeleton stays up until the SDK retry resolves it.
+  if (canPaintAuthState()) handleAuthChange(getCurrentUser());
 
   // Returning from Stripe Checkout
   const checkoutResult = new URLSearchParams(window.location.search).get('checkout');

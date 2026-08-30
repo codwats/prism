@@ -6,7 +6,7 @@ import { state } from '../core/state.js';
 import { getLogicalDeckCount, debugLog } from '../core/utils.js';
 import { createPrism, getUsedPositions, MAX_STRIPE_SLOTS, applyCommanderFallback } from '../modules/processor.js';
 import { getCurrentPrism, savePrism, setCurrentPrism, getPreferences, onSyncStatusChange, forceSyncCurrentPrism, getAllPrisms } from '../modules/storage.js';
-import { initAuth, setupAuthListeners, getCurrentUser } from '../modules/auth.js';
+import { initAuth, setupAuthListeners, getCurrentUser, onAuthChange } from '../modules/auth.js';
 import { logToSupabase } from '../modules/supabase-client.js';
 import { initColorSwatches } from './deck-form.js';
 import { renderDecksList, handleSwitchPrism } from './deck-list.js';
@@ -334,11 +334,17 @@ function setupSyncStatus() {
   const { syncStatus, btnSyncNow } = state.elements;
   if (!syncStatus || !btnSyncNow) return;
 
-  // Only show for logged-in users
-  if (!getCurrentUser()) return;
-
-  syncStatus.style.display = '';
-  btnSyncNow.style.display = '';
+  // Visibility follows auth rather than a one-shot check here: auth can now
+  // resolve after this runs (a CDN load that failed and was retried), and a
+  // one-shot check would leave the sync controls hidden for the rest of the
+  // session even once the user is known to be signed in (#199).
+  const applyVisibility = (user) => {
+    const display = user ? '' : 'none';
+    syncStatus.style.display = display;
+    btnSyncNow.style.display = display;
+  };
+  applyVisibility(getCurrentUser());
+  onAuthChange(applyVisibility);
 
   let lastSyncedAt = null;
   let statusInterval = null;
