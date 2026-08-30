@@ -652,7 +652,14 @@ BEGIN;
                     AND status IN ('active', 'trialing', 'past_due', 'unpaid'));
   $$;
 
+  -- Both revokes are needed. Supabase's stock setup grants EXECUTE on public-
+  -- schema functions to anon/authenticated/service_role DIRECTLY (and via ALTER
+  -- DEFAULT PRIVILEGES, so new functions inherit it). REVOKE ... FROM public
+  -- drops only the PUBLIC pseudo-role grant and leaves anon's direct grant
+  -- intact, which left is_entitled() callable unauthenticated. Found in #225,
+  -- fixed in #231.
   REVOKE EXECUTE ON FUNCTION is_entitled() FROM public;
+  REVOKE EXECUTE ON FUNCTION is_entitled() FROM anon;
   GRANT EXECUTE ON FUNCTION is_entitled() TO authenticated;
 COMMIT;
 
