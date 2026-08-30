@@ -3,7 +3,7 @@
  * Handles user profile, PRISM management, and account settings
  */
 
-import { initAuth, setupAuthListeners, onAuthChange, getCurrentUser, signOut, updatePassword, updateEmail, updateAuthUI, ensureAuthReady, canPaintAuthState } from './modules/auth.js';
+import { startAuth, onAuthChange, getCurrentUser, signOut, updatePassword, updateEmail, updateAuthUI, ensureAuthReady, canPaintAuthState } from './modules/auth.js';
 import { getAllPrisms, setCurrentPrism, deletePrism, savePrism, getCurrentPrism } from './modules/storage.js';
 import { createPrism, processCards } from './modules/processor.js';
 import { downloadJSON } from './modules/export.js';
@@ -83,16 +83,11 @@ function getElements() {
 let pendingDeleteId = null;
 
 async function init() {
-  // Wait for Web Awesome components
+  // Wait for Web Awesome components, for this function's own rendering below.
+  // Auth itself doesn't need the wait.
   await new Promise(resolve => setTimeout(resolve, 100));
 
-  // Initialize auth
-  try {
-    await initAuth();
-  } catch (err) {
-    console.error('Auth init failed:', err);
-  }
-  setupAuthListeners();
+  await startAuth();
 
   // Get elements
   elements = getElements();

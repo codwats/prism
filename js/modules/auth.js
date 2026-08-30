@@ -46,7 +46,7 @@ function notifyAuthChange(user) {
 // Previously a boolean guard was flipped synchronously before the async work,
 // causing the second caller to short-circuit before cloud sync completed and
 // read stale localStorage.
-export function initAuth() {
+function initAuth() {
   if (authInitPromise) return authInitPromise;
   authInitPromise = (async () => {
     if (!isConfigured()) {
@@ -162,6 +162,27 @@ export function getCurrentUser() {
 // nav behind an SDK anonymous visitors deliberately never load.
 export function canPaintAuthState() {
   return authResolved || !hasStoredSession();
+}
+
+// Bring auth up and wire the nav to it. Every page boots auth through here.
+//
+// The ordering carries an invariant that is easy to lose: setupAuthListeners()
+// must run even when initAuth() throws, because it is what resolves the nav's
+// loading skeleton. Skip it on the failure path and a transient CDN error
+// leaves the page on skeletons forever.
+//
+// This lived as three hand-copied blocks (layout.js, features/init.js,
+// profile.js), which is how profile.js came to repeat the nav's own #199 bug
+// in its initial render. One copy, one place to get it right — initAuth and
+// setupAuthListeners are deliberately not exported so the sequence cannot be
+// reassembled by hand a fourth time.
+export async function startAuth() {
+  try {
+    await initAuth();
+  } catch (err) {
+    console.error('Auth init failed:', err);
+  }
+  setupAuthListeners();
 }
 
 // Load the SDK on demand and run init. Anonymous visitors don't get the SDK
@@ -329,7 +350,7 @@ function clearAuthMessages() {
 // Setup auth event listeners for nav buttons
 let listenersSetup = false;
 
-export function setupAuthListeners() {
+function setupAuthListeners() {
   // Idempotent — safe to call from both layout.js and page-specific scripts
   if (listenersSetup) return;
   listenersSetup = true;

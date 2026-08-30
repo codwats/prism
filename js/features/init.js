@@ -6,7 +6,7 @@ import { state } from '../core/state.js';
 import { getLogicalDeckCount, debugLog } from '../core/utils.js';
 import { createPrism, getUsedPositions, MAX_STRIPE_SLOTS, applyCommanderFallback } from '../modules/processor.js';
 import { getCurrentPrism, savePrism, setCurrentPrism, getPreferences, onSyncStatusChange, forceSyncCurrentPrism, getAllPrisms } from '../modules/storage.js';
-import { initAuth, setupAuthListeners, getCurrentUser, onAuthChange } from '../modules/auth.js';
+import { startAuth, getCurrentUser, onAuthChange } from '../modules/auth.js';
 import { logToSupabase } from '../modules/supabase-client.js';
 import { initColorSwatches } from './deck-form.js';
 import { renderDecksList, handleSwitchPrism } from './deck-list.js';
@@ -175,17 +175,15 @@ function getElements() {
 export async function init() {
   debugLog('PRISM: Initializing...');
 
-  // Wait a tick for Web Awesome components to upgrade
+  // Wait a tick for Web Awesome components to upgrade, for the rendering this
+  // function goes on to do. Auth itself doesn't need it — startAuth only
+  // touches plain elements and attaches listeners, both of which work before
+  // an upgrade.
   await new Promise(resolve => setTimeout(resolve, 100));
 
-  // Initialize auth — continue rendering local data even if auth/sync fails,
-  // so the loading skeletons never stick
-  try {
-    await initAuth();
-  } catch (err) {
-    console.error('Auth init failed:', err);
-  }
-  setupAuthListeners();
+  // Continue rendering local data even if auth/sync fails, so the loading
+  // skeletons never stick.
+  await startAuth();
 
   logToSupabase('info', 'app_loaded', { page: 'build', url: window.location.pathname });
 

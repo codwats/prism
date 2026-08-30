@@ -8,7 +8,7 @@
  *   initLayout({ activePage: 'build', title: 'Build Your PRISM' });
  */
 
-import { initAuth, setupAuthListeners } from './modules/auth.js';
+import { startAuth } from './modules/auth.js';
 import { hasStoredSession, loadSupabaseSdk } from './modules/supabase-client.js';
 import {
   getColorScheme,
@@ -60,7 +60,9 @@ export function initLayout(options = {}) {
   injectFooter();
   injectAuthDialog();
   injectSettingsDrawer();
-  initAuthModule();
+  // Nothing here waits on Web Awesome: startAuth only sets style.display on
+  // plain elements and attaches listeners, and both work before an upgrade.
+  startAuth();
 }
 
 /**
@@ -733,20 +735,4 @@ function injectSettingsDrawer() {
     updatePreferences({ stripeNumbersMode: STRIPE_NUMBERS_MODES[Number(e.target.value) - 1] || 'none' });
     window.dispatchEvent(new CustomEvent('prism-settings-changed', { detail: { setting: 'stripeNumbersMode' } }));
   });
-}
-
-// ============================================================
-// Auth initialization
-// ============================================================
-
-async function initAuthModule() {
-  // Wait a tick for Web Awesome components to upgrade
-  await new Promise(resolve => setTimeout(resolve, 100));
-  try {
-    await initAuth();
-  } catch (err) {
-    console.error('Auth init failed:', err);
-  }
-  // Always run so updateAuthUI resolves the nav auth skeleton even when auth fails
-  setupAuthListeners();
 }

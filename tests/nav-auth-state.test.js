@@ -3,9 +3,8 @@
  * real session, on every page-load ordering.
  *
  * Each scenario runs in its own process (see helpers/nav-auth-scenario.mjs);
- * the runner drives the real initAuth() + setupAuthListeners() sequence that
- * layout.js's initAuthModule() performs, then reports which branch the nav
- * actually painted.
+ * the runner drives startAuth() — the real sequence every page boots auth
+ * through — then reports which branch the nav actually painted.
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -17,7 +16,7 @@ const RUNNER = fileURLToPath(new URL('./helpers/nav-auth-scenario.mjs', import.m
 const names = JSON.parse(execFileSync('node', [RUNNER, '--list'], { encoding: 'utf8' }));
 
 // Scenarios are independent processes, so run them concurrently — the slowest
-// spends 5s inside initAuth's CDN timeout and would dominate a serial run.
+// spends seconds inside the SDK retry budget and would dominate a serial run.
 const results = await Promise.all(names.map(async (name) => {
   const { execFile } = await import('node:child_process');
   const { promisify } = await import('node:util');

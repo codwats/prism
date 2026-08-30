@@ -209,15 +209,17 @@ async function main() {
 
   const auth = await import('../../js/modules/auth.js');
 
-  // Mirrors layout.js initAuthModule()
+  // Drives the real boot sequence rather than a copy of it: startAuth() is what
+  // every page calls, so the test cannot drift away from production.
+  // layoutDelay models a caller that waits before booting auth (features/init.js
+  // and profile.js still do, for their own rendering).
   let threw = null;
   await new Promise((r) => setTimeout(r, layoutDelay));
   try {
-    await auth.initAuth();
+    await auth.startAuth();
   } catch (err) {
     threw = err.message;
   }
-  auth.setupAuthListeners();
 
   // Give any in-flight repaint (INITIAL_SESSION, SDK retry) a chance to land.
   await new Promise((r) => setTimeout(r, trailingWait));
