@@ -60,22 +60,33 @@ everyone while the flag is false.
 
 ### Verifying steps 1 and 2
 
-Run all three. The first two confirm the deploy is dark; the third confirms it
-is reachable.
+Run all four as **one statement**. The SQL editor renders only the last
+statement's result in a multi-statement block, so four separate `SELECT`s show
+you only the fourth. The first two confirm the deploy is dark; the last two
+confirm it is reachable by the right role and only that role.
 
 ```sql
-SELECT is_entitled();                                              -- true
-SELECT value FROM app_config WHERE key = 'payment_enforcement';    -- false
-SELECT has_function_privilege('authenticated', 'is_entitled()', 'EXECUTE');  -- true
+SELECT is_entitled()                                                       AS entitled,        -- true
+       (SELECT value FROM app_config WHERE key = 'payment_enforcement')    AS enforcement,     -- false
+       has_function_privilege('authenticated', 'is_entitled()', 'EXECUTE') AS authed_execute,  -- true
+       has_function_privilege('anon',          'is_entitled()', 'EXECUTE') AS anon_execute;    -- false
 ```
 
-**The third one is not redundant.** The SQL editor runs as the postgres/service
-role, so `SELECT is_entitled()` returns true whether or not the grant to
-`authenticated` landed — the migration revokes execute from `public` and grants
-it only to `authenticated`. Without that grant every signed-in user's PRISM
-insert fails with `permission denied for function is_entitled`, breaking cloud
-sync for everyone *while the flag is still false*. `has_function_privilege` is
-the only one of the three that catches it.
+**`authed_execute` is not redundant.** The SQL editor runs as the postgres/
+service role, so `SELECT is_entitled()` returns true whether or not the grant to
+`authenticated` landed. Without that grant every signed-in user's PRISM insert
+fails with `permission denied for function is_entitled`, breaking cloud sync for
+everyone *while the flag is still false*. `has_function_privilege` is the only
+one of the four that catches it.
+
+**`anon_execute` must read false.** The migration revokes EXECUTE from `public`
+*and* from `anon`, and both are needed: Supabase's stock setup grants EXECUTE on
+public-schema functions to `anon` directly, and `REVOKE ... FROM public` drops
+only the `PUBLIC` pseudo-role grant. For a while it did not, and the function
+was callable with no `Authorization` header at all — harmless, since `auth.uid()`
+is NULL for `anon` so it returned only the flag's inverse, but not what the
+schema claimed. Found during the rehearsal, fixed in
+[#231](https://github.com/codwats/prism/issues/231).
 
 A green result here proves **nothing broke**. On its own it does not prove the
 gate refuses anyone, because while the flag is false the predicate
