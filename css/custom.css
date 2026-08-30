@@ -1725,3 +1725,38 @@ wa-page[view='desktop'] [data-toggle-nav] {
   inline-size: 100%;
   block-size: auto;
 }
+
+/* ============================================================
+   Auth dialog fields
+   ============================================================ */
+
+/* These fields are native <input>, not <wa-input>, so that password managers
+   can find them: a wa-input keeps its real <input> inside its own shadow root,
+   which leaves zero input[type=password] in the light DOM, and puts the email
+   and password controls in separate shadow roots with no shared <form> to pair
+   them by. Web Awesome's native styles already theme the input itself; these
+   rules only rebuild the label and required marker wa-input would have drawn,
+   using the same --wa-form-control-* tokens so the two match. */
+.auth-field label {
+  color: var(--wa-form-control-label-color);
+  font-weight: var(--wa-form-control-label-font-weight);
+  line-height: var(--wa-form-control-label-line-height);
+}
+
+.auth-field:has(input:required) label::after {
+  content: var(--wa-form-control-required-content);
+  color: var(--wa-form-control-required-content-color);
+  margin-inline-start: var(--wa-form-control-required-content-offset);
+}
+
+.auth-field input {
+  inline-size: 100%;
+  box-sizing: border-box;
+}
+
+/* The nav column sizes to its content, so the "couldn't reach auth" sentence
+   would otherwise widen the whole sidebar to fit on one line. Cap it so it
+   wraps instead; the cap is the nav's own natural width. */
+#auth-unavailable {
+  max-inline-size: 11rem;
+}

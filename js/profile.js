@@ -3,7 +3,7 @@
  * Handles user profile, PRISM management, and account settings
  */
 
-import { initAuth, setupAuthListeners, onAuthChange, getCurrentUser, signOut, updatePassword, updateEmail, updateAuthUI, ensureAuthReady } from './modules/auth.js';
+import { startAuth, onAuthChange, getCurrentUser, signOut, updatePassword, updateEmail, updateAuthUI, ensureAuthReady, canPaintAuthState } from './modules/auth.js';
 import { getAllPrisms, setCurrentPrism, deletePrism, savePrism, getCurrentPrism } from './modules/storage.js';
 import { createPrism, processCards } from './modules/processor.js';
 import { downloadJSON } from './modules/export.js';
@@ -83,16 +83,11 @@ function getElements() {
 let pendingDeleteId = null;
 
 async function init() {
-  // Wait for Web Awesome components
+  // Wait for Web Awesome components, for this function's own rendering below.
+  // Auth itself doesn't need the wait.
   await new Promise(resolve => setTimeout(resolve, 100));
 
-  // Initialize auth
-  try {
-    await initAuth();
-  } catch (err) {
-    console.error('Auth init failed:', err);
-  }
-  setupAuthListeners();
+  await startAuth();
 
   // Get elements
   elements = getElements();
@@ -103,8 +98,11 @@ async function init() {
   // Subscribe to auth changes
   onAuthChange(handleAuthChange);
 
-  // Initial render based on current auth state
-  handleAuthChange(getCurrentUser());
+  // Initial render based on current auth state — but only once auth has a
+  // verdict. Before that a null user means "unknown", and rendering the
+  // logged-out page (and repainting the nav) at a signed-in user is #199.
+  // The loading skeleton stays up until the SDK retry resolves it.
+  if (canPaintAuthState()) handleAuthChange(getCurrentUser());
 
   // Returning from Stripe Checkout
   const checkoutResult = new URLSearchParams(window.location.search).get('checkout');
