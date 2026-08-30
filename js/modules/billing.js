@@ -10,6 +10,7 @@
 import { getSupabase } from './supabase-client.js';
 
 let enforcementCache = null;
+let entitlementCache = null;
 
 /**
  * Whether the app should enforce payment at all. Reads the app_config
@@ -47,8 +48,39 @@ export async function getSubscription() {
   }
 }
 
-export function hasActiveSubscription(subscription) {
-  return ['active', 'trialing'].includes(subscription?.status);
+/**
+ * Whether the signed-in user is entitled to Membership. One source-blind read:
+ * the RPC folds in Founder rows, subscription status and the enforcement flag,
+ * so the client never assembles the answer itself. A Founder has no
+ * subscriptions row at all — deriving entitlement from that row told a
+ * permanently-entitled user they were not a member.
+ *
+ * Fails OPEN — a wrong "no" walls a paying member, a wrong "yes" costs one
+ * confusing refusal from the server, which is the real gate either way. The
+ * open answer is deliberately not cached, so a transient failure does not pin
+ * the answer for the page's lifetime (isPaymentEnforced() caches its default
+ * because it reads global config, not per-user state).
+ */
+export async function isEntitled() {
+  if (entitlementCache !== null) return entitlementCache;
+  try {
+    const client = getSupabase();
+    if (!client) return true;
+    const { data, error } = await client.rpc('is_entitled');
+    if (error) return true;
+    entitlementCache = data === true;
+  } catch {
+    return true;
+  }
+  return entitlementCache;
+}
+
+/**
+ * Entitlement is per-user, so a sign-in or sign-out inside one page would
+ * otherwise serve the previous user's answer. Called from notifyAuthChange().
+ */
+export function clearEntitlementCache() {
+  entitlementCache = null;
 }
 
 /**

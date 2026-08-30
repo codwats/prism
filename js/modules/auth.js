@@ -1,6 +1,7 @@
 // Authentication module for Prism
 import { getSupabase, isConfigured, logToSupabase, loadSupabaseSdk } from './supabase-client.js';
 import { syncWithSupabase } from './storage.js';
+import { clearEntitlementCache } from './billing.js';
 import { debugLog } from '../core/utils.js';
 
 // Current user state
@@ -21,6 +22,11 @@ export function onAuthChange(callback) {
 // Notify all listeners
 function notifyAuthChange(user) {
   currentUser = user;
+  // Entitlement is per-user and cached for the page's lifetime. Every auth
+  // transition funnels through here (initAuth's initial session and every
+  // onAuthStateChange event), so this is the one place that cannot be missed —
+  // a stale cache would serve the previous user's Membership answer.
+  clearEntitlementCache();
   authListeners.forEach(cb => cb(user));
 }
 
