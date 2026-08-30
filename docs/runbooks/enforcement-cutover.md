@@ -49,6 +49,7 @@ INSERT on `prisms` and INSERT on `decks`. Nothing else.
 2. Add the `is_entitled()` predicate to the INSERT policies on `prisms` and
    `decks`.
 3. Ship the client gate and its copy.
+4. Rehearse the enforcement branch on production — done 2026-08-30, see below.
 
 Step 3 must land **before** the flip whatever else happens. Enforcing in the
 database while the UI still offers the button gives users a raw PostgREST error
@@ -76,11 +77,57 @@ insert fails with `permission denied for function is_entitled`, breaking cloud
 sync for everyone *while the flag is still false*. `has_function_privilege` is
 the only one of the three that catches it.
 
-A green result here proves **nothing broke**. It does not prove the gate
-refuses anyone: the enforcement branch has not executed, which is what step 6
-of the cutover is for.
+A green result here proves **nothing broke**. On its own it does not prove the
+gate refuses anyone, because while the flag is false the predicate
+short-circuits true for everybody.
 
 Applied and verified in [#220](https://github.com/codwats/prism/issues/220).
+The gate was then made to actually refuse — see the rehearsal below.
+
+### The rehearsal — done 2026-08-30
+
+The enforcement branch has been executed on production once, deliberately, in a
+**99-second window** (16:47:14Z to 16:48:53Z) with the flag flipped back
+afterwards and the `false` confirmed by an explicit read. Run in
+[#225](https://github.com/codwats/prism/issues/225).
+
+Why it was safe: the Founder stamp (cutover step 1) was run **first**, so every
+account then in existence was already entitled and nothing changed for any real
+user. Only an account created inside the window could have been refused, and
+that failure mode is a refused sync write that retries — `savePrismToSupabase`
+returns `false`, the baseline is not recorded, and the next debounced save
+succeeds.
+
+Sixteen observations, all matching. What was established:
+
+| Actor | `is_entitled()` | INSERT `prisms` | INSERT `decks` |
+| --- | --- | --- | --- |
+| No `founders` row, no subscription | false | refused | refused |
+| `founders` row | true | allowed | — |
+| `subscriptions.status = 'past_due'` | true | allowed | — |
+| `subscriptions.status = 'canceled'` | false | refused | — |
+
+And, for the unentitled account against a PRISM it already owned: `SELECT` the
+PRISM, `SELECT` its decks, and `UPDATE` the PRISM all returned 200 while both
+INSERTs were refused. **Gate adding, never access** was observed holding, not
+assumed.
+
+Two details that made the result mean something, worth repeating if it is ever
+re-run:
+
+- **A baseline first.** Both actors were probed with enforcement still off and
+  had to come back entitled and allowed, through the same harness that would
+  later judge the refusal. Without it a broken probe and a working gate produce
+  identical output.
+- **The throwaway had to be un-stamped, and the deletion verified by `SELECT`.**
+  It was created before the stamp, so step 1 made it a Founder. Left in place it
+  stays entitled, nothing is refused, and the whole rehearsal passes green for
+  the wrong reason.
+
+Observation ran against PostgREST with real access tokens, not the SQL editor:
+with enforcement on, `SELECT is_entitled()` in the editor returns **false**
+regardless of who is entitled, because `auth.uid()` is NULL there. The editor
+cannot observe any row of that table.
 
 ## The cutover — in order
 
@@ -121,9 +168,13 @@ Applied and verified in [#220](https://github.com/codwats/prism/issues/220).
    - Stamped account: creating a PRISM succeeds.
    - Both accounts: existing PRISMs still open, edit and export.
 
-   This is the first time the enforcement branch has ever executed. While the
-   flag was false the predicate short-circuited true for everybody, so the dark
-   deploy proved only that nothing broke — never that the gate works.
+   The enforcement branch has been exercised once already, in the rehearsal
+   above: it refused an unentitled account both a new PRISM and a new deck,
+   allowed a Founder and a `past_due` subscriber, refused a `canceled` one, and
+   left an existing PRISM readable, editable and exportable throughout. So this
+   is confirmation on the real population, not a first run — but it is still the
+   step to slow down on, because the rehearsal ran with every account stamped
+   and this one runs against whoever is signed in.
 
 ## Rollback
 
