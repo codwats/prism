@@ -618,3 +618,61 @@ CREATE POLICY "Users or admins delete gallery art"
     bucket_id = 'gallery-art'
     AND ((storage.foldername(name))[1] = auth.uid()::text OR is_gallery_admin())
   );
+
+-- ============================================
+-- MIGRATION: Founders and the entitlement predicate
+-- ============================================
+-- Safe to deploy before the cutover: while app_config.payment_enforcement is
+-- false, is_entitled() returns true for everyone and the policies are inert.
+-- See docs/runbooks/enforcement-cutover.md.
+BEGIN;
+  CREATE TABLE IF NOT EXISTS founders (
+    user_id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+  );
+
+  ALTER TABLE founders ENABLE ROW LEVEL SECURITY;
+  -- founders: RLS enabled, zero policies — service role and SECURITY DEFINER only.
+
+  CREATE OR REPLACE FUNCTION is_entitled()
+    RETURNS BOOLEAN
+    LANGUAGE SQL
+    STABLE
+    SECURITY DEFINER
+    SET search_path = public, pg_temp
+  AS $$
+    SELECT
+      -- The enforcement flag is folded in, which is what makes the dark deploy safe.
+      NOT COALESCE(
+        (SELECT value = 'true'::jsonb FROM app_config WHERE key = 'payment_enforcement'),
+        false)
+      OR EXISTS (SELECT 1 FROM founders WHERE user_id = auth.uid())
+      OR EXISTS (SELECT 1 FROM subscriptions
+                  WHERE user_id = auth.uid()
+                    AND status IN ('active', 'trialing', 'past_due', 'unpaid'));
+  $$;
+
+  REVOKE EXECUTE ON FUNCTION is_entitled() FROM public;
+  GRANT EXECUTE ON FUNCTION is_entitled() TO authenticated;
+COMMIT;
+
+-- ============================================
+-- MIGRATION: Gate INSERT on prisms and decks behind entitlement
+-- ============================================
+-- Gate adding, never access. INSERT only — not deck_cards (replace_deck_cards
+-- is DELETE + INSERT, so gating it would block editing a deck you already
+-- have), and not UPDATE, SELECT or DELETE on anything.
+BEGIN;
+  DROP POLICY IF EXISTS "Users can create own prisms" ON prisms;
+  CREATE POLICY "Users can create own prisms"
+    ON prisms FOR INSERT
+    WITH CHECK (auth.uid() = user_id AND is_entitled());
+
+  DROP POLICY IF EXISTS "Users can create decks in own prisms" ON decks;
+  CREATE POLICY "Users can create decks in own prisms"
+    ON decks FOR INSERT
+    WITH CHECK (
+      prism_id IN (SELECT id FROM prisms WHERE user_id = auth.uid())
+      AND is_entitled()
+    );
+COMMIT;
