@@ -8,7 +8,7 @@ import { getAllPrisms, setCurrentPrism, deletePrism, savePrism, getCurrentPrism 
 import { createPrism, processCards } from './modules/processor.js';
 import { downloadJSON } from './modules/export.js';
 import { buildPrismFromJson } from './modules/prism-import.js';
-import { isPaymentEnforced, getSubscription, hasActiveSubscription, startCheckout } from './modules/billing.js';
+import { isPaymentEnforced, getSubscription, isEntitled, startCheckout } from './modules/billing.js';
 import { showError, showSuccess } from './core/notifications.js';
 import { escapeHtml, getLogicalDeckCount } from './core/utils.js';
 
@@ -317,28 +317,37 @@ async function renderSubscriptionSection() {
   }
   section.hidden = false;
 
+  // The row is still needed for the renewal date and which rail the user is on.
+  // Only the entitled/not boolean moved to is_entitled(); a Founder is entitled
+  // with no row at all, so every read of it below is optional-chained.
   const subscription = await getSubscription();
   const tag = elements.subscriptionStatusTag;
   const caption = elements.subscriptionCaption;
-  const active = hasActiveSubscription(subscription);
+  const active = await isEntitled();
+  // Dunning, not entitlement: past_due and unpaid stay entitled on purpose
+  // (the rail's own retry window — #187), but the user still has to fix a card.
+  // This list is presentation, not the membership rule, which lives only in
+  // is_entitled().
+  const paymentFailed = ['past_due', 'unpaid'].includes(subscription?.status);
 
-  if (active) {
+  if (active && paymentFailed) {
+    if (tag) { tag.setAttribute('variant', 'warning'); tag.textContent = 'Past due'; }
+    if (caption) caption.textContent = 'Your last payment failed — resubscribe to update your card. Your membership stays active while your card is retried.';
+  } else if (active) {
     if (tag) { tag.setAttribute('variant', 'success'); tag.textContent = 'Active'; }
     if (caption) {
-      const renews = subscription.current_period_end
+      const renews = subscription?.current_period_end
         ? ` Renews ${formatDate(subscription.current_period_end)}.`
         : '';
       caption.textContent = `Thanks for supporting PRISM.${renews}`;
     }
-  } else if (subscription?.status === 'past_due') {
-    if (tag) { tag.setAttribute('variant', 'warning'); tag.textContent = 'Past due'; }
-    if (caption) caption.textContent = 'Your last payment failed — resubscribe to update your card.';
   } else {
     if (tag) { tag.setAttribute('variant', 'neutral'); tag.textContent = subscription?.status === 'canceled' ? 'Canceled' : 'Free'; }
     if (caption) caption.textContent = 'Support PRISM with a recurring subscription.';
   }
 
-  if (elements.btnSubscribe) elements.btnSubscribe.hidden = active;
+  // Still offered to a past_due member — entitled, but the card needs fixing.
+  if (elements.btnSubscribe) elements.btnSubscribe.hidden = active && !paymentFailed;
 }
 
 function renderPrismsList() {

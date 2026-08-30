@@ -82,7 +82,7 @@ _Avoid_: frozen, locked, suspended, sync disabled
 **Membership**:
 The paid tier: cloud sync, up to 25 cloud PRISMs, the Extras and the paid Discord role, for $3 a month or $30 a year on either billing rail. A **Member** is anyone entitled to it, a Founder included. The verb is **join** on buttons, always with the price attached so it does not collide with the open Discord, and **become a member** in prose. The unpaid state has no name — the profile tag reads Member or shows nothing at all.
 _Avoid_: subscribe, subscription, subscriber (reader-facing prose only), upgrade, downgrade, plan, tier, premium, pro, plus, free trial. *Unlock* is fine: it names a perk gained, not data walled.
-_In code_: `subscriptions`, `getSubscription()`, `hasActiveSubscription()`, `#btn-subscribe`. The mismatch is deliberate — the table is webhook-owned and mirrors Stripe's own object — so do not align either direction. Stripe's hosted Checkout says "Subscribe" and we do not control it. Unrelated: `markType: 'membership'` (`processor.js`) is a card's membership in a split-group variant, and is never rendered.
+_In code_: `subscriptions`, `getSubscription()`, `#btn-subscribe`. The mismatch is deliberate — the table is webhook-owned and mirrors Stripe's own object — so do not align either direction. Stripe's hosted Checkout says "Subscribe" and we do not control it. Unrelated: `markType: 'membership'` (`processor.js`) is a card's membership in a split-group variant, and is never rendered.
 
 **Extras**:
 The bundled perks a Membership includes beyond sync, reached from a paid-only area linked from build.html. Today that is the MPC Stripe Compositor (`mpc-stripes.html`). Always capitalized. The modest register is deliberate — Extras is not the sell.
