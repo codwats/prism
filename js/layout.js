@@ -519,6 +519,13 @@ function injectFooter() {
 // Auth Dialog
 // ============================================================
 
+// The auth fields are native <input>, not <wa-input>, on purpose. A wa-input
+// keeps its real <input> in its own shadow root, so a password manager
+// scanning the page finds no input[type=password] to offer, and the email and
+// password controls end up in separate shadow roots with no shared <form> to
+// pair them by. Web Awesome's native styles theme a bare input already; see
+// .auth-field in custom.css for the label and required marker. Don't convert
+// these back to <wa-input> — autofill is the reason they are native.
 function injectAuthDialog() {
   // Don't inject if dialog already exists
   if (document.getElementById('auth-dialog')) return;
@@ -532,8 +539,14 @@ function injectAuthDialog() {
       <!-- Login View -->
       <div id="auth-login-view" class="wa-stack wa-gap-m">
         <form id="login-form" class="wa-stack wa-gap-m">
-          <wa-input id="login-email" name="username" type="email" label="Email" placeholder="you@example.com" autocomplete="username" required></wa-input>
-          <wa-input id="login-password" name="password" type="password" label="Password" placeholder="Your password" autocomplete="current-password" required minlength="6"></wa-input>
+          <div class="auth-field wa-stack wa-gap-2xs">
+            <label for="login-email">Email</label>
+            <input id="login-email" name="username" type="email" placeholder="you@example.com" autocomplete="username" required>
+          </div>
+          <div class="auth-field wa-stack wa-gap-2xs">
+            <label for="login-password">Password</label>
+            <input id="login-password" name="password" type="password" placeholder="Your password" autocomplete="current-password" required minlength="6">
+          </div>
           <a href="#" id="btn-forgot-password" class="wa-caption-m" style="color: var(--wa-color-brand-text);">Having trouble signing in?</a>
           <div id="login-error" hidden class="wa-caption-m" style="color: var(--wa-color-danger-text);"></div>
           <wa-button id="btn-login-submit" type="submit" variant="brand" style="width: 100%;">Sign in</wa-button>
@@ -548,8 +561,14 @@ function injectAuthDialog() {
       <div id="auth-signup-view" class="wa-stack wa-gap-m" style="display: none;">
         <p class="wa-body-m" style="color: var(--wa-color-neutral-text-subtle);">You don't need to sign in to use PRISM, but if you want to save multiple PRISMs or sync across devices, create an account.</p>
         <form id="signup-form" class="wa-stack wa-gap-m">
-          <wa-input id="signup-email" name="username" type="email" label="Email" placeholder="you@example.com" autocomplete="username" required></wa-input>
-          <wa-input id="signup-password" name="password" type="password" label="Password" placeholder="Create a password" autocomplete="new-password" required minlength="6"></wa-input>
+          <div class="auth-field wa-stack wa-gap-2xs">
+            <label for="signup-email">Email</label>
+            <input id="signup-email" name="username" type="email" placeholder="you@example.com" autocomplete="username" required>
+          </div>
+          <div class="auth-field wa-stack wa-gap-2xs">
+            <label for="signup-password">Password</label>
+            <input id="signup-password" name="password" type="password" placeholder="Create a password" autocomplete="new-password" required minlength="6">
+          </div>
           <div id="signup-error" hidden class="wa-caption-m" style="color: var(--wa-color-danger-text);"></div>
           <div id="signup-success" hidden class="wa-caption-m" style="color: var(--wa-color-success-text);"></div>
           <wa-button id="btn-signup-submit" type="submit" variant="brand" style="width: 100%;">Create Account</wa-button>
@@ -565,7 +584,10 @@ function injectAuthDialog() {
       <div id="auth-forgot-view" class="wa-stack wa-gap-m" style="display: none;">
         <p class="wa-body-m" style="color: var(--wa-color-neutral-text-subtle);">Enter your email and we'll send you a link to reset your password.</p>
         <form id="forgot-form" class="wa-stack wa-gap-m">
-          <wa-input id="forgot-email" name="email" type="email" label="Email" placeholder="you@example.com" required></wa-input>
+          <div class="auth-field wa-stack wa-gap-2xs">
+            <label for="forgot-email">Email</label>
+            <input id="forgot-email" name="username" type="email" placeholder="you@example.com" autocomplete="username" required>
+          </div>
           <div id="forgot-error" hidden class="wa-caption-m" style="color: var(--wa-color-danger-text);"></div>
           <div id="forgot-success" hidden class="wa-caption-m" style="color: var(--wa-color-success-text);"></div>
           <wa-button id="btn-forgot-submit" type="submit" variant="brand" style="width: 100%;">Send Reset Link</wa-button>
@@ -580,8 +602,14 @@ function injectAuthDialog() {
       <div id="auth-recovery-view" class="wa-stack wa-gap-m" style="display: none;">
         <p class="wa-body-m" style="color: var(--wa-color-neutral-text-subtle);">You followed a password reset link. Choose a new password to finish.</p>
         <form id="recovery-form" class="wa-stack wa-gap-m">
-          <wa-input id="recovery-password" name="password" type="password" label="New password" placeholder="At least 6 characters" autocomplete="new-password" required minlength="6"></wa-input>
-          <wa-input id="recovery-password-confirm" name="confirm" type="password" label="Confirm new password" placeholder="Repeat new password" autocomplete="new-password" required minlength="6"></wa-input>
+          <div class="auth-field wa-stack wa-gap-2xs">
+            <label for="recovery-password">New password</label>
+            <input id="recovery-password" name="password" type="password" placeholder="At least 6 characters" autocomplete="new-password" required minlength="6">
+          </div>
+          <div class="auth-field wa-stack wa-gap-2xs">
+            <label for="recovery-password-confirm">Confirm new password</label>
+            <input id="recovery-password-confirm" name="confirm" type="password" placeholder="Repeat new password" autocomplete="new-password" required minlength="6">
+          </div>
           <div id="recovery-error" hidden class="wa-caption-m" style="color: var(--wa-color-danger-text);"></div>
           <div id="recovery-success" hidden class="wa-caption-m" style="color: var(--wa-color-success-text);"></div>
           <wa-button id="btn-recovery-submit" type="submit" variant="brand" style="width: 100%;">Set New Password</wa-button>
