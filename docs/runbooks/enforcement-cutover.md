@@ -59,20 +59,45 @@ that spans them.
 2. **Hide the signup path** in `js/layout.js` — the `#btn-show-signup` button and
    the `#auth-signup-view` block. Login, password reset and every existing
    session stay untouched.
-3. **Add the campaign block** to `index.html`, #221's copy verbatim, below How It
-   Works and above the features grid. It is a plain deploy: no flag, and
+3. **Deploy the campaign-window branch.** It is a plain deploy: no flag, and
    `payment_enforcement` cannot drive it, because that row is false both before
-   go-live and during the window while the copy differs.
+   go-live and during the window while the copy differs. Every edit in it carries
+   a `CAMPAIGN WINDOW` comment, which is what step 4 greps for. Landed in #222:
+
+   - **The campaign block** on `index.html`, #221's copy verbatim, below How It
+     Works and above the features grid. Its CTA href is a
+     `KICKSTARTER_URL_TODO` placeholder until the campaign URL exists;
+     **fill it in before merging.** It is deliberately not a valid link, so a
+     premature deploy fails loudly instead of looking correct. The block ships
+     text-only: #221 specifies a flank with a kit-contents photo, and if that
+     photo lands it is a follow-up, not a blocker.
+   - **Two gallery notices** in `js/gallery.js` — the download gate on the
+     artwork detail view and the upload gate on `?view=upload`. Both previously
+     promised "a free account", which is not creatable while signups are shut.
+     The upload one now names the manual path (#206's accepted collateral):
+     ask on Discord and an account is made by hand.
+
+   Swept and deliberately left alone: `index.html`'s own CTAs, which all point
+   at `build.html` and need no account; `profile.html`'s logged-out panel and
+   `gallery.html`'s guest callout, which say *sign in*, not *sign up*, and stay
+   correct for the pre-existing cohort; `build.html`, whose sync affordances are
+   already hidden until a user is logged in; and the two places `index.html`
+   *describes* accounts rather than asking for one, the Auto-Save feature card
+   ("Login to sync across multiple devices") and the data-storage FAQ answer.
+   Those two are prose, not a call to action, and they stay true throughout the
+   window: accounts exist and still sync, there is just no way to make a new one.
 
 **At campaign close, before the flip:**
 
-4. **Delete the campaign block** from `index.html`. Its copy asks a visitor to
-   back a live campaign and goes stale the moment funding ends, and the close
-   date and the flip date are not the same day. The revert is a deletion rather
-   than new copy: the page returns to its prior state. Between close and the
-   flip, signups are still shut and backers reach their Membership through the
-   backer survey ([#204](https://github.com/codwats/prism/issues/204)), never
-   through the site.
+4. **Revert every campaign-window edit.** `grep -rn "CAMPAIGN WINDOW"` finds
+   all of them; each one is a deletion back to the prior copy, not new copy to
+   write. The campaign block asks a visitor to back a live campaign and goes
+   stale the moment funding ends, and the close date and the flip date are not
+   the same day. The two gallery notices go back to promising a free account
+   only at step 5, when signups actually reopen, so they revert here with the
+   rest and read correctly for the gap. Between close and the flip, signups are
+   still shut and backers reach their Membership through the backer survey
+   ([#204](https://github.com/codwats/prism/issues/204)), never through the site.
 
 **At the flip, this session, after step 6 of the cutover below:**
 
