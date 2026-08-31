@@ -163,8 +163,8 @@ components:
 
 - **Mood:** clever, clean, confident, direct. A precise workshop instrument, not a toy and not a luxury object.
 - **Density:** compact and data-heavy. Spacing scale is 0.875× of Web Awesome's base; card lists and result tables are meant to be scanned, not admired.
-- **Decoration budget:** near zero. No gradients, no textures, no patterns, no photography, no blur, no glass. Flat surfaces, 1px borders, one violet accent.
-- **The only imagery:** the logo, the gem icon, MTG card previews, and stripe/swatch color blocks.
+- **Decoration budget:** near zero. No gradients, no textures, no patterns, no blur, no glass. Flat surfaces, 1px borders, one violet accent. Photography is limited to the physical products themselves.
+- **The only imagery:** the logo, the gem icon, MTG card previews, stripe/swatch color blocks, and plain photographs of the physical products.
 - **Light and dark are both first-class** (auto / light / dark). Light is white-on-white with `neutral-95` sunken panels; dark uses `neutral-10` surfaces. Marketing heroes and footers may go violet-dark (`brand-05` / `brand-10`).
 - **Feeling to produce:** "why didn't this exist already?" The user should feel smart, not sold to.
 
@@ -474,11 +474,12 @@ Only functional transitions: color, border-color, box-shadow, and the 1.1 scale 
 - Treat double-sleeving as required, not optional.
 - Compose Web Awesome components; extend with `css/custom.css` only for what WA cannot express.
 - Load the `/webawesome-design` skill before building or restyling any page, panel, or layout. Prefer an existing `<wa-*>` component over a custom-built equivalent every time one is available.
+- Photograph the physical products plainly, on a neutral ground. SVG illustration stays the default for anything explaining the tool itself.
 - Validate every text/background pair against WCAG AA.
 
 **Don't**
 
-- No gradients, textures, patterns, photography, glassmorphism, or blur.
+- No gradients, textures, patterns, glassmorphism, or blur. No lifestyle or stock photography, no photographic backgrounds or textures, and never a photo behind text.
 - No new fonts. halyard-micro, adobe-aldine, Geist Mono. Nothing else.
 - Never a sans heading over serif body — that inverts the system's signature.
 - No WUBRG color as text, state color, or button fill.

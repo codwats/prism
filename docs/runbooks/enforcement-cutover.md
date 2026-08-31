@@ -43,6 +43,50 @@ INSERT on `prisms` and INSERT on `decks`. Nothing else.
   is nothing server-side to enforce. That gate is client-side and bypassable by
   anyone who opens devtools. Accepted.
 
+## The campaign window
+
+Decided in [#221](https://github.com/codwats/prism/issues/221). The window opens
+at campaign go-live (est. 2026-09-15) and ends here, at the flip. Nothing else
+records it end to end: [#206](https://github.com/codwats/prism/issues/206) owns
+the signup lock and [#222](https://github.com/codwats/prism/issues/222) owns the
+site edits, but the two sessions are weeks apart and this file is the only thing
+that spans them.
+
+**At campaign go-live:**
+
+1. **Disable signups** in Supabase, Authentication → Sign In / Providers. This is
+   the real lock; the UI change alone is cosmetic.
+2. **Hide the signup path** in `js/layout.js` — the `#btn-show-signup` button and
+   the `#auth-signup-view` block. Login, password reset and every existing
+   session stay untouched.
+3. **Add the campaign block** to `index.html`, #221's copy verbatim, below How It
+   Works and above the features grid. It is a plain deploy: no flag, and
+   `payment_enforcement` cannot drive it, because that row is false both before
+   go-live and during the window while the copy differs.
+
+**At campaign close, before the flip:**
+
+4. **Delete the campaign block** from `index.html`. Its copy asks a visitor to
+   back a live campaign and goes stale the moment funding ends, and the close
+   date and the flip date are not the same day. The revert is a deletion rather
+   than new copy: the page returns to its prior state. Between close and the
+   flip, signups are still shut and backers reach their Membership through the
+   backer survey ([#204](https://github.com/codwats/prism/issues/204)), never
+   through the site.
+
+**At the flip, this session, after step 6 of the cutover below:**
+
+5. **Re-enable signups** in Supabase and restore the `layout.js` signup view,
+   only after the stamp is verified and `payment_enforcement` is true. Reopening
+   any earlier lets new accounts into the grandfathered cohort.
+6. **Land the membership section** on `index.html`
+   ([#215](https://github.com/codwats/prism/issues/215)) and the membership
+   drawer ([#216](https://github.com/codwats/prism/issues/216)).
+
+The closed-signup window and the campaign-copy window share a start and do not
+share an end: the copy comes out at campaign close, the signup lock at the flip.
+That asymmetry is the reason this section exists.
+
 ## Before the flip — any order
 
 1. Create `founders` and `is_entitled()`.
