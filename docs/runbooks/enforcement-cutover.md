@@ -56,13 +56,19 @@ that spans them.
 
 1. **Disable signups** in Supabase, Authentication → Sign In / Providers. This is
    the real lock; the UI change alone is cosmetic.
-2. **Hide the signup path** in `js/layout.js` — the `#btn-show-signup` button and
-   the `#auth-signup-view` block. Login, password reset and every existing
-   session stay untouched.
+2. **Remove the signup path** from `js/layout.js` — the `#btn-show-signup`
+   toggle and the whole `#auth-signup-view` block. Deleted, not hidden: hidden
+   markup still ships an `input[type=password]` for a password manager to offer,
+   and a `display` toggle is one devtools edit away from a working form. Login,
+   password reset and every existing session stay untouched, and `auth.js` is
+   not touched at all — its `signUp` path and `showAuthView('signup')` case go
+   unreachable and are already null-guarded. This is #206's code half, and it
+   ships on the same branch as step 3 rather than in its own session.
 3. **Deploy the campaign-window branch.** It is a plain deploy: no flag, and
    `payment_enforcement` cannot drive it, because that row is false both before
    go-live and during the window while the copy differs. Every edit in it carries
-   a `CAMPAIGN WINDOW` comment, which is what step 4 greps for. Landed in #222:
+   a `CAMPAIGN WINDOW` comment, which is what steps 4 and 5 grep for. Landed in
+   #222, on `feature/222-campaign-window`, together with step 2:
 
    - **The campaign block** on `index.html`, #221's copy verbatim, below How It
      Works and above the features grid. Its CTA href is a
@@ -89,21 +95,36 @@ that spans them.
 
 **At campaign close, before the flip:**
 
-4. **Revert every campaign-window edit.** `grep -rn "CAMPAIGN WINDOW"` finds
-   all of them; each one is a deletion back to the prior copy, not new copy to
-   write. The campaign block asks a visitor to back a live campaign and goes
-   stale the moment funding ends, and the close date and the flip date are not
-   the same day. The two gallery notices go back to promising a free account
-   only at step 5, when signups actually reopen, so they revert here with the
-   rest and read correctly for the gap. Between close and the flip, signups are
-   still shut and backers reach their Membership through the backer survey
+4. **Delete the campaign block** from `index.html`, and nothing else yet. Its
+   copy asks a visitor to back a live campaign and goes stale the moment funding
+   ends, and the close date and the flip date are not the same day. The revert
+   is a deletion, not new copy: the page returns to its prior state. Between
+   close and the flip, signups are still shut and backers reach their Membership
+   through the backer survey
    ([#204](https://github.com/codwats/prism/issues/204)), never through the site.
+
+   **Everything else in the campaign-window branch stays until step 5.** The
+   `js/layout.js` signup deletion and the two `js/gallery.js` notices are all
+   about signups being *shut*, and signups are still shut during this gap.
+   Reverting them here would restore a signup view that reopens the
+   grandfathered cohort early, and gallery copy that offers a free account
+   nobody can create. `grep -rn "CAMPAIGN WINDOW"` lists all four markers; only
+   the `index.html` one is in scope at this step.
 
 **At the flip, this session, after step 6 of the cutover below:**
 
-5. **Re-enable signups** in Supabase and restore the `layout.js` signup view,
-   only after the stamp is verified and `payment_enforcement` is true. Reopening
-   any earlier lets new accounts into the grandfathered cohort.
+5. **Re-enable signups** in Supabase, then revert the remaining three
+   `CAMPAIGN WINDOW` markers, only after the stamp is verified and
+   `payment_enforcement` is true. Reopening any earlier lets new accounts into
+   the grandfathered cohort.
+
+   - `js/layout.js` — restore the `#btn-show-signup` toggle and the
+     `#auth-signup-view` block from the deletion hunk of the #222 commit. The
+     comment left at the deletion site is itself the last thing to remove.
+   - `js/gallery.js` — the download and upload gates go back to their prior
+     copy. The upload one drops the manual-account-by-Discord path with it,
+     since signup is the path again.
+
 6. **Land the membership section** on `index.html`
    ([#215](https://github.com/codwats/prism/issues/215)) and the membership
    drawer ([#216](https://github.com/codwats/prism/issues/216)).

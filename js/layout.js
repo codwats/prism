@@ -567,34 +567,21 @@ function injectAuthDialog() {
           <div id="login-error" hidden class="wa-caption-m" style="color: var(--wa-color-danger-text);"></div>
           <wa-button id="btn-login-submit" type="submit" variant="brand" style="width: 100%;">Sign in</wa-button>
         </form>
-        <wa-divider></wa-divider>
-        <wa-button id="btn-show-signup" type="button" appearance="plain" size="small" style="align-self: center;">
-          Don't have an account? Sign up
-        </wa-button>
       </div>
 
-      <!-- Signup View -->
-      <div id="auth-signup-view" class="wa-stack wa-gap-m" style="display: none;">
-        <p class="wa-body-m" style="color: var(--wa-color-neutral-text-subtle);">You don't need to sign in to use PRISM, but if you want to save multiple PRISMs or sync across devices, create an account.</p>
-        <form id="signup-form" class="wa-stack wa-gap-m">
-          <div class="auth-field wa-stack wa-gap-2xs">
-            <label for="signup-email">Email</label>
-            <input id="signup-email" name="username" type="email" placeholder="you@example.com" autocomplete="username" required>
-          </div>
-          <div class="auth-field wa-stack wa-gap-2xs">
-            <label for="signup-password">Password</label>
-            <input id="signup-password" name="password" type="password" placeholder="Create a password" autocomplete="new-password" required minlength="6">
-          </div>
-          <div id="signup-error" hidden class="wa-caption-m" style="color: var(--wa-color-danger-text);"></div>
-          <div id="signup-success" hidden class="wa-caption-m" style="color: var(--wa-color-success-text);"></div>
-          <wa-button id="btn-signup-submit" type="submit" variant="brand" style="width: 100%;">Create Account</wa-button>
-        </form>
-        <p class="wa-caption-xs" style="color: var(--wa-color-neutral-text-subtle);">By clicking continue, you agree to our <a href="terms.html">Terms of Service</a> and <a href="privacy.html">Privacy Policy</a>.</p>
-        <wa-divider></wa-divider>
-        <wa-button id="btn-show-login" type="button" appearance="plain" size="small" style="align-self: center;">
-          Already have an account? Log in
-        </wa-button>
-      </div>
+      <!-- CAMPAIGN WINDOW (#206): the signup toggle that closed this view and the
+           whole #auth-signup-view block were deleted here for the Kickstarter
+           window. Restore this one at the enforcement flip, runbook step 5 —
+           NOT at step 4 with the rest of the campaign-window revert. Signups
+           stay shut across the gap between campaign close and the flip, and
+           reopening early lets new accounts into the grandfathered cohort.
+           Deleted rather than hidden: hidden markup still ships an
+           input[type=password] for a password manager to offer, and a display
+           toggle is one devtools edit away from a working form. The real lock is
+           the Supabase project setting; this is what stops the UI offering a door
+           that no longer opens. auth.js keeps its signUp path and its
+           showAuthView('signup') case, both now unreachable and both already
+           null-guarded, so nothing there needs touching or restoring. -->
 
       <!-- Forgot Password View -->
       <div id="auth-forgot-view" class="wa-stack wa-gap-m" style="display: none;">
