@@ -8,7 +8,7 @@ web
 
 ## Users
 
-Magic: The Gathering Commander players who own 5–30+ decks and share high-value staples (Sol Ring, Mana Crypt, Command Tower, etc.) across most of them. Their job: stop buying duplicate copies of the same card for every deck, without constant re-sleeving (slow, annoying). Some fill gaps with proxies; PRISM is indifferent to where a card came from and marks the sleeve either way, though proxies are not tournament legal. They own physical paint pens and are willing to hand-mark sleeve edges as a one-time setup cost per card.
+Magic: The Gathering Commander players who own 5–30+ decks and share high-value staples (Sol Ring, Mana Crypt, Command Tower, etc.) across most of them. Their job: stop buying duplicate copies of the same card for every deck, without constant re-sleeving (slow, annoying). Some fill gaps with proxies, and PRISM is indifferent to where a card came from and marks the sleeve either way, though proxies are not tournament legal. They own physical paint pens and are willing to hand-mark sleeve edges as a one-time setup cost per card.
 
 ## Product Purpose
 

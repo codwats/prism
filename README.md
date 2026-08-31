@@ -16,15 +16,17 @@ Share MTG Commander cards across multiple decks without buying duplicates. Mark 
 
 Commander players often own 5-30+ decks, and staples like Sol Ring, Mana Crypt, and Command Tower appear in almost every one. You can:
 
-- **Buy duplicates** — expensive, wasteful
-- **Print proxies** — cheaper per copy, but still a copy per deck, and not tournament legal
-- **Re-sleeve constantly** — slow and annoying
+- **Buy duplicates**: expensive, wasteful
+- **Print proxies**: cheaper per copy, but still a copy per deck, and not tournament legal
+- **Re-sleeve constantly**: slow and annoying
 
 ## The Solution
 
 PRISM assigns each deck a unique color and stripe position. Mark your sleeves with paint pens, and any card can live in multiple decks. Fan your cards to instantly see which decks a card belongs to.
 
-PRISM doesn't care where your cards come from. Paper, proxies, or a mix — if it's in a sleeve, it can carry a mark.
+PRISM doesn't care where your cards come from. Paper, proxies, or a mix: if it's in a sleeve, it can carry a mark.
+
+Proxies give you two shortcuts. Mark the proxy face directly and skip sleeve marking, or use the MPC Stripe Compositor, a member Extra that prints your stripes onto MakePlayingCards images before you order, so proxies arrive already marked.
 
 **One Sol Ring. One Mana Crypt. Up to 48 decks (96 with dot splits).**
 
