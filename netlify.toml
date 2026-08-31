@@ -23,6 +23,10 @@
   function = "stripe-checkout-edge"
 
 [[edge_functions]]
+  path = "/api/stripe-portal"
+  function = "stripe-portal-edge"
+
+[[edge_functions]]
   path = "/api/stripe-webhook"
   function = "stripe-webhook-edge"
 
