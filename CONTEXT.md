@@ -89,9 +89,9 @@ The bundled perks a Membership includes beyond sync, reached from a paid-only ar
 _Avoid_: premium features, bonus content, perks (as a proper noun)
 
 **Founder**:
-A person whose account existed when payment enforcement was switched on, entitled to PRISM permanently and without paying. A Founder **is** a Member — it is *how* someone holds a Membership, not an alternative to holding one. One word in prose and in code — never founding member or founding supporter.
+A person entitled to PRISM permanently and without paying: every account that existed when payment enforcement was switched on, and every Kickstarter backer stamped from the backer survey. A Founder **is** a Member — it is *how* someone holds a Membership, not an alternative to holding one. One word in prose and in code — never founding member or founding supporter.
 _Avoid_: grandfathered user, founding member, founding supporter, early adopter
-_In code_: the `founders` table. Entitlement is read through `is_entitled()`, which hides whether it came from a Founder row or a subscription. The grant is app-only: a Founder gets no Patreon content library, and pays like anyone else for that.
+_In code_: the `founders` table. Both intakes write the same row: the unfiltered stamp at the flip (`docs/runbooks/enforcement-cutover.md`), and a manual stamp for backers matched on the email the backer survey collects ([#204](https://github.com/codwats/prism/issues/204)). Entitlement is read through `is_entitled()`, which hides whether it came from a Founder row or a subscription. The grant is app-only: a Founder gets no Patreon content library, and pays like anyone else for that.
 
 ### Gallery
 
