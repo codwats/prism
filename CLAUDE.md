@@ -112,6 +112,7 @@ Sync behavior is merge-first, not whole-PRISM last-write-wins:
 - Auto-created empty PRISMs (no decks, no cards, no prior baseline) are **not** uploaded to Supabase during the login sync — they exist only as a pre-login UI placeholder and are discarded when real cloud data is available.
 - `syncWithSupabase` tracks which prisms have genuine local changes (`needsCloudWrite` set) and only writes those. Cloud-only prisms (fresh device load) have their baseline recorded without re-uploading, preventing redundant `replace_deck_cards` calls.
 - `savePrismToSupabase` continues past per-deck RPC failures so one failing deck does not leave all subsequent decks without cards. It returns `false` when any deck fails so the baseline is not recorded and the sync retries.
+- **Cloud writes pause on a lapse; cloud reads never do** (#212). Pull paths (`syncWithSupabase`, `loadPrismsFromSupabase`) gate on `shouldSyncToSupabase()`; every upload, cloud delete and debounced drain gates on `shouldWriteToSupabase()` — which is `shouldSyncToSupabase() && !cloudWritesPaused`. `cloudWritesPaused` is refreshed from `isEntitled()` once per page load, at the top of `syncWithSupabase`, and fails open. While paused, a prism with local changes is skipped **including its baseline**: the baseline must keep describing what the cloud really holds, since it is both the merge reference and the date the paused notice shows. Exports: `isCloudWritePaused()`, `getLastCloudSyncDate(prismId?)`.
 
 ### PRISM Data Model
 
@@ -260,6 +261,7 @@ Preview viewport should be 1280px+ wide to see the desktop layout (sidebar nav).
 - Stripe display settings (starting corner, position numbers) live in the global settings drawer injected by `layout.js`; the per-PRISM "Dedicated commander copies" `wa-switch` lives on the Decks tab (per-PRISM synced data does not belong in the global drawer)
 - The Stripe Positions reorder card was removed from the Decks tab — use the Move button (⊕) on each deck card to open the visual slot-picker dialog, or use the Export tab's dropdown list for bulk reordering
 - `build.html` has a sync status indicator (`#sync-status`) and a Sync Now button (`#btn-sync-now`) near the PRISM name; both are hidden until the user is logged in. `setupSyncStatus()` in `init.js` wires these to `onSyncStatusChange` / `forceSyncCurrentPrism` from `storage.js`. Storage exports: `onSyncStatusChange(cb)` (returns unsubscribe fn), `forceSyncCurrentPrism()`, `recordUnmarkedCards(prismId, keys)`
+- The paused-sync notice (`#sync-paused-notice` on build.html, the profile Subscription caption) is shown only when writes are paused **and** a last-sync date exists — with no cloud copy there is no sync to pause, and the notice would claim one. Its dated sentence has one source, `pausedSyncDetail()` in `core/utils.js`; the wording is fixed by CONTEXT.md (*paused*, never frozen or locked, always dated). `renderAll()` re-renders it because the date is per-PRISM
 
 ### Gallery
 
