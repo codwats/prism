@@ -549,6 +549,20 @@ function injectAuthDialog() {
   const dialog = document.createElement('wa-dialog');
   dialog.id = 'auth-dialog';
   dialog.style.setProperty('--width', 'min(45ch, 92vw)');
+  // CAMPAIGN WINDOW (#206): the #btn-show-signup toggle and the whole
+  // #auth-signup-view block were deleted from the markup below for the Kickstarter
+  // window. Restore at the enforcement flip, runbook step 5 — NOT at step 4 with the
+  // rest of the campaign-window revert. Signups stay shut across the gap between
+  // campaign close and the flip, and reopening early widens the grandfathered cohort.
+  // Deleted rather than hidden: hidden markup still ships an input[type=password] for
+  // a password manager to offer, and a display toggle is one devtools edit away from a
+  // working form. The real lock is the Supabase project setting; this is what stops the
+  // UI offering a door that no longer opens. auth.js keeps its signUp path and its
+  // showAuthView('signup') case, both now unreachable and both already null-guarded.
+  //
+  // A JS comment, not an HTML one inside the template literal. This string is assigned
+  // to dialog.innerHTML, so an HTML comment here ships the whole note into the auth
+  // dialog markup on every page that injects it.
   dialog.innerHTML = `
       <span slot="label" id="auth-dialog-title">Login</span>
 
@@ -568,20 +582,6 @@ function injectAuthDialog() {
           <wa-button id="btn-login-submit" type="submit" variant="brand" style="width: 100%;">Sign in</wa-button>
         </form>
       </div>
-
-      <!-- CAMPAIGN WINDOW (#206): the signup toggle that closed this view and the
-           whole #auth-signup-view block were deleted here for the Kickstarter
-           window. Restore this one at the enforcement flip, runbook step 5 —
-           NOT at step 4 with the rest of the campaign-window revert. Signups
-           stay shut across the gap between campaign close and the flip, and
-           reopening early lets new accounts into the grandfathered cohort.
-           Deleted rather than hidden: hidden markup still ships an
-           input[type=password] for a password manager to offer, and a display
-           toggle is one devtools edit away from a working form. The real lock is
-           the Supabase project setting; this is what stops the UI offering a door
-           that no longer opens. auth.js keeps its signUp path and its
-           showAuthView('signup') case, both now unreachable and both already
-           null-guarded, so nothing there needs touching or restoring. -->
 
       <!-- Forgot Password View -->
       <div id="auth-forgot-view" class="wa-stack wa-gap-m" style="display: none;">
