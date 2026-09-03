@@ -181,10 +181,16 @@
                   </div>
                   <span id="subscription-caption" class="wa-caption-m" style="color: var(--wa-color-neutral-text-subtle);">Support PRISM with a recurring subscription.</span>
                 </div>
-                <wa-button id="btn-subscribe" variant="brand" size="small">
-                  <wa-icon slot="start" name="credit-card"></wa-icon>
-                  Subscribe
-                </wa-button>
+                <div class="wa-cluster wa-gap-xs wa-align-items-center">
+                  <wa-button id="btn-manage-billing" appearance="outlined" size="small" hidden>
+                    <wa-icon slot="start" name="gear"></wa-icon>
+                    Manage billing
+                  </wa-button>
+                  <wa-button id="btn-subscribe" variant="brand" size="small">
+                    <wa-icon slot="start" name="credit-card"></wa-icon>
+                    Subscribe
+                  </wa-button>
+                </div>
               </div>
             </wa-card>
           </section>

@@ -8,7 +8,7 @@ import { getAllPrisms, setCurrentPrism, deletePrism, savePrism, getCurrentPrism 
 import { createPrism, processCards } from './modules/processor.js';
 import { downloadJSON } from './modules/export.js';
 import { buildPrismFromJson } from './modules/prism-import.js';
-import { isPaymentEnforced, getSubscription, isEntitled, startCheckout } from './modules/billing.js';
+import { isPaymentEnforced, getSubscription, isEntitled, startCheckout, openBillingPortal } from './modules/billing.js';
 import { showError, showSuccess } from './core/notifications.js';
 import { escapeHtml, getLogicalDeckCount } from './core/utils.js';
 
@@ -65,6 +65,7 @@ function getElements() {
     subscriptionStatusTag: document.getElementById('subscription-status-tag'),
     subscriptionCaption: document.getElementById('subscription-caption'),
     btnSubscribe: document.getElementById('btn-subscribe'),
+    btnManageBilling: document.getElementById('btn-manage-billing'),
 
     // Auth
     btnProfileLogin: document.getElementById('btn-profile-login'),
@@ -235,6 +236,20 @@ function setupEventListeners() {
     });
   }
 
+  // Manage billing — redirect to Stripe's hosted portal
+  if (elements.btnManageBilling) {
+    elements.btnManageBilling.addEventListener('click', async () => {
+      elements.btnManageBilling.loading = true;
+      try {
+        await openBillingPortal(); // navigates away on success
+      } catch (err) {
+        console.error('Billing portal error:', err);
+        showError(err.message || 'Could not open the billing portal.');
+        elements.btnManageBilling.loading = false;
+      }
+    });
+  }
+
   // Delete PRISM dialog
   if (elements.btnCancelDeletePrism) {
     elements.btnCancelDeletePrism.addEventListener('click', () => {
@@ -346,6 +361,9 @@ async function renderSubscriptionSection() {
 
   // Still offered to a past_due member — entitled, but the card needs fixing.
   if (elements.btnSubscribe) elements.btnSubscribe.hidden = active && !paymentFailed;
+  // Stripe rail only: a Patreon member or Founder has no subscriptions row and
+  // no Stripe customer, so the portal has nothing to show them.
+  if (elements.btnManageBilling) elements.btnManageBilling.hidden = !subscription;
 }
 
 function renderPrismsList() {

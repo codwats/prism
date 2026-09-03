@@ -84,35 +84,49 @@ export function clearEntitlementCache() {
 }
 
 /**
+ * Open Stripe's hosted billing portal (update card, switch period, cancel).
+ * Throws with a user-facing message on failure.
+ */
+export async function openBillingPortal() {
+  return redirectToStripe('/api/stripe-portal', 'Could not open the billing portal. Please try again.');
+}
+
+/**
  * Start a Stripe Checkout session and redirect to Stripe's hosted page.
  * Throws with a user-facing message on failure.
  */
 export async function startCheckout() {
+  return redirectToStripe('/api/stripe-checkout', 'Could not start checkout. Please try again.');
+}
+
+// Both Stripe entry points are the same request: POST with the access token,
+// get back a hosted URL, navigate there.
+async function redirectToStripe(endpoint, failureMessage) {
   const client = getSupabase();
   const { data: { session } = {} } = await client?.auth.getSession() || { data: {} };
   if (!session) {
-    throw new Error('Please sign in to subscribe.');
+    throw new Error('Please sign in first.');
   }
 
   let response;
   try {
-    response = await fetch('/api/stripe-checkout', {
+    response = await fetch(endpoint, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${session.access_token}`
       },
       body: JSON.stringify({ returnUrl: '/profile.html' }),
-      // Without this the Subscribe button can sit in its loading state
-      // indefinitely if the request never settles.
+      // Without this the button can sit in its loading state indefinitely if
+      // the request never settles.
       signal: AbortSignal.timeout(15000)
     });
   } catch {
-    throw new Error('Could not reach checkout. Please try again.');
+    throw new Error(failureMessage);
   }
   const data = await response.json().catch(() => ({}));
   if (!response.ok || !data.url) {
-    throw new Error(data.error || 'Could not start checkout. Please try again.');
+    throw new Error(data.error || failureMessage);
   }
   window.location.href = data.url;
 }
