@@ -73,13 +73,30 @@ that spans them.
    flip, signups are still shut and backers reach their Membership through the
    backer survey ([#204](https://github.com/codwats/prism/issues/204)), never
    through the site.
+5. **Collect and load the backer allowlist**
+   ([#240](https://github.com/codwats/prism/issues/240)). The Pledge Manager
+   survey must carry the PRISM account email as its own field (#204), labelled
+   to work for a backer who has **no** PRISM account — signups are shut for the
+   whole window, so most backers cannot have one when they answer. Verify the
+   field exists before the survey is distributed; #204 is closed on Jay's
+   commitment to add it, not on the field having been seen. Then load the
+   collected emails into the allowlist. Pledge Over Time is disabled on the
+   campaign, so there is no instalment lag and the answers are complete at
+   close.
+
+   **Never distribute the plain Kickstarter Backer Survey.** Doing so forecloses
+   the Pledge Manager permanently: a creator may revert from Pledge Manager to
+   survey-only before the survey launches, never the reverse.
 
 **At the flip, this session, after step 6 of the cutover below:**
 
-5. **Re-enable signups** in Supabase and restore the `layout.js` signup view,
+6. **Re-enable signups** in Supabase and restore the `layout.js` signup view,
    only after the stamp is verified and `payment_enforcement` is true. Reopening
-   any earlier lets new accounts into the grandfathered cohort.
-6. **Land the membership section** on `index.html`
+   any earlier lets new accounts into the grandfathered cohort. #240's claim RPC
+   must be deployed **before** this step — reopening signups is exactly when the
+   first backer account gets created, and without the claim path that account is
+   refused.
+7. **Land the membership section** on `index.html`
    ([#215](https://github.com/codwats/prism/issues/215)) and the membership
    drawer ([#216](https://github.com/codwats/prism/issues/216)).
 
