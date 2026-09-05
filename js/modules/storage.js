@@ -7,6 +7,7 @@ import { DEFAULT_COLORS } from './processor.js';
 import { normalizeCardName } from './parser.js';
 import { getSupabase, isConfigured } from './supabase-client.js';
 import { getCurrentUser } from './auth.js';
+import { isEntitled } from './billing.js';
 import { showToast } from '../core/notifications.js';
 
 const STORAGE_KEY = 'prism_data';
@@ -549,6 +550,53 @@ function shouldSyncToSupabase() {
   return isConfigured() && getCurrentUser() !== null;
 }
 
+// A lapsed Membership pauses cloud WRITES and keeps cloud READS (#212): the
+// cloud copy is retained as a dated snapshot the member can still pull on any
+// device, and nothing they do afterwards goes up until they join again.
+//
+// Fails open. This is only ever set by a definite "not entitled" from
+// syncWithSupabase, so an entitlement read that errors keeps syncing — the
+// precedent isPaymentEnforced() sets. It is refreshed once per page load,
+// where auth resolves; a lapse mid-session takes effect on the next load.
+let cloudWritesPaused = false;
+
+/**
+ * Whether cloud writes are allowed right now. Every upload, delete and
+ * debounced drain gates on this; the pull paths keep using
+ * shouldSyncToSupabase() so reads survive a lapse.
+ */
+function shouldWriteToSupabase() {
+  return shouldSyncToSupabase() && !cloudWritesPaused;
+}
+
+/** Whether cloud writes are paused by a lapse. Drives the paused notice. */
+export function isCloudWritePaused() {
+  return cloudWritesPaused;
+}
+
+/**
+ * The date of the cloud copy, as an ISO string, or null if there has never
+ * been one. This is the PRISM's own updatedAt as of the last successful cloud
+ * write — the sync baseline, which is the only local record of what the cloud
+ * holds — so it dates the copy, not the upload. Without a prismId, the newest
+ * across every PRISM (the account-level answer the profile page shows).
+ * @param {string} [prismId]
+ * @returns {string|null}
+ */
+export function getLastCloudSyncDate(prismId) {
+  const syncState = ensureSyncState(loadStorage());
+  const baselines = prismId
+    ? [syncState.prismBaselines[prismId]]
+    : Object.values(syncState.prismBaselines);
+  return baselines.reduce(
+    (newest, baseline) =>
+      baseline?.updatedAt && getTimestampMs(baseline.updatedAt) > getTimestampMs(newest)
+        ? baseline.updatedAt
+        : newest,
+    null
+  );
+}
+
 /**
  * Save a PRISM to Supabase
  * @param {Object} prism - The PRISM to save
@@ -847,6 +895,10 @@ export function mergeRemovedCards(localArr, cloudArr) {
 export async function syncWithSupabase() {
   if (!shouldSyncToSupabase()) return;
 
+  // Entitlement decides writes only — the pull below runs either way, so a
+  // lapsed member still gets their cloud copy on a new device.
+  cloudWritesPaused = !(await isEntitled());
+
   const cloudPrisms = await loadPrismsFromSupabase();
   if (cloudPrisms === null) return;
 
@@ -918,7 +970,11 @@ export async function syncWithSupabase() {
 
   for (const [prismId, prism] of Object.entries(storage.prisms)) {
     if (needsCloudWrite.has(prismId)) {
-      // This prism has local changes — push merged result to cloud.
+      // This prism has local changes — push merged result to cloud. While
+      // writes are paused the upload is skipped AND so is the baseline, which
+      // must keep describing what the cloud really holds: it is both the merge
+      // reference and the date the paused notice shows.
+      if (cloudWritesPaused) continue;
       const saved = await savePrismToSupabase(prism);
       if (!saved) continue;
     }
@@ -932,9 +988,13 @@ export async function syncWithSupabase() {
     saveStorage(freshStorage);
   }
 
-  for (const prismId of Object.keys(cloudPrisms)) {
-    if (!storage.prisms[prismId] && syncState.deletedPrisms[prismId]) {
-      await deletePrismFromSupabase(prismId);
+  // A local delete never reaches the cloud while paused — the cloud copy is
+  // the member's retained snapshot and outlives it.
+  if (!cloudWritesPaused) {
+    for (const prismId of Object.keys(cloudPrisms)) {
+      if (!storage.prisms[prismId] && syncState.deletedPrisms[prismId]) {
+        await deletePrismFromSupabase(prismId);
+      }
     }
   }
 
@@ -942,7 +1002,7 @@ export async function syncWithSupabase() {
 }
 
 async function syncPrismToSupabase(prismId) {
-  if (!shouldSyncToSupabase()) return;
+  if (!shouldWriteToSupabase()) return;
 
   emitSyncStatus('syncing');
 
@@ -1013,7 +1073,7 @@ if (typeof window !== 'undefined') {
     if (!syncTimeout) return;
     clearTimeout(syncTimeout);
     syncTimeout = null;
-    if (!shouldSyncToSupabase()) return;
+    if (!shouldWriteToSupabase()) return;
     drainQueuedSyncs();
   };
   window.addEventListener('beforeunload', flushPendingSync);
@@ -1057,7 +1117,7 @@ export function savePrism(prism) {
   saveStorage(storage);
 
   // Sync to Supabase if logged in (debounced to avoid race conditions on rapid saves)
-  if (shouldSyncToSupabase()) {
+  if (shouldWriteToSupabase()) {
     clearTimeout(syncTimeout);
     queuedPrismIds.add(prism.id);
     syncTimeout = setTimeout(() => {
@@ -1089,7 +1149,7 @@ export function recordUnmarkedCards(prismId, cardKeys) {
  * Force an immediate sync of the current PRISM, bypassing the debounce.
  */
 export async function forceSyncCurrentPrism() {
-  if (!shouldSyncToSupabase()) return;
+  if (!shouldWriteToSupabase()) return;
   const storage = loadStorage();
   const prismId = storage.currentPrismId;
   if (!prismId) return;
@@ -1123,8 +1183,9 @@ export function deletePrism(prismId) {
   pruneSyncState(storage);
   saveStorage(storage);
 
-  // Sync deletion to Supabase if logged in
-  if (shouldSyncToSupabase()) {
+  // Sync deletion to Supabase if logged in. Paused: the cloud copy is the
+  // member's retained snapshot and outlives a local delete.
+  if (shouldWriteToSupabase()) {
     deletePrismFromSupabase(prismId).catch(err => {
       console.error('Background delete failed:', err);
     });
@@ -1256,14 +1317,20 @@ export function importAllData(jsonString) {
       }
     }
 
-    for (const prism of Object.values(merged.prisms)) {
-      recordPrismBaseline(merged, prism);
+    // Only when the import is actually going to the cloud below: a baseline
+    // claims "this is what the cloud holds", and recording one for a
+    // logged-out import both dates the paused notice off a sync that never
+    // happened and makes the next login treat the import as already-uploaded.
+    if (shouldWriteToSupabase()) {
+      for (const prism of Object.values(merged.prisms)) {
+        recordPrismBaseline(merged, prism);
+      }
     }
 
     saveStorage(merged);
 
     // Sync imported data to Supabase
-    if (shouldSyncToSupabase()) {
+    if (shouldWriteToSupabase()) {
       for (const prism of Object.values(merged.prisms)) {
         savePrismToSupabase(prism).catch(err => {
           console.error('Failed to sync imported prism:', err);
