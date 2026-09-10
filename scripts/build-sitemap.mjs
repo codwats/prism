@@ -20,10 +20,17 @@ import { fileURLToPath } from 'node:url';
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const SITE = 'https://prismmtg.com';
 
-// Pages that resolve but are not worth indexing. profile.html is an account
-// screen: logged out it is a sign-in stub with nothing to rank, and it keeps
-// its share tags so a pasted link still previews properly.
-const EXCLUDE = new Set(['profile.html']);
+// Pages that resolve but are not worth indexing. Both keep their share tags, so
+// a pasted link still previews; they are just not offered to a crawler.
+//
+//   profile.html  an account screen. Logged out it is a sign-in stub with
+//                 nothing to rank.
+//   links.html    the QR and social funnel page (#243). It is reached by scan
+//                 or from a bio, never by search, and a thin hub of outbound
+//                 links in the sitemap mostly competes with the homepage for
+//                 the same queries. Named here ahead of the file landing, so
+//                 the sitemap cannot pick it up the moment #245 merges.
+const EXCLUDE = new Set(['profile.html', 'links.html']);
 
 // Ordered most to least important. Anything found on disk but not listed here
 // is appended, so a new page still lands in the sitemap without editing this.
