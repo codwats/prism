@@ -37,3 +37,111 @@
     Access-Control-Allow-Origin = "*"
     Access-Control-Allow-Headers = "Content-Type"
     Access-Control-Allow-Methods = "GET, POST, OPTIONS"
+
+# ============================================================
+# Stop serving repo internals
+# ============================================================
+# `publish = "."` puts the entire repository on the web. Without these rules
+# every Markdown doc, the database schema, the edge-function TypeScript, the
+# SQL tests and the tooling config all answer 200 in production. PRODUCT.md and
+# docs/runbooks/enforcement-cutover.md are the worst of it: they are the
+# documents recording what is deliberately *not* advertised, one URL from the
+# landing page the campaign points at.
+#
+# `force = true` is load-bearing. Netlify serves an existing static file in
+# preference to a matching redirect unless the rule forces it, and every path
+# here is a file that really exists.
+#
+# Directory rules use a trailing splat, which Netlify supports. Root files are
+# listed one by one, because a mid-path glob like `/*.md` is not reliable.
+# tests/netlify-publish-surface.test.js fails if a new root file or directory
+# appears that is neither public nor covered here, so the list cannot silently
+# fall behind.
+#
+# Deliberately still served: *.html, assets/, css/, js/, robots.txt,
+# sitemap.xml and LICENSE. js/ and css/ are the application; a client-side app
+# ships its source by definition, and nothing in it is a secret.
+
+[[redirects]]
+  from = "/docs/*"
+  to = "/404.html"
+  status = 404
+  force = true
+
+[[redirects]]
+  from = "/tests/*"
+  to = "/404.html"
+  status = 404
+  force = true
+
+[[redirects]]
+  from = "/netlify/*"
+  to = "/404.html"
+  status = 404
+  force = true
+
+[[redirects]]
+  from = "/scripts/*"
+  to = "/404.html"
+  status = 404
+  force = true
+
+[[redirects]]
+  from = "/CLAUDE.md"
+  to = "/404.html"
+  status = 404
+  force = true
+
+[[redirects]]
+  from = "/CONTEXT.md"
+  to = "/404.html"
+  status = 404
+  force = true
+
+[[redirects]]
+  from = "/DESIGN.md"
+  to = "/404.html"
+  status = 404
+  force = true
+
+[[redirects]]
+  from = "/PRODUCT.md"
+  to = "/404.html"
+  status = 404
+  force = true
+
+[[redirects]]
+  from = "/README.md"
+  to = "/404.html"
+  status = 404
+  force = true
+
+[[redirects]]
+  from = "/TO-DO.md"
+  to = "/404.html"
+  status = 404
+  force = true
+
+[[redirects]]
+  from = "/supabase-schema.sql"
+  to = "/404.html"
+  status = 404
+  force = true
+
+[[redirects]]
+  from = "/package.json"
+  to = "/404.html"
+  status = 404
+  force = true
+
+[[redirects]]
+  from = "/package-lock.json"
+  to = "/404.html"
+  status = 404
+  force = true
+
+[[redirects]]
+  from = "/eslint.config.js"
+  to = "/404.html"
+  status = 404
+  force = true
