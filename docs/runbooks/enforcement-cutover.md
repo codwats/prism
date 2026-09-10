@@ -46,21 +46,42 @@ INSERT on `prisms` and INSERT on `decks`. Nothing else.
 ## The campaign window
 
 Decided in [#221](https://github.com/codwats/prism/issues/221). The window opens
-at campaign go-live (est. 2026-09-15) and ends here, at the flip. Nothing else
+with the site changeover on **Sunday evening, 2026-09-13
+(America/Vancouver)** and ends here, at the flip. Nothing else
 records it end to end: [#206](https://github.com/codwats/prism/issues/206) owns
 the signup lock and [#222](https://github.com/codwats/prism/issues/222) owns the
 site edits, but the two sessions are weeks apart and this file is the only thing
 that spans them.
 
-**At campaign go-live:**
+### Schedule (updated 2026-09-10)
+
+- **Sunday evening, September 13:** deploy the site changeover and close
+  signups ahead of pre-launch traffic. Exact time is not yet set.
+- **Monday, September 14:** the Kickstarter pre-launch page opens.
+- **Monday, September 21:** planned Kickstarter funding launch, one week later.
+  Update the site's pre-launch copy and CTA to the live campaign wording.
+
+[Draft PR #236](https://github.com/codwats/prism/pull/236) already prepares
+#222 and #206. Before the September 13 changeover, replace its campaign URL
+placeholder, complete the anonymous build/import/mark/export walkthrough on
+the deploy preview, and adapt the campaign block for pre-launch: it must not
+say the campaign is live or invite visitors to back it before funding opens.
+Verify the destination works on Sunday evening, before Monday's public
+pre-launch. At funding launch, switch to #221's settled live-campaign copy.
+The kit photo can follow later.
+
+Payment enforcement stays off during this changeover; the Founder stamp and
+enforcement flip remain after campaign close.
+
+**At the September 13 site changeover:**
 
 1. **Disable signups** in Supabase, Authentication → Sign In / Providers. This is
    the real lock; the UI change alone is cosmetic.
 2. **Hide the signup path** in `js/layout.js` — the `#btn-show-signup` button and
    the `#auth-signup-view` block. Login, password reset and every existing
    session stay untouched.
-3. **Add the campaign block** to `index.html`, #221's copy verbatim, below How It
-   Works and above the features grid. It is a plain deploy: no flag, and
+3. **Add the campaign block** to `index.html`, using pre-launch copy until
+   September 21, below How It Works and above the features grid. It is a plain deploy: no flag, and
    `payment_enforcement` cannot drive it, because that row is false both before
    go-live and during the window while the copy differs.
 
