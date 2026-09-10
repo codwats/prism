@@ -59,16 +59,26 @@ that spans them.
   signups ahead of pre-launch traffic. Exact time is not yet set.
 - **Monday, September 14:** the Kickstarter pre-launch page opens.
 - **Monday, September 21:** planned Kickstarter funding launch, one week later.
-  Update the site's pre-launch copy and CTA to the live campaign wording.
+  No site deploy: the campaign block reads correctly in both phases and the
+  pre-launch URL becomes the live one. See below.
 
-[Draft PR #236](https://github.com/codwats/prism/pull/236) already prepares
-#222 and #206. Before the September 13 changeover, replace its campaign URL
-placeholder, complete the anonymous build/import/mark/export walkthrough on
-the deploy preview, and adapt the campaign block for pre-launch: it must not
-say the campaign is live or invite visitors to back it before funding opens.
-Verify the destination works on Sunday evening, before Monday's public
-pre-launch. At funding launch, switch to #221's settled live-campaign copy.
-The kit photo can follow later.
+[PR #236](https://github.com/codwats/prism/pull/236) prepares #222 and #206.
+Before the September 13 changeover, replace its campaign URL placeholder with
+the **pre-launch** URL and verify the destination works on Sunday evening,
+before Monday's public pre-launch. The anonymous build/import/mark/export
+walkthrough is done on the deploy preview and recorded on that PR. The kit
+photo can follow later.
+
+**There is no copy swap at funding launch.** #221 wrote the block for a live
+campaign, and the schedule since put pre-launch a week ahead of funding. Rather
+than carry two versions of the copy and a September 21 deploy to switch them,
+the block is phase-agnostic: heading "The Kickstarter Campaign", CTA "See it on
+Kickstarter", and #221's paragraph verbatim. It points at the page instead of
+naming an action only one phase allows, so it reads correctly while the page
+collects follows and after it starts taking pledges. A pre-launch page keeps its
+slug when it launches, so the single URL needs no second edit either. The one
+deviation from #221's verbatim copy, deliberate, noted at the block in
+`index.html`.
 
 Payment enforcement stays off during this changeover; the Founder stamp and
 enforcement flip remain after campaign close.
@@ -85,17 +95,16 @@ enforcement flip remain after campaign close.
    not touched at all — its `signUp` path and `showAuthView('signup')` case go
    unreachable and are already null-guarded. This is #206's code half, and it
    ships on the same branch as step 3 rather than in its own session.
-3. **Deploy the campaign-window branch,** with pre-launch copy until
-   September 21. It is a plain deploy: no flag, and
+3. **Deploy the campaign-window branch.** It is a plain deploy: no flag, and
    `payment_enforcement` cannot drive it, because that row is false both before
    go-live and during the window while the copy differs. Every edit in it carries
    a `CAMPAIGN WINDOW` comment, which is what steps 4 and 6 grep for. Landed in
    #222, on `feature/222-campaign-window`, together with step 2:
 
-   - **The campaign block** on `index.html`, #221's copy verbatim, below How It
-     Works and above the features grid. Its CTA href is a
-     `KICKSTARTER_URL_TODO` placeholder until the campaign URL exists;
-     **fill it in before merging.** It is deliberately not a valid link, so a
+   - **The campaign block** on `index.html`, below How It Works and above the
+     features grid, carrying #221's paragraph verbatim under a phase-agnostic
+     heading and CTA. Its href is a `KICKSTARTER_URL_TODO` placeholder until the
+     pre-launch URL exists; **fill it in before merging.** It is deliberately not a valid link, so a
      premature deploy fails loudly instead of looking correct. The block ships
      text-only: #221 specifies a flank with a kit-contents photo, and if that
      photo lands it is a follow-up, not a blocker.

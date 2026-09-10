@@ -119,12 +119,21 @@
 
         <wa-divider style="--spacing: var(--wa-space-2xl);"></wa-divider>
 
-        <!-- CAMPAIGN WINDOW (#222, copy decided verbatim in #221). Added at
-             Kickstarter go-live, deleted at campaign close. Plain deploy, no
-             flag: payment_enforcement is false both before go-live and during
-             the window, so it cannot drive this. The revert is a deletion, not
-             new copy. Every campaign-window edit is marked CAMPAIGN WINDOW;
-             see the Campaign Window section of docs/runbooks/enforcement-cutover.md.
+        <!-- CAMPAIGN WINDOW (#222, copy from #221). Added at the site changeover,
+             deleted at campaign close. Plain deploy, no flag: payment_enforcement
+             is false both before go-live and during the window, so it cannot drive
+             this. The revert is a deletion, not new copy. Every campaign-window
+             edit is marked CAMPAIGN WINDOW; see the Campaign Window section of
+             docs/runbooks/enforcement-cutover.md.
+
+             Phase-agnostic on purpose, and this is the one deviation from #221's
+             verbatim copy. #221 wrote for a live campaign; the schedule since put
+             pre-launch (Sept 14) a week ahead of funding (Sept 21), and a
+             Kickstarter pre-launch page keeps its slug when it goes live, so one
+             URL serves both. The heading and CTA therefore point at the page
+             rather than naming an action only one phase allows: during pre-launch
+             it collects follows, after launch it takes pledges, and the block
+             needs no second deploy in between. The paragraph is #221 verbatim.
 
              Text-only. #221 specifies a flank with a kit-contents photo and no
              such photo exists yet; the block's job is the link, so it ships
@@ -132,15 +141,18 @@
              shows only the Spirit Guide and would contradict "matching sleeves,
              tokens and playmats" sitting beside it. -->
         <section id="kickstarter" class="wa-stack wa-gap-l wa-align-items-center" style="max-width: 720px; margin: 0 auto;">
-          <h2 class="wa-heading-2xl" style="text-align: center;">Back the Campaign</h2>
+          <h2 class="wa-heading-2xl" style="text-align: center;">The Kickstarter Campaign</h2>
           <p style="text-align: center; max-width: 60ch;">
             The Spirit Guide, the alignment tool this marking system is built around, is on Kickstarter, along with matching sleeves, tokens and playmats. Backing the campaign also includes a lifetime PRISM Membership, attached after the campaign closes from the email you give in the backer survey. PRISM itself stays free to use, with no account.
           </p>
-          <!-- TODO(#222): replace KICKSTARTER_URL_TODO with the real campaign URL
-               before this branch merges. Deliberately not a valid link, so a
-               premature deploy fails loudly rather than looking correct. -->
+          <!-- TODO(#222): replace KICKSTARTER_URL_TODO with the Kickstarter
+               pre-launch URL before this branch merges. That is the one needed on
+               Sunday, not the live campaign URL; the slug carries over when the
+               project launches, so this link needs no second edit on Sept 21.
+               Deliberately not a valid link, so a premature deploy fails loudly
+               rather than looking correct. -->
           <wa-button href="KICKSTARTER_URL_TODO" target="_blank" rel="noopener" appearance="outlined" size="large">
-            Back it on Kickstarter
+            See it on Kickstarter
           </wa-button>
         </section>
 
