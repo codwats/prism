@@ -142,7 +142,11 @@ function makeSdk({ session, getSessionDelay, emitInitialSession, initialSessionD
         },
       },
       from: () => chain(),
-      rpc: () => Promise.resolve(noRows),
+      rpc: () => {
+        const result = Promise.resolve(noRows);
+        result.abortSignal = () => result;
+        return result;
+      },
     }),
   };
 }

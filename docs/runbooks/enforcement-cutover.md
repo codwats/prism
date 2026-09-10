@@ -46,13 +46,34 @@ INSERT on `prisms` and INSERT on `decks`. Nothing else.
 ## The campaign window
 
 Decided in [#221](https://github.com/codwats/prism/issues/221). The window opens
-at campaign go-live (est. 2026-09-15) and ends here, at the flip. Nothing else
+with the site changeover on **Sunday evening, 2026-09-13
+(America/Vancouver)** and ends here, at the flip. Nothing else
 records it end to end: [#206](https://github.com/codwats/prism/issues/206) owns
 the signup lock and [#222](https://github.com/codwats/prism/issues/222) owns the
 site edits, but the two sessions are weeks apart and this file is the only thing
 that spans them.
 
-**At campaign go-live:**
+### Schedule (updated 2026-09-10)
+
+- **Sunday evening, September 13:** deploy the site changeover and close
+  signups ahead of pre-launch traffic. Exact time is not yet set.
+- **Monday, September 14:** the Kickstarter pre-launch page opens.
+- **Monday, September 21:** planned Kickstarter funding launch, one week later.
+  Update the site's pre-launch copy and CTA to the live campaign wording.
+
+[Draft PR #236](https://github.com/codwats/prism/pull/236) already prepares
+#222 and #206. Before the September 13 changeover, replace its campaign URL
+placeholder, complete the anonymous build/import/mark/export walkthrough on
+the deploy preview, and adapt the campaign block for pre-launch: it must not
+say the campaign is live or invite visitors to back it before funding opens.
+Verify the destination works on Sunday evening, before Monday's public
+pre-launch. At funding launch, switch to #221's settled live-campaign copy.
+The kit photo can follow later.
+
+Payment enforcement stays off during this changeover; the Founder stamp and
+enforcement flip remain after campaign close.
+
+**At the September 13 site changeover:**
 
 1. **Disable signups** in Supabase, Authentication → Sign In / Providers. This is
    the real lock; the UI change alone is cosmetic.
@@ -64,10 +85,11 @@ that spans them.
    not touched at all — its `signUp` path and `showAuthView('signup')` case go
    unreachable and are already null-guarded. This is #206's code half, and it
    ships on the same branch as step 3 rather than in its own session.
-3. **Deploy the campaign-window branch.** It is a plain deploy: no flag, and
+3. **Deploy the campaign-window branch,** with pre-launch copy until
+   September 21. It is a plain deploy: no flag, and
    `payment_enforcement` cannot drive it, because that row is false both before
    go-live and during the window while the copy differs. Every edit in it carries
-   a `CAMPAIGN WINDOW` comment, which is what steps 4 and 5 grep for. Landed in
+   a `CAMPAIGN WINDOW` comment, which is what steps 4 and 6 grep for. Landed in
    #222, on `feature/222-campaign-window`, together with step 2:
 
    - **The campaign block** on `index.html`, #221's copy verbatim, below How It
@@ -103,20 +125,36 @@ that spans them.
    through the backer survey
    ([#204](https://github.com/codwats/prism/issues/204)), never through the site.
 
-   **Everything else in the campaign-window branch stays until step 5.** The
+   **Everything else in the campaign-window branch stays until step 6.** The
    `js/layout.js` signup deletion and the two `js/gallery.js` notices are all
    about signups being *shut*, and signups are still shut during this gap.
    Reverting them here would restore a signup view that reopens the
    grandfathered cohort early, and gallery copy that offers a free account
    nobody can create. `grep -rn "CAMPAIGN WINDOW"` lists all four markers; only
    the `index.html` one is in scope at this step.
+5. **Collect and load the backer allowlist**
+   ([#240](https://github.com/codwats/prism/issues/240)). The Pledge Manager
+   survey must carry the PRISM account email as its own field (#204), labelled
+   to work for a backer who has **no** PRISM account — signups are shut for the
+   whole window, so most backers cannot have one when they answer. Verify the
+   field exists before the survey is distributed; #204 is closed on Jay's
+   commitment to add it, not on the field having been seen. Then load the
+   collected emails into the allowlist. Pledge Over Time is disabled on the
+   campaign, so there is no instalment lag and the answers are complete at
+   close.
+
+   **Never distribute the plain Kickstarter Backer Survey.** Doing so forecloses
+   the Pledge Manager permanently: a creator may revert from Pledge Manager to
+   survey-only before the survey launches, never the reverse.
 
 **At the flip, this session, after step 6 of the cutover below:**
 
-5. **Re-enable signups** in Supabase, then revert the remaining three
+6. **Re-enable signups** in Supabase, then revert the remaining three
    `CAMPAIGN WINDOW` markers, only after the stamp is verified and
    `payment_enforcement` is true. Reopening any earlier lets new accounts into
-   the grandfathered cohort.
+   the grandfathered cohort. #240's claim RPC must be deployed **before** this
+   step — reopening signups is exactly when the first backer account gets
+   created, and without the claim path that account is refused.
 
    - `js/layout.js` — restore the `#btn-show-signup` toggle and the
      `#auth-signup-view` block from the deletion hunk of the #222 commit. The
@@ -125,13 +163,72 @@ that spans them.
      copy. The upload one drops the manual-account-by-Discord path with it,
      since signup is the path again.
 
-6. **Land the membership section** on `index.html`
+7. **Land the membership section** on `index.html`
    ([#215](https://github.com/codwats/prism/issues/215)) and the membership
    drawer ([#216](https://github.com/codwats/prism/issues/216)).
 
 The closed-signup window and the campaign-copy window share a start and do not
 share an end: the copy comes out at campaign close, the signup lock at the flip.
 That asymmetry is the reason this section exists.
+
+### Backer claim deployment and ingestion (#240)
+
+Before reopening signups, apply the **Backer Membership claims (#240)** migration
+at the end of `supabase-schema.sql`, then deploy the auth client. It claims on
+session restore and signed-in auth transitions before notifying listeners or
+starting sign-in sync, and clears the entitlement cache afterwards. A failed
+claim logs an error and permits login/local use; the next auth event or page
+load retries. Deploying the schema first avoids those errors during rollout.
+
+The RPC uses the account's confirmed email from `auth.users`, never an email
+supplied by the browser. An entry grants an ordinary `founders` row once;
+`is_entitled()` is unchanged. Already-stamped Founders can consume their entry
+without changing their Membership. A consumed entry stays consumed even if its
+claimant later deletes their account.
+
+After campaign close and before the flip, take the PRISM-email column from
+Jay's survey CSV. In the SQL editor, paste the addresses as SQL text values
+(double any single quote inside an address), replacing the example values below.
+Do not paste CSV syntax directly into SQL or commit actual survey emails.
+
+```sql
+INSERT INTO public.backer_allowlist (email)
+SELECT DISTINCT lower(btrim(email))
+FROM (VALUES
+  ('backer-one@example.com'),
+  ('backer-two@example.com')
+) AS survey(email)
+WHERE NULLIF(btrim(email), '') IS NOT NULL
+ON CONFLICT (email) DO NOTHING;
+
+SELECT count(*) AS total,
+       count(*) FILTER (WHERE claimed_at IS NULL) AS unclaimed,
+       count(*) FILTER (WHERE claimed_at IS NOT NULL) AS claimed
+FROM public.backer_allowlist;
+```
+
+Reconcile the total with the CSV's distinct, nonblank, trimmed, lowercased
+addresses. Re-importing is safe and does not reset claims. Do not remove Gmail
+dots or `+` suffixes: a different signup/survey address remains the manual
+support path, granting the verified account a `founders` row.
+
+**Verification:** `tests/backer-claim.test.js` covers auth with mocked Supabase
+responses. Run `tests/backer-claim.sql` as one submission in a **disposable
+Supabase project**, after the schema; it checks claims, confirmed-email gating,
+repeat calls, Founder overlap, consumed-email reuse and permissions, then rolls
+back its fixtures. This SQL script has not yet been executed against a database.
+It must pass there before production deployment. Apply the claim migration
+twice there as well to check its idempotence. Never use production for this test.
+
+On production after deployment, this read-only check must return true, false,
+true, zero respectively:
+
+```sql
+SELECT has_function_privilege('authenticated', 'public.claim_backer_membership()', 'EXECUTE') AS authenticated_execute,
+       has_function_privilege('anon', 'public.claim_backer_membership()', 'EXECUTE') AS anon_execute,
+       (SELECT relrowsecurity FROM pg_class WHERE oid = 'public.backer_allowlist'::regclass) AS rls_enabled,
+       (SELECT count(*) FROM pg_policies WHERE schemaname = 'public' AND tablename = 'backer_allowlist') AS policies;
+```
 
 ## Before the flip — any order
 

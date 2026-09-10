@@ -683,3 +683,49 @@ BEGIN;
       AND is_entitled()
     );
 COMMIT;
+
+-- ============================================
+-- MIGRATION: Backer Membership claims (#240)
+-- ============================================
+-- Deploy before the auth client and before signups reopen. The allowlist is
+-- consumed only at claim time; is_entitled() continues to read founders.
+BEGIN;
+  CREATE TABLE IF NOT EXISTS backer_allowlist (
+    email TEXT PRIMARY KEY CHECK (email = lower(btrim(email)) AND email <> ''),
+    claimed_at TIMESTAMPTZ,
+    claimed_by UUID REFERENCES auth.users(id) ON DELETE SET NULL
+  );
+  ALTER TABLE backer_allowlist ENABLE ROW LEVEL SECURITY;
+  -- Zero policies: only service role and SECURITY DEFINER can access survey emails.
+  -- Keep claimed_at when an account is deleted so an email cannot grant twice.
+
+  CREATE OR REPLACE FUNCTION claim_backer_membership()
+    RETURNS BOOLEAN
+    LANGUAGE plpgsql
+    SECURITY DEFINER
+    SET search_path = public, pg_temp
+  AS $$
+  DECLARE
+    caller_id UUID := auth.uid();
+  BEGIN
+    -- UPDATE locks the matching row and rechecks claimed_at after any competing
+    -- claim commits. Consuming the entry and granting Founder are one transaction.
+    UPDATE backer_allowlist
+    SET claimed_at = now(), claimed_by = caller_id
+    WHERE email = (
+      SELECT lower(btrim(u.email)) FROM auth.users u
+      WHERE u.id = caller_id AND u.email_confirmed_at IS NOT NULL
+    ) AND claimed_at IS NULL;
+
+    IF NOT FOUND THEN RETURN false; END IF;
+
+    INSERT INTO founders (user_id) VALUES (caller_id)
+    ON CONFLICT (user_id) DO NOTHING;
+    RETURN true;
+  END;
+  $$;
+
+  REVOKE EXECUTE ON FUNCTION claim_backer_membership() FROM public;
+  REVOKE EXECUTE ON FUNCTION claim_backer_membership() FROM anon;
+  GRANT EXECUTE ON FUNCTION claim_backer_membership() TO authenticated;
+COMMIT;
