@@ -73,8 +73,9 @@ below as a placeholder until that conversation happens.
 - **November, date not set:** Kickstarter pre-launch page opens.
 - **The Sunday evening before it:** deploy the site changeover and close
   signups, so the destination can be verified before Monday's public traffic.
-- **Roughly a week after pre-launch:** funding launch. Swap the pre-launch copy
-  and CTA for the live-campaign wording.
+- **Roughly a week after pre-launch:** funding launch. No site deploy: the
+  campaign block reads correctly in both phases and the pre-launch URL becomes
+  the live one. See below.
 - **December, date not set:** campaign close. Then the backer survey, the
   Founder stamp, and the flip, in that order.
 - **January:** fulfilment target.
@@ -90,13 +91,21 @@ new accounts and buys nothing, so it is anchored to pre-launch, not to a date
 on a calendar.
 
 [Draft PR #236](https://github.com/codwats/prism/pull/236) already prepares
-#222 and #206. Before the changeover, replace its campaign URL placeholder,
-complete the anonymous build/import/mark/export walkthrough on
-the deploy preview, and adapt the campaign block for pre-launch: it must not
-say the campaign is live or invite visitors to back it before funding opens.
-Verify the destination works on the Sunday evening, before Monday's public
-pre-launch. At funding launch, switch to #221's settled live-campaign copy.
-The kit photo can follow later.
+#222 and #206. Before the changeover, replace its campaign URL placeholder with
+the **pre-launch** URL and complete the anonymous build/import/mark/export
+walkthrough on the deploy preview. Verify the destination works on the Sunday
+evening, before Monday's public pre-launch. The kit photo can follow later.
+
+**There is no copy swap at funding launch.** #221 wrote the block for a live
+campaign, and the schedule since put pre-launch a week ahead of funding. Rather
+than carry two versions of the copy and a second deploy to switch them, the
+block is phase-agnostic: heading "The Kickstarter Campaign", CTA "See it on
+Kickstarter", and #221's paragraph verbatim. It points at the page instead of
+naming an action only one phase allows, so it reads correctly while the page
+collects follows and after it starts taking pledges. A pre-launch page keeps its
+slug when it launches, so the single URL needs no second edit either. The one
+deviation from #221's verbatim copy, deliberate, noted at the block in
+`index.html`.
 
 Payment enforcement stays off during this changeover; the Founder stamp and
 enforcement flip remain after campaign close.
@@ -119,10 +128,10 @@ enforcement flip remain after campaign close.
    a `CAMPAIGN WINDOW` comment, which is what steps 4 and 5 grep for. Landed in
    #222, on `feature/222-campaign-window`, together with step 2:
 
-   - **The campaign block** on `index.html`, #221's copy verbatim, below How It
-     Works and above the features grid. Its CTA href is a
-     `KICKSTARTER_URL_TODO` placeholder until the campaign URL exists;
-     **fill it in before merging.** It is deliberately not a valid link, so a
+   - **The campaign block** on `index.html`, below How It Works and above the
+     features grid, carrying #221's paragraph verbatim under a phase-agnostic
+     heading and CTA. Its href is a `KICKSTARTER_URL_TODO` placeholder until the
+     pre-launch URL exists; **fill it in before merging.** It is deliberately not a valid link, so a
      premature deploy fails loudly instead of looking correct. The block ships
      text-only: #221 specifies a flank with a kit-contents photo, and if that
      photo lands it is a follow-up, not a blocker.
@@ -166,7 +175,7 @@ enforcement flip remain after campaign close.
    the Pledge Manager permanently: a creator may revert from Pledge Manager to
    survey-only before the survey launches, never the reverse.
 
-   **Everything else in the campaign-window branch stays until step 5.** The
+   **Everything else in the campaign-window branch stays until step 6.** The
    `js/layout.js` signup deletion and the two `js/gallery.js` notices are all
    about signups being *shut*, and signups are still shut during this gap.
    Reverting them here would restore a signup view that reopens the
