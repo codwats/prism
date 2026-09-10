@@ -4,13 +4,13 @@
  */
 
 import { startAuth, onAuthChange, getCurrentUser, signOut, updatePassword, updateEmail, updateAuthUI, ensureAuthReady, canPaintAuthState } from './modules/auth.js';
-import { getAllPrisms, setCurrentPrism, deletePrism, savePrism, getCurrentPrism } from './modules/storage.js';
+import { getAllPrisms, setCurrentPrism, deletePrism, savePrism, getCurrentPrism, getLastCloudSyncDate } from './modules/storage.js';
 import { createPrism, processCards } from './modules/processor.js';
 import { downloadJSON } from './modules/export.js';
 import { buildPrismFromJson } from './modules/prism-import.js';
 import { isPaymentEnforced, getSubscription, isEntitled, startCheckout, openBillingPortal } from './modules/billing.js';
 import { showError, showSuccess } from './core/notifications.js';
-import { escapeHtml, getLogicalDeckCount } from './core/utils.js';
+import { escapeHtml, getLogicalDeckCount, pausedSyncDetail } from './core/utils.js';
 
 // DOM Elements
 let elements = {};
@@ -355,8 +355,22 @@ async function renderSubscriptionSection() {
       caption.textContent = `Thanks for supporting PRISM.${renews}`;
     }
   } else {
-    if (tag) { tag.setAttribute('variant', 'neutral'); tag.textContent = subscription?.status === 'canceled' ? 'Canceled' : 'Free'; }
-    if (caption) caption.textContent = 'Support PRISM with a recurring subscription.';
+    // A lapse pauses cloud writes and keeps cloud reads (#212). Say so, and
+    // date it: a member who has cloud data behind them needs to know their
+    // edits stopped going up, not just that they are no longer billed. An
+    // account with no cloud copy has no sync to pause and keeps the pre-lapse
+    // wording — what it is offered instead is #189's.
+    const lastSync = getLastCloudSyncDate();
+    if (lastSync) {
+      if (tag) { tag.setAttribute('variant', 'warning'); tag.textContent = 'Sync paused'; }
+      if (caption) {
+        caption.textContent =
+          `Cloud sync is paused. ${pausedSyncDetail(lastSync)} It stays readable on every device you sign in on.`;
+      }
+    } else {
+      if (tag) { tag.setAttribute('variant', 'neutral'); tag.textContent = subscription?.status === 'canceled' ? 'Canceled' : 'Free'; }
+      if (caption) caption.textContent = 'Support PRISM with a recurring subscription.';
+    }
   }
 
   // Still offered to a past_due member — entitled, but the card needs fixing.

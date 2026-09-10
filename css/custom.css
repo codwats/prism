@@ -36,6 +36,10 @@
   color: var(--wa-color-success-text);
 }
 
+.sync-status-indicator.sync-status-paused {
+  color: var(--wa-color-warning-text);
+}
+
 .sync-status-indicator.sync-status-failed {
   color: var(--wa-color-warning-text);
   font-weight: 600;

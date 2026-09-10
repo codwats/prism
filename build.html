@@ -103,6 +103,15 @@
           </p>
         </section>
 
+        <!-- Cloud sync paused (lapsed Membership) — shown by setupSyncStatus()
+             in features/init.js, which fills in the date of the last synced
+             copy. Sits above the tabs so it is visible from every panel. -->
+        <wa-callout id="sync-paused-notice" variant="warning" style="display: none;">
+          <wa-icon slot="icon" name="cloud-slash"></wa-icon>
+          <strong>Cloud sync is paused.</strong>
+          <span id="sync-paused-detail"></span>
+        </wa-callout>
+
         <!-- Tab Navigation -->
         <wa-tab-group id="main-tabs">
           <wa-tab slot="nav" panel="decks">

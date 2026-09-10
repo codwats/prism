@@ -68,7 +68,11 @@ export async function isEntitled() {
     if (!client) return true;
     const { data, error } = await client.rpc('is_entitled');
     if (error) return true;
-    entitlementCache = data === true;
+    // `!== false` and not `=== true`: an RPC that resolves with null/undefined
+    // and no error is an absent answer, not a "no". Reading it as a "no" would
+    // fail closed — and now that a "no" pauses cloud writes (#212), closed
+    // means a silent write freeze for an entitled member.
+    entitlementCache = data !== false;
   } catch {
     return true;
   }
