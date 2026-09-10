@@ -13,6 +13,14 @@ let authInitPromise = null; // Cached init promise — all callers await the sam
 // ambiguous on its own: it means "signed out" only once this is true,
 // otherwise it means "we never got an answer". Conflating the two is #199.
 let authResolved = false;
+let authChangeVersion = 0;
+// Publish order, separate from the cancellation version above. Two events for
+// the *same* user (a USER_UPDATED after a sign-in, say) must not cancel each
+// other — that would swallow the sign-in's sync or the recovery dialog — but
+// their claims can still finish out of order, and the loser must not republish
+// its older snapshot of the user over the newer one.
+let authChangeSeq = 0;
+let lastPublishedSeq = 0;
 
 // How long a page load will wait on the SDK before rendering without a verdict.
 // Shorter than loadSupabaseSdk's full retry budget on purpose: the retries
@@ -28,8 +36,28 @@ export function onAuthChange(callback) {
   };
 }
 
-// Notify all listeners
-function notifyAuthChange(user) {
+// Claim Membership, apply the session, then notify listeners.
+// `seq` defaults to 0: the initial session is the oldest event there can be.
+async function notifyAuthChange(user, version = authChangeVersion, seq = 0) {
+  if (version !== authChangeVersion) return false;
+  if (user) {
+    try {
+      const { error } = await getSupabase().rpc('claim_backer_membership')
+        .abortSignal(AbortSignal.timeout(10000));
+      if (error) throw error;
+    } catch (err) {
+      // Local use and login survive an unavailable claim service. A later
+      // sign-in/page load retries the idempotent claim.
+      console.error('Backer Membership claim failed:', err);
+    }
+  }
+  // A slow claim must not publish an old session after a sign-out or switch.
+  if (version !== authChangeVersion) return false;
+  // Nor may a claim that lost the race to a newer event for the same user roll
+  // the published user back. The session is still current, so the caller carries
+  // on (its sign-in sync and reload still matter) — only the publish is skipped.
+  if (seq < lastPublishedSeq) return true;
+  lastPublishedSeq = seq;
   currentUser = user;
   authResolved = true;
   // Entitlement is per-user and cached for the page's lifetime. Every auth
@@ -38,6 +66,7 @@ function notifyAuthChange(user) {
   // a stale cache would serve the previous user's Membership answer.
   clearEntitlementCache();
   authListeners.forEach(cb => cb(user));
+  return true;
 }
 
 // Initialize auth state
@@ -97,41 +126,34 @@ function initAuth() {
     // a definite absence of one — regardless of which branch follows.
     const { data: { session } } = await supabase.auth.getSession();
     authResolved = true;
-    if (session?.user) {
-      wasLoggedOut = false; // User already logged in, don't reload on SIGNED_IN
-      notifyAuthChange(session.user);
-      // Sync on initial load if already logged in
+    let sessionUserId = session?.user?.id ?? null;
+    wasLoggedOut = !session?.user;
+
+    // Register before the claim: sign-out while startup waits must invalidate
+    // that pending session too. Only identity changes cancel pending handlers;
+    // a token refresh must not swallow sign-in sync or password recovery.
+    // Defer API work until Supabase releases the callback's auth lock.
+    supabase.auth.onAuthStateChange((event, nextSession) => {
+      const nextUserId = nextSession?.user?.id ?? null;
+      if (nextUserId !== sessionUserId) {
+        sessionUserId = nextUserId;
+        authChangeVersion++;
+        currentUser = null;
+        clearEntitlementCache();
+      }
+      if (event === 'SIGNED_OUT') wasLoggedOut = true;
+      if (event === 'PASSWORD_RECOVERY') wasLoggedOut = false;
+      const version = authChangeVersion;
+      const seq = ++authChangeSeq;
+      setTimeout(() => {
+        handleAuthChange(event, nextSession, version, seq).catch(err => console.error('Auth change failed:', err));
+      }, 0);
+    });
+
+    if (session?.user && await notifyAuthChange(session.user)) {
+      // Sync on initial load only if this session survived the claim.
       await syncWithSupabase();
     }
-
-    // Listen for auth changes
-    supabase.auth.onAuthStateChange(async (event, session) => {
-      debugLog('Auth state changed:', event);
-      notifyAuthChange(session?.user || null);
-
-      // Track logout state
-      if (event === 'SIGNED_OUT') {
-        wasLoggedOut = true;
-        logToSupabase('info', 'user_signed_out');
-      }
-
-      // Password-reset email link: the user lands with a recovery session and
-      // must be prompted for a new password, or reset appears broken.
-      if (event === 'PASSWORD_RECOVERY') {
-        wasLoggedOut = false; // recovery session signs the user in — skip the SIGNED_IN reload
-        openPasswordRecovery();
-        return;
-      }
-
-      // Sync with Supabase when user freshly logs in (not on session recovery)
-      if (event === 'SIGNED_IN' && session?.user && wasLoggedOut) {
-        wasLoggedOut = false;
-        logToSupabase('info', 'user_signed_in', { email: session.user.email });
-        await syncWithSupabase();
-        // Reload page to show synced data
-        window.location.reload();
-      }
-    });
 
     // Supabase processes the recovery token from the URL hash at client
     // creation, which can finish before the listener above registers — check
@@ -148,6 +170,34 @@ function initAuth() {
     throw err;
   });
   return authInitPromise;
+}
+
+async function handleAuthChange(event, session, version, seq) {
+  debugLog('Auth state changed:', event);
+  if (!await notifyAuthChange(session?.user || null, version, seq)) return;
+
+  // Track logout state
+  if (event === 'SIGNED_OUT') {
+    wasLoggedOut = true;
+    logToSupabase('info', 'user_signed_out');
+  }
+
+  // Password-reset email link: the user lands with a recovery session and
+  // must be prompted for a new password, or reset appears broken.
+  if (event === 'PASSWORD_RECOVERY') {
+    wasLoggedOut = false; // recovery session signs the user in — skip the SIGNED_IN reload
+    openPasswordRecovery();
+    return;
+  }
+
+  // Sync with Supabase when user freshly logs in (not on session recovery)
+  if (event === 'SIGNED_IN' && session?.user && wasLoggedOut) {
+    wasLoggedOut = false;
+    logToSupabase('info', 'user_signed_in', { email: session.user.email });
+    await syncWithSupabase();
+    // Reload page to show synced data
+    if (version === authChangeVersion) window.location.reload();
+  }
 }
 
 // Get current user

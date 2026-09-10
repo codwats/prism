@@ -125,6 +125,65 @@ The closed-signup window and the campaign-copy window share a start and do not
 share an end: the copy comes out at campaign close, the signup lock at the flip.
 That asymmetry is the reason this section exists.
 
+### Backer claim deployment and ingestion (#240)
+
+Before reopening signups, apply the **Backer Membership claims (#240)** migration
+at the end of `supabase-schema.sql`, then deploy the auth client. It claims on
+session restore and signed-in auth transitions before notifying listeners or
+starting sign-in sync, and clears the entitlement cache afterwards. A failed
+claim logs an error and permits login/local use; the next auth event or page
+load retries. Deploying the schema first avoids those errors during rollout.
+
+The RPC uses the account's confirmed email from `auth.users`, never an email
+supplied by the browser. An entry grants an ordinary `founders` row once;
+`is_entitled()` is unchanged. Already-stamped Founders can consume their entry
+without changing their Membership. A consumed entry stays consumed even if its
+claimant later deletes their account.
+
+After campaign close and before the flip, take the PRISM-email column from
+Jay's survey CSV. In the SQL editor, paste the addresses as SQL text values
+(double any single quote inside an address), replacing the example values below.
+Do not paste CSV syntax directly into SQL or commit actual survey emails.
+
+```sql
+INSERT INTO public.backer_allowlist (email)
+SELECT DISTINCT lower(btrim(email))
+FROM (VALUES
+  ('backer-one@example.com'),
+  ('backer-two@example.com')
+) AS survey(email)
+WHERE NULLIF(btrim(email), '') IS NOT NULL
+ON CONFLICT (email) DO NOTHING;
+
+SELECT count(*) AS total,
+       count(*) FILTER (WHERE claimed_at IS NULL) AS unclaimed,
+       count(*) FILTER (WHERE claimed_at IS NOT NULL) AS claimed
+FROM public.backer_allowlist;
+```
+
+Reconcile the total with the CSV's distinct, nonblank, trimmed, lowercased
+addresses. Re-importing is safe and does not reset claims. Do not remove Gmail
+dots or `+` suffixes: a different signup/survey address remains the manual
+support path, granting the verified account a `founders` row.
+
+**Verification:** `tests/backer-claim.test.js` covers auth with mocked Supabase
+responses. Run `tests/backer-claim.sql` as one submission in a **disposable
+Supabase project**, after the schema; it checks claims, confirmed-email gating,
+repeat calls, Founder overlap, consumed-email reuse and permissions, then rolls
+back its fixtures. This SQL script has not yet been executed against a database.
+It must pass there before production deployment. Apply the claim migration
+twice there as well to check its idempotence. Never use production for this test.
+
+On production after deployment, this read-only check must return true, false,
+true, zero respectively:
+
+```sql
+SELECT has_function_privilege('authenticated', 'public.claim_backer_membership()', 'EXECUTE') AS authenticated_execute,
+       has_function_privilege('anon', 'public.claim_backer_membership()', 'EXECUTE') AS anon_execute,
+       (SELECT relrowsecurity FROM pg_class WHERE oid = 'public.backer_allowlist'::regclass) AS rls_enabled,
+       (SELECT count(*) FROM pg_policies WHERE schemaname = 'public' AND tablename = 'backer_allowlist') AS policies;
+```
+
 ## Before the flip — any order
 
 1. Create `founders` and `is_entitled()`.

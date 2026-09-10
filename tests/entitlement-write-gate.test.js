@@ -46,6 +46,12 @@ const fakeClient = {
   from: () => chain(RESULT_LIST),
   rpc: (name) => {
     if (name === 'is_entitled') return entitlementRpc;
+    // A claim grants Membership; it is not a collection upload gated by it.
+    if (name === 'claim_backer_membership') {
+      const result = Promise.resolve({ data: false, error: null });
+      result.abortSignal = () => result;
+      return result;
+    }
     writes.push(`rpc:${name}`);
     return Promise.resolve({ data: null, error: null });
   },
