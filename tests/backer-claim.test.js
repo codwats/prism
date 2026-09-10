@@ -165,3 +165,31 @@ test('a token refresh during the claim preserves fresh sign-in sync and reload',
   assert.equal(reloaded, true);
   assert.equal(await isEntitled(), true);
 });
+
+test('an updated user is not rolled back when the older claim lands last', async () => {
+  emit('SIGNED_OUT', null);
+  await tick();
+  entitled = false;
+  const completions = [];
+  claim = () => new Promise(resolve => {
+    completions.push(() => { entitled = true; resolve({ data: true, error: null }); });
+  });
+  const published = [];
+  const unsubscribe = onAuthChange(user => published.push(user?.email ?? null));
+  const id = 'renaming-backer';
+  emit('SIGNED_IN', { user: { id, email: 'old@example.com' } });
+  await tick();
+  emit('USER_UPDATED', { user: { id, email: 'new@example.com' } });
+  await tick();
+  assert.equal(completions.length, 2, 'both events claim');
+
+  completions[1]();  // the updated user's claim finishes first
+  await tick();
+  assert.equal(getCurrentUser().email, 'new@example.com');
+
+  completions[0]();  // the sign-in's slower claim lands after it
+  await tick();
+  assert.equal(getCurrentUser().email, 'new@example.com', 'the stale user must not be republished');
+  assert.ok(!published.includes('old@example.com'), 'listeners must never see the stale user');
+  unsubscribe();
+});

@@ -14,6 +14,13 @@ let authInitPromise = null; // Cached init promise — all callers await the sam
 // otherwise it means "we never got an answer". Conflating the two is #199.
 let authResolved = false;
 let authChangeVersion = 0;
+// Publish order, separate from the cancellation version above. Two events for
+// the *same* user (a USER_UPDATED after a sign-in, say) must not cancel each
+// other — that would swallow the sign-in's sync or the recovery dialog — but
+// their claims can still finish out of order, and the loser must not republish
+// its older snapshot of the user over the newer one.
+let authChangeSeq = 0;
+let lastPublishedSeq = 0;
 
 // How long a page load will wait on the SDK before rendering without a verdict.
 // Shorter than loadSupabaseSdk's full retry budget on purpose: the retries
@@ -30,7 +37,8 @@ export function onAuthChange(callback) {
 }
 
 // Claim Membership, apply the session, then notify listeners.
-async function notifyAuthChange(user, version = authChangeVersion) {
+// `seq` defaults to 0: the initial session is the oldest event there can be.
+async function notifyAuthChange(user, version = authChangeVersion, seq = 0) {
   if (version !== authChangeVersion) return false;
   if (user) {
     try {
@@ -45,6 +53,11 @@ async function notifyAuthChange(user, version = authChangeVersion) {
   }
   // A slow claim must not publish an old session after a sign-out or switch.
   if (version !== authChangeVersion) return false;
+  // Nor may a claim that lost the race to a newer event for the same user roll
+  // the published user back. The session is still current, so the caller carries
+  // on (its sign-in sync and reload still matter) — only the publish is skipped.
+  if (seq < lastPublishedSeq) return true;
+  lastPublishedSeq = seq;
   currentUser = user;
   authResolved = true;
   // Entitlement is per-user and cached for the page's lifetime. Every auth
@@ -131,8 +144,9 @@ function initAuth() {
       if (event === 'SIGNED_OUT') wasLoggedOut = true;
       if (event === 'PASSWORD_RECOVERY') wasLoggedOut = false;
       const version = authChangeVersion;
+      const seq = ++authChangeSeq;
       setTimeout(() => {
-        handleAuthChange(event, nextSession, version).catch(err => console.error('Auth change failed:', err));
+        handleAuthChange(event, nextSession, version, seq).catch(err => console.error('Auth change failed:', err));
       }, 0);
     });
 
@@ -158,9 +172,9 @@ function initAuth() {
   return authInitPromise;
 }
 
-async function handleAuthChange(event, session, version) {
+async function handleAuthChange(event, session, version, seq) {
   debugLog('Auth state changed:', event);
-  if (!await notifyAuthChange(session?.user || null, version)) return;
+  if (!await notifyAuthChange(session?.user || null, version, seq)) return;
 
   // Track logout state
   if (event === 'SIGNED_OUT') {
