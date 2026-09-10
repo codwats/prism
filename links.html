@@ -42,30 +42,45 @@
         BLUESKY_URL_TODO
         X_URL_TODO
         GITHUB_URL_TODO        github.com/codwats/prism is the one in the repo today
-        OG_URL_TODO            this page's own absolute URL, for og:url
-        OG_IMAGE_URL_TODO      absolute URL of a 1200x630 share card
+
+      The share tags below are already filled in against prismmtg.com and are
+      not part of that list.
 
       They are deliberately not valid links: a premature deploy fails loudly
       instead of looking correct.
     -->
 
     <!-- Share cards. This page exists to be pasted into Discord and socials, so
-         these are load-bearing, not garnish. -->
+         these are load-bearing, not garnish. Same shape as every other page, so
+         the whole site previews consistently.
+
+         Absolute, necessarily: a scraper has no page context, so a relative
+         path resolves against the scraper rather than the site. They therefore
+         resolve only once prismmtg.com serves the site.
+
+         og:image is the shared card, which arrives with #246. If this merges
+         first the tag points at a 404 for the gap between the two, which costs
+         a preview image and nothing else. -->
+    <link rel="canonical" href="https://prismmtg.com/links.html" />
     <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="PRISM" />
     <meta property="og:title" content="PRISM and the Spirit Guide" />
     <meta
       property="og:description"
       content="The Spirit Guide on Kickstarter, and PRISM, the free tool that works out which cards your decks share and where to mark each sleeve."
     />
-    <meta property="og:url" content="OG_URL_TODO" />
-    <meta property="og:image" content="OG_IMAGE_URL_TODO" />
+    <meta property="og:url" content="https://prismmtg.com/links.html" />
+    <meta property="og:image" content="https://prismmtg.com/assets/og-card.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="The PRISM wordmark above a row of the twenty-two deck marking colors" />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="PRISM and the Spirit Guide" />
     <meta
       name="twitter:description"
       content="The Spirit Guide on Kickstarter, and PRISM, the free tool that works out which cards your decks share and where to mark each sleeve."
     />
-    <meta name="twitter:image" content="OG_IMAGE_URL_TODO" />
+    <meta name="twitter:image" content="https://prismmtg.com/assets/og-card.png" />
 
     <link rel="icon" type="image/svg+xml" href="./assets/Prism-Small-Icon-Invert.svg" />
     <link rel="apple-touch-icon" href="./assets/apple-touch-icon.png" />
