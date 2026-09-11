@@ -210,6 +210,17 @@
         pointer-events: none;
       }
 
+      /* Below ~600px, cover crops so tightly that the 25% anchor puts the
+         white icon full-bleed behind the centred text instead of a sliver of
+         it, which kills legibility. Shift the anchor into the plain gradient
+         two-thirds of the image instead — the ribbons/icon just aren't worth
+         showing at this width. */
+      @media (max-width: 600px) {
+        .bg-wallpaper {
+          object-position: 80% center;
+        }
+      }
+
       /* ---------------------------------------------------------------
          Masthead
          --------------------------------------------------------------- */
