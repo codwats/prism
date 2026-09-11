@@ -33,15 +33,14 @@
 
         KICKSTARTER_URL_TODO   the Kickstarter page (pre-launch URL works; the
                                slug carries over when the project launches)
-        DISCORD_URL_TODO       discord.gg/Jp84QUPSe is the one in the repo today
         YOUTUBE_URL_TODO
         INSTAGRAM_URL_TODO
         TIKTOK_URL_TODO
         BLUESKY_URL_TODO
         X_URL_TODO
-        GITHUB_URL_TODO        github.com/codwats/prism is the one in the repo today
 
-      The share tags below and the Open PRISM link are already filled in
+      The share tags below, the Open PRISM link and Discord are already filled
+      in
       against prismmtg.com and are not part of that list. Both are absolute
       even though the site may end up on the same host: this page is built to
       move to defcat-website or its own subdomain, and a relative link would
@@ -423,9 +422,10 @@
       }
 
       @media (max-width: 480px) {
-        /* Narrower gutter so seven 44px targets still make one row. At 360px
-           that leaves 332px against the 329px the row needs; below roughly
-           344px it wraps, centred, which is the graceful end of the range. */
+        /* Narrower gutter so all six 44px targets make one row. The row needs
+           281px; a 320px screen leaves 292px, so it holds at every width worth
+           designing for. At the default gap it would wrap even on a 360px
+           phone, which is why this override exists. */
         body {
           padding-left: var(--space-m);
           padding-right: var(--space-m);
@@ -554,7 +554,7 @@
       </section>
 
       <nav class="socials" aria-label="Elsewhere">
-        <a class="social" href="DISCORD_URL_TODO" target="_blank" rel="noopener" aria-label="Discord">
+        <a class="social" href="https://discord.gg/Jp84QUPSe" target="_blank" rel="noopener" aria-label="Discord">
           <wa-icon family="brands" name="discord" label="Discord"></wa-icon>
         </a>
         <a class="social" href="YOUTUBE_URL_TODO" target="_blank" rel="noopener" aria-label="YouTube">
@@ -571,9 +571,6 @@
         </a>
         <a class="social" href="X_URL_TODO" target="_blank" rel="noopener" aria-label="X">
           <wa-icon family="brands" name="x-twitter" label="X"></wa-icon>
-        </a>
-        <a class="social" href="GITHUB_URL_TODO" target="_blank" rel="noopener" aria-label="GitHub">
-          <wa-icon family="brands" name="github" label="GitHub"></wa-icon>
         </a>
       </nav>
 
