@@ -729,3 +729,75 @@ BEGIN;
   REVOKE EXECUTE ON FUNCTION claim_backer_membership() FROM anon;
   GRANT EXECUTE ON FUNCTION claim_backer_membership() TO authenticated;
 COMMIT;
+
+-- ============================================
+-- MIGRATION: app_logs retention (#214)
+-- ============================================
+-- app_logs had no retention policy and no cap. Unlike PRISM data it grows with
+-- usage rather than with the number of accounts, which makes it the table most
+-- likely to reach the plan's storage limit first.
+--
+-- Thirty days. Its rows are funnel events and unhandled-error reports whose
+-- debugging value decays within days; thirty still covers a bug reported a few
+-- weeks after the fact, and nothing in here is a business record that has to be
+-- kept. Subscription and entitlement history live in `subscriptions`,
+-- `processed_stripe_events` and `founders`, none of which this touches.
+--
+-- Deleting is safe in both directions. Nothing in the client reads app_logs
+-- back — `logToSupabase` in js/modules/supabase-client.js only ever writes — and
+-- the "Users can view own logs" SELECT policy showed a user their own rows and
+-- nothing else, so a pruned row is not missing from anyone's screen.
+BEGIN;
+  CREATE OR REPLACE FUNCTION prune_app_logs(p_retain_days INTEGER DEFAULT 30)
+    RETURNS INTEGER
+    LANGUAGE plpgsql
+    SECURITY DEFINER
+    SET search_path = public, pg_temp
+  AS $$
+  DECLARE
+    v_deleted INTEGER;
+  BEGIN
+    IF p_retain_days IS NULL OR p_retain_days < 1 THEN
+      RAISE EXCEPTION 'p_retain_days must be at least 1, got %', p_retain_days;
+    END IF;
+
+    DELETE FROM app_logs
+      WHERE created_at < now() - make_interval(days => p_retain_days);
+    GET DIAGNOSTICS v_deleted = ROW_COUNT;
+    RETURN v_deleted;
+  END;
+  $$;
+
+  -- SECURITY DEFINER with a mass DELETE in it. No client ever calls this: the
+  -- scheduler below runs as the owner, and both revokes are needed for the
+  -- reason recorded on is_entitled() — Supabase grants public-schema functions
+  -- to anon and authenticated directly, so revoking from public alone leaves
+  -- those grants intact (#231).
+  REVOKE EXECUTE ON FUNCTION prune_app_logs(INTEGER) FROM public;
+  REVOKE EXECUTE ON FUNCTION prune_app_logs(INTEGER) FROM anon;
+  REVOKE EXECUTE ON FUNCTION prune_app_logs(INTEGER) FROM authenticated;
+COMMIT;
+
+-- Schedule it nightly. Guarded rather than assumed: pg_cron is available on
+-- Supabase but not on a bare Postgres, and this file must stay runnable on a
+-- disposable project. If the extension is missing the prune function is still
+-- created and the notice says what is left to do, so the deploy does not fail.
+-- Idempotent: an existing job is unscheduled before rescheduling, so re-running
+-- this file cannot leave two jobs pruning the same table.
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_available_extensions WHERE name = 'pg_cron') THEN
+    RAISE NOTICE 'pg_cron unavailable: prune_app_logs() was created but is not scheduled. Run it daily by other means.';
+    RETURN;
+  END IF;
+
+  EXECUTE 'CREATE EXTENSION IF NOT EXISTS pg_cron';
+
+  IF EXISTS (SELECT 1 FROM cron.job WHERE jobname = 'prune-app-logs') THEN
+    PERFORM cron.unschedule('prune-app-logs');
+  END IF;
+
+  -- 04:17 UTC: off the hour, so it does not pile onto every other cron job in
+  -- the world that runs at midnight or on the hour.
+  PERFORM cron.schedule('prune-app-logs', '17 4 * * *', 'SELECT public.prune_app_logs();');
+END $$;

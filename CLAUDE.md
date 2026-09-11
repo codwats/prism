@@ -252,6 +252,7 @@ Preview viewport should be 1280px+ wide to see the desktop layout (sidebar nav).
 - When removing cards from `markedCards`, call `recordUnmarkedCards(prismId, keys)` **before** `savePrism()` to record tombstones that survive the next cloud merge
 - Feature modules import from `../core/`, `../modules/`, and sibling `./` files
 - Developer trace logs go through `debugLog(...)` (core/utils.js), which no-ops unless the `PRISM_DEBUG` localStorage flag is set — do not use bare `console.log("PRISM: ...")`. Genuine `console.error`/`console.warn` are left ungated
+- `app_logs` rows expire after 30 days (#214). `prune_app_logs(p_retain_days DEFAULT 30)` in `supabase-schema.sql` is scheduled nightly by `pg_cron` as the `prune-app-logs` job, and EXECUTE is revoked from `anon` and `authenticated` — nothing in the client calls it. Do not put anything in `app_logs` that has to outlive a month; `logToSupabase` writes only and nothing reads it back
 - Dialogs (`<wa-dialog>`) are opened/closed with `setAttribute('open','')` / `removeAttribute('open')`, never `dialog.open = true/false` (see Common Debugging). `<wa-details>` accordions still use the `.open` property
 - URL deck imports (add + edit) share `resolveDeckSource(urlOrId)` in deck-import.js for Moxfield/Archidekt detection — extend that one helper rather than duplicating detection logic
 - First-run onboarding callout on build.html persists its dismissal in the `prism_onboarding_dismissed` localStorage flag
