@@ -333,14 +333,17 @@ async function renderSubscriptionSection() {
 
   if (active && paymentFailed) {
     if (tag) { tag.setAttribute('variant', 'warning'); tag.textContent = 'Past due'; }
-    if (caption) caption.textContent = 'Your last payment failed. Use Manage Billing / Cancel Membership to update your card. Your Membership stays active while your card is retried.';
+    if (caption) caption.textContent = 'Your last payment failed. Use Manage billing to update your card. Your Membership stays active while your card is retried.';
   } else if (active) {
     if (tag) { tag.setAttribute('variant', 'success'); tag.textContent = 'Member'; }
     if (caption) {
       const renews = subscription?.current_period_end
         ? ` Renews ${formatDate(subscription.current_period_end)}.`
         : '';
-      caption.textContent = `Thanks for supporting PRISM.${renews}`;
+      // Only mention cancellation where the button that does it is visible —
+      // Patreon/Founder members hit this same branch with no Stripe row (#218).
+      const cancelHint = subscription ? ' Manage Billing also lets you cancel your membership.' : '';
+      caption.textContent = `Thanks for supporting PRISM.${renews}${cancelHint}`;
     }
   } else {
     // A lapse pauses cloud writes and keeps cloud reads (#212). Say so, and

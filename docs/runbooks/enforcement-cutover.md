@@ -379,12 +379,16 @@ Patreon linking. Those deployment steps remain separate from the drawer change.
 
 ## Cancellation readiness (#218)
 
-The profile Membership section exposes **Manage Billing / Cancel Membership**
-for accounts with a Stripe subscription row. It uses the existing authenticated
-`/api/stripe-portal` endpoint, which looks up the caller's Stripe customer on the
-server. The hosted portal handles confirmation and cancellation. Patreon owns
-its own cancellation flow; a Founder without a Stripe subscription has no
-Stripe billing control.
+The profile Membership section's **Manage Billing** button (accounts with a
+Stripe subscription row only) uses the existing authenticated
+`/api/stripe-portal` endpoint, which looks up the caller's Stripe customer on
+the server. The hosted portal handles confirmation and cancellation. Discoverability
+comes from the active-member caption stating it directly — "Manage Billing also
+lets you cancel your membership" — rather than from the button label itself,
+since the same label also renders in the past-due caption ("Use Manage Billing
+to update your card"), where foregrounding cancellation reads as confusing. Patreon
+owns its own cancellation flow; a Founder without a Stripe subscription has no
+Stripe billing control and never sees the cancel mention.
 
 ### Save offer decision
 
