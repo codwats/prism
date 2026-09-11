@@ -13,6 +13,26 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Privacy Policy - PRISM</title>
     <meta name="description" content="Privacy Policy for PRISM - MTG Deck Sleeve Marking Tool" />
+    <!-- Share cards (#243 follow-up). Absolute URLs on purpose: og:image and
+         og:url are fetched by a scraper that has no page context, so a relative
+         path resolves against the scraper, not the site. They therefore resolve
+         only once prismmtg.com serves the site; until the domain points here a
+         shared link previews as it does today, with no card. One card serves
+         every page: assets/og-card.png, rebuilt by scripts/build-og-card.mjs. -->
+    <link rel="canonical" href="https://prismmtg.com/privacy.html" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="PRISM" />
+    <meta property="og:title" content="Privacy Policy" />
+    <meta property="og:description" content="Privacy Policy for PRISM - MTG Deck Sleeve Marking Tool" />
+    <meta property="og:url" content="https://prismmtg.com/privacy.html" />
+    <meta property="og:image" content="https://prismmtg.com/assets/og-card.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="The PRISM wordmark above a row of the twenty-two deck marking colors" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Privacy Policy" />
+    <meta name="twitter:description" content="Privacy Policy for PRISM - MTG Deck Sleeve Marking Tool" />
+    <meta name="twitter:image" content="https://prismmtg.com/assets/og-card.png" />
     <style>.wa-cloak { visibility: hidden; }</style>
     <style>wa-page:not(:defined) { visibility: hidden; }</style>
     <!-- CDN resilience. Both rules above hide the page until Web Awesome loads, and
