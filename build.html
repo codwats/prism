@@ -12,6 +12,27 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Build Your PRISM - MTG Deck Sleeve Marking Tool</title>
+    <meta name="description" content="Import your Commander decklists and PRISM works out which cards they share, how few copies you actually need, and exactly where to mark every sleeve." />
+    <!-- Share cards (#243 follow-up). Absolute URLs on purpose: og:image and
+         og:url are fetched by a scraper that has no page context, so a relative
+         path resolves against the scraper, not the site. They therefore resolve
+         only once prismmtg.com serves the site; until the domain points here a
+         shared link previews as it does today, with no card. One card serves
+         every page: assets/og-card.png, rebuilt by scripts/build-og-card.mjs. -->
+    <link rel="canonical" href="https://prismmtg.com/build.html" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="PRISM" />
+    <meta property="og:title" content="Build Your PRISM" />
+    <meta property="og:description" content="Import your Commander decklists and PRISM works out which cards they share, how few copies you actually need, and exactly where to mark every sleeve." />
+    <meta property="og:url" content="https://prismmtg.com/build.html" />
+    <meta property="og:image" content="https://prismmtg.com/assets/og-card.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="The PRISM wordmark above a row of the twenty-two deck marking colors" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Build Your PRISM" />
+    <meta name="twitter:description" content="Import your Commander decklists and PRISM works out which cards they share, how few copies you actually need, and exactly where to mark every sleeve." />
+    <meta name="twitter:image" content="https://prismmtg.com/assets/og-card.png" />
     <style>.wa-cloak { visibility: hidden; }</style>
     <style>wa-page:not(:defined) { visibility: hidden; }</style>
     <!-- CDN resilience. Both rules above hide the page until Web Awesome loads, and
@@ -95,6 +116,10 @@
                   <wa-icon slot="icon" name="file-import"></wa-icon>
                   Import backup (.json)
                 </wa-dropdown-item>
+                <wa-dropdown-item data-open-membership hidden>
+                  <wa-icon slot="icon" name="gem"></wa-icon>
+                  Membership and Extras
+                </wa-dropdown-item>
               </wa-dropdown>
             </div>
           </div>
@@ -102,6 +127,15 @@
             A PRISM is one named container of decks and their marks. You can keep more than one.
           </p>
         </section>
+
+        <!-- Cloud sync paused (lapsed Membership) — shown by setupSyncStatus()
+             in features/init.js, which fills in the date of the last synced
+             copy. Sits above the tabs so it is visible from every panel. -->
+        <wa-callout id="sync-paused-notice" variant="warning" style="display: none;">
+          <wa-icon slot="icon" name="cloud-slash"></wa-icon>
+          <strong>Cloud sync is paused.</strong>
+          <span id="sync-paused-detail"></span>
+        </wa-callout>
 
         <!-- Tab Navigation -->
         <wa-tab-group id="main-tabs">
@@ -694,6 +728,11 @@
 
     <!-- Toast notification container -->
     <wa-toast placement="bottom-end" id="toast-container"></wa-toast>
+
+    <wa-drawer id="membership-drawer" label="Membership" placement="end">
+      <div data-membership-content></div>
+      <wa-button slot="footer" appearance="plain" data-drawer="close">Close</wa-button>
+    </wa-drawer>
 
     <script type="module">
       import { initLayout } from './js/layout.js';

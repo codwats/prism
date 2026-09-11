@@ -21,12 +21,16 @@ prism/
 ├── build.html              Main PRISM builder (the core app)
 ├── guide.html              Marking guide
 ├── tools.html              Paint pen recommendations
+├── gallery.html            Community artwork gallery (see Gallery section)
+├── mpc-stripes.html        MPC Stripe Compositor — a paid Extra; self-contained page
+├── links.html              QR/social funnel page (#243) — standalone: no layout.js, no nav, its own inlined tokens, so it can move to another domain unchanged
 ├── profile.html            User account management
 ├── privacy.html / terms.html
 ├── css/custom.css          Styles beyond Web Awesome
 ├── js/
 │   ├── app.js              Entry point for build.html (~12 lines, imports init)
 │   ├── profile.js          Entry point for profile.html
+│   ├── gallery.js          Entry point for gallery.html
 │   ├── layout.js           Shared layout injection (nav, header, footer, auth dialog)
 │   ├── core/
 │   │   ├── state.js        Singleton mutable state (ES module = same reference everywhere)
@@ -58,6 +62,7 @@ prism/
 │       ├── moxfield-edge.ts   POST proxy → api2.moxfield.com
 │       ├── archidekt-edge.ts  POST proxy → archidekt.com/api
 │       ├── stripe-checkout-edge.ts  Creates Stripe Checkout sessions (subscription mode)
+│       ├── stripe-portal-edge.ts    Creates Stripe billing portal sessions (manage card/cancel)
 │       └── stripe-webhook-edge.ts   Stripe webhook → Supabase subscription state
 ├── netlify.toml            Deployment config (publish ".", edge function routes)
 ├── supabase-schema.sql     Database schema (prisms, decks, deck_cards, app_logs, replace_deck_cards RPC)
@@ -108,7 +113,8 @@ Sync behavior is merge-first, not whole-PRISM last-write-wins:
 - Split-group child ordering should be preserved from `group.childDeckIds` during merge; only orphaned child IDs should be dropped, with deck-derived order used as a fallback when the stored ordering is missing.
 - Auto-created empty PRISMs (no decks, no cards, no prior baseline) are **not** uploaded to Supabase during the login sync — they exist only as a pre-login UI placeholder and are discarded when real cloud data is available.
 - `syncWithSupabase` tracks which prisms have genuine local changes (`needsCloudWrite` set) and only writes those. Cloud-only prisms (fresh device load) have their baseline recorded without re-uploading, preventing redundant `replace_deck_cards` calls.
-- `savePrismToSupabase` continues past per-deck RPC failures so one failing deck does not leave all subsequent decks without cards. It returns `false` when any deck fails so the baseline is not recorded and the sync retries.
+- `savePrismToSupabase` continues past per-deck RPC failures so one failing deck does not leave all subsequent decks without cards. It returns `false` when any deck fails so the baseline is not recorded and the sync retries. `importAllData` routes each imported PRISM through `syncPrismToSupabase` for the same reason — a baseline recorded before the upload would make a failed import read as already-synced.
+- **Cloud writes pause on a lapse; cloud reads never do** (#212). Pull paths (`syncWithSupabase`, `loadPrismsFromSupabase`) gate on `shouldSyncToSupabase()`; every upload, cloud delete and debounced drain gates on `shouldWriteToSupabase()` — which is `shouldSyncToSupabase() && !cloudWritesPaused`. `cloudWritesPaused` is refreshed from `isEntitled()` once per page load, at the top of `syncWithSupabase`, and fails open. Auth publishes the user before that verdict lands, so the paths that write immediately (`syncPrismToSupabase`, `forceSyncCurrentPrism`, `deletePrism`) gate on `canWriteToSupabase()` instead — it awaits the in-flight read, then answers. The debounce keeps queueing on `shouldWriteToSupabase()` so an edit made mid-verdict is deferred, never dropped; the drain re-checks. While paused, a prism with local changes is skipped **including its baseline**: the baseline must keep describing what the cloud really holds, since it is both the merge reference and the date the paused notice shows. Exports: `isCloudWritePaused()`, `getLastCloudSyncDate(prismId?)`.
 
 ### PRISM Data Model
 
@@ -213,13 +219,17 @@ Moxfield and Archidekt APIs don't allow direct browser requests (CORS). Edge fun
 
 ### Billing (Stripe)
 
-Payment pipe for a future paid tier — built and testable ahead of launch, **not wired to restrict any feature**. No gating model is decided yet (may be deck-count, may be feature-based).
+The paid tier is a **Membership**: $3/mo or $30/yr USD for cloud sync, up to 25 cloud PRISMs, the Extras and a Discord role, on Stripe or Patreon at identical prices. The gating model is **decided and written down** — `PRODUCT.md` (the policy and its brand rules), `CONTEXT.md` (Membership / Member / Extras / Founder / Lapse), `docs/adr/0002-membership-gates-sync-not-deck-count.md` (why sync and not deck count), and `docs/runbooks/enforcement-cutover.md` (the flip).
 
-- **Tables** (supabase-schema.sql): `stripe_customers`, `subscriptions` (one row per user; `updated_at` = Stripe event `created` so out-of-order webhook deliveries never overwrite newer state), `processed_stripe_events` (idempotency — dedupe redelivered event ids), `app_config` (publicly readable; `payment_enforcement` row defaults to `false` — flipping it to `true` in the SQL editor is the only launch step).
-- **RLS**: users SELECT their own `stripe_customers`/`subscriptions` row only; no client write policies. All writes happen in edge functions via `SUPABASE_SERVICE_ROLE_KEY` (bypasses RLS). `processed_stripe_events` has zero policies.
-- **Edge functions** (Netlify, Deno): `/api/stripe-checkout` verifies the Supabase access token, reuses/creates a Stripe customer, returns a Checkout session URL. `/api/stripe-webhook` verifies the Stripe signature on the raw body first (fail → 400 + log), dedupes on event id, handles `checkout.session.completed`, `customer.subscription.updated/deleted`, `invoice.payment_failed`, and records the event id only after successful processing (failures return 500 so Stripe retries). Subscription upserts are insert-if-missing + update-only-if-older (`updated_at=lt.` filter).
-- **Env vars** (Netlify dashboard only, never in code): `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRICE_ID`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`. Dev runs against a personal Stripe account; swapping to the business account is env-only.
-- **Client** (`js/modules/billing.js`): `isPaymentEnforced()` (reads `app_config`, defaults false on any error), `getSubscription()`/`hasActiveSubscription()`, `startCheckout()`. Profile page has a Subscription section, hidden unless the enforcement flag is on or `PRISM_DEBUG` is set. Nothing calls `isPaymentEnforced()` to gate features yet.
+**Cloud sync is the paid line; there is no deck or slot cap.** Anonymous local-only use stays fully functional forever. Enforcement gates INSERT on `prisms` and `decks` only and **never** gates reads or edits — see "Gate adding, never access" in `PRODUCT.md`. Entitlement reads fail open.
+
+**Nothing is enforcing yet.** `payment_enforcement` in `app_config` defaults to `false`. The entitlement machinery — the `founders` table, the `is_entitled()` predicate, and the predicate on the INSERT policies for `prisms` and `decks` — is now in `supabase-schema.sql` as two idempotent migration blocks, but **dark**: `is_entitled()` folds the enforcement flag in and short-circuits `true` for everyone while the flag is `false`, so the policies are inert. Flipping enforcement is deliberately sequenced after the Kickstarter campaign closes. Build work is tracked in issues #207–#218; a green dark deploy proves only that nothing broke, never that the gate refuses.
+
+- **Tables** (supabase-schema.sql): `stripe_customers`, `subscriptions` (one row per user; `updated_at` = Stripe event `created` so out-of-order webhook deliveries never overwrite newer state), `processed_stripe_events` (idempotency — dedupe redelivered event ids), `app_config` (publicly readable; `payment_enforcement` row defaults to `false` — flipping it to `true` in the SQL editor is the only launch step), `founders` (one row per grandfathered user; a Founder is never derived from `auth.users.created_at`, and the flag cannot live on `subscriptions`, which is webhook-owned and would revert it).
+- **RLS**: users SELECT their own `stripe_customers`/`subscriptions` row only; no client write policies. All writes happen in edge functions via `SUPABASE_SERVICE_ROLE_KEY` (bypasses RLS). `processed_stripe_events` and `founders` have RLS enabled and zero policies — service role and `SECURITY DEFINER` only. `is_entitled()` is `STABLE SECURITY DEFINER` with `search_path` pinned to `public, pg_temp`, execute revoked from `public` **and** from `anon` (Supabase grants public-schema functions to `anon` directly, so the `public` revoke alone leaves it callable unauthenticated — #231) and granted to `authenticated`.
+- **Edge functions** (Netlify, Deno): `/api/stripe-checkout` verifies the Supabase access token, reuses/creates a Stripe customer, returns a Checkout session URL. `/api/stripe-portal` does the same token check, then returns a `billing_portal` session URL for the caller's existing Stripe customer — it never creates one (404 if there is no `stripe_customers` row; Patreon members manage their pledge on Patreon). `/api/stripe-webhook` verifies the Stripe signature on the raw body first (fail → 400 + log), dedupes on event id, handles `checkout.session.completed`, `customer.subscription.updated/deleted`, `invoice.payment_failed`, and records the event id only after successful processing (failures return 500 so Stripe retries). Subscription upserts are insert-if-missing + update-only-if-older (`updated_at=lt.` filter).
+- **Env vars** (Netlify dashboard only, never in code): `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRICE_ID`, `STRIPE_PORTAL_CONFIGURATION_ID` (optional `bpc_...`; unset = account default portal config), `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`. Dev runs against a personal Stripe account; swapping to the business account is env-only.
+- **Client** (`js/modules/billing.js`): `isPaymentEnforced()` (reads `app_config`, defaults false on any error), `getSubscription()`, `isEntitled()`/`clearEntitlementCache()` (the single source-blind entitlement read — calls the `is_entitled()` RPC, fails open, cached per page and cleared on every auth change), `startCheckout()`/`openBillingPortal()` (both thin wrappers over one `redirectToStripe` POST). Profile page has a Membership section, hidden unless the enforcement flag is on or `PRISM_DEBUG` is set. Reader-facing strings say Membership/Member/join; **code names do not follow** — `subscriptions`, `getSubscription()`, `#btn-subscribe` stay, on the `Slot`/`stripePosition` precedent.
 - Pure helpers (`safeReturnPath`, `subscriptionRow`) are unit-tested in `tests/stripe-billing.test.js` — both edge modules keep Deno/network access inside functions so Node can import them.
 
 ## Development
@@ -243,9 +253,12 @@ Preview viewport should be 1280px+ wide to see the desktop layout (sidebar nav).
 - When removing cards from `markedCards`, call `recordUnmarkedCards(prismId, keys)` **before** `savePrism()` to record tombstones that survive the next cloud merge
 - Feature modules import from `../core/`, `../modules/`, and sibling `./` files
 - Developer trace logs go through `debugLog(...)` (core/utils.js), which no-ops unless the `PRISM_DEBUG` localStorage flag is set — do not use bare `console.log("PRISM: ...")`. Genuine `console.error`/`console.warn` are left ungated
+- `app_logs` rows expire after 30 days (#214). `prune_app_logs(p_retain_days DEFAULT 30)` in `supabase-schema.sql` is scheduled nightly by `pg_cron` as the `prune-app-logs` job, and EXECUTE is revoked from `anon` and `authenticated` — nothing in the client calls it. Do not put anything in `app_logs` that has to outlive a month; `logToSupabase` writes only and nothing reads it back
 - Dialogs (`<wa-dialog>`) are opened/closed with `setAttribute('open','')` / `removeAttribute('open')`, never `dialog.open = true/false` (see Common Debugging). `<wa-details>` accordions still use the `.open` property
 - URL deck imports (add + edit) share `resolveDeckSource(urlOrId)` in deck-import.js for Moxfield/Archidekt detection — extend that one helper rather than duplicating detection logic
 - First-run onboarding callout on build.html persists its dismissal in the `prism_onboarding_dismissed` localStorage flag
+- Share cards: every indexable page carries Open Graph + Twitter tags and a `rel="canonical"`, anchored on `https://prismmtg.com` (absolute, because a scraper resolves relative paths against itself). One image serves them all, `assets/og-card.png`, rebuilt by `node scripts/build-og-card.mjs` — it composes the card from vector paths only (the outlined logo + `DEFAULT_COLORS`) because adobe-aldine and halyard-micro are Typekit fonts and would not resolve in a rasterizer. `mpc-stripes.html` is deliberately excluded; it is `noindex,nofollow`. Add the block to any new page
+- `sitemap.xml` and `robots.txt` sit at the publish root. The sitemap is generated by `node scripts/build-sitemap.mjs`, which globs root `*.html`, drops anything carrying a `noindex` robots meta, and drops `profile.html` (an account stub with nothing to rank, though it keeps its share tags). `<loc>` only: Google ignores `changefreq`/`priority`, and a `lastmod` written once and never regenerated is worse than none. Regenerate after adding a page. `robots.txt` does **not** `Disallow` the noindexed page — a disallowed URL is never fetched, so its `noindex` is never read
 - Loading skeletons (`<wa-skeleton effect="pulse">`): the nav account section renders `#auth-loading` (sized via `hasStoredSession()` — one bar logged-out, two bars logged-in) hidden by `updateAuthUI`; build.html ships static skeleton markup in `#decks-list`/`#results-tbody` destroyed by the first render; profile.html has `#profile-loading` hidden by `handleAuthChange`. Skeleton CSS lives in custom.css (`.skeleton-*`, `.nav-auth-skeleton*`). Skeletons only cover the post-`wa-cloak` wait (auth/sync) — anything under the cloak is invisible
 - 22 paint pen colors in `DEFAULT_COLORS` (processor.js) — matched to real products
 - Bracket values 1–5 represent Commander power level
@@ -253,6 +266,7 @@ Preview viewport should be 1280px+ wide to see the desktop layout (sidebar nav).
 - Stripe display settings (starting corner, position numbers) live in the global settings drawer injected by `layout.js`; the per-PRISM "Dedicated commander copies" `wa-switch` lives on the Decks tab (per-PRISM synced data does not belong in the global drawer)
 - The Stripe Positions reorder card was removed from the Decks tab — use the Move button (⊕) on each deck card to open the visual slot-picker dialog, or use the Export tab's dropdown list for bulk reordering
 - `build.html` has a sync status indicator (`#sync-status`) and a Sync Now button (`#btn-sync-now`) near the PRISM name; both are hidden until the user is logged in. `setupSyncStatus()` in `init.js` wires these to `onSyncStatusChange` / `forceSyncCurrentPrism` from `storage.js`. Storage exports: `onSyncStatusChange(cb)` (returns unsubscribe fn), `forceSyncCurrentPrism()`, `recordUnmarkedCards(prismId, keys)`
+- The paused-sync notice (`#sync-paused-notice` on build.html, the profile Subscription caption) is shown only when writes are paused **and** a last-sync date exists — with no cloud copy there is no sync to pause, and the notice would claim one. Its dated sentence has one source, `pausedSyncDetail()` in `core/utils.js`; the wording is fixed by CONTEXT.md (*paused*, never frozen or locked, always dated). `renderAll()` re-renders it because the date is per-PRISM
 
 ### Gallery
 

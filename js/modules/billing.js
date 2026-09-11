@@ -7,9 +7,10 @@
  * app_config 'payment_enforcement' row to true is the only launch step.
  */
 
-import { getSupabase } from './supabase-client.js';
+import { getSupabase, SUPABASE_URL, SUPABASE_ANON_KEY } from './supabase-client.js';
 
 let enforcementCache = null;
+let entitlementCache = null;
 
 /**
  * Whether the app should enforce payment at all. Reads the app_config
@@ -20,7 +21,10 @@ export async function isPaymentEnforced() {
   if (enforcementCache !== null) return enforcementCache;
   try {
     const client = getSupabase();
-    if (!client) return false;
+    if (!client) {
+      enforcementCache = await readPublicConfig('payment_enforcement') === true;
+      return enforcementCache;
+    }
     const { data } = await client
       .from('app_config')
       .select('value')
@@ -31,6 +35,28 @@ export async function isPaymentEnforced() {
     enforcementCache = false;
   }
   return enforcementCache;
+}
+
+// Public config stays available without loading the auth SDK for visitors.
+async function readPublicConfig(key) {
+  const response = await fetch(`${SUPABASE_URL}/rest/v1/app_config?key=eq.${key}&select=value`, {
+    headers: { apikey: SUPABASE_ANON_KEY },
+    signal: AbortSignal.timeout(5000)
+  });
+  if (!response.ok) return null;
+  const rows = await response.json();
+  return rows[0]?.value ?? null;
+}
+
+/**
+ * Whether any Membership entry point should show at all: the PRISM_DEBUG
+ * rehearsal flag, or real enforcement. Shared by build.html's drawer trigger
+ * and profile.html's Subscription section so the two can't drift apart.
+ */
+export async function isMembershipDrawerAvailable() {
+  let debug = false;
+  try { debug = !!localStorage.getItem('PRISM_DEBUG'); } catch { /* private mode */ }
+  return debug || await isPaymentEnforced();
 }
 
 /**
@@ -47,40 +73,89 @@ export async function getSubscription() {
   }
 }
 
-export function hasActiveSubscription(subscription) {
-  return ['active', 'trialing'].includes(subscription?.status);
+/**
+ * Whether the signed-in user is entitled to Membership. One source-blind read:
+ * the RPC folds in Founder rows, subscription status and the enforcement flag,
+ * so the client never assembles the answer itself. A Founder has no
+ * subscriptions row at all — deriving entitlement from that row told a
+ * permanently-entitled user they were not a member.
+ *
+ * Fails OPEN — a wrong "no" walls a paying member, a wrong "yes" costs one
+ * confusing refusal from the server, which is the real gate either way. The
+ * open answer is deliberately not cached, so a transient failure does not pin
+ * the answer for the page's lifetime (isPaymentEnforced() caches its default
+ * because it reads global config, not per-user state).
+ */
+export async function isEntitled() {
+  if (entitlementCache !== null) return entitlementCache;
+  try {
+    const client = getSupabase();
+    if (!client) return true;
+    const { data, error } = await client.rpc('is_entitled');
+    if (error) return true;
+    // `!== false` and not `=== true`: an RPC that resolves with null/undefined
+    // and no error is an absent answer, not a "no". Reading it as a "no" would
+    // fail closed — and now that a "no" pauses cloud writes (#212), closed
+    // means a silent write freeze for an entitled member.
+    entitlementCache = data !== false;
+  } catch {
+    return true;
+  }
+  return entitlementCache;
+}
+
+/**
+ * Entitlement is per-user, so a sign-in or sign-out inside one page would
+ * otherwise serve the previous user's answer. Called from notifyAuthChange().
+ */
+export function clearEntitlementCache() {
+  entitlementCache = null;
+}
+
+/**
+ * Open Stripe's hosted billing portal (update card, switch period, cancel).
+ * Throws with a user-facing message on failure.
+ */
+export async function openBillingPortal() {
+  return redirectToStripe('/api/stripe-portal', 'Could not open the billing portal. Please try again.');
 }
 
 /**
  * Start a Stripe Checkout session and redirect to Stripe's hosted page.
  * Throws with a user-facing message on failure.
  */
-export async function startCheckout() {
+export async function startCheckout(period = 'month') {
+  return redirectToStripe('/api/stripe-checkout', 'Could not start checkout. Please try again.', { period });
+}
+
+// Both Stripe entry points are the same request: POST with the access token,
+// get back a hosted URL, navigate there.
+async function redirectToStripe(endpoint, failureMessage, options = {}) {
   const client = getSupabase();
   const { data: { session } = {} } = await client?.auth.getSession() || { data: {} };
   if (!session) {
-    throw new Error('Please sign in to subscribe.');
+    throw new Error('Please sign in first.');
   }
 
   let response;
   try {
-    response = await fetch('/api/stripe-checkout', {
+    response = await fetch(endpoint, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${session.access_token}`
       },
-      body: JSON.stringify({ returnUrl: '/profile.html' }),
-      // Without this the Subscribe button can sit in its loading state
-      // indefinitely if the request never settles.
+      body: JSON.stringify({ returnUrl: '/profile.html', ...options }),
+      // Without this the button can sit in its loading state indefinitely if
+      // the request never settles.
       signal: AbortSignal.timeout(15000)
     });
   } catch {
-    throw new Error('Could not reach checkout. Please try again.');
+    throw new Error(failureMessage);
   }
   const data = await response.json().catch(() => ({}));
   if (!response.ok || !data.url) {
-    throw new Error(data.error || 'Could not start checkout. Please try again.');
+    throw new Error(data.error || failureMessage);
   }
   window.location.href = data.url;
 }

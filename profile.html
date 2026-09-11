@@ -13,6 +13,26 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Profile - PRISM</title>
     <meta name="description" content="Manage your PRISM account, view your PRISMs, and update your settings." />
+    <!-- Share cards (#243 follow-up). Absolute URLs on purpose: og:image and
+         og:url are fetched by a scraper that has no page context, so a relative
+         path resolves against the scraper, not the site. They therefore resolve
+         only once prismmtg.com serves the site; until the domain points here a
+         shared link previews as it does today, with no card. One card serves
+         every page: assets/og-card.png, rebuilt by scripts/build-og-card.mjs. -->
+    <link rel="canonical" href="https://prismmtg.com/profile.html" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="PRISM" />
+    <meta property="og:title" content="Profile" />
+    <meta property="og:description" content="Manage your PRISM account, view your PRISMs, and update your settings." />
+    <meta property="og:url" content="https://prismmtg.com/profile.html" />
+    <meta property="og:image" content="https://prismmtg.com/assets/og-card.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="The PRISM wordmark above a row of the twenty-two deck marking colors" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Profile" />
+    <meta name="twitter:description" content="Manage your PRISM account, view your PRISMs, and update your settings." />
+    <meta name="twitter:image" content="https://prismmtg.com/assets/og-card.png" />
     <style>.wa-cloak { visibility: hidden; }</style>
     <style>wa-page:not(:defined) { visibility: hidden; }</style>
     <!-- CDN resilience. Both rules above hide the page until Web Awesome loads, and
@@ -171,20 +191,26 @@
 
           <!-- Subscription — hidden unless payment enforcement is on or PRISM_DEBUG is set -->
           <section id="subscription-section" class="wa-stack wa-gap-m" hidden>
-            <h2 class="wa-heading-l" style="margin: 0;">Subscription</h2>
+            <h2 class="wa-heading-l" style="margin: 0;">Membership</h2>
             <wa-card>
               <div class="wa-split wa-align-items-center" style="padding-block: var(--wa-space-s);">
                 <div class="wa-stack wa-gap-3xs">
                   <div class="wa-cluster wa-gap-xs wa-align-items-center">
-                    <span style="font-weight: var(--wa-font-weight-semibold);">PRISM subscription</span>
-                    <wa-tag id="subscription-status-tag" size="small" variant="neutral">Free</wa-tag>
+                    <span style="font-weight: var(--wa-font-weight-semibold);">PRISM Membership</span>
+                    <wa-tag id="subscription-status-tag" size="small" variant="neutral" hidden></wa-tag>
                   </div>
-                  <span id="subscription-caption" class="wa-caption-m" style="color: var(--wa-color-neutral-text-subtle);">Support PRISM with a recurring subscription.</span>
+                  <span id="subscription-caption" class="wa-caption-m" style="color: var(--wa-color-neutral-text-subtle);"></span>
                 </div>
-                <wa-button id="btn-subscribe" variant="brand" size="small">
-                  <wa-icon slot="start" name="credit-card"></wa-icon>
-                  Subscribe
-                </wa-button>
+                <div class="wa-cluster wa-gap-xs wa-align-items-center">
+                  <wa-button id="btn-manage-billing" appearance="outlined" size="small" hidden>
+                    <wa-icon slot="start" name="gear"></wa-icon>
+                    Manage billing
+                  </wa-button>
+                  <wa-button id="btn-subscribe" appearance="outlined" size="small" data-open-membership hidden>
+                    <wa-icon slot="start" name="credit-card"></wa-icon>
+                    Membership and Extras
+                  </wa-button>
+                </div>
               </div>
             </wa-card>
           </section>
@@ -251,6 +277,11 @@
 
     <!-- Toast notification container -->
     <wa-toast placement="bottom-end" id="toast-container"></wa-toast>
+
+    <wa-drawer id="membership-drawer" label="Membership" placement="end">
+      <div data-membership-content></div>
+      <wa-button slot="footer" appearance="plain" data-drawer="close">Close</wa-button>
+    </wa-drawer>
 
     <script type="module">
       import { initLayout } from './js/layout.js';

@@ -1,0 +1,14 @@
+# PRISM — https://prismmtg.com
+#
+# mpc-stripes.html is kept out of the index by its own noindex meta rather than
+# a Disallow here, and that is deliberate. A disallowed URL is never fetched, so
+# its noindex is never read, and it can still surface as a bare URL result. To
+# deindex a page, let crawlers reach it and read the tag.
+
+User-agent: *
+Allow: /
+
+# POST-only edge proxies. Nothing to crawl and nothing that renders.
+Disallow: /api/
+
+Sitemap: https://prismmtg.com/sitemap.xml

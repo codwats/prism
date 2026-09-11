@@ -199,7 +199,7 @@ export async function handleDeckSubmit(e) {
     // Check slot limit — a new standalone deck consumes one of the 48 physical
     // stripe slots (dot variants don't own a slot, so they're excluded here).
     if (getUsedPositions(state.currentPrism).size >= MAX_STRIPE_SLOTS) {
-      showError(`All ${MAX_STRIPE_SLOTS} stripe slots are full. Free a slot or start a new PRISM.`);
+      showError(`All ${MAX_STRIPE_SLOTS} slots in this PRISM carry a mark. Remove a deck to free one, or start another PRISM.`);
       return;
     }
 

@@ -618,3 +618,186 @@ CREATE POLICY "Users or admins delete gallery art"
     bucket_id = 'gallery-art'
     AND ((storage.foldername(name))[1] = auth.uid()::text OR is_gallery_admin())
   );
+
+-- ============================================
+-- MIGRATION: Founders and the entitlement predicate
+-- ============================================
+-- Safe to deploy before the cutover: while app_config.payment_enforcement is
+-- false, is_entitled() returns true for everyone and the policies are inert.
+-- See docs/runbooks/enforcement-cutover.md.
+BEGIN;
+  CREATE TABLE IF NOT EXISTS founders (
+    user_id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+  );
+
+  ALTER TABLE founders ENABLE ROW LEVEL SECURITY;
+  -- founders: RLS enabled, zero policies — service role and SECURITY DEFINER only.
+
+  CREATE OR REPLACE FUNCTION is_entitled()
+    RETURNS BOOLEAN
+    LANGUAGE SQL
+    STABLE
+    SECURITY DEFINER
+    SET search_path = public, pg_temp
+  AS $$
+    SELECT
+      -- The enforcement flag is folded in, which is what makes the dark deploy safe.
+      NOT COALESCE(
+        (SELECT value = 'true'::jsonb FROM app_config WHERE key = 'payment_enforcement'),
+        false)
+      OR EXISTS (SELECT 1 FROM founders WHERE user_id = auth.uid())
+      OR EXISTS (SELECT 1 FROM subscriptions
+                  WHERE user_id = auth.uid()
+                    AND status IN ('active', 'trialing', 'past_due', 'unpaid'));
+  $$;
+
+  -- Both revokes are needed. Supabase's stock setup grants EXECUTE on public-
+  -- schema functions to anon/authenticated/service_role DIRECTLY (and via ALTER
+  -- DEFAULT PRIVILEGES, so new functions inherit it). REVOKE ... FROM public
+  -- drops only the PUBLIC pseudo-role grant and leaves anon's direct grant
+  -- intact, which left is_entitled() callable unauthenticated. Found in #225,
+  -- fixed in #231.
+  REVOKE EXECUTE ON FUNCTION is_entitled() FROM public;
+  REVOKE EXECUTE ON FUNCTION is_entitled() FROM anon;
+  GRANT EXECUTE ON FUNCTION is_entitled() TO authenticated;
+COMMIT;
+
+-- ============================================
+-- MIGRATION: Gate INSERT on prisms and decks behind entitlement
+-- ============================================
+-- Gate adding, never access. INSERT only — not deck_cards (replace_deck_cards
+-- is DELETE + INSERT, so gating it would block editing a deck you already
+-- have), and not UPDATE, SELECT or DELETE on anything.
+BEGIN;
+  DROP POLICY IF EXISTS "Users can create own prisms" ON prisms;
+  CREATE POLICY "Users can create own prisms"
+    ON prisms FOR INSERT
+    WITH CHECK (auth.uid() = user_id AND is_entitled());
+
+  DROP POLICY IF EXISTS "Users can create decks in own prisms" ON decks;
+  CREATE POLICY "Users can create decks in own prisms"
+    ON decks FOR INSERT
+    WITH CHECK (
+      prism_id IN (SELECT id FROM prisms WHERE user_id = auth.uid())
+      AND is_entitled()
+    );
+COMMIT;
+
+-- ============================================
+-- MIGRATION: Backer Membership claims (#240)
+-- ============================================
+-- Deploy before the auth client and before signups reopen. The allowlist is
+-- consumed only at claim time; is_entitled() continues to read founders.
+BEGIN;
+  CREATE TABLE IF NOT EXISTS backer_allowlist (
+    email TEXT PRIMARY KEY CHECK (email = lower(btrim(email)) AND email <> ''),
+    claimed_at TIMESTAMPTZ,
+    claimed_by UUID REFERENCES auth.users(id) ON DELETE SET NULL
+  );
+  ALTER TABLE backer_allowlist ENABLE ROW LEVEL SECURITY;
+  -- Zero policies: only service role and SECURITY DEFINER can access survey emails.
+  -- Keep claimed_at when an account is deleted so an email cannot grant twice.
+
+  CREATE OR REPLACE FUNCTION claim_backer_membership()
+    RETURNS BOOLEAN
+    LANGUAGE plpgsql
+    SECURITY DEFINER
+    SET search_path = public, pg_temp
+  AS $$
+  DECLARE
+    caller_id UUID := auth.uid();
+  BEGIN
+    -- UPDATE locks the matching row and rechecks claimed_at after any competing
+    -- claim commits. Consuming the entry and granting Founder are one transaction.
+    UPDATE backer_allowlist
+    SET claimed_at = now(), claimed_by = caller_id
+    WHERE email = (
+      SELECT lower(btrim(u.email)) FROM auth.users u
+      WHERE u.id = caller_id AND u.email_confirmed_at IS NOT NULL
+    ) AND claimed_at IS NULL;
+
+    IF NOT FOUND THEN RETURN false; END IF;
+
+    INSERT INTO founders (user_id) VALUES (caller_id)
+    ON CONFLICT (user_id) DO NOTHING;
+    RETURN true;
+  END;
+  $$;
+
+  REVOKE EXECUTE ON FUNCTION claim_backer_membership() FROM public;
+  REVOKE EXECUTE ON FUNCTION claim_backer_membership() FROM anon;
+  GRANT EXECUTE ON FUNCTION claim_backer_membership() TO authenticated;
+COMMIT;
+
+-- ============================================
+-- MIGRATION: app_logs retention (#214)
+-- ============================================
+-- app_logs had no retention policy and no cap. Unlike PRISM data it grows with
+-- usage rather than with the number of accounts, which makes it the table most
+-- likely to reach the plan's storage limit first.
+--
+-- Thirty days. Its rows are funnel events and unhandled-error reports whose
+-- debugging value decays within days; thirty still covers a bug reported a few
+-- weeks after the fact, and nothing in here is a business record that has to be
+-- kept. Subscription and entitlement history live in `subscriptions`,
+-- `processed_stripe_events` and `founders`, none of which this touches.
+--
+-- Deleting is safe in both directions. Nothing in the client reads app_logs
+-- back — `logToSupabase` in js/modules/supabase-client.js only ever writes — and
+-- the "Users can view own logs" SELECT policy showed a user their own rows and
+-- nothing else, so a pruned row is not missing from anyone's screen.
+BEGIN;
+  CREATE OR REPLACE FUNCTION prune_app_logs(p_retain_days INTEGER DEFAULT 30)
+    RETURNS INTEGER
+    LANGUAGE plpgsql
+    SECURITY DEFINER
+    SET search_path = public, pg_temp
+  AS $$
+  DECLARE
+    v_deleted INTEGER;
+  BEGIN
+    IF p_retain_days IS NULL OR p_retain_days < 1 THEN
+      RAISE EXCEPTION 'p_retain_days must be at least 1, got %', p_retain_days;
+    END IF;
+
+    DELETE FROM app_logs
+      WHERE created_at < now() - make_interval(days => p_retain_days);
+    GET DIAGNOSTICS v_deleted = ROW_COUNT;
+    RETURN v_deleted;
+  END;
+  $$;
+
+  -- SECURITY DEFINER with a mass DELETE in it. No client ever calls this: the
+  -- scheduler below runs as the owner, and both revokes are needed for the
+  -- reason recorded on is_entitled() — Supabase grants public-schema functions
+  -- to anon and authenticated directly, so revoking from public alone leaves
+  -- those grants intact (#231).
+  REVOKE EXECUTE ON FUNCTION prune_app_logs(INTEGER) FROM public;
+  REVOKE EXECUTE ON FUNCTION prune_app_logs(INTEGER) FROM anon;
+  REVOKE EXECUTE ON FUNCTION prune_app_logs(INTEGER) FROM authenticated;
+COMMIT;
+
+-- Schedule it nightly. Guarded rather than assumed: pg_cron is available on
+-- Supabase but not on a bare Postgres, and this file must stay runnable on a
+-- disposable project. If the extension is missing the prune function is still
+-- created and the notice says what is left to do, so the deploy does not fail.
+-- Idempotent: an existing job is unscheduled before rescheduling, so re-running
+-- this file cannot leave two jobs pruning the same table.
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_available_extensions WHERE name = 'pg_cron') THEN
+    RAISE NOTICE 'pg_cron unavailable: prune_app_logs() was created but is not scheduled. Run it daily by other means.';
+    RETURN;
+  END IF;
+
+  EXECUTE 'CREATE EXTENSION IF NOT EXISTS pg_cron';
+
+  IF EXISTS (SELECT 1 FROM cron.job WHERE jobname = 'prune-app-logs') THEN
+    PERFORM cron.unschedule('prune-app-logs');
+  END IF;
+
+  -- 04:17 UTC: off the hour, so it does not pile onto every other cron job in
+  -- the world that runs at midnight or on the hour.
+  PERFORM cron.schedule('prune-app-logs', '17 4 * * *', 'SELECT public.prune_app_logs();');
+END $$;

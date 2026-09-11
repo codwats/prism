@@ -3,10 +3,10 @@
  */
 
 import { state } from '../core/state.js';
-import { getLogicalDeckCount, debugLog } from '../core/utils.js';
+import { getLogicalDeckCount, debugLog, pausedSyncDetail } from '../core/utils.js';
 import { createPrism, getUsedPositions, MAX_STRIPE_SLOTS, applyCommanderFallback } from '../modules/processor.js';
-import { getCurrentPrism, savePrism, setCurrentPrism, getPreferences, onSyncStatusChange, forceSyncCurrentPrism, getAllPrisms } from '../modules/storage.js';
-import { initAuth, setupAuthListeners, getCurrentUser } from '../modules/auth.js';
+import { getCurrentPrism, savePrism, setCurrentPrism, getPreferences, onSyncStatusChange, forceSyncCurrentPrism, getAllPrisms, isCloudWritePaused, getLastCloudSyncDate } from '../modules/storage.js';
+import { startAuth, getCurrentUser, onAuthChange } from '../modules/auth.js';
 import { logToSupabase } from '../modules/supabase-client.js';
 import { initColorSwatches } from './deck-form.js';
 import { renderDecksList, handleSwitchPrism } from './deck-list.js';
@@ -15,6 +15,7 @@ import { setupScryMode } from './scry-mode.js';
 import { renderResults, updateRemovedFilterBadge } from './results.js';
 import { renderExport } from './export-view.js';
 import { setupEventListeners } from './events.js';
+import { initMembershipDrawer } from '../modules/membership.js';
 
 // ============================================================================
 // Element references
@@ -165,6 +166,8 @@ function getElements() {
     // Sync status
     syncStatus: document.getElementById('sync-status'),
     btnSyncNow: document.getElementById('btn-sync-now'),
+    syncPausedNotice: document.getElementById('sync-paused-notice'),
+    syncPausedDetail: document.getElementById('sync-paused-detail'),
   };
 }
 
@@ -175,17 +178,15 @@ function getElements() {
 export async function init() {
   debugLog('PRISM: Initializing...');
 
-  // Wait a tick for Web Awesome components to upgrade
+  // Wait a tick for Web Awesome components to upgrade, for the rendering this
+  // function goes on to do. Auth itself doesn't need it — startAuth only
+  // touches plain elements and attaches listeners, both of which work before
+  // an upgrade.
   await new Promise(resolve => setTimeout(resolve, 100));
 
-  // Initialize auth — continue rendering local data even if auth/sync fails,
-  // so the loading skeletons never stick
-  try {
-    await initAuth();
-  } catch (err) {
-    console.error('Auth init failed:', err);
-  }
-  setupAuthListeners();
+  // Continue rendering local data even if auth/sync fails, so the loading
+  // skeletons never stick.
+  await startAuth();
 
   logToSupabase('info', 'app_loaded', { page: 'build', url: window.location.pathname });
 
@@ -228,6 +229,7 @@ export async function init() {
   setupStripeReorderDialog();
   setupScryMode();
   setupSyncStatus();
+  initMembershipDrawer();
 
   debugLog('PRISM: Initialization complete');
 }
@@ -238,6 +240,7 @@ export async function init() {
 
 export function renderAll() {
   renderPrismHeader();
+  renderSyncPausedNotice();
   // Per-PRISM toggle reflects the loaded/synced prism, not just user clicks
   if (state.elements.dedicatedCommanderToggle) {
     state.elements.dedicatedCommanderToggle.checked = !!state.currentPrism?.useDedicatedCommanderCopies;
@@ -330,15 +333,58 @@ function renderPrismHeader() {
 // Sync status indicator
 // ============================================================================
 
+/**
+ * The date of the cloud copy a lapsed member still has, or null.
+ *
+ * Null is not only "not paused": a signed-in account that never synced has no
+ * sync to pause and no date to show, and telling it that sync is *paused*
+ * would claim a cloud copy it has never had. What that account is offered
+ * instead is #189's.
+ */
+function pausedSyncDate() {
+  return isCloudWritePaused() ? getLastCloudSyncDate(state.currentPrism?.id) : null;
+}
+
+/**
+ * A lapsed Membership pauses cloud writes (#212). The failure mode is not lost
+ * data — the cloud copy is kept and still readable — it is a member editing
+ * for six weeks believing it is going up, so the state is stated in full and
+ * dated rather than left to the small indicator alone.
+ *
+ * Re-rendered from renderAll() because the date is per-PRISM: switching PRISM
+ * re-renders in place and would otherwise leave the previous one's date up.
+ */
+function renderSyncPausedNotice() {
+  const { syncPausedNotice, syncPausedDetail } = state.elements;
+  if (!syncPausedNotice) return;
+  const lastSync = pausedSyncDate();
+  if (lastSync && syncPausedDetail) {
+    syncPausedDetail.textContent = pausedSyncDetail(lastSync);
+  }
+  syncPausedNotice.style.display = lastSync ? '' : 'none';
+}
+
 function setupSyncStatus() {
   const { syncStatus, btnSyncNow } = state.elements;
   if (!syncStatus || !btnSyncNow) return;
 
-  // Only show for logged-in users
-  if (!getCurrentUser()) return;
-
-  syncStatus.style.display = '';
-  btnSyncNow.style.display = '';
+  // Visibility follows auth rather than a one-shot check here: auth can now
+  // resolve after this runs (a CDN load that failed and was retried), and a
+  // one-shot check would leave the sync controls hidden for the rest of the
+  // session even once the user is known to be signed in (#199).
+  const applyVisibility = (user) => {
+    const paused = !!user && !!pausedSyncDate();
+    syncStatus.style.display = user ? '' : 'none';
+    // Nothing to sync while writes are paused, so the button would only lie.
+    btnSyncNow.style.display = user && !paused ? '' : 'none';
+    if (paused) {
+      syncStatus.textContent = 'Sync paused';
+      syncStatus.className = 'sync-status-indicator sync-status-paused';
+    }
+    renderSyncPausedNotice();
+  };
+  applyVisibility(getCurrentUser());
+  onAuthChange(applyVisibility);
 
   let lastSyncedAt = null;
   let statusInterval = null;

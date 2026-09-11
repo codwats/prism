@@ -151,3 +151,29 @@ export function escapeHtml(text) {
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;');
 }
+
+/**
+ * A sync date as the reader sees it: "12 March", with the year added only
+ * when it isn't the current one — a paused copy from a previous year must not
+ * read as a fortnight old.
+ * @param {string} isoDate
+ * @returns {string}
+ */
+function formatSyncDate(isoDate) {
+  const date = new Date(isoDate);
+  const options = { day: 'numeric', month: 'long' };
+  if (date.getFullYear() !== new Date().getFullYear()) options.year = 'numeric';
+  return date.toLocaleDateString(undefined, options);
+}
+
+/**
+ * The dated half of the paused-sync notice, shared by build.html and the
+ * profile page. CONTEXT.md fixes this wording — paused, never frozen or
+ * locked, and always with the date — so it lives in one place rather than in
+ * two copies free to drift.
+ * @param {string} isoDate - When the cloud copy is from
+ * @returns {string}
+ */
+export function pausedSyncDetail(isoDate) {
+  return `Your collection is safe; the last synced copy is from ${formatSyncDate(isoDate)}.`;
+}

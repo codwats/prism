@@ -1,6 +1,7 @@
 // Authentication module for Prism
-import { getSupabase, isConfigured, logToSupabase, loadSupabaseSdk } from './supabase-client.js';
+import { getSupabase, isConfigured, logToSupabase, loadSupabaseSdk, hasStoredSession } from './supabase-client.js';
 import { syncWithSupabase } from './storage.js';
+import { clearEntitlementCache } from './billing.js';
 import { debugLog } from '../core/utils.js';
 
 // Current user state
@@ -8,6 +9,23 @@ let currentUser = null;
 let authListeners = [];
 let wasLoggedOut = true; // Track if user was logged out before sign-in
 let authInitPromise = null; // Cached init promise — all callers await the same one
+// Whether auth has reached a definitive verdict. A null `currentUser` is
+// ambiguous on its own: it means "signed out" only once this is true,
+// otherwise it means "we never got an answer". Conflating the two is #199.
+let authResolved = false;
+let authChangeVersion = 0;
+// Publish order, separate from the cancellation version above. Two events for
+// the *same* user (a USER_UPDATED after a sign-in, say) must not cancel each
+// other — that would swallow the sign-in's sync or the recovery dialog — but
+// their claims can still finish out of order, and the loser must not republish
+// its older snapshot of the user over the newer one.
+let authChangeSeq = 0;
+let lastPublishedSeq = 0;
+
+// How long a page load will wait on the SDK before rendering without a verdict.
+// Shorter than loadSupabaseSdk's full retry budget on purpose: the retries
+// continue in the background and repaint the nav if they succeed.
+const SDK_WAIT_MS = 3500;
 
 // Subscribe to auth state changes
 export function onAuthChange(callback) {
@@ -18,10 +36,37 @@ export function onAuthChange(callback) {
   };
 }
 
-// Notify all listeners
-function notifyAuthChange(user) {
+// Claim Membership, apply the session, then notify listeners.
+// `seq` defaults to 0: the initial session is the oldest event there can be.
+async function notifyAuthChange(user, version = authChangeVersion, seq = 0) {
+  if (version !== authChangeVersion) return false;
+  if (user) {
+    try {
+      const { error } = await getSupabase().rpc('claim_backer_membership')
+        .abortSignal(AbortSignal.timeout(10000));
+      if (error) throw error;
+    } catch (err) {
+      // Local use and login survive an unavailable claim service. A later
+      // sign-in/page load retries the idempotent claim.
+      console.error('Backer Membership claim failed:', err);
+    }
+  }
+  // A slow claim must not publish an old session after a sign-out or switch.
+  if (version !== authChangeVersion) return false;
+  // Nor may a claim that lost the race to a newer event for the same user roll
+  // the published user back. The session is still current, so the caller carries
+  // on (its sign-in sync and reload still matter) — only the publish is skipped.
+  if (seq < lastPublishedSeq) return true;
+  lastPublishedSeq = seq;
   currentUser = user;
+  authResolved = true;
+  // Entitlement is per-user and cached for the page's lifetime. Every auth
+  // transition funnels through here (initAuth's initial session and every
+  // onAuthStateChange event), so this is the one place that cannot be missed —
+  // a stale cache would serve the previous user's Membership answer.
+  clearEntitlementCache();
   authListeners.forEach(cb => cb(user));
+  return true;
 }
 
 // Initialize auth state
@@ -30,7 +75,7 @@ function notifyAuthChange(user) {
 // Previously a boolean guard was flipped synchronously before the async work,
 // causing the second caller to short-circuit before cloud sync completed and
 // read stale localStorage.
-export function initAuth() {
+function initAuth() {
   if (authInitPromise) return authInitPromise;
   authInitPromise = (async () => {
     if (!isConfigured()) {
@@ -38,15 +83,35 @@ export function initAuth() {
       return null;
     }
 
-    // Wait for Supabase CDN if the script hasn't executed yet
-    if (!window.supabase) {
-      const sbScript = document.querySelector('script[src*="supabase"]');
-      if (sbScript) {
-        await new Promise(resolve => {
-          if (window.supabase) { resolve(); return; }
-          sbScript.addEventListener('load', resolve, { once: true });
-          sbScript.addEventListener('error', resolve, { once: true });
-          setTimeout(resolve, 5000);
+    // Wait for the Supabase CDN if the script hasn't executed yet. Only when
+    // something has actually asked for the SDK: layout.js injects it eagerly
+    // for returning users and ensureAuthReady() does so on demand, while an
+    // anonymous visitor has neither and must not be made to pay for it.
+    // loadSupabaseSdk owns the retries — a single failed load used to be fatal.
+    if (!window.supabase &&
+        (document.head.querySelector('script[src*="supabase"]') || hasStoredSession())) {
+      const sdkPromise = loadSupabaseSdk();
+      // Bound how long the page waits. build.html blocks its whole render on
+      // this call, and PRISM is local-first — a blocked CDN must not hold the
+      // app hostage for the full retry budget.
+      const ready = await Promise.race([
+        sdkPromise,
+        new Promise(resolve => setTimeout(() => resolve(false), SDK_WAIT_MS))
+      ]);
+      if (!ready) {
+        // Stop waiting, but don't stop trying: if a later attempt lands, run
+        // init again so the nav repaints instead of sitting on the skeleton
+        // forever (#199).
+        sdkPromise.then(loaded => {
+          if (authResolved) return;
+          if (loaded) {
+            authInitPromise = null;
+            initAuth().catch(err => console.error('Auth retry failed:', err));
+          } else {
+            // Out of attempts, not merely slow. Only now is it honest to tell
+            // the user we couldn't get an answer.
+            showAuthUnavailable();
+          }
         });
       }
     }
@@ -57,43 +122,38 @@ export function initAuth() {
       return null;
     }
 
-    // Get initial session
+    // Get initial session. Reaching this point is the verdict — a session or
+    // a definite absence of one — regardless of which branch follows.
     const { data: { session } } = await supabase.auth.getSession();
-    if (session?.user) {
-      wasLoggedOut = false; // User already logged in, don't reload on SIGNED_IN
-      notifyAuthChange(session.user);
-      // Sync on initial load if already logged in
+    authResolved = true;
+    let sessionUserId = session?.user?.id ?? null;
+    wasLoggedOut = !session?.user;
+
+    // Register before the claim: sign-out while startup waits must invalidate
+    // that pending session too. Only identity changes cancel pending handlers;
+    // a token refresh must not swallow sign-in sync or password recovery.
+    // Defer API work until Supabase releases the callback's auth lock.
+    supabase.auth.onAuthStateChange((event, nextSession) => {
+      const nextUserId = nextSession?.user?.id ?? null;
+      if (nextUserId !== sessionUserId) {
+        sessionUserId = nextUserId;
+        authChangeVersion++;
+        currentUser = null;
+        clearEntitlementCache();
+      }
+      if (event === 'SIGNED_OUT') wasLoggedOut = true;
+      if (event === 'PASSWORD_RECOVERY') wasLoggedOut = false;
+      const version = authChangeVersion;
+      const seq = ++authChangeSeq;
+      setTimeout(() => {
+        handleAuthChange(event, nextSession, version, seq).catch(err => console.error('Auth change failed:', err));
+      }, 0);
+    });
+
+    if (session?.user && await notifyAuthChange(session.user)) {
+      // Sync on initial load only if this session survived the claim.
       await syncWithSupabase();
     }
-
-    // Listen for auth changes
-    supabase.auth.onAuthStateChange(async (event, session) => {
-      debugLog('Auth state changed:', event);
-      notifyAuthChange(session?.user || null);
-
-      // Track logout state
-      if (event === 'SIGNED_OUT') {
-        wasLoggedOut = true;
-        logToSupabase('info', 'user_signed_out');
-      }
-
-      // Password-reset email link: the user lands with a recovery session and
-      // must be prompted for a new password, or reset appears broken.
-      if (event === 'PASSWORD_RECOVERY') {
-        wasLoggedOut = false; // recovery session signs the user in — skip the SIGNED_IN reload
-        openPasswordRecovery();
-        return;
-      }
-
-      // Sync with Supabase when user freshly logs in (not on session recovery)
-      if (event === 'SIGNED_IN' && session?.user && wasLoggedOut) {
-        wasLoggedOut = false;
-        logToSupabase('info', 'user_signed_in', { email: session.user.email });
-        await syncWithSupabase();
-        // Reload page to show synced data
-        window.location.reload();
-      }
-    });
 
     // Supabase processes the recovery token from the URL hash at client
     // creation, which can finish before the listener above registers — check
@@ -112,9 +172,73 @@ export function initAuth() {
   return authInitPromise;
 }
 
+async function handleAuthChange(event, session, version, seq) {
+  debugLog('Auth state changed:', event);
+  if (!await notifyAuthChange(session?.user || null, version, seq)) return;
+
+  // Track logout state
+  if (event === 'SIGNED_OUT') {
+    wasLoggedOut = true;
+    logToSupabase('info', 'user_signed_out');
+  }
+
+  // Password-reset email link: the user lands with a recovery session and
+  // must be prompted for a new password, or reset appears broken.
+  if (event === 'PASSWORD_RECOVERY') {
+    wasLoggedOut = false; // recovery session signs the user in — skip the SIGNED_IN reload
+    openPasswordRecovery();
+    return;
+  }
+
+  // Sync with Supabase when user freshly logs in (not on session recovery)
+  if (event === 'SIGNED_IN' && session?.user && wasLoggedOut) {
+    wasLoggedOut = false;
+    logToSupabase('info', 'user_signed_in', { email: session.user.email });
+    await syncWithSupabase();
+    // Reload page to show synced data
+    if (version === authChangeVersion) window.location.reload();
+  }
+}
+
 // Get current user
 export function getCurrentUser() {
   return currentUser;
+}
+
+// Whether a caller may paint UI from getCurrentUser() yet.
+//
+// A null user is ambiguous until auth resolves: it means "signed out" only
+// once we've heard from Supabase, and "we don't know" before that — a
+// blocked or slow CDN leaves getSupabase() null and no verdict is ever
+// reached. Painting the second as the first showed Log In to signed-in users
+// with nothing left to correct it (#199).
+//
+// A visitor with no stored session is the one case where the two coincide:
+// there is nothing to resolve, so paint immediately rather than stalling the
+// nav behind an SDK anonymous visitors deliberately never load.
+export function canPaintAuthState() {
+  return authResolved || !hasStoredSession();
+}
+
+// Bring auth up and wire the nav to it. Every page boots auth through here.
+//
+// The ordering carries an invariant that is easy to lose: setupAuthListeners()
+// must run even when initAuth() throws, because it is what resolves the nav's
+// loading skeleton. Skip it on the failure path and a transient CDN error
+// leaves the page on skeletons forever.
+//
+// This lived as three hand-copied blocks (layout.js, features/init.js,
+// profile.js), which is how profile.js came to repeat the nav's own #199 bug
+// in its initial render. One copy, one place to get it right — initAuth and
+// setupAuthListeners are deliberately not exported so the sequence cannot be
+// reassembled by hand a fourth time.
+export async function startAuth() {
+  try {
+    await initAuth();
+  } catch (err) {
+    console.error('Auth init failed:', err);
+  }
+  setupAuthListeners();
 }
 
 // Load the SDK on demand and run init. Anonymous visitors don't get the SDK
@@ -208,8 +332,12 @@ export function updateAuthUI(user) {
   const loadingSection = document.getElementById('auth-loading');
   const loginSection = document.getElementById('auth-logged-out');
   const userSection = document.getElementById('auth-logged-in');
+  const unavailableSection = document.getElementById('auth-unavailable');
 
   if (loadingSection) loadingSection.style.display = 'none';
+  // Reaching here means auth answered, so retire any "couldn't reach" notice —
+  // a background SDK retry that finally lands comes through this path.
+  if (unavailableSection) unavailableSection.style.display = 'none';
 
   if (user) {
     if (loginSection) loginSection.style.display = 'none';
@@ -218,6 +346,21 @@ export function updateAuthUI(user) {
     if (loginSection) loginSection.style.display = '';
     if (userSection) userSection.style.display = 'none';
   }
+}
+
+// Nav state for "we could not reach the login service". Deliberately distinct
+// from signed-out: a stored session says the user probably IS signed in, we
+// just can't confirm it, and claiming they're logged out is #199 all over
+// again. Without this the nav sits on its loading skeleton indefinitely, which
+// tells the user nothing and offers no way out.
+export function showAuthUnavailable() {
+  // An anonymous visitor has no session to confirm, so the correct nav for them
+  // is still Log In — clicking it retries the SDK anyway via ensureAuthReady.
+  if (canPaintAuthState()) return;
+  const loadingSection = document.getElementById('auth-loading');
+  const unavailableSection = document.getElementById('auth-unavailable');
+  if (loadingSection) loadingSection.style.display = 'none';
+  if (unavailableSection) unavailableSection.style.display = '';
 }
 
 // Show specific auth view
@@ -282,7 +425,7 @@ function clearAuthMessages() {
 // Setup auth event listeners for nav buttons
 let listenersSetup = false;
 
-export function setupAuthListeners() {
+function setupAuthListeners() {
   // Idempotent — safe to call from both layout.js and page-specific scripts
   if (listenersSetup) return;
   listenersSetup = true;
@@ -298,6 +441,27 @@ export function setupAuthListeners() {
         showAuthView('login');
         dialog.setAttribute('open', '');
       }
+    });
+  }
+
+  // Retry button on the "couldn't reach the login service" state
+  const retryBtn = document.getElementById('btn-auth-retry');
+  if (retryBtn) {
+    retryBtn.addEventListener('click', async () => {
+      // Back to the skeleton while we try again.
+      const unavailableSection = document.getElementById('auth-unavailable');
+      const loadingSection = document.getElementById('auth-loading');
+      if (unavailableSection) unavailableSection.style.display = 'none';
+      if (loadingSection) loadingSection.style.display = '';
+      // initAuth cleared authInitPromise and loadSupabaseSdk cleared its own
+      // cached failure, so this gets a genuinely fresh set of attempts.
+      try {
+        await ensureAuthReady();
+      } catch (err) {
+        console.error('Auth retry failed:', err);
+      }
+      if (canPaintAuthState()) updateAuthUI(currentUser);
+      else showAuthUnavailable();
     });
   }
 
@@ -490,7 +654,13 @@ export function setupAuthListeners() {
 
   // Subscribe to auth changes to update UI
   onAuthChange(updateAuthUI);
+
   // Sync nav UI immediately — INITIAL_SESSION may have fired during initAuth()
-  // (before this listener was registered) when session was already in memory
-  updateAuthUI(currentUser);
+  // (before this listener was registered) when session was already in memory.
+  //
+  // But only once auth has a verdict — otherwise leave the loading skeleton up
+  // and let the SDK retry repaint through onAuthChange. See canPaintAuthState.
+  if (canPaintAuthState()) {
+    updateAuthUI(currentUser);
+  }
 }
