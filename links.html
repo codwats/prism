@@ -405,13 +405,33 @@
         color: var(--neutral-95);
       }
 
-      /* Sized here rather than by WA, so the row holds its shape before the
-         autoloader answers and the glyphs arriving shift nothing. */
+      /* wa-icon is sized by font-size, not width: its host is a fixed 1.25em box
+         (Font Awesome's fixed-width convention) and an explicit width on the
+         host does not take. Sizing it here rather than leaving it to inherit
+         also means the row holds its shape before the autoloader answers, so
+         the glyphs arriving shift nothing.
+
+         Two measured faults this corrects, both invisible in the markup:
+
+         1. The shadow <svg> is display:inline, so it sat on the text baseline
+            and every glyph rode 2.2px below the button's centre.
+         2. Brand marks are not square. Discord, YouTube and Bluesky are
+            576x512; Instagram, TikTok and X are 448x512. So the svg is
+            narrower than its 1.25em host and sat left of centre by 1.1px on
+            the wide ones and 3.4px on the narrow ones, differently per icon.
+
+         ::part(svg) is wa-icon's documented styling hook and fixes both: block
+         display drops the baseline, and an auto inline margin centres each
+         glyph in the host whatever its aspect ratio. Heights stay equal and
+         widths stay true to each mark, which is what brand glyphs want. */
       .social wa-icon {
-        display: block;
-        width: 18px;
-        height: 18px;
         font-size: 18px;
+        line-height: 1;
+      }
+
+      .social wa-icon::part(svg) {
+        display: block;
+        margin-inline: auto;
       }
 
       .colophon {
@@ -555,22 +575,22 @@
 
       <nav class="socials" aria-label="Elsewhere">
         <a class="social" href="https://discord.gg/Jp84QUPSe" target="_blank" rel="noopener" aria-label="Discord">
-          <wa-icon family="brands" name="discord" label="Discord"></wa-icon>
+          <wa-icon family="brands" name="discord"></wa-icon>
         </a>
         <a class="social" href="YOUTUBE_URL_TODO" target="_blank" rel="noopener" aria-label="YouTube">
-          <wa-icon family="brands" name="youtube" label="YouTube"></wa-icon>
+          <wa-icon family="brands" name="youtube"></wa-icon>
         </a>
         <a class="social" href="INSTAGRAM_URL_TODO" target="_blank" rel="noopener" aria-label="Instagram">
-          <wa-icon family="brands" name="instagram" label="Instagram"></wa-icon>
+          <wa-icon family="brands" name="instagram"></wa-icon>
         </a>
         <a class="social" href="TIKTOK_URL_TODO" target="_blank" rel="noopener" aria-label="TikTok">
-          <wa-icon family="brands" name="tiktok" label="TikTok"></wa-icon>
+          <wa-icon family="brands" name="tiktok"></wa-icon>
         </a>
         <a class="social" href="BLUESKY_URL_TODO" target="_blank" rel="noopener" aria-label="Bluesky">
-          <wa-icon family="brands" name="bluesky" label="Bluesky"></wa-icon>
+          <wa-icon family="brands" name="bluesky"></wa-icon>
         </a>
         <a class="social" href="X_URL_TODO" target="_blank" rel="noopener" aria-label="X">
-          <wa-icon family="brands" name="x-twitter" label="X"></wa-icon>
+          <wa-icon family="brands" name="x-twitter"></wa-icon>
         </a>
       </nav>
 
