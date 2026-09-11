@@ -304,13 +304,36 @@
         color: var(--brand-90);
       }
 
+      /* Sized for a line illustration, not a photo. The Spirit Guide art is a
+         portrait SVG (396x440) on a transparent ground, so it is contained at
+         its own aspect rather than cropped to a fixed one, and it takes no
+         corner radius: the drawing already carries the rounded card, and a
+         radius on the box would only clip the drop shadow around it.
+
+         Capped by height rather than width. Left to fill its column it stands
+         384px tall against roughly 250px of text and unbalances the row, and
+         on mobile it is the first thing under the masthead, where every pixel
+         it takes pushes the heading and the CTA further from the fold.
+
+         A photograph in one of these slots would want the opposite treatment:
+         width 100%, a fixed aspect-ratio, object-fit: cover and a radius. */
+      .flank__media {
+        display: flex;
+        justify-content: center;
+      }
+
       .flank__media img {
         display: block;
-        width: 100%;
+        width: auto;
+        max-width: 100%;
         height: auto;
-        aspect-ratio: 4 / 3;
-        object-fit: cover;
-        border-radius: var(--radius-m);
+        max-height: 190px;
+      }
+
+      @media (min-width: 768px) {
+        .flank__media img {
+          max-height: 320px;
+        }
       }
 
       @media (min-width: 768px) {
@@ -543,13 +566,17 @@
         <span style="background: #c2ccd2"></span>
       </div>
 
-      <section class="flank">
-        <!-- TODO(#243): when the kit photo lands, add class `flank--media` to the
-             section above and uncomment this block. Nothing else changes.
+      <section class="flank flank--media">
         <div class="flank__media">
-          <img src="./assets/KIT_PHOTO_TODO" alt="The Spirit Guide with sleeves, tokens and a playmat" loading="lazy" />
+          <!-- Not lazy: this is the first thing under the masthead, so lazy
+               loading it would defer the one image above the fold. -->
+          <img
+            src="./assets/DarkSpiritGuide.svg"
+            alt="The Spirit Guide over a card sleeve, with a mark drawn through one slot of its comb"
+            width="396"
+            height="440"
+          />
         </div>
-        -->
         <div class="flank__body">
           <h1>The Kickstarter Campaign</h1>
           <p>
@@ -589,8 +616,10 @@
       </div>
 
       <section class="flank flank--reverse flank--raised">
-        <!-- TODO(#243): same as above. Add `flank--media` to the section and
-             uncomment for the two-up layout.
+        <!-- TODO(#243): add `flank--media` to the section above and uncomment
+             this for the two-up layout. If what lands here is a photograph
+             rather than an illustration, it wants the photo treatment noted at
+             .flank__media img, not the contained default.
         <div class="flank__media">
           <img src="./assets/PRISM_PHOTO_TODO" alt="A fanned stack of marked Perfect Fit inner sleeves" loading="lazy" />
         </div>
