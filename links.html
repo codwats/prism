@@ -33,8 +33,6 @@
 
         KICKSTARTER_URL_TODO   the Kickstarter page (pre-launch URL works; the
                                slug carries over when the project launches)
-        PRISM_SITE_URL_TODO    the PRISM site, absolute (this page may be served
-                               from another domain, so a relative link is wrong)
         DISCORD_URL_TODO       discord.gg/Jp84QUPSe is the one in the repo today
         YOUTUBE_URL_TODO
         INSTAGRAM_URL_TODO
@@ -43,8 +41,11 @@
         X_URL_TODO
         GITHUB_URL_TODO        github.com/codwats/prism is the one in the repo today
 
-      The share tags below are already filled in against prismmtg.com and are
-      not part of that list.
+      The share tags below and the Open PRISM link are already filled in
+      against prismmtg.com and are not part of that list. Both are absolute
+      even though the site may end up on the same host: this page is built to
+      move to defcat-website or its own subdomain, and a relative link would
+      silently start resolving against whatever serves it.
 
       They are deliberately not valid links: a premature deploy fails loudly
       instead of looking correct.
@@ -546,7 +547,7 @@
             PRISM works out which cards your decks share, how few copies you actually need, and
             exactly where to mark every sleeve. Free to use, with no account.
           </p>
-          <a class="btn btn--outline" href="PRISM_SITE_URL_TODO" target="_blank" rel="noopener">
+          <a class="btn btn--outline" href="https://prismmtg.com/" target="_blank" rel="noopener">
             Open PRISM
           </a>
         </div>
