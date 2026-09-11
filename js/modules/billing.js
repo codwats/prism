@@ -7,7 +7,7 @@
  * app_config 'payment_enforcement' row to true is the only launch step.
  */
 
-import { getSupabase } from './supabase-client.js';
+import { getSupabase, SUPABASE_URL, SUPABASE_ANON_KEY } from './supabase-client.js';
 
 let enforcementCache = null;
 let entitlementCache = null;
@@ -21,7 +21,10 @@ export async function isPaymentEnforced() {
   if (enforcementCache !== null) return enforcementCache;
   try {
     const client = getSupabase();
-    if (!client) return false;
+    if (!client) {
+      enforcementCache = await readPublicConfig('payment_enforcement') === true;
+      return enforcementCache;
+    }
     const { data } = await client
       .from('app_config')
       .select('value')
@@ -32,6 +35,28 @@ export async function isPaymentEnforced() {
     enforcementCache = false;
   }
   return enforcementCache;
+}
+
+// Public config stays available without loading the auth SDK for visitors.
+async function readPublicConfig(key) {
+  const response = await fetch(`${SUPABASE_URL}/rest/v1/app_config?key=eq.${key}&select=value`, {
+    headers: { apikey: SUPABASE_ANON_KEY },
+    signal: AbortSignal.timeout(5000)
+  });
+  if (!response.ok) return null;
+  const rows = await response.json();
+  return rows[0]?.value ?? null;
+}
+
+/**
+ * Whether any Membership entry point should show at all: the PRISM_DEBUG
+ * rehearsal flag, or real enforcement. Shared by build.html's drawer trigger
+ * and profile.html's Subscription section so the two can't drift apart.
+ */
+export async function isMembershipDrawerAvailable() {
+  let debug = false;
+  try { debug = !!localStorage.getItem('PRISM_DEBUG'); } catch { /* private mode */ }
+  return debug || await isPaymentEnforced();
 }
 
 /**

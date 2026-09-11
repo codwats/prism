@@ -15,6 +15,7 @@ import { setupScryMode } from './scry-mode.js';
 import { renderResults, updateRemovedFilterBadge } from './results.js';
 import { renderExport } from './export-view.js';
 import { setupEventListeners } from './events.js';
+import { initMembershipDrawer } from '../modules/membership.js';
 
 // ============================================================================
 // Element references
@@ -228,6 +229,7 @@ export async function init() {
   setupStripeReorderDialog();
   setupScryMode();
   setupSyncStatus();
+  initMembershipDrawer();
 
   debugLog('PRISM: Initialization complete');
 }

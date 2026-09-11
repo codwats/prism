@@ -348,3 +348,31 @@ created in 2025 that never made a deck. The stamp is deliberately unfiltered,
 and telling the two apart would need a second entitlement source — the cost
 [#197](https://github.com/codwats/prism/issues/197) priced and refused. Any
 badge or copy addressed to Founders is addressed to both.
+
+## Membership drawer readiness (#216)
+
+The shared drawer is on `build.html` and `profile.html`. The landing-page handoff
+is `build.html#membership`. Entry points and automatic creation notices stay
+hidden until `payment_enforcement` is true; `PRISM_DEBUG` exposes them locally
+for rehearsal without changing entitlement. A Founder rehearsal still uses the
+real `is_entitled()` answer and must show no price or checkout controls.
+
+Before enabling Membership:
+
+- Configure `STRIPE_PRICE_ID` for the monthly price in Netlify. Annual billing
+  (a `period` selector, `STRIPE_ANNUAL_PRICE_ID`) is deliberately not part of
+  this drawer — it lives on `feature/216-annual-billing`, a follow-up split out
+  of the #216 review, and lands separately.
+- Patreon is statically unavailable in this drawer: the "On Patreon" option is
+  always disabled and captioned "not available yet". Nothing here reads an
+  `app_config` Patreon URL. Wiring a real Patreon destination in is #208's job
+  (account-linking and entitlement), once that flow exists to make the link
+  meaningful.
+- Rehearse anonymous, free, Member and Founder states. A manual open shows
+  general Membership information; only a successful explicit New PRISM action
+  may show the new PRISM's device notice. Reloading must not repeat it. Local
+  creation, editing and exports work whether the drawer is closed or billing
+  services are unavailable.
+
+This UI does not flip enforcement, configure Stripe products, or implement
+Patreon linking. Those deployment steps remain separate from the drawer change.

@@ -1764,3 +1764,46 @@ wa-page[view='desktop'] [data-toggle-nav] {
 #auth-unavailable {
   max-inline-size: 11rem;
 }
+
+/* Shared Membership drawer on build/profile. The existing theme owns its colors. */
+#membership-drawer {
+  --size: min(28rem, 100vw);
+}
+
+#membership-drawer p,
+#membership-drawer h3,
+#membership-drawer ul {
+  margin: 0;
+}
+
+#membership-drawer ul {
+  padding-inline-start: var(--wa-space-l);
+}
+
+#membership-drawer wa-radio {
+  min-block-size: 44px;
+  align-items: center;
+}
+
+#membership-drawer .wa-caption-m {
+  color: var(--wa-color-neutral-text-subtle);
+}
+
+.membership-price strong {
+  font-size: var(--wa-font-size-xl);
+}
+
+.membership-account-link {
+  background: none;
+  border: 0;
+  padding: var(--wa-space-xs) 0;
+  min-block-size: 44px;
+  color: var(--wa-color-brand-text);
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+[data-membership-error] {
+  color: var(--wa-color-danger-text);
+}

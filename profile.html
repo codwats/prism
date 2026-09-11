@@ -191,24 +191,24 @@
 
           <!-- Subscription — hidden unless payment enforcement is on or PRISM_DEBUG is set -->
           <section id="subscription-section" class="wa-stack wa-gap-m" hidden>
-            <h2 class="wa-heading-l" style="margin: 0;">Subscription</h2>
+            <h2 class="wa-heading-l" style="margin: 0;">Membership</h2>
             <wa-card>
               <div class="wa-split wa-align-items-center" style="padding-block: var(--wa-space-s);">
                 <div class="wa-stack wa-gap-3xs">
                   <div class="wa-cluster wa-gap-xs wa-align-items-center">
-                    <span style="font-weight: var(--wa-font-weight-semibold);">PRISM subscription</span>
-                    <wa-tag id="subscription-status-tag" size="small" variant="neutral">Free</wa-tag>
+                    <span style="font-weight: var(--wa-font-weight-semibold);">PRISM Membership</span>
+                    <wa-tag id="subscription-status-tag" size="small" variant="neutral" hidden></wa-tag>
                   </div>
-                  <span id="subscription-caption" class="wa-caption-m" style="color: var(--wa-color-neutral-text-subtle);">Support PRISM with a recurring subscription.</span>
+                  <span id="subscription-caption" class="wa-caption-m" style="color: var(--wa-color-neutral-text-subtle);"></span>
                 </div>
                 <div class="wa-cluster wa-gap-xs wa-align-items-center">
                   <wa-button id="btn-manage-billing" appearance="outlined" size="small" hidden>
                     <wa-icon slot="start" name="gear"></wa-icon>
                     Manage billing
                   </wa-button>
-                  <wa-button id="btn-subscribe" variant="brand" size="small">
+                  <wa-button id="btn-subscribe" appearance="outlined" size="small" data-open-membership hidden>
                     <wa-icon slot="start" name="credit-card"></wa-icon>
-                    Subscribe
+                    Membership and Extras
                   </wa-button>
                 </div>
               </div>
@@ -277,6 +277,11 @@
 
     <!-- Toast notification container -->
     <wa-toast placement="bottom-end" id="toast-container"></wa-toast>
+
+    <wa-drawer id="membership-drawer" label="Membership" placement="end">
+      <div data-membership-content></div>
+      <wa-button slot="footer" appearance="plain" data-drawer="close">Close</wa-button>
+    </wa-drawer>
 
     <script type="module">
       import { initLayout } from './js/layout.js';

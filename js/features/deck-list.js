@@ -25,6 +25,7 @@ import {
 } from "../modules/processor.js";
 import { savePrism, setCurrentPrism, recordUnmarkedCards, getPrism } from "../modules/storage.js";
 import { trackEvent } from "../modules/supabase-client.js";
+import { openMembershipDrawer } from "../modules/membership.js";
 import { canonicalizeCards } from "../modules/scryfall.js";
 import { hideEditImportMessages } from "./deck-import.js";
 import {
@@ -676,6 +677,11 @@ export function handleNewPrism() {
   resetDeckForm();
   initColorSwatches();
   renderAll();
+  const createdId = state.currentPrism.id;
+  // Let the create confirmation finish closing before opening another surface.
+  state.elements.newPrismDialog.addEventListener('wa-after-hide', () => {
+    openMembershipDrawer({ createdId });
+  }, { once: true });
 }
 
 /**
