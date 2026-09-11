@@ -195,6 +195,22 @@
       }
 
       /* ---------------------------------------------------------------
+         Backdrop. Fixed so it never scrolls with the page; object-fit
+         cover + object-position pin the crop 25% in from the left so the
+         ribbons and icon stay in frame instead of the centred prism mark.
+         --------------------------------------------------------------- */
+      .bg-wallpaper {
+        position: fixed;
+        inset: 0;
+        z-index: -1;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        object-position: 25% center;
+        pointer-events: none;
+      }
+
+      /* ---------------------------------------------------------------
          Masthead
          --------------------------------------------------------------- */
       .mast {
@@ -471,6 +487,24 @@
   </head>
 
   <body>
+    <!-- Fixed, non-scrolling backdrop. object-fit: cover pins the image to
+         100% viewport height and lets width crop instead; object-position
+         keeps the crop anchored 25% in from the left so the
+         ribbons and icon stay in frame at every viewport width, including the
+         narrow ones where cover crops hardest. AVIF-only: no <picture>
+         fallback because every browser this page ships to decodes it, and a
+         decorative background is the wrong place to also ship a PNG/WebP
+         fallback on hall wifi. -->
+    <img
+      class="bg-wallpaper"
+      src="./assets/wallpaper/PRISM-Wallpaper.avif"
+      alt=""
+      aria-hidden="true"
+      width="3840"
+      height="2160"
+      fetchpriority="high"
+    />
+
     <main class="page">
       <header class="mast">
         <img
