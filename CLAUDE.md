@@ -23,6 +23,7 @@ prism/
 ├── tools.html              Paint pen recommendations
 ├── gallery.html            Community artwork gallery (see Gallery section)
 ├── mpc-stripes.html        MPC Stripe Compositor — a paid Extra; self-contained page
+├── links.html              QR/social funnel page (#243) — standalone: no layout.js, no nav, its own inlined tokens, so it can move to another domain unchanged
 ├── profile.html            User account management
 ├── privacy.html / terms.html
 ├── css/custom.css          Styles beyond Web Awesome

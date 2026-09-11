@@ -1,0 +1,674 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>PRISM and the Spirit Guide</title>
+    <meta
+      name="description"
+      content="The Spirit Guide on Kickstarter, and PRISM, the free tool that works out which cards your decks share and where to mark each sleeve."
+    />
+
+    <!--
+      FUNNEL PAGE (#243).
+
+      A QR-code and social landing page. Deliberately standalone: it does not
+      call js/layout.js, so it carries no nav, no sidebar, no auth dialog and no
+      footer, and it has no dependency on anything under js/. The whole page is
+      this one file plus two images. That is what lets it move to defcat-website
+      or its own subdomain later without untangling anything.
+
+      It inherits PRISM's visual world from DESIGN.md rather than inventing one:
+      adobe-aldine headings, halyard-micro body, the violet brand ramp, the 22
+      deck colors as the divider rule, 3-6px radii, flat surfaces, no gradients.
+      Dark-committed, unlike the app: this is read on a phone at a table or in a
+      hall, and it is a poster, not a tool.
+
+      Every outbound link is a placeholder. See the TODO block below.
+    -->
+
+    <!--
+      TODO(#243): every href below is a placeholder and none of them resolve.
+      Replace before this page is linked or a QR code is printed:
+
+        KICKSTARTER_URL_TODO   the Kickstarter page (pre-launch URL works; the
+                               slug carries over when the project launches)
+        YOUTUBE_URL_TODO
+        INSTAGRAM_URL_TODO
+        TIKTOK_URL_TODO
+        BLUESKY_URL_TODO
+        X_URL_TODO
+
+      The share tags below, the Open PRISM link and Discord are already filled
+      in
+      against prismmtg.com and are not part of that list. Both are absolute
+      even though the site may end up on the same host: this page is built to
+      move to defcat-website or its own subdomain, and a relative link would
+      silently start resolving against whatever serves it.
+
+      They are deliberately not valid links: a premature deploy fails loudly
+      instead of looking correct.
+    -->
+
+    <!-- Share cards. This page exists to be pasted into Discord and socials, so
+         these are load-bearing, not garnish. Same shape as every other page, so
+         the whole site previews consistently.
+
+         Absolute, necessarily: a scraper has no page context, so a relative
+         path resolves against the scraper rather than the site. They therefore
+         resolve only once prismmtg.com serves the site.
+
+         og:image is the shared card, which arrives with #246. If this merges
+         first the tag points at a 404 for the gap between the two, which costs
+         a preview image and nothing else. -->
+    <link rel="canonical" href="https://prismmtg.com/links.html" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="PRISM" />
+    <meta property="og:title" content="PRISM and the Spirit Guide" />
+    <meta
+      property="og:description"
+      content="The Spirit Guide on Kickstarter, and PRISM, the free tool that works out which cards your decks share and where to mark each sleeve."
+    />
+    <meta property="og:url" content="https://prismmtg.com/links.html" />
+    <meta property="og:image" content="https://prismmtg.com/assets/og-card.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="The PRISM wordmark above a row of the twenty-two deck marking colors" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="PRISM and the Spirit Guide" />
+    <meta
+      name="twitter:description"
+      content="The Spirit Guide on Kickstarter, and PRISM, the free tool that works out which cards your decks share and where to mark each sleeve."
+    />
+    <meta name="twitter:image" content="https://prismmtg.com/assets/og-card.png" />
+
+    <link rel="icon" type="image/svg+xml" href="./assets/Prism-Small-Icon-Invert.svg" />
+    <link rel="apple-touch-icon" href="./assets/apple-touch-icon.png" />
+    <meta name="theme-color" content="#180a2e" />
+    <meta name="apple-mobile-web-app-title" content="PRISM" />
+
+    <link rel="preconnect" href="https://use.typekit.net" />
+    <link rel="preconnect" href="https://use.typekit.net" crossorigin />
+    <link rel="preconnect" href="https://ka-p.webawesome.com" />
+    <link rel="preconnect" href="https://ka-p.webawesome.com" crossorigin />
+
+    <!-- adobe-aldine (headings) + halyard-micro (body). The only blocking
+         stylesheet on the page. -->
+    <link rel="stylesheet" href="https://use.typekit.net/gbw6ibc.css" />
+
+    <!--
+      Web Awesome's autoloader, for <wa-icon> in the social row and nothing else.
+      The kit's three theme stylesheets are deliberately NOT loaded: they are
+      render-blocking, this page styles itself, and the only WA element here is
+      an icon. The loader is a module, so it never blocks first paint, and every
+      icon box is sized in CSS below so the glyphs arriving late shift nothing.
+
+      Consequently the page is not cloaked, unlike the rest of the site. A QR
+      scan on hall wifi must paint immediately; hiding the document until a CDN
+      answers is the wrong trade here, and there is no layout to protect from a
+      flash because nothing above depends on a custom element.
+    -->
+    <script
+      type="module"
+      src="https://ka-p.webawesome.com/kit/da021fed1e5141f2/webawesome@3.11.0/webawesome.loader.js"
+    ></script>
+
+    <style>
+      /* ---------------------------------------------------------------
+         Tokens. Lifted from DESIGN.md rather than imported, because
+         importing them means importing js/layout.js and its nav with them.
+         Only what this page actually uses.
+         --------------------------------------------------------------- */
+      :root {
+        color-scheme: dark;
+
+        --brand-05: #180a2e;
+        --brand-10: #23173b;
+        --brand-20: #3a2e55;
+        --brand-30: #4d4169;
+        --brand-50: #7d719c;
+        --brand-70: #b5a9d7;
+        --brand-80: #cec2f2;
+        --brand-90: #eadeff;
+        --neutral-95: #f2f2fc;
+
+        --font-heading: "adobe-aldine", Georgia, serif;
+        --font-body: "halyard-micro", system-ui, -apple-system, sans-serif;
+
+        --radius-s: 3px;
+        --radius-m: 4px;
+
+        --space-2xs: 3.5px;
+        --space-xs: 7px;
+        --space-s: 10.5px;
+        --space-m: 14px;
+        --space-l: 21px;
+        --space-xl: 28px;
+        --space-2xl: 42px;
+        --space-3xl: 56px;
+        --space-4xl: 84px;
+
+        --transition: 0.15s ease;
+      }
+
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+      }
+
+      html {
+        /* The parts nobody draws. Left at browser defaults these belong to no
+           design system, and they are the cheapest tell that a page was
+           assembled rather than built. */
+        scrollbar-color: var(--brand-30) var(--brand-05);
+        scrollbar-width: thin;
+        -webkit-text-size-adjust: 100%;
+      }
+
+      ::selection {
+        background: var(--brand-30);
+        color: var(--neutral-95);
+      }
+
+      body {
+        margin: 0;
+        padding: var(--space-2xl) var(--space-l) var(--space-3xl);
+        background: var(--brand-05);
+        color: var(--brand-90);
+        font-family: var(--font-body);
+        font-size: 1rem;
+        font-weight: 400;
+        line-height: 1.5;
+        -webkit-font-smoothing: antialiased;
+      }
+
+      /* One ring, everywhere, from the palette. */
+      :where(a, button):focus-visible {
+        outline: none;
+        box-shadow: 0 0 0 3px rgba(181, 169, 215, 0.5);
+      }
+
+      .page {
+        max-width: 720px;
+        margin: 0 auto;
+      }
+
+      /* ---------------------------------------------------------------
+         Backdrop. Fixed so it never scrolls with the page; object-fit
+         cover + object-position pin the crop 25% in from the left so the
+         ribbons and icon stay in frame instead of the centred prism mark.
+         --------------------------------------------------------------- */
+      .bg-wallpaper {
+        position: fixed;
+        inset: 0;
+        z-index: -1;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        object-position: 25% center;
+        pointer-events: none;
+      }
+
+      /* Below ~600px, cover crops so tightly that the 25% anchor puts the
+         white icon full-bleed behind the centred text instead of a sliver of
+         it, which kills legibility. Shift the anchor into the plain gradient
+         two-thirds of the image instead — the ribbons/icon just aren't worth
+         showing at this width. */
+      @media (max-width: 600px) {
+        .bg-wallpaper {
+          object-position: 80% center;
+        }
+      }
+
+      /* ---------------------------------------------------------------
+         Masthead
+         --------------------------------------------------------------- */
+      .mast {
+        text-align: center;
+      }
+
+      .mast__logo {
+        display: block;
+        width: 168px;
+        max-width: 60%;
+        height: auto;
+        margin: 0 auto;
+      }
+
+      .mast__tagline {
+        margin: var(--space-m) 0 0;
+        font-size: 0.875rem;
+        font-weight: 500;
+        letter-spacing: 0.05em;
+        color: var(--brand-70);
+      }
+
+      /* ---------------------------------------------------------------
+         Stripe rule. The page's divider is the product's own mark system:
+         the 22 deck colors (processor.js DEFAULT_COLORS) laid out as a
+         sleeve edge seen end-on. The blocks flex to fill, so it fits any
+         width exactly and never clips or wraps.
+         --------------------------------------------------------------- */
+      .stripe-rule {
+        display: flex;
+        gap: var(--space-2xs);
+        margin: var(--space-2xl) 0;
+      }
+
+      .stripe-rule span {
+        flex: 1 1 0;
+        min-width: 0;
+        height: 10px;
+        border-radius: var(--radius-s);
+      }
+
+      /* ---------------------------------------------------------------
+         Flanks. Single centred column today, because there is no photo yet.
+         Adding `flank--media` to the section and uncommenting its media div
+         turns it two-up and left-aligns the text. That is the whole change.
+         --------------------------------------------------------------- */
+      .flank {
+        display: grid;
+        gap: var(--space-xl);
+        text-align: center;
+      }
+
+      .flank__body {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: var(--space-m);
+      }
+
+      .flank h1,
+      .flank h2 {
+        margin: 0;
+        font-family: var(--font-heading);
+        font-weight: 600;
+        line-height: 1.2;
+        color: var(--neutral-95);
+      }
+
+      /* 48 / 36 / 28, the marketing display ramp in DESIGN.md 8. */
+      .flank h1 {
+        font-size: 2.25rem;
+      }
+
+      .flank h2 {
+        font-size: 1.75rem;
+      }
+
+      @media (min-width: 768px) {
+        .flank h1 {
+          font-size: 3rem;
+          letter-spacing: -0.02em;
+        }
+      }
+
+      /* Capped in rem, not ch: `ch` resolves off the fallback face until
+         Typekit answers, which measured 594px here against an intended ~480.
+         Centred copy also wants a shorter line than the 65-75ch prose range. */
+      .flank p {
+        margin: 0;
+        max-width: 30rem;
+        color: var(--brand-90);
+      }
+
+      /* Sized for a line illustration, not a photo. The Spirit Guide art is a
+         portrait SVG (396x440) on a transparent ground, so it is contained at
+         its own aspect rather than cropped to a fixed one, and it takes no
+         corner radius: the drawing already carries the rounded card, and a
+         radius on the box would only clip the drop shadow around it.
+
+         Capped by height rather than width. Left to fill its column it stands
+         384px tall against roughly 250px of text and unbalances the row, and
+         on mobile it is the first thing under the masthead, where every pixel
+         it takes pushes the heading and the CTA further from the fold.
+
+         A photograph in one of these slots would want the opposite treatment:
+         width 100%, a fixed aspect-ratio, object-fit: cover and a radius. */
+      .flank__media {
+        display: flex;
+        justify-content: center;
+      }
+
+      .flank__media img {
+        display: block;
+        width: auto;
+        max-width: 100%;
+        height: auto;
+        max-height: 190px;
+      }
+
+      @media (min-width: 768px) {
+        .flank__media img {
+          max-height: 320px;
+        }
+      }
+
+      @media (min-width: 768px) {
+        .flank--media {
+          grid-template-columns: 1fr 1fr;
+          align-items: center;
+          text-align: left;
+        }
+
+        .flank--media .flank__body {
+          align-items: flex-start;
+        }
+
+        /* Photo on the right for the second flank, so two stacked flanks do
+           not read as the same row twice. */
+        .flank--media.flank--reverse .flank__media {
+          order: 2;
+        }
+      }
+
+      /* ---------------------------------------------------------------
+         The PRISM flank sits one surface step up, so the two destinations
+         are told apart by ground rather than by boxing each in a card.
+         --------------------------------------------------------------- */
+      .flank--raised {
+        background: var(--brand-10);
+        border: 1px solid var(--brand-20);
+        border-radius: var(--radius-m);
+        padding: var(--space-2xl) var(--space-l);
+      }
+
+      /* ---------------------------------------------------------------
+         Buttons. Plain anchors, styled to DESIGN.md's button spec.
+         Not <wa-button href>: CLAUDE.md records that WA href navigation only
+         works once the element upgrades, and on this page every control is
+         navigation that has to work on the first tap.
+         --------------------------------------------------------------- */
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.55em;
+        min-height: 3rem;
+        padding: 0 var(--space-l);
+        border: 1px solid transparent;
+        border-radius: var(--radius-m);
+        font-family: inherit;
+        font-size: 0.875rem;
+        font-weight: 500;
+        text-decoration: none;
+        transition:
+          background-color var(--transition),
+          border-color var(--transition),
+          color var(--transition);
+      }
+
+      /* Light fill on a dark ground. brand-30 is the solid brand button in the
+         app, but on a brand-05 page it is nearly the ground and reads muddy. */
+      .btn--loud {
+        background: var(--brand-80);
+        color: var(--brand-05);
+      }
+
+      .btn--loud:hover {
+        background: var(--brand-90);
+      }
+
+      .btn--outline {
+        background: transparent;
+        border-color: var(--brand-70);
+        color: var(--brand-90);
+      }
+
+      .btn--outline:hover {
+        background: var(--brand-20);
+        border-color: var(--brand-80);
+      }
+
+      /* ---------------------------------------------------------------
+         Social row
+         --------------------------------------------------------------- */
+      .socials {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: var(--space-s);
+        margin-top: var(--space-3xl);
+      }
+
+      .social {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 44px;
+        height: 44px;
+        border: 1px solid var(--brand-20);
+        border-radius: var(--radius-m);
+        color: var(--brand-80);
+        transition:
+          background-color var(--transition),
+          border-color var(--transition),
+          color var(--transition);
+      }
+
+      .social:hover {
+        background: var(--brand-20);
+        border-color: var(--brand-50);
+        color: var(--neutral-95);
+      }
+
+      /* wa-icon is sized by font-size, not width: its host is a fixed 1.25em box
+         (Font Awesome's fixed-width convention) and an explicit width on the
+         host does not take. Sizing it here rather than leaving it to inherit
+         also means the row holds its shape before the autoloader answers, so
+         the glyphs arriving shift nothing.
+
+         Two measured faults this corrects, both invisible in the markup:
+
+         1. The shadow <svg> is display:inline, so it sat on the text baseline
+            and every glyph rode 2.2px below the button's centre.
+         2. Brand marks are not square. Discord, YouTube and Bluesky are
+            576x512; Instagram, TikTok and X are 448x512. So the svg is
+            narrower than its 1.25em host and sat left of centre by 1.1px on
+            the wide ones and 3.4px on the narrow ones, differently per icon.
+
+         ::part(svg) is wa-icon's documented styling hook and fixes both: block
+         display drops the baseline, and an auto inline margin centres each
+         glyph in the host whatever its aspect ratio. Heights stay equal and
+         widths stay true to each mark, which is what brand glyphs want. */
+      .social wa-icon {
+        font-size: 18px;
+        line-height: 1;
+      }
+
+      .social wa-icon::part(svg) {
+        display: block;
+        margin-inline: auto;
+      }
+
+      .colophon {
+        margin: var(--space-2xl) 0 0;
+        font-size: 0.75rem;
+        text-align: center;
+        color: var(--brand-70);
+      }
+
+      @media (max-width: 480px) {
+        /* Narrower gutter so all six 44px targets make one row. The row needs
+           281px; a 320px screen leaves 292px, so it holds at every width worth
+           designing for. At the default gap it would wrap even on a 360px
+           phone, which is why this override exists. */
+        body {
+          padding-left: var(--space-m);
+          padding-right: var(--space-m);
+        }
+
+        .socials {
+          gap: var(--space-2xs);
+        }
+
+        .flank h1 {
+          font-size: 1.75rem;
+        }
+
+        .flank h2 {
+          font-size: 1.5rem;
+        }
+
+        .btn {
+          width: 100%;
+        }
+      }
+    </style>
+  </head>
+
+  <body>
+    <!-- Fixed, non-scrolling backdrop. object-fit: cover pins the image to
+         100% viewport height and lets width crop instead; object-position
+         keeps the crop anchored 25% in from the left so the
+         ribbons and icon stay in frame at every viewport width, including the
+         narrow ones where cover crops hardest. AVIF-only: no <picture>
+         fallback because every browser this page ships to decodes it, and a
+         decorative background is the wrong place to also ship a PNG/WebP
+         fallback on hall wifi. -->
+    <img
+      class="bg-wallpaper"
+      src="./assets/wallpaper/PRISM-Wallpaper.avif"
+      alt=""
+      aria-hidden="true"
+      width="3840"
+      height="2160"
+      fetchpriority="high"
+    />
+
+    <main class="page">
+      <header class="mast">
+        <img
+          class="mast__logo"
+          src="./assets/Prism-Logo-Invert.svg"
+          alt="PRISM"
+          width="168"
+          height="48"
+        />
+        <p class="mast__tagline">One card. Every deck.</p>
+      </header>
+
+      <!-- The 22 deck colors from processor.js DEFAULT_COLORS, in order. -->
+      <div class="stripe-rule" aria-hidden="true">
+        <span style="background: #eeb41b"></span>
+        <span style="background: #3995d9"></span>
+        <span style="background: #8662d2"></span>
+        <span style="background: #e2484b"></span>
+        <span style="background: #4fab33"></span>
+        <span style="background: #eeeeee"></span>
+        <span style="background: #7a5e68"></span>
+        <span style="background: #3c5890"></span>
+        <span style="background: #c76b61"></span>
+        <span style="background: #a3c569"></span>
+        <span style="background: #d69f5d"></span>
+        <span style="background: #5a9fd7"></span>
+        <span style="background: #f5f4cf"></span>
+        <span style="background: #ac638c"></span>
+        <span style="background: #cfd964"></span>
+        <span style="background: #746ba9"></span>
+        <span style="background: #d388b2"></span>
+        <span style="background: #d4bc2e"></span>
+        <span style="background: #569899"></span>
+        <span style="background: #eccad7"></span>
+        <span style="background: #cca427"></span>
+        <span style="background: #c2ccd2"></span>
+      </div>
+
+      <section class="flank flank--media">
+        <div class="flank__media">
+          <!-- Not lazy: this is the first thing under the masthead, so lazy
+               loading it would defer the one image above the fold. -->
+          <img
+            src="./assets/DarkSpiritGuide.svg"
+            alt="The Spirit Guide over a card sleeve, with a mark drawn through one slot of its comb"
+            width="396"
+            height="440"
+          />
+        </div>
+        <div class="flank__body">
+          <h1>The Kickstarter Campaign</h1>
+          <p>
+            The Spirit Guide, the alignment tool this marking system is built around, is on
+            Kickstarter, along with matching sleeves, tokens and playmats. Backing the campaign
+            also includes a lifetime PRISM Membership.
+          </p>
+          <a class="btn btn--loud" href="KICKSTARTER_URL_TODO" target="_blank" rel="noopener">
+            See it on Kickstarter
+          </a>
+        </div>
+      </section>
+
+      <div class="stripe-rule" aria-hidden="true">
+        <span style="background: #eeb41b"></span>
+        <span style="background: #3995d9"></span>
+        <span style="background: #8662d2"></span>
+        <span style="background: #e2484b"></span>
+        <span style="background: #4fab33"></span>
+        <span style="background: #eeeeee"></span>
+        <span style="background: #7a5e68"></span>
+        <span style="background: #3c5890"></span>
+        <span style="background: #c76b61"></span>
+        <span style="background: #a3c569"></span>
+        <span style="background: #d69f5d"></span>
+        <span style="background: #5a9fd7"></span>
+        <span style="background: #f5f4cf"></span>
+        <span style="background: #ac638c"></span>
+        <span style="background: #cfd964"></span>
+        <span style="background: #746ba9"></span>
+        <span style="background: #d388b2"></span>
+        <span style="background: #d4bc2e"></span>
+        <span style="background: #569899"></span>
+        <span style="background: #eccad7"></span>
+        <span style="background: #cca427"></span>
+        <span style="background: #c2ccd2"></span>
+      </div>
+
+      <section class="flank flank--reverse flank--raised">
+        <!-- TODO(#243): add `flank--media` to the section above and uncomment
+             this for the two-up layout. If what lands here is a photograph
+             rather than an illustration, it wants the photo treatment noted at
+             .flank__media img, not the contained default.
+        <div class="flank__media">
+          <img src="./assets/PRISM_PHOTO_TODO" alt="A fanned stack of marked Perfect Fit inner sleeves" loading="lazy" />
+        </div>
+        -->
+        <div class="flank__body">
+          <h2>The PRISM app</h2>
+          <p>
+            PRISM works out which cards your decks share, how few copies you actually need, and
+            exactly where to mark every sleeve. Free to use, with no account.
+          </p>
+          <a class="btn btn--outline" href="https://prismmtg.com/" target="_blank" rel="noopener">
+            Open PRISM
+          </a>
+        </div>
+      </section>
+
+      <nav class="socials" aria-label="Elsewhere">
+        <a class="social" href="https://discord.gg/Jp84QUPSe" target="_blank" rel="noopener" aria-label="Discord">
+          <wa-icon family="brands" name="discord"></wa-icon>
+        </a>
+        <a class="social" href="https://www.instagram.com/prismmtg/" target="_blank" rel="noopener" aria-label="YouTube">
+          <wa-icon family="brands" name="youtube"></wa-icon>
+        </a>
+        <a class="social" href="https://www.youtube.com/@prismmtg" target="_blank" rel="noopener" aria-label="Instagram">
+          <wa-icon family="brands" name="instagram"></wa-icon>
+        </a>
+        <!--<a class="social" href="TIKTOK_URL_TODO" target="_blank" rel="noopener" aria-label="TikTok">
+          <wa-icon family="brands" name="tiktok"></wa-icon>
+        </a>--->
+        <a class="social" href="https://bsky.app/profile/prismmtg.bsky.socia:l target="_blank" rel="noopener" aria-label="Bluesky">
+          <wa-icon family="brands" name="bluesky"></wa-icon>
+        </a>
+        <a class="social" href="https://x.com/prism_mtg" target="_blank" rel="noopener" aria-label="X">
+          <wa-icon family="brands" name="x-twitter"></wa-icon>
+        </a>
+      </nav>
+
+      <p class="colophon">Made for Commander players, by Commander players.</p>
+    </main>
+  </body>
+</html>
