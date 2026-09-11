@@ -333,7 +333,7 @@ async function renderSubscriptionSection() {
 
   if (active && paymentFailed) {
     if (tag) { tag.setAttribute('variant', 'warning'); tag.textContent = 'Past due'; }
-    if (caption) caption.textContent = 'Your last payment failed. Use Manage billing to update your card. Your Membership stays active while your card is retried.';
+    if (caption) caption.textContent = 'Your last payment failed. Use Manage Billing / Cancel Membership to update your card. Your Membership stays active while your card is retried.';
   } else if (active) {
     if (tag) { tag.setAttribute('variant', 'success'); tag.textContent = 'Member'; }
     if (caption) {

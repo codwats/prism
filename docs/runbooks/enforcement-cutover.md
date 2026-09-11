@@ -376,3 +376,57 @@ Before enabling Membership:
 
 This UI does not flip enforcement, configure Stripe products, or implement
 Patreon linking. Those deployment steps remain separate from the drawer change.
+
+## Cancellation readiness (#218)
+
+The profile Membership section exposes **Manage Billing / Cancel Membership**
+for accounts with a Stripe subscription row. It uses the existing authenticated
+`/api/stripe-portal` endpoint, which looks up the caller's Stripe customer on the
+server. The hosted portal handles confirmation and cancellation. Patreon owns
+its own cancellation flow; a Founder without a Stripe subscription has no
+Stripe billing control.
+
+### Save offer decision
+
+**Omit the optional save offer**, using the fallback explicitly accepted in
+[#218](https://github.com/codwats/prism/issues/218). Stripe's documented
+[cancellation retention](https://docs.stripe.com/customer-management/cancellation-page)
+offers a coupon on the existing subscription; it does not document a combined
+monthly-to-annual switch within that retention flow. The
+[portal flow documentation](https://docs.stripe.com/customer-management/portal-deep-links)
+does support a price change plus coupon through `subscription_update_confirm`,
+so Stripe can host the payment confirmation. PRISM would still need its own
+eligible-offer screen ahead of that handoff; the native cancellation coupon
+alone would discount the same billing period, which PRODUCT.md forbids.
+
+A custom offer would need server-side continuous-membership eligibility,
+durable once-per-account redemption across cancellation and rejoining, and an
+annual-switch payment flow with explicit first-year and renewal pricing. That
+is disproportionate for this optional $3 saving, especially while annual billing
+is still a separate delivery. Do not configure a substitute coupon, pause offer,
+or extra decline screen. PRODUCT.md's permission and price-lock carve-out remain
+policy for any future implementation, not a claim that the offer is live.
+
+### Portal configuration and rehearsal
+
+Before enabling paid Membership, in the Stripe account used by Netlify:
+
+1. Open **Settings → Billing → Customer portal**. Configure the portal selected
+   by `STRIPE_PORTAL_CONFIGURATION_ID`, or the default configuration if unset.
+2. Enable cancellation **at the end of the paid billing period**. Leave retention
+   coupons off. Keep payment-method updates available. Repeat configuration in
+   live mode before launch; test-mode settings do not establish live readiness.
+3. With a test monthly member, open profile → **Manage Billing / Cancel
+   Membership**. Verify the portal offers cancellation without a retention offer,
+   confirms the paid-through date, and returns to `/profile.html`.
+4. Cancel in the test portal. Verify Stripe schedules cancellation at period end,
+   access remains until then, and the final webhook moves the subscription to
+   `canceled`. After lapse, verify the existing dated paused-sync notice and
+   continued read/export access. Repeat for annual billing when it lands.
+5. Verify an account without a Stripe subscription sees no portal control, and
+   portal errors leave the button usable for retry.
+
+These are deployment checks, not evidence of a live rehearsal. The profile
+currently labels `current_period_end` as a renewal while Stripe remains active,
+even after cancellation is scheduled; the portal is authoritative for the
+scheduled end date. A persisted scheduled-cancellation caption is separate work.
