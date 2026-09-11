@@ -23,7 +23,7 @@ export function membershipContent({ entitled, signedIn, createdName = null }) {
     <p>${createdName !== null ? `<strong>${escapeHtml(createdName || 'Your new PRISM')}</strong> stays on this device.` : 'Your PRISMs work on this device without a Membership.'}
       Keep creating, marking and exporting for free.</p>
     <section class="wa-stack wa-gap-m" aria-label="Join PRISM">
-      <p class="membership-price"><strong>$3</strong> a month, or <strong>$30</strong> a year, two months free. USD.</p>
+      <p class="membership-price"><strong>$3</strong> a month. USD.</p>
       <ul class="wa-stack wa-gap-xs">
         <li>Your PRISMs on every device</li>
         <li>PRISM Extras</li>

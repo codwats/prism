@@ -9,10 +9,10 @@ test('an entitled Member sees only Extras, with no Membership price, checkout or
   assert.doesNotMatch(html, /\$|\bUSD\b|wa-radio|data-membership-checkout|Patreon/);
 });
 
-test('the free drawer names the three benefits and both prices', () => {
+test('the free drawer names the three benefits and only the monthly price it can actually check out', () => {
   const html = membershipContent({ entitled: false, signedIn: true });
   assert.match(html, /\$3/);
-  assert.match(html, /\$30/);
+  assert.doesNotMatch(html, /\$30/);
   assert.equal((html.match(/<li>/g) || []).length, 3);
   assert.doesNotMatch(html, /<img/);
 });
