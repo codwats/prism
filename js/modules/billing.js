@@ -124,13 +124,13 @@ export async function openBillingPortal() {
  * Start a Stripe Checkout session and redirect to Stripe's hosted page.
  * Throws with a user-facing message on failure.
  */
-export async function startCheckout() {
-  return redirectToStripe('/api/stripe-checkout', 'Could not start checkout. Please try again.');
+export async function startCheckout(period = 'month') {
+  return redirectToStripe('/api/stripe-checkout', 'Could not start checkout. Please try again.', { period });
 }
 
 // Both Stripe entry points are the same request: POST with the access token,
 // get back a hosted URL, navigate there.
-async function redirectToStripe(endpoint, failureMessage) {
+async function redirectToStripe(endpoint, failureMessage, options = {}) {
   const client = getSupabase();
   const { data: { session } = {} } = await client?.auth.getSession() || { data: {} };
   if (!session) {
@@ -145,7 +145,7 @@ async function redirectToStripe(endpoint, failureMessage) {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${session.access_token}`
       },
-      body: JSON.stringify({ returnUrl: '/profile.html' }),
+      body: JSON.stringify({ returnUrl: '/profile.html', ...options }),
       // Without this the button can sit in its loading state indefinitely if
       // the request never settles.
       signal: AbortSignal.timeout(15000)

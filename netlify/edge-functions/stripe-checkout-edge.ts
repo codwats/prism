@@ -2,11 +2,11 @@
  * Netlify Edge Function: Stripe Checkout session creation
  * Runs on Deno at the edge.
  *
- * POST { returnUrl } with a Supabase access token in the Authorization header.
+ * POST { returnUrl, period?: 'month' | 'year' } with a Supabase access token.
  * Creates (or reuses) a Stripe customer for the user, starts a subscription-
  * mode Checkout session, and returns { url } for the client to redirect to.
  *
- * Env (Netlify dashboard): STRIPE_SECRET_KEY, STRIPE_PRICE_ID,
+ * Env (Netlify dashboard): STRIPE_SECRET_KEY, STRIPE_PRICE_ID, STRIPE_ANNUAL_PRICE_ID,
  * SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY.
  */
 
@@ -88,7 +88,15 @@ export default async function handler(request: Request): Promise<Response> {
     const user = await userRes.json();
 
     const body = await request.json().catch(() => ({}));
-    const returnPath = safeReturnPath(body.returnUrl) || '/profile.html';
+    const period = body?.period ?? 'month';
+    if (!['month', 'year'].includes(period)) {
+      return jsonResponse(request, 400, { error: 'Choose monthly or yearly billing.' });
+    }
+    const selectedPriceId = period === 'year' ? Deno.env.get('STRIPE_ANNUAL_PRICE_ID') : priceId;
+    if (!selectedPriceId) {
+      return jsonResponse(request, 503, { error: 'Yearly billing is not available yet. Please choose monthly billing.' });
+    }
+    const returnPath = safeReturnPath(body?.returnUrl) || '/profile.html';
     const siteOrigin = new URL(request.url).origin;
 
     // Reuse the user's Stripe customer, or create one
@@ -127,7 +135,7 @@ export default async function handler(request: Request): Promise<Response> {
       'mode': 'subscription',
       'customer': customerId,
       'client_reference_id': user.id,
-      'line_items[0][price]': priceId,
+      'line_items[0][price]': selectedPriceId,
       'line_items[0][quantity]': '1',
       'success_url': `${siteOrigin}${returnPath}?checkout=success`,
       'cancel_url': `${siteOrigin}${returnPath}?checkout=cancel`,
