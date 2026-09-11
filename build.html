@@ -116,6 +116,10 @@
                   <wa-icon slot="icon" name="file-import"></wa-icon>
                   Import backup (.json)
                 </wa-dropdown-item>
+                <wa-dropdown-item data-open-membership hidden>
+                  <wa-icon slot="icon" name="gem"></wa-icon>
+                  Membership and Extras
+                </wa-dropdown-item>
               </wa-dropdown>
             </div>
           </div>
@@ -724,6 +728,11 @@
 
     <!-- Toast notification container -->
     <wa-toast placement="bottom-end" id="toast-container"></wa-toast>
+
+    <wa-drawer id="membership-drawer" label="Membership" placement="end">
+      <div data-membership-content></div>
+      <wa-button slot="footer" appearance="plain" data-drawer="close">Close</wa-button>
+    </wa-drawer>
 
     <script type="module">
       import { initLayout } from './js/layout.js';

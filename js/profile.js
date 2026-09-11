@@ -8,7 +8,8 @@ import { getAllPrisms, setCurrentPrism, deletePrism, savePrism, getCurrentPrism,
 import { createPrism, processCards } from './modules/processor.js';
 import { downloadJSON } from './modules/export.js';
 import { buildPrismFromJson } from './modules/prism-import.js';
-import { isPaymentEnforced, getSubscription, isEntitled, startCheckout, openBillingPortal } from './modules/billing.js';
+import { isMembershipDrawerAvailable, getSubscription, isEntitled, openBillingPortal } from './modules/billing.js';
+import { initMembershipDrawer } from './modules/membership.js';
 import { showError, showSuccess } from './core/notifications.js';
 import { escapeHtml, getLogicalDeckCount, pausedSyncDetail } from './core/utils.js';
 
@@ -64,7 +65,6 @@ function getElements() {
     subscriptionSection: document.getElementById('subscription-section'),
     subscriptionStatusTag: document.getElementById('subscription-status-tag'),
     subscriptionCaption: document.getElementById('subscription-caption'),
-    btnSubscribe: document.getElementById('btn-subscribe'),
     btnManageBilling: document.getElementById('btn-manage-billing'),
 
     // Auth
@@ -95,6 +95,7 @@ async function init() {
 
   // Setup event listeners
   setupEventListeners();
+  initMembershipDrawer();
 
   // Subscribe to auth changes
   onAuthChange(handleAuthChange);
@@ -112,7 +113,7 @@ async function init() {
       // Stripe redirects here before the webhook necessarily lands, so don't
       // claim the subscription is already active — the card below may still
       // read "Free" for a moment.
-      showSuccess('Payment received! Your subscription will activate shortly.');
+      showSuccess('Payment received. Your Membership will activate shortly.');
     } else if (checkoutResult === 'cancel') {
       showError('Checkout was cancelled — you have not been charged.');
     }
@@ -222,20 +223,6 @@ function setupEventListeners() {
     });
   }
 
-  // Subscribe button — redirect to Stripe Checkout
-  if (elements.btnSubscribe) {
-    elements.btnSubscribe.addEventListener('click', async () => {
-      elements.btnSubscribe.loading = true;
-      try {
-        await startCheckout(); // navigates away on success
-      } catch (err) {
-        console.error('Checkout error:', err);
-        showError(err.message || 'Could not start checkout.');
-        elements.btnSubscribe.loading = false;
-      }
-    });
-  }
-
   // Manage billing — redirect to Stripe's hosted portal
   if (elements.btnManageBilling) {
     elements.btnManageBilling.addEventListener('click', async () => {
@@ -322,21 +309,22 @@ async function renderSubscriptionSection() {
   const section = elements.subscriptionSection;
   if (!section) return;
 
-  let debugFlag = false;
-  try { debugFlag = !!localStorage.getItem('PRISM_DEBUG'); } catch { /* private mode */ }
-  if (!debugFlag && !(await isPaymentEnforced())) {
+  if (!(await isMembershipDrawerAvailable())) {
     section.hidden = true;
     return;
   }
-  section.hidden = false;
 
   // The row is still needed for the renewal date and which rail the user is on.
   // Only the entitled/not boolean moved to is_entitled(); a Founder is entitled
   // with no row at all, so every read of it below is optional-chained.
+  const user = getCurrentUser();
   const subscription = await getSubscription();
   const tag = elements.subscriptionStatusTag;
   const caption = elements.subscriptionCaption;
   const active = await isEntitled();
+  if (!user || user !== getCurrentUser()) return;
+  section.hidden = false;
+  if (tag) tag.hidden = false;
   // Dunning, not entitlement: past_due and unpaid stay entitled on purpose
   // (the rail's own retry window — #187), but the user still has to fix a card.
   // This list is presentation, not the membership rule, which lives only in
@@ -345,9 +333,9 @@ async function renderSubscriptionSection() {
 
   if (active && paymentFailed) {
     if (tag) { tag.setAttribute('variant', 'warning'); tag.textContent = 'Past due'; }
-    if (caption) caption.textContent = 'Your last payment failed — resubscribe to update your card. Your membership stays active while your card is retried.';
+    if (caption) caption.textContent = 'Your last payment failed. Use Manage billing to update your card. Your Membership stays active while your card is retried.';
   } else if (active) {
-    if (tag) { tag.setAttribute('variant', 'success'); tag.textContent = 'Active'; }
+    if (tag) { tag.setAttribute('variant', 'success'); tag.textContent = 'Member'; }
     if (caption) {
       const renews = subscription?.current_period_end
         ? ` Renews ${formatDate(subscription.current_period_end)}.`
@@ -368,13 +356,11 @@ async function renderSubscriptionSection() {
           `Cloud sync is paused. ${pausedSyncDetail(lastSync)} It stays readable on every device you sign in on.`;
       }
     } else {
-      if (tag) { tag.setAttribute('variant', 'neutral'); tag.textContent = subscription?.status === 'canceled' ? 'Canceled' : 'Free'; }
-      if (caption) caption.textContent = 'Support PRISM with a recurring subscription.';
+      if (tag) tag.hidden = true;
+      if (caption) caption.textContent = 'Your PRISMs stay on this device. Membership adds cloud sync and Extras.';
     }
   }
 
-  // Still offered to a past_due member — entitled, but the card needs fixing.
-  if (elements.btnSubscribe) elements.btnSubscribe.hidden = active && !paymentFailed;
   // Stripe rail only: a Patreon member or Founder has no subscriptions row and
   // no Stripe customer, so the portal has nothing to show them.
   if (elements.btnManageBilling) elements.btnManageBilling.hidden = !subscription;
@@ -470,6 +456,7 @@ function handleNewPrism() {
   const newPrism = createPrism('New PRISM');
   savePrism(newPrism);
   setCurrentPrism(newPrism.id);
+  try { sessionStorage.setItem('prism_membership_created', newPrism.id); } catch { /* creation still succeeds */ }
   window.location.href = 'build.html';
 }
 
