@@ -461,7 +461,8 @@ Before enabling paid Membership, in the Stripe account used by Netlify:
 These are deployment checks, not evidence of a live rehearsal. Before deploying
 the webhook mapper for #252, apply the idempotent `cancel_at_period_end` column
 addition in `supabase-schema.sql`. The profile labels `current_period_end` as
-"Access ends" when that flag is true and "Renews" otherwise. Existing rows default
+"Membership ends" when that flag is true and "Renews" otherwise, and drops the
+cancel hint in that state. Existing rows default
 to false until their next subscription webhook; for cancellations scheduled
 before this migration, reconcile the flag from the live Stripe subscription
 before relying on the profile caption. The portal remains authoritative for the
