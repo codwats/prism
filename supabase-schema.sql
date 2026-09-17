@@ -282,10 +282,6 @@ CREATE TABLE IF NOT EXISTS subscriptions (
   updated_at TIMESTAMPTZ DEFAULT now()
 );
 
--- Apply before deploying the webhook mapper that writes this field (#252).
-ALTER TABLE subscriptions
-  ADD COLUMN IF NOT EXISTS cancel_at_period_end BOOLEAN NOT NULL DEFAULT false;
-
 -- Stripe redelivers webhook events; this table makes processing idempotent.
 CREATE TABLE IF NOT EXISTS processed_stripe_events (
   event_id TEXT PRIMARY KEY,
@@ -325,6 +321,30 @@ DROP POLICY IF EXISTS "Anyone can read app config" ON app_config;
 CREATE POLICY "Anyone can read app config"
   ON app_config FOR SELECT
   USING (true);
+
+-- ============================================
+-- MIGRATION: Add subscriptions.cancel_at_period_end (#252)
+-- ============================================
+-- Mirrors Stripe's cancel_at_period_end so the profile can say the Membership
+-- ends at current_period_end rather than renews there. NOT NULL DEFAULT false
+-- backfills existing rows. The CREATE TABLE above already declares the column
+-- for a fresh database; this block is for deployments created before #252.
+-- Safe to re-run (IF NOT EXISTS).
+--
+-- APPLY THIS BEFORE DEPLOYING the webhook mapper that writes the column
+-- (subscriptionRow in netlify/edge-functions/lib/stripe-helpers.js). That
+-- mapper is shared by checkout.session.completed and
+-- customer.subscription.updated/deleted, so against a database without the
+-- column every one of those writes fails on the unknown column, handleEvent
+-- throws, the webhook returns 500, and Stripe retries: subscription state
+-- stops updating for every user, not only the ones cancelling.
+--
+-- The column is additive and defaulted, so applying it early costs nothing —
+-- an older mapper simply never writes it. There is no safe reverse order.
+BEGIN;
+  ALTER TABLE subscriptions
+    ADD COLUMN IF NOT EXISTS cancel_at_period_end BOOLEAN NOT NULL DEFAULT false;
+COMMIT;
 
 -- ============================================
 -- MIGRATION: Restrict app_logs INSERT to authenticated users
