@@ -27,6 +27,7 @@ export function subscriptionRow(sub, userId, eventCreated) {
     status: sub.status,
     price_id: sub.items?.data?.[0]?.price?.id ?? null,
     current_period_end: periodEnd ? new Date(periodEnd * 1000).toISOString() : null,
+    cancel_at_period_end: sub.cancel_at_period_end === true,
     updated_at: new Date(eventCreated * 1000).toISOString(),
   };
 }

@@ -278,8 +278,13 @@ CREATE TABLE IF NOT EXISTS subscriptions (
   status TEXT,
   price_id TEXT,
   current_period_end TIMESTAMPTZ,
+  cancel_at_period_end BOOLEAN NOT NULL DEFAULT false,
   updated_at TIMESTAMPTZ DEFAULT now()
 );
+
+-- Apply before deploying the webhook mapper that writes this field (#252).
+ALTER TABLE subscriptions
+  ADD COLUMN IF NOT EXISTS cancel_at_period_end BOOLEAN NOT NULL DEFAULT false;
 
 -- Stripe redelivers webhook events; this table makes processing idempotent.
 CREATE TABLE IF NOT EXISTS processed_stripe_events (

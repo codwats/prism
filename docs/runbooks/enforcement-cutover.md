@@ -458,7 +458,11 @@ Before enabling paid Membership, in the Stripe account used by Netlify:
 5. Verify an account without a Stripe subscription sees no portal control, and
    portal errors leave the button usable for retry.
 
-These are deployment checks, not evidence of a live rehearsal. The profile
-currently labels `current_period_end` as a renewal while Stripe remains active,
-even after cancellation is scheduled; the portal is authoritative for the
-scheduled end date. A persisted scheduled-cancellation caption is separate work.
+These are deployment checks, not evidence of a live rehearsal. Before deploying
+the webhook mapper for #252, apply the idempotent `cancel_at_period_end` column
+addition in `supabase-schema.sql`. The profile labels `current_period_end` as
+"Access ends" when that flag is true and "Renews" otherwise. Existing rows default
+to false until their next subscription webhook; for cancellations scheduled
+before this migration, reconcile the flag from the live Stripe subscription
+before relying on the profile caption. The portal remains authoritative for the
+scheduled end date.

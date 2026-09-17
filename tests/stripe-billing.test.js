@@ -17,6 +17,7 @@ test('subscriptionRow maps a pre-Basil subscription', () => {
 	const sub = {
 		id: 'sub_123',
 		status: 'active',
+		cancel_at_period_end: true,
 		current_period_end: 1767225600, // 2026-01-01T00:00:00Z
 		items: { data: [{ price: { id: 'price_abc' } }] }
 	};
@@ -27,6 +28,7 @@ test('subscriptionRow maps a pre-Basil subscription', () => {
 		status: 'active',
 		price_id: 'price_abc',
 		current_period_end: '2026-01-01T00:00:00.000Z',
+		cancel_at_period_end: true,
 		updated_at: '2025-07-06T00:00:00.000Z'
 	});
 });
@@ -46,4 +48,5 @@ test('subscriptionRow tolerates missing items and period end', () => {
 	const row = subscriptionRow({ id: 'sub_789', status: 'active' }, 'user-1', 1751760000);
 	assert.equal(row.price_id, null);
 	assert.equal(row.current_period_end, null);
+	assert.equal(row.cancel_at_period_end, false);
 });
