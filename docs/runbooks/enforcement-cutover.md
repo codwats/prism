@@ -46,34 +46,62 @@ INSERT on `prisms` and INSERT on `decks`. Nothing else.
 ## The campaign window
 
 Decided in [#221](https://github.com/codwats/prism/issues/221). The window opens
-with the site changeover on **Sunday evening, 2026-09-13
-(America/Vancouver)** and ends here, at the flip. Nothing else
-records it end to end: [#206](https://github.com/codwats/prism/issues/206) owns
+with the site changeover, a few days before the Kickstarter pre-launch page
+goes up, and ends here, at the flip. Nothing else records it end to end: [#206](https://github.com/codwats/prism/issues/206) owns
 the signup lock and [#222](https://github.com/codwats/prism/issues/222) owns the
 site edits, but the two sessions are weeks apart and this file is the only thing
 that spans them.
 
-### Schedule (updated 2026-09-10)
+### Schedule (updated 2026-09-17)
 
-- **Sunday evening, September 13:** deploy the site changeover and close
-  signups ahead of pre-launch traffic. Exact time is not yet set.
-- **Monday, September 14:** the Kickstarter pre-launch page opens.
-- **Monday, September 21:** planned Kickstarter funding launch, one week later.
-  Update the site's pre-launch copy and CTA to the live campaign wording.
+**The campaign moved to November.** The previous schedule (site changeover
+Sunday 2026-09-13, pre-launch Monday the 14th, funding launch Monday the 21st)
+was not executed and no longer holds. Two other TCG-adjacent Kickstarters
+called Prism are live right now — a self-published card game and an all-in-one
+scanning system for card shops — and Jay's other obligations pushed prep back.
+Launching in November clears both of those projects, lands inside holiday
+impulse buying, and buys prep time; it accepts up front that backers will not
+receive the kit before Christmas. Fulfilment moves with the campaign, from
+shortly after a November wrap to a **January** target.
+
+The month is settled; the dates are not. The team has not met on this yet, and
+the reasoning above is Jay's rather than a team decision. Treat every entry
+below as a placeholder until that conversation happens.
+
+- **Pending, expected 2026-09-18:** the bank's letter to Stripe, and Stripe's
+  confirmation back. No launch date is real before this lands.
+- **November, date not set:** Kickstarter pre-launch page opens.
+- **The Sunday evening before it:** deploy the site changeover and close
+  signups, so the destination can be verified before Monday's public traffic.
+- **Roughly a week after pre-launch:** funding launch. Swap the pre-launch copy
+  and CTA for the live-campaign wording.
+- **December, date not set:** campaign close. Then the backer survey, the
+  Founder stamp, and the flip, in that order.
+- **January:** fulfilment target.
+
+Fill in the exact dates once the team has met. An approximate month in this
+file is fine; a stale exact date is not.
+
+**Do not deploy the changeover early.** The signup lock is the only control on
+the size of the grandfathered cohort ([PRODUCT.md](../../PRODUCT.md)), and it
+now has to hold from the changeover all the way to a flip that is two months
+further out than it was. Every day the lock runs ahead of pre-launch turns away
+new accounts and buys nothing, so it is anchored to pre-launch, not to a date
+on a calendar.
 
 [Draft PR #236](https://github.com/codwats/prism/pull/236) already prepares
-#222 and #206. Before the September 13 changeover, replace its campaign URL
-placeholder, complete the anonymous build/import/mark/export walkthrough on
+#222 and #206. Before the changeover, replace its campaign URL placeholder,
+complete the anonymous build/import/mark/export walkthrough on
 the deploy preview, and adapt the campaign block for pre-launch: it must not
 say the campaign is live or invite visitors to back it before funding opens.
-Verify the destination works on Sunday evening, before Monday's public
+Verify the destination works on the Sunday evening, before Monday's public
 pre-launch. At funding launch, switch to #221's settled live-campaign copy.
 The kit photo can follow later.
 
 Payment enforcement stays off during this changeover; the Founder stamp and
 enforcement flip remain after campaign close.
 
-**At the September 13 site changeover:**
+**At the site changeover:**
 
 1. **Disable signups** in Supabase, Authentication → Sign In / Providers. This is
    the real lock; the UI change alone is cosmetic.
@@ -81,8 +109,8 @@ enforcement flip remain after campaign close.
    the `#auth-signup-view` block. Login, password reset and every existing
    session stay untouched.
 3. **Add the campaign block** to `index.html`, using pre-launch copy until
-   September 21, below How It Works and above the features grid. It is a plain deploy: no flag, and
-   `payment_enforcement` cannot drive it, because that row is false both before
+   funding launch, below How It Works and above the features grid. It is a
+   plain deploy: no flag, and `payment_enforcement` cannot drive it, because that row is false both before
    go-live and during the window while the copy differs.
 
 **At campaign close, before the flip:**
