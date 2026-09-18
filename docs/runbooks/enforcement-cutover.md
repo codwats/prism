@@ -377,6 +377,41 @@ and telling the two apart would need a second entitlement source — the cost
 [#197](https://github.com/codwats/prism/issues/197) priced and refused. Any
 badge or copy addressed to Founders is addressed to both.
 
+## Stripe environment (#253)
+
+Production's Stripe keys are the **business account's live keys**, set in
+Netlify's Production deploy context only. Deploy previews carry none, so a
+preview can never start a live checkout. Run `scripts/setup-stripe-netlify.sh`
+to set or rotate them. It opens each dashboard page, says what to copy, and
+probes the webhook at the end.
+
+| Variable | Source | Secret |
+| --- | --- | --- |
+| `STRIPE_SECRET_KEY` | Stripe → API keys, `sk_live_…` | yes |
+| `STRIPE_WEBHOOK_SECRET` | Stripe → Webhooks → the prismmtg.com destination, `whsec_…` | yes |
+| `STRIPE_PRICE_ID` | Monthly $3 price, `price_…` | no |
+| `STRIPE_ANNUAL_PRICE_ID` | Yearly $30 price, `price_…` (optional) | no |
+| `STRIPE_PORTAL_CONFIGURATION_ID` | Only when pinning a non-default portal, `bpc_…` | no |
+| `SUPABASE_URL` | `https://clqxysoimlsjfmnjbxsa.supabase.co` | no |
+| `SUPABASE_SERVICE_ROLE_KEY` | Supabase → API keys → Legacy → `service_role` | yes |
+
+The webhook destination sends exactly `checkout.session.completed`,
+`customer.subscription.updated`, `customer.subscription.deleted` and
+`invoice.payment_failed`, as snapshot payloads, to
+`https://prismmtg.com/api/stripe-webhook`.
+
+Environment variables reach edge functions only after a new deploy, and only
+with the Functions scope. An unsigned `POST` to the webhook is the quick check:
+`400 Invalid signature` means all four of its variables are present, and
+`500 Not configured` means at least one is missing. The Edge Functions log
+names the missing ones. A green probe does not prove the keys belong together.
+The round trip does: a real $3 checkout on a throwaway account, then a
+`subscriptions` row reading `active`, then cancel and refund. While enforcement
+is off every signed-in account is entitled and the drawer shows no Join button,
+so start checkout from the console:
+`(await import('/js/modules/billing.js')).startCheckout()`. It must pass before
+the site changeover (PR #236).
+
 ## Membership drawer readiness (#216)
 
 The shared drawer is on `build.html` and `profile.html`. The landing-page handoff

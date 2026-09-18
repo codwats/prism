@@ -31,3 +31,10 @@ export function subscriptionRow(sub, userId, eventCreated) {
     updated_at: new Date(eventCreated * 1000).toISOString(),
   };
 }
+
+// Names of the required env vars that are unset or empty. Logged by the edge
+// functions so a "Not configured" 500 says which variable to fix (#253).
+// Names only, never values.
+export function missingEnv(names, get) {
+  return names.filter((name) => !get(name));
+}

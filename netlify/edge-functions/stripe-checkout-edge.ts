@@ -10,7 +10,7 @@
  * SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY.
  */
 
-import { safeReturnPath } from './lib/stripe-helpers.js';
+import { missingEnv, safeReturnPath } from './lib/stripe-helpers.js';
 
 function getCorsHeaders(request: Request): Record<string, string> {
   const origin = request.headers.get('origin') || 'https://prismmtg.com';
@@ -66,12 +66,16 @@ export default async function handler(request: Request): Promise<Response> {
     return jsonResponse(request, 405, { error: 'Method not allowed' });
   }
 
-  const supabaseUrl = Deno.env.get('SUPABASE_URL');
-  const priceId = Deno.env.get('STRIPE_PRICE_ID');
-  if (!supabaseUrl || !priceId || !Deno.env.get('STRIPE_SECRET_KEY') || !Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')) {
-    console.error('Stripe checkout: missing required env vars');
+  const missing = missingEnv(
+    ['SUPABASE_URL', 'STRIPE_PRICE_ID', 'STRIPE_SECRET_KEY', 'SUPABASE_SERVICE_ROLE_KEY'],
+    (name) => Deno.env.get(name)
+  );
+  if (missing.length > 0) {
+    console.error(`Stripe checkout: missing env vars: ${missing.join(', ')}`);
     return jsonResponse(request, 500, { error: 'Payments are not configured' });
   }
+  const supabaseUrl = Deno.env.get('SUPABASE_URL') as string;
+  const priceId = Deno.env.get('STRIPE_PRICE_ID') as string;
 
   try {
     // Verify the caller's Supabase session

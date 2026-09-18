@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { safeReturnPath, subscriptionRow } from '../netlify/edge-functions/lib/stripe-helpers.js';
+import { missingEnv, safeReturnPath, subscriptionRow } from '../netlify/edge-functions/lib/stripe-helpers.js';
 
 test('safeReturnPath allows same-site paths only', () => {
 	assert.equal(safeReturnPath('/profile.html'), '/profile.html');
@@ -49,4 +49,13 @@ test('subscriptionRow tolerates missing items and period end', () => {
 	assert.equal(row.price_id, null);
 	assert.equal(row.current_period_end, null);
 	assert.equal(row.cancel_at_period_end, false);
+});
+
+test('missingEnv names every unset or empty variable, in order', () => {
+	const env = { A: 'set', B: '', D: 'set' };
+	assert.deepEqual(missingEnv(['A', 'B', 'C', 'D'], (name) => env[name]), ['B', 'C']);
+});
+
+test('missingEnv returns an empty list when everything is set', () => {
+	assert.deepEqual(missingEnv(['A'], () => 'x'), []);
 });

@@ -11,7 +11,7 @@
  * SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY.
  */
 
-import { subscriptionRow } from './lib/stripe-helpers.js';
+import { missingEnv, subscriptionRow } from './lib/stripe-helpers.js';
 
 // deno-lint-ignore no-explicit-any
 type StripeObject = Record<string, any>;
@@ -128,11 +128,15 @@ export default async function handler(request: Request): Promise<Response> {
     return new Response('Method not allowed', { status: 405 });
   }
 
-  const webhookSecret = Deno.env.get('STRIPE_WEBHOOK_SECRET');
-  if (!webhookSecret || !Deno.env.get('STRIPE_SECRET_KEY') || !Deno.env.get('SUPABASE_URL') || !Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')) {
-    console.error('Stripe webhook: missing required env vars');
+  const missing = missingEnv(
+    ['STRIPE_WEBHOOK_SECRET', 'STRIPE_SECRET_KEY', 'SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY'],
+    (name) => Deno.env.get(name)
+  );
+  if (missing.length > 0) {
+    console.error(`Stripe webhook: missing env vars: ${missing.join(', ')}`);
     return new Response('Not configured', { status: 500 });
   }
+  const webhookSecret = Deno.env.get('STRIPE_WEBHOOK_SECRET') as string;
 
   // Signature verification on the raw body, before anything else.
   const signature = request.headers.get('stripe-signature');

@@ -13,7 +13,7 @@
  * default.
  */
 
-import { safeReturnPath } from './lib/stripe-helpers.js';
+import { missingEnv, safeReturnPath } from './lib/stripe-helpers.js';
 
 function getCorsHeaders(request: Request): Record<string, string> {
   const origin = request.headers.get('origin') || 'https://prismmtg.com';
@@ -43,12 +43,16 @@ export default async function handler(request: Request): Promise<Response> {
     return jsonResponse(request, 405, { error: 'Method not allowed' });
   }
 
-  const supabaseUrl = Deno.env.get('SUPABASE_URL');
-  const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-  if (!supabaseUrl || !serviceKey || !Deno.env.get('STRIPE_SECRET_KEY')) {
-    console.error('Stripe portal: missing required env vars');
+  const missing = missingEnv(
+    ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY', 'STRIPE_SECRET_KEY'],
+    (name) => Deno.env.get(name)
+  );
+  if (missing.length > 0) {
+    console.error(`Stripe portal: missing env vars: ${missing.join(', ')}`);
     return jsonResponse(request, 500, { error: 'Payments are not configured' });
   }
+  const supabaseUrl = Deno.env.get('SUPABASE_URL') as string;
+  const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') as string;
 
   try {
     const token = request.headers.get('authorization')?.replace(/^Bearer\s+/i, '');
