@@ -337,13 +337,22 @@ async function renderSubscriptionSection() {
   } else if (active) {
     if (tag) { tag.setAttribute('variant', 'success'); tag.textContent = 'Member'; }
     if (caption) {
-      const renews = subscription?.current_period_end
-        ? ` Renews ${formatDate(subscription.current_period_end)}.`
+      // The Membership ends on that date; access does not. A lapse pauses cloud
+      // writes and leaves everything readable, editable and exportable forever
+      // (PRODUCT.md, "Gate adding, never access"), so the word here is
+      // Membership — never access, locked or lost (CONTEXT.md, Paused sync).
+      const endsAtPeriodEnd = subscription?.cancel_at_period_end === true;
+      const periodLabel = endsAtPeriodEnd ? 'Membership ends' : 'Renews';
+      const periodSentence = subscription?.current_period_end
+        ? ` ${periodLabel} ${formatDate(subscription.current_period_end)}.`
         : '';
       // Only mention cancellation where the button that does it is visible —
-      // Patreon/Founder members hit this same branch with no Stripe row (#218).
-      const cancelHint = subscription ? ' Manage Billing also lets you cancel your membership.' : '';
-      caption.textContent = `Thanks for supporting PRISM.${renews}${cancelHint}`;
+      // Patreon/Founder members hit this same branch with no Stripe row (#218) —
+      // and never offer to cancel a Membership that is already ending (#252).
+      const cancelHint = subscription && !endsAtPeriodEnd
+        ? ' Manage Billing also lets you cancel your membership.'
+        : '';
+      caption.textContent = `Thanks for supporting PRISM.${periodSentence}${cancelHint}`;
     }
   } else {
     // A lapse pauses cloud writes and keeps cloud reads (#212). Say so, and

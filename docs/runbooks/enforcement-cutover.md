@@ -459,6 +459,14 @@ Before enabling paid Membership, in the Stripe account used by Netlify:
    portal errors leave the button usable for retry.
 
 These are deployment checks, not evidence of a live rehearsal. The profile
-currently labels `current_period_end` as a renewal while Stripe remains active,
-even after cancellation is scheduled; the portal is authoritative for the
-scheduled end date. A persisted scheduled-cancellation caption is separate work.
+labels `current_period_end` as "Membership ends" when `cancel_at_period_end` is
+true and "Renews" otherwise, and drops the cancel hint in that state (#252).
+That migration carries its own deploy-ordering warning in `supabase-schema.sql`,
+where it is read at merge time rather than here at flip time: apply the schema
+before the mapper deploys, never after.
+
+One part of it does belong here. Rows written before the migration read false,
+so a member who scheduled cancellation earlier keeps reading "Renews" until
+their next subscription webhook. Reconcile the flag from the live Stripe
+subscription before relying on the caption. The portal remains authoritative
+for the scheduled end date.
