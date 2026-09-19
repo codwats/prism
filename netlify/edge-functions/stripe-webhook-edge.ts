@@ -154,7 +154,9 @@ export default async function handler(request: Request): Promise<Response> {
       Stripe.createSubtleCryptoProvider()
     );
   } catch (err) {
-    console.error('Stripe webhook signature verification failed:', err);
+    // Message only: Stripe's error object carries the whole event payload,
+    // customer name and address included, and logs outlive the request.
+    console.error('Stripe webhook signature verification failed:', (err as Error).message);
     return new Response('Invalid signature', { status: 400 });
   }
 
