@@ -429,13 +429,26 @@ in the Supabase dashboard, then delete its `founders` row.
 
    The two numbers must be equal. Stop if they are not.
 
-3. **Prepare the test account.** Sign up a throwaway, then delete its `founders`
-   row so it is genuinely unentitled. Keep a normal stamped account signed in
-   elsewhere.
-
-4. **Re-run step 1.** Anyone who signed up during steps 1–3 is owed a
-   grandfather; the promise is every account existing *at enforcement*, not at
+3. **Re-run step 1.** Anyone who signed up during steps 1 and 2 is owed a
+   Founder row; the promise is every account existing *at enforcement*, not at
    the stamp. Re-running closes the window to seconds.
+
+4. **Prepare the test account, after the re-stamp and never before.** Delete its
+   `founders` row, then `SELECT` that row back and confirm it is gone. Keep a
+   normal stamped account signed in elsewhere.
+
+   **The order is the whole point.** Step 3 stamps every row in `auth.users` with
+   no predicate, so it re-creates the row for any account un-stamped before it
+   ran. A deletion made earlier is silently undone, every account is entitled at
+   the flip, nothing is refused, and step 6 passes whether the gate works or not.
+   This is the failure the 2026-08-30 rehearsal had to design around.
+
+   Do not sign up a throwaway here: signups are shut from the site changeover
+   until they reopen after the flip (step 6 of the campaign-window list above),
+   so the site cannot make one. Use the rehearsal throwaway, which
+   already exists and has been re-stamped since, or create an account from
+   Authentication → Users → Add user in the Supabase dashboard, which works with
+   signups disabled.
 
 5. **Flip.**
 
@@ -443,7 +456,7 @@ in the Supabase dashboard, then delete its `founders` row.
    UPDATE app_config SET value = 'true'::jsonb WHERE key = 'payment_enforcement';
    ```
 
-6. **Verify both directions**, immediately, with the two accounts from step 3:
+6. **Verify both directions**, immediately, with the two accounts from step 4:
 
    - Unstamped account: creating a PRISM is refused.
    - Stamped account: creating a PRISM succeeds.
