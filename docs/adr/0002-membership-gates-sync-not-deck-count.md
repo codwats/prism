@@ -49,14 +49,14 @@ thing the product counts: decks. PRISM does not, and the reasons are not aesthet
   PRISMs means hand-carrying JSON exports.
 - **Everyone with an account at the flip is a Founder, permanently.** Recorded as a stamped
   flag in a `founders` table, never derived from `auth.users.created_at`: the enforcement
-  date has already slipped once, and a derived cutoff silently re-grandfathers people.
+  date has already slipped once, and a derived cutoff silently makes new Founders.
   `subscriptions` cannot hold the flag — it is webhook-owned and update-only-if-older
   against Stripe event times, so a real event would revert it.
 - **Entitlement is source-blind and fails open.** `is_entitled()` hides whether entitlement
   came from a Founder row, Stripe or Patreon, which is what lets a Kickstarter backer's
   "lifetime PRISM membership" and a $3 monthly member be the same thing to every feature.
   When the check itself errors, the user is treated as entitled.
-- **The paying population starts at zero.** Lifetime for backers, permanent grandfathering
+- **The paying population starts at zero.** Lifetime for backers, permanent Founder grants
   for existing accounts, and a signup window closed for the campaign together mean the
   membership's entire addressable population is people who create an account *after*
   enforcement flips. Revenue grows only from cold traffic — which is why the price holds at

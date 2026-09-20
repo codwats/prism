@@ -5,7 +5,7 @@ procedure for the one-time cutover from "PRISM is free" to "PRISM enforces
 membership", executed by hand in the Supabase SQL editor.
 
 `app_config.payment_enforcement` is the last step, not the only step. Flipping
-it before the Founder stamp is complete walls every grandfathered account.
+it before the Founder stamp is complete walls every Founder.
 
 ## What entitlement means
 
@@ -84,7 +84,7 @@ Fill in the exact dates once the team has met. An approximate month in this
 file is fine; a stale exact date is not.
 
 **Do not deploy the changeover early.** The signup lock is the only control on
-the size of the grandfathered cohort ([PRODUCT.md](../../PRODUCT.md)), and it
+the size of the Founder cohort ([PRODUCT.md](../../PRODUCT.md)), and it
 now has to hold from the changeover all the way to a flip that is two months
 further out than it was. Every day the lock runs ahead of pre-launch turns away
 new accounts and buys nothing, so it is anchored to pre-launch, not to a date
@@ -195,8 +195,8 @@ enforcement flip remain after campaign close.
    **Everything else in the campaign-window branch stays until step 6.** The
    `js/layout.js` signup deletion and the two `js/gallery.js` notices are all
    about signups being *shut*, and signups are still shut during this gap.
-   Reverting them here would restore a signup view that reopens the
-   grandfathered cohort early, and gallery copy that offers a free account
+   Reverting them here would restore a signup view that widens the Founder
+   cohort early, and gallery copy that offers a free account
    nobody can create. `grep -rn "CAMPAIGN WINDOW"` lists all four markers; only
    the `index.html` one is in scope at this step.
 
@@ -205,7 +205,7 @@ enforcement flip remain after campaign close.
 6. **Re-enable signups** in Supabase, then revert the remaining three
    `CAMPAIGN WINDOW` markers, only after the stamp is verified and
    `payment_enforcement` is true. Reopening any earlier lets new accounts into
-   the grandfathered cohort. #240's claim RPC must be deployed **before** this
+   the Founder cohort. #240's claim RPC must be deployed **before** this
    step — reopening signups is exactly when the first backer account gets
    created, and without the claim path that account is refused.
 
