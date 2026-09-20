@@ -496,7 +496,7 @@ function renderDetail(root, id) {
           ${artwork.highlighted && artwork.storeUrl ? `<wa-button appearance="outlined" href="${escapeHtml(safeUrl(artwork.storeUrl))}" target="_blank" rel="noopener"><wa-icon slot="start" name="cart-shopping"></wa-icon>Order custom sleeves <wa-icon slot="end" name="arrow-up-right-from-square" style="font-size: 0.7em;"></wa-icon></wa-button>` : ''}
           ${user && !usingDemo && (isAdmin || artwork.uploaderId === user.id) ? `<wa-button appearance="outlined" href="gallery.html?view=edit&art=${encodeURIComponent(artwork.id)}"><wa-icon slot="start" name="pen"></wa-icon>Edit</wa-button>` : ''}
         </div>
-        ${user ? '' : '<p class="wa-caption-s" style="color: var(--wa-color-neutral-text-subtle); margin: 0;">Downloads need an account, and signup is closed while the Kickstarter campaign runs. Each download is one print-ready file (2.5&times;3.5&Prime; + bleed).</p>'}
+        ${user ? '' : '<p class="wa-caption-s" style="color: var(--wa-color-neutral-text-subtle); margin: 0;">Downloads need an account, and signup is currently closed. Each download is one print-ready file (2.5&times;3.5&Prime; + bleed).</p>'}
         ${licenseHtml()}
       </div>
     </div>
@@ -692,7 +692,7 @@ function renderUpload(root) {
       <div class="gallery-empty" style="max-width: 34rem;">
         <div class="ic"><wa-icon name="lock"></wa-icon></div>
         <h2 class="wa-heading-m">Sign in to upload artwork</h2>
-        <p class="wa-caption-m" style="color: var(--wa-color-neutral-text-subtle); max-width: 40ch;">Community uploads need an account, and signup is closed while the Kickstarter campaign runs. Ask on <a href="https://discord.gg/Jp84QUPSe" target="_blank" rel="noopener">Discord</a> and we will set one up for you. Uploads are reviewed before going public.</p>
+        <p class="wa-caption-m" style="color: var(--wa-color-neutral-text-subtle); max-width: 40ch;">Community uploads need an account, and signup is currently closed. Ask on <a href="https://discord.gg/Jp84QUPSe" target="_blank" rel="noopener">Discord</a> and we will set one up for you. Uploads are reviewed before going public.</p>
         <wa-button variant="brand" id="upload-signin"><wa-icon slot="start" name="right-to-bracket"></wa-icon>Sign in</wa-button>
       </div>`;
     root.querySelector('#upload-signin')?.addEventListener('click', promptSignIn);
