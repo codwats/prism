@@ -91,10 +91,15 @@ new accounts and buys nothing, so it is anchored to pre-launch, not to a date
 on a calendar.
 
 [Draft PR #236](https://github.com/codwats/prism/pull/236) already prepares
-#222 and #206. Before the changeover, replace its campaign URL placeholder with
-the **pre-launch** URL and complete the anonymous build/import/mark/export
-walkthrough on the deploy preview. Verify the destination works on the Sunday
-evening, before Monday's public pre-launch. The kit photo can follow later.
+#222 and #206. It no longer waits on the Kickstarter URL: the CTA ships
+`disabled`, labelled "Coming soon", so the block can go up before the
+pre-launch page exists. Enable it by deleting `disabled`, adding
+`href="<pre-launch URL>" target="_blank" rel="noopener"`, and changing the
+label back to "See it on Kickstarter" — that is the pre-launch URL, not the
+live campaign one. Verify
+the destination works on the Sunday evening, before Monday's public pre-launch.
+Complete the anonymous build/import/mark/export walkthrough on the deploy
+preview. The kit photo can follow later.
 
 **There is no copy swap at funding launch.** #221 wrote the block for a live
 campaign, and the schedule since put pre-launch a week ahead of funding. Rather
@@ -115,9 +120,14 @@ enforcement flip remain after campaign close.
 1. **Disable signups** in Supabase, Authentication → Sign In / Providers. This is
    the real lock; the UI change alone is cosmetic.
 2. **Remove the signup path** from `js/layout.js` — the `#btn-show-signup`
-   toggle and the whole `#auth-signup-view` block. Deleted, not hidden: hidden
+   toggle and the whole `#auth-signup-view` block, deleted, not hidden: hidden
    markup still ships an `input[type=password]` for a password manager to offer,
-   and a `display` toggle is one devtools edit away from a working form. Login,
+   and a `display` toggle is one devtools edit away from a working form. In
+   their place, one caption line in the login view: *New account signup is
+   currently disabled.* A caption rather than a disabled button, because someone
+   who opened this dialog is asking where signup went, and a greyed-out button
+   answers that on hover only, which is nowhere on touch. It points nowhere yet;
+   the campaign and the manual account path are a later edit. Login,
    password reset and every existing session stay untouched, and `auth.js` is
    not touched at all — its `signUp` path and `showAuthView('signup')` case go
    unreachable and are already null-guarded. This is #206's code half, and it
@@ -130,10 +140,13 @@ enforcement flip remain after campaign close.
 
    - **The campaign block** on `index.html`, below How It Works and above the
      features grid, carrying #221's paragraph verbatim under a phase-agnostic
-     heading and CTA. Its href is a `KICKSTARTER_URL_TODO` placeholder until the
-     pre-launch URL exists; **fill it in before merging.** It is deliberately not a valid link, so a
-     premature deploy fails loudly instead of looking correct. The block ships
-     text-only: #221 specifies a flank with a kit-contents photo, and if that
+     heading and CTA. Its button ships `disabled` and labelled "Coming soon"
+     until the pre-launch URL exists, so the block can deploy ahead of the
+     campaign page; see the `TODO(#222)` at the block for the change that turns
+     it into a link. Disabled rather than a placeholder href: a dead link that
+     looks live is worse than a button that says it is not ready, and the label
+     carries the status because a tooltip on a disabled button is hover-only.
+     The block ships text-only: #221 specifies a flank with a kit-contents photo, and if that
      photo lands it is a follow-up, not a blocker.
    - **Two gallery notices** in `js/gallery.js` — the download gate on the
      artwork detail view and the upload gate on `?view=upload`. Both previously
@@ -193,8 +206,9 @@ enforcement flip remain after campaign close.
    created, and without the claim path that account is refused.
 
    - `js/layout.js` — restore the `#btn-show-signup` toggle and the
-     `#auth-signup-view` block from the deletion hunk of the #222 commit. The
-     comment left at the deletion site is itself the last thing to remove.
+     `#auth-signup-view` block from the deletion hunk of the #222 commit, and
+     delete the signup-disabled caption that stood in for them. The comment left
+     at the deletion site is itself the last thing to remove.
    - `js/gallery.js` — the download and upload gates go back to their prior
      copy. The upload one drops the manual-account-by-Discord path with it,
      since signup is the path again.

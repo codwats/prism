@@ -550,14 +550,18 @@ function injectAuthDialog() {
   dialog.id = 'auth-dialog';
   dialog.style.setProperty('--width', 'min(45ch, 92vw)');
   // CAMPAIGN WINDOW (#206): the #btn-show-signup toggle and the whole
-  // #auth-signup-view block were deleted from the markup below for the Kickstarter
-  // window. Restore at the enforcement flip, runbook step 5 — NOT at step 4 with the
-  // rest of the campaign-window revert. Signups stay shut across the gap between
-  // campaign close and the flip, and reopening early widens the grandfathered cohort.
+  // #auth-signup-view block were replaced in the markup below by one caption line for
+  // the Kickstarter window. Restore both at the enforcement flip, runbook step 6 — NOT
+  // at step 4 with the rest of the campaign-window revert. Signups stay shut across the
+  // gap between campaign close and the flip, and reopening early widens the
+  // grandfathered cohort.
   // Deleted rather than hidden: hidden markup still ships an input[type=password] for
   // a password manager to offer, and a display toggle is one devtools edit away from a
-  // working form. The real lock is the Supabase project setting; this is what stops the
-  // UI offering a door that no longer opens. auth.js keeps its signUp path and its
+  // working form. A caption rather than a disabled button: someone who opened this
+  // dialog is asking where signup went, and a greyed-out button answers that only on
+  // hover, which is nowhere on touch. The line says signup is off without pointing
+  // anywhere yet; the campaign and the manual path get added later. The real lock is
+  // the Supabase project setting. auth.js keeps its signUp path and its
   // showAuthView('signup') case, both now unreachable and both already null-guarded.
   //
   // A JS comment, not an HTML one inside the template literal. This string is assigned
@@ -581,6 +585,8 @@ function injectAuthDialog() {
           <div id="login-error" hidden class="wa-caption-m" style="color: var(--wa-color-danger-text);"></div>
           <wa-button id="btn-login-submit" type="submit" variant="brand" style="width: 100%;">Sign in</wa-button>
         </form>
+        <wa-divider></wa-divider>
+        <p class="wa-caption-m" style="text-align: center; margin: 0; color: var(--wa-color-neutral-text-subtle);">New account signup is currently disabled.</p>
       </div>
 
       <!-- Forgot Password View -->

@@ -148,9 +148,9 @@
 
              Phase-agnostic on purpose, and this is the one deviation from #221's
              verbatim copy. #221 wrote for a live campaign; the schedule since put
-             pre-launch (Sept 14) a week ahead of funding (Sept 21), and a
-             Kickstarter pre-launch page keeps its slug when it goes live, so one
-             URL serves both. The heading and CTA therefore point at the page
+             pre-launch about a week ahead of funding, and a Kickstarter
+             pre-launch page keeps its slug when it goes live, so one URL serves
+             both. The heading and CTA therefore point at the page
              rather than naming an action only one phase allows: during pre-launch
              it collects follows, after launch it takes pledges, and the block
              needs no second deploy in between. The paragraph is #221 verbatim.
@@ -165,14 +165,18 @@
           <p style="text-align: center; max-width: 60ch;">
             The Spirit Guide, the alignment tool this marking system is built around, is on Kickstarter, along with matching sleeves, tokens and playmats. Backing the campaign also includes a lifetime PRISM Membership, attached after the campaign closes from the email you give in the backer survey. PRISM itself stays free to use, with no account.
           </p>
-          <!-- TODO(#222): replace KICKSTARTER_URL_TODO with the Kickstarter
-               pre-launch URL before this branch merges. That is the one needed on
-               Sunday, not the live campaign URL; the slug carries over when the
-               project launches, so this link needs no second edit on Sept 21.
-               Deliberately not a valid link, so a premature deploy fails loudly
-               rather than looking correct. -->
-          <wa-button href="KICKSTARTER_URL_TODO" target="_blank" rel="noopener" appearance="outlined" size="large">
-            See it on Kickstarter
+          <!-- TODO(#222): the CTA is disabled until the Kickstarter pre-launch
+               URL exists. To go live, delete disabled, add
+               href="<pre-launch URL>" target="_blank" rel="noopener", and change
+               the label back to "See it on Kickstarter". That is the pre-launch
+               URL, not the live campaign one; the slug carries over when the
+               project launches, so it needs no second edit at funding launch.
+               Disabled rather than a placeholder href: a dead link that looks
+               live is worse than a button that says it is not ready. The label
+               carries the status rather than a tooltip, which on a disabled
+               button shows on hover only and so is invisible on touch. -->
+          <wa-button appearance="outlined" size="large" disabled>
+            Coming soon
           </wa-button>
         </section>
 
