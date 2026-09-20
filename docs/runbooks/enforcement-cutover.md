@@ -124,7 +124,7 @@ enforcement flip remain after campaign close.
    markup still ships an `input[type=password]` for a password manager to offer,
    and a `display` toggle is one devtools edit away from a working form. In
    their place, one caption line in the login view: *New account signup is
-   currently disabled.* A caption rather than a disabled button, because someone
+   currently closed.* A caption rather than a disabled button, because someone
    who opened this dialog is asking where signup went, and a greyed-out button
    answers that on hover only, which is nowhere on touch. It points nowhere yet;
    the campaign and the manual account path are a later edit. Login,

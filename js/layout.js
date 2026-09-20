@@ -586,7 +586,7 @@ function injectAuthDialog() {
           <wa-button id="btn-login-submit" type="submit" variant="brand" style="width: 100%;">Sign in</wa-button>
         </form>
         <wa-divider></wa-divider>
-        <p class="wa-caption-m" style="text-align: center; margin: 0; color: var(--wa-color-neutral-text-subtle);">New account signup is currently disabled.</p>
+        <p class="wa-caption-m" style="text-align: center; margin: 0; color: var(--wa-color-neutral-text-subtle);">New account signup is currently closed.</p>
       </div>
 
       <!-- Forgot Password View -->
