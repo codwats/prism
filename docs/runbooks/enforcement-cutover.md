@@ -73,8 +73,9 @@ below as a placeholder until that conversation happens.
 - **November, date not set:** Kickstarter pre-launch page opens.
 - **The Sunday evening before it:** deploy the site changeover and close
   signups, so the destination can be verified before Monday's public traffic.
-- **Roughly a week after pre-launch:** funding launch. Swap the pre-launch copy
-  and CTA for the live-campaign wording.
+- **Roughly a week after pre-launch:** funding launch. No site deploy: the
+  campaign block reads correctly in both phases and the pre-launch URL becomes
+  the live one. See below.
 - **December, date not set:** campaign close. Then the backer survey, the
   Founder stamp, and the flip, in that order.
 - **January:** fulfilment target.
@@ -90,13 +91,29 @@ new accounts and buys nothing, so it is anchored to pre-launch, not to a date
 on a calendar.
 
 [Draft PR #236](https://github.com/codwats/prism/pull/236) already prepares
-#222 and #206. Before the changeover, replace its campaign URL placeholder,
-complete the anonymous build/import/mark/export walkthrough on
-the deploy preview, and adapt the campaign block for pre-launch: it must not
-say the campaign is live or invite visitors to back it before funding opens.
-Verify the destination works on the Sunday evening, before Monday's public
-pre-launch. At funding launch, switch to #221's settled live-campaign copy.
-The kit photo can follow later.
+#222 and #206. It no longer waits on the Kickstarter URL: the CTA ships
+`disabled`, labelled "Coming soon", so the block can go up before the
+pre-launch page exists. Enable it by deleting `disabled`, adding
+`href="<pre-launch URL>" target="_blank" rel="noopener"`, and changing the
+label back to "See it on Kickstarter" — that is the pre-launch URL, not the
+live campaign one. Verify
+the destination works on the Sunday evening, before Monday's public pre-launch.
+Complete the anonymous build/import/mark/export walkthrough on the deploy
+preview. The kit photo can follow later.
+
+**There is no copy swap at funding launch.** #221 wrote the block for a live
+campaign, and the schedule since put pre-launch a week ahead of funding. Rather
+than carry two versions of the copy and a second deploy to switch them, the
+block is phase-agnostic: heading "The Kickstarter Campaign", CTA "See it on
+Kickstarter", and #221's paragraph with its opening verb changed from "is on
+Kickstarter" to "The Kickstarter campaign brings", since the block now deploys
+before the page exists. It points at the page instead of naming an action only
+one phase allows, and it states what the campaign contains instead of asserting
+it is live, so it reads correctly before pre-launch, while the page collects
+follows, and after it starts taking pledges. A pre-launch page keeps its slug
+when it launches, so the single URL needs no second edit either. Those three
+deviations from #221's verbatim copy are deliberate and noted at the block in
+`index.html`.
 
 Payment enforcement stays off during this changeover; the Founder stamp and
 enforcement flip remain after campaign close.
@@ -105,23 +122,61 @@ enforcement flip remain after campaign close.
 
 1. **Disable signups** in Supabase, Authentication → Sign In / Providers. This is
    the real lock; the UI change alone is cosmetic.
-2. **Hide the signup path** in `js/layout.js` — the `#btn-show-signup` button and
-   the `#auth-signup-view` block. Login, password reset and every existing
-   session stay untouched.
-3. **Add the campaign block** to `index.html`, using pre-launch copy until
-   funding launch, below How It Works and above the features grid. It is a
-   plain deploy: no flag, and `payment_enforcement` cannot drive it, because that row is false both before
-   go-live and during the window while the copy differs.
+2. **Remove the signup path** from `js/layout.js` — the `#btn-show-signup`
+   toggle and the whole `#auth-signup-view` block, deleted, not hidden: hidden
+   markup still ships an `input[type=password]` for a password manager to offer,
+   and a `display` toggle is one devtools edit away from a working form. In
+   their place, one caption line in the login view: *New account signup is
+   currently closed.* A caption rather than a disabled button, because someone
+   who opened this dialog is asking where signup went, and a greyed-out button
+   answers that on hover only, which is nowhere on touch. It points nowhere yet;
+   the campaign and the manual account path are a later edit. Login,
+   password reset and every existing session stay untouched, and `auth.js` is
+   not touched at all — its `signUp` path and `showAuthView('signup')` case go
+   unreachable and are already null-guarded. This is #206's code half, and it
+   ships on the same branch as step 3 rather than in its own session.
+3. **Deploy the campaign-window branch.** It is a plain deploy: no flag, and
+   `payment_enforcement` cannot drive it, because that row is false both before
+   go-live and during the window while the copy differs. Every edit in it carries
+   a `CAMPAIGN WINDOW` comment, which is what steps 4 and 5 grep for. Landed in
+   #222, on `feature/222-campaign-window`, together with step 2:
+
+   - **The campaign block** on `index.html`, below How It Works and above the
+     features grid, carrying #221's paragraph under a phase-agnostic heading and
+     CTA, its opening verb changed so the block reads correctly before the
+     campaign page exists. Its button ships `disabled` and labelled "Coming soon"
+     until the pre-launch URL exists, so the block can deploy ahead of the
+     campaign page; see the `TODO(#222)` at the block for the change that turns
+     it into a link. Disabled rather than a placeholder href: a dead link that
+     looks live is worse than a button that says it is not ready, and the label
+     carries the status because a tooltip on a disabled button is hover-only.
+     The block ships text-only: #221 specifies a flank with a kit-contents photo, and if that
+     photo lands it is a follow-up, not a blocker.
+   - **Two gallery notices** in `js/gallery.js` — the download gate on the
+     artwork detail view and the upload gate on `?view=upload`. Both previously
+     promised "a free account", which is not creatable while signups are shut.
+     The upload one now names the manual path (#206's accepted collateral):
+     ask on Discord and an account is made by hand.
+
+   Swept and deliberately left alone: `index.html`'s own CTAs, which all point
+   at `build.html` and need no account; `profile.html`'s logged-out panel and
+   `gallery.html`'s guest callout, which say *sign in*, not *sign up*, and stay
+   correct for the pre-existing cohort; `build.html`, whose sync affordances are
+   already hidden until a user is logged in; and the two places `index.html`
+   *describes* accounts rather than asking for one, the Auto-Save feature card
+   ("Login to sync across multiple devices") and the data-storage FAQ answer.
+   Those two are prose, not a call to action, and they stay true throughout the
+   window: accounts exist and still sync, there is just no way to make a new one.
 
 **At campaign close, before the flip:**
 
-4. **Delete the campaign block** from `index.html`. Its copy asks a visitor to
-   back a live campaign and goes stale the moment funding ends, and the close
-   date and the flip date are not the same day. The revert is a deletion rather
-   than new copy: the page returns to its prior state. Between close and the
-   flip, signups are still shut and backers reach their Membership through the
-   backer survey ([#204](https://github.com/codwats/prism/issues/204)), never
-   through the site.
+4. **Delete the campaign block** from `index.html`, and nothing else yet. Its
+   copy asks a visitor to back a live campaign and goes stale the moment funding
+   ends, and the close date and the flip date are not the same day. The revert
+   is a deletion, not new copy: the page returns to its prior state. Between
+   close and the flip, signups are still shut and backers reach their Membership
+   through the backer survey
+   ([#204](https://github.com/codwats/prism/issues/204)), never through the site.
 5. **Collect and load the backer allowlist**
    ([#240](https://github.com/codwats/prism/issues/240)). The Pledge Manager
    survey must carry the PRISM account email as its own field (#204), labelled
@@ -137,14 +192,31 @@ enforcement flip remain after campaign close.
    the Pledge Manager permanently: a creator may revert from Pledge Manager to
    survey-only before the survey launches, never the reverse.
 
+   **Everything else in the campaign-window branch stays until step 6.** The
+   `js/layout.js` signup deletion and the two `js/gallery.js` notices are all
+   about signups being *shut*, and signups are still shut during this gap.
+   Reverting them here would restore a signup view that reopens the
+   grandfathered cohort early, and gallery copy that offers a free account
+   nobody can create. `grep -rn "CAMPAIGN WINDOW"` lists all four markers; only
+   the `index.html` one is in scope at this step.
+
 **At the flip, this session, after step 6 of the cutover below:**
 
-6. **Re-enable signups** in Supabase and restore the `layout.js` signup view,
-   only after the stamp is verified and `payment_enforcement` is true. Reopening
-   any earlier lets new accounts into the grandfathered cohort. #240's claim RPC
-   must be deployed **before** this step — reopening signups is exactly when the
-   first backer account gets created, and without the claim path that account is
-   refused.
+6. **Re-enable signups** in Supabase, then revert the remaining three
+   `CAMPAIGN WINDOW` markers, only after the stamp is verified and
+   `payment_enforcement` is true. Reopening any earlier lets new accounts into
+   the grandfathered cohort. #240's claim RPC must be deployed **before** this
+   step — reopening signups is exactly when the first backer account gets
+   created, and without the claim path that account is refused.
+
+   - `js/layout.js` — restore the `#btn-show-signup` toggle and the
+     `#auth-signup-view` block from the deletion hunk of the #222 commit, and
+     delete the signup-disabled caption that stood in for them. The comment left
+     at the deletion site is itself the last thing to remove.
+   - `js/gallery.js` — the download and upload gates go back to their prior
+     copy. The upload one drops the manual-account-by-Discord path with it,
+     since signup is the path again.
+
 7. **Land the membership section** on `index.html`
    ([#215](https://github.com/codwats/prism/issues/215)) and the membership
    drawer ([#216](https://github.com/codwats/prism/issues/216)).
@@ -309,9 +381,38 @@ with enforcement on, `SELECT is_entitled()` in the editor returns **false**
 regardless of who is entitled, because `auth.uid()` is NULL there. The editor
 cannot observe any row of that table.
 
+### The stamp — re-run 2026-09-20
+
+Re-run unfiltered after the count query came back 20 users / 10 Founders: ten
+accounts had been created since the rehearsal stamp and were not yet stamped.
+The unstamped rows were read before the insert and all looked like real
+accounts. The verify query then read 20 / 20.
+
+This does **not** finish the stamp. Signups were still open when it ran, so
+anyone who joins before the lock is unstamped and cutover step 1 below still runs
+as written. What it buys is that the cohort as of this date is safe if the flip
+arrives sooner than planned.
+
+**The announced cutoff and the stamp do not match, deliberately.** Discord was
+told to sign up by 2026-09-05 to be included, and the changeover then slipped on
+our end. One account created on the 8th, with a real PRISM, was stamped rather
+than excluded. The stamp takes no date predicate and is not going to grow one:
+`CONTEXT.md` defines a Founder as every account that existed when enforcement was
+switched on, the announcement was the more restrictive of the two, and nobody is
+worse off for the difference. If it comes up, every account that existed is in.
+
+**It also re-entitled the rehearsal throwaway**, whose `founders` row was deleted
+in #225 precisely so something could be refused. Any later rehearsal or flip
+verification needs a genuinely unentitled account again, and once signups are
+locked the UI cannot make one. Create it from Authentication → Users → Add user
+in the Supabase dashboard, then delete its `founders` row.
+
 ## The cutover — in order
 
-1. **Stamp.** Every row in `auth.users`, no predicate. Idempotent.
+1. **Stamp.** Every row in `auth.users`, no predicate. Idempotent, and run
+   twice already (before the 2026-08-30 rehearsal, and again on 2026-09-20).
+   It still runs here, after the signup lock, because that is the first moment
+   the cohort is final.
 
    ```sql
    INSERT INTO founders (user_id)
