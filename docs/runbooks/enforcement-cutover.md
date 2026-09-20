@@ -377,9 +377,38 @@ with enforcement on, `SELECT is_entitled()` in the editor returns **false**
 regardless of who is entitled, because `auth.uid()` is NULL there. The editor
 cannot observe any row of that table.
 
+### The stamp — re-run 2026-09-20
+
+Re-run unfiltered after the count query came back 20 users / 10 Founders: ten
+accounts had been created since the rehearsal stamp and were not yet stamped.
+The unstamped rows were read before the insert and all looked like real
+accounts. The verify query then read 20 / 20.
+
+This does **not** finish the stamp. Signups were still open when it ran, so
+anyone who joins before the lock is unstamped and cutover step 1 below still runs
+as written. What it buys is that the cohort as of this date is safe if the flip
+arrives sooner than planned.
+
+**The announced cutoff and the stamp do not match, deliberately.** Discord was
+told to sign up by 2026-09-05 to be included, and the changeover then slipped on
+our end. One account created on the 8th, with a real PRISM, was stamped rather
+than excluded. The stamp takes no date predicate and is not going to grow one:
+`CONTEXT.md` defines a Founder as every account that existed when enforcement was
+switched on, the announcement was the more restrictive of the two, and nobody is
+worse off for the difference. If it comes up, every account that existed is in.
+
+**It also re-entitled the rehearsal throwaway**, whose `founders` row was deleted
+in #225 precisely so something could be refused. Any later rehearsal or flip
+verification needs a genuinely unentitled account again, and once signups are
+locked the UI cannot make one. Create it from Authentication → Users → Add user
+in the Supabase dashboard, then delete its `founders` row.
+
 ## The cutover — in order
 
-1. **Stamp.** Every row in `auth.users`, no predicate. Idempotent.
+1. **Stamp.** Every row in `auth.users`, no predicate. Idempotent, and run
+   twice already (before the 2026-08-30 rehearsal, and again on 2026-09-20).
+   It still runs here, after the signup lock, because that is the first moment
+   the cohort is final.
 
    ```sql
    INSERT INTO founders (user_id)
