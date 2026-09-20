@@ -105,11 +105,14 @@ preview. The kit photo can follow later.
 campaign, and the schedule since put pre-launch a week ahead of funding. Rather
 than carry two versions of the copy and a second deploy to switch them, the
 block is phase-agnostic: heading "The Kickstarter Campaign", CTA "See it on
-Kickstarter", and #221's paragraph verbatim. It points at the page instead of
-naming an action only one phase allows, so it reads correctly while the page
-collects follows and after it starts taking pledges. A pre-launch page keeps its
-slug when it launches, so the single URL needs no second edit either. The one
-deviation from #221's verbatim copy, deliberate, noted at the block in
+Kickstarter", and #221's paragraph with its opening verb changed from "is on
+Kickstarter" to "The Kickstarter campaign brings", since the block now deploys
+before the page exists. It points at the page instead of naming an action only
+one phase allows, and it states what the campaign contains instead of asserting
+it is live, so it reads correctly before pre-launch, while the page collects
+follows, and after it starts taking pledges. A pre-launch page keeps its slug
+when it launches, so the single URL needs no second edit either. Those three
+deviations from #221's verbatim copy are deliberate and noted at the block in
 `index.html`.
 
 Payment enforcement stays off during this changeover; the Founder stamp and
@@ -139,8 +142,9 @@ enforcement flip remain after campaign close.
    #222, on `feature/222-campaign-window`, together with step 2:
 
    - **The campaign block** on `index.html`, below How It Works and above the
-     features grid, carrying #221's paragraph verbatim under a phase-agnostic
-     heading and CTA. Its button ships `disabled` and labelled "Coming soon"
+     features grid, carrying #221's paragraph under a phase-agnostic heading and
+     CTA, its opening verb changed so the block reads correctly before the
+     campaign page exists. Its button ships `disabled` and labelled "Coming soon"
      until the pre-launch URL exists, so the block can deploy ahead of the
      campaign page; see the `TODO(#222)` at the block for the change that turns
      it into a link. Disabled rather than a placeholder href: a dead link that
