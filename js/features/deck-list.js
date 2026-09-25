@@ -1007,7 +1007,7 @@ export function renderDecksList() {
                     ${children.length} variants
                   </wa-tag>
                   <wa-tag size="s" variant="${(group.splitStyle || 'stripes') === 'dots' ? 'success' : 'neutral'}" appearance="outlined">
-                    <wa-icon name="${(group.splitStyle || 'stripes') === 'dots' ? 'circles-three' : 'lines-horizontal'}" style="font-size: 0.8em;"></wa-icon>
+                    <wa-icon name="${(group.splitStyle || 'stripes') === 'dots' ? 'ellipsis' : 'grip-lines'}" style="font-size: 0.8em;"></wa-icon>
                     ${(group.splitStyle || 'stripes') === 'dots' ? 'Dots' : 'Stripes'}
                   </wa-tag>
                 </div>
