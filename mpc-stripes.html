@@ -58,6 +58,25 @@
             </p>
           </div>
 
+          <!-- Members-only Extra (ADR 0003): initExtraGate() in modules/membership.js
+               reveals exactly one of loading → tool | pitch. -->
+          <div data-extra-loading class="skeleton-deck-card" aria-hidden="true">
+            <wa-skeleton effect="pulse" class="skeleton-line-title"></wa-skeleton>
+            <wa-skeleton effect="pulse" class="skeleton-line"></wa-skeleton>
+            <wa-skeleton effect="pulse" class="skeleton-line-short"></wa-skeleton>
+          </div>
+
+          <wa-card data-extra-pitch hidden>
+            <div class="wa-stack wa-gap-m">
+              <p>The MPC Stripe Compositor is one of the Extras included with Membership.</p>
+              <div class="wa-cluster wa-gap-m">
+                <wa-button variant="brand" data-extra-signin>Log in</wa-button>
+                <wa-button variant="brand" data-open-membership>See Membership</wa-button>
+              </div>
+            </div>
+          </wa-card>
+
+          <div data-extra-tool hidden>
           <wa-callout id="mpc-unsupported" variant="warning" hidden>
             <wa-icon slot="icon" name="triangle-exclamation"></wa-icon>
             This tool needs the File System Access API to write images in place.
@@ -185,9 +204,15 @@
               <ul id="mpc-process-log" class="mpc-process-log"></ul>
             </div>
           </wa-card>
+          </div>
         </div>
       </main>
     </wa-page>
+
+    <wa-drawer id="membership-drawer" label="Membership" placement="end">
+      <div data-membership-content></div>
+      <wa-button slot="footer" appearance="plain" data-drawer="close">Close</wa-button>
+    </wa-drawer>
 
     <!-- Toast notification container -->
     <wa-toast placement="bottom-end" id="toast-container"></wa-toast>
@@ -195,8 +220,10 @@
     <script type="module">
       import { initLayout } from './js/layout.js';
       import { initMpcStripes } from './js/features/mpc-stripes.js';
+      import { initExtraGate } from './js/modules/membership.js';
       initLayout({ activePage: '', headerCta: { href: 'build.html', label: 'Build PRISM', icon: 'wand-magic-sparkles' } });
       initMpcStripes();
+      initExtraGate();
     </script>
   </body>
 </html>

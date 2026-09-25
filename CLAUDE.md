@@ -22,7 +22,7 @@ prism/
 ├── guide.html              Marking guide
 ├── tools.html              Paint pen recommendations
 ├── gallery.html            Community artwork gallery (see Gallery section)
-├── mpc-stripes.html        MPC Stripe Compositor — a paid Extra; self-contained page
+├── mpc-stripes.html        MPC Stripe Compositor — a paid Extra, Members-only via `initExtraGate()` in membership.js (soft gate, ADR 0003)
 ├── links.html              QR/social funnel page (#243) — standalone: no layout.js, no nav, its own inlined tokens, so it can move to another domain unchanged
 ├── profile.html            User account management
 ├── privacy.html / terms.html

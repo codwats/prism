@@ -85,7 +85,7 @@ _Avoid_: subscribe, subscription, subscriber (reader-facing prose only), upgrade
 _In code_: `subscriptions`, `getSubscription()`, `#btn-subscribe`. The mismatch is deliberate — the table is webhook-owned and mirrors Stripe's own object — so do not align either direction. Stripe's hosted Checkout says "Subscribe" and we do not control it. Unrelated: `markType: 'membership'` (`processor.js`) is a card's membership in a split-group variant, and is never rendered.
 
 **Extras**:
-The bundled perks a Membership includes beyond sync, reached from a paid-only area linked from build.html. Today that is the MPC Stripe Compositor (`mpc-stripes.html`). Always capitalized. The modest register is deliberate — Extras is not the sell.
+The bundled perks a Membership includes beyond sync. Today that is the MPC Stripe Compositor (`mpc-stripes.html`). Only Members can use Extras: a free account does not unlock them, and a Lapse takes them away. An Extra is a perk, not the member's data, so "gate adding, never access" does not cover it. Members reach Extras from build.html and the Membership drawer. Non-Members see Extras only as one line of the Membership pitch. Always capitalized. The modest register is deliberate — Extras is not the sell.
 _Avoid_: premium features, bonus content, perks (as a proper noun)
 
 **Founder**:
