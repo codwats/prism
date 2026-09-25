@@ -181,7 +181,7 @@ export function createLoadingElement() {
   container.className = 'card-preview-container card-preview-loading';
 
   const spinner = document.createElement('wa-spinner');
-  spinner.setAttribute('size', 'large');
+  spinner.setAttribute('size', 'l');
   container.appendChild(spinner);
 
   return container;

@@ -796,7 +796,7 @@ function getMoveButtonHtml(deck, isInGroup) {
   if (isInGroup && splitStyle === 'dots') {
     const parentName = escapeHtml(group?.name || 'parent deck');
     return `
-      <wa-button appearance="plain" variant="neutral" size="small" disabled
+      <wa-button appearance="plain" variant="neutral" size="s" disabled
         title="Dot variants do not own a slot. Move &quot;${parentName}&quot; instead."
         aria-label="Move ${escapeHtml(deck.name)} (unavailable for dot variants)">
         <wa-icon name="up-down-left-right"></wa-icon>
@@ -806,7 +806,7 @@ function getMoveButtonHtml(deck, isInGroup) {
 
   // Standalone decks AND stripes-style variants: fully moveable.
   return `
-    <wa-button appearance="plain" variant="neutral" size="small"
+    <wa-button appearance="plain" variant="neutral" size="s"
       class="btn-move-deck" data-deck-id="${deck.id}" title="Move to a different slot"
       aria-label="Move ${escapeHtml(deck.name)} to a different slot">
       <wa-icon name="up-down-left-right"></wa-icon>
@@ -821,7 +821,7 @@ function getMoveButtonHtml(deck, isInGroup) {
 function kebabItem(deck, cls, icon, label) {
   return `
     <wa-button class="kebab-item ${cls}" data-deck-id="${deck.id}"
-      appearance="plain" variant="neutral" size="small">
+      appearance="plain" variant="neutral" size="s">
       <wa-icon slot="start" name="${icon}"></wa-icon>${label}
     </wa-button>
   `;
@@ -839,7 +839,7 @@ function getMoveKebabItemHtml(deck, isInGroup) {
   }
   const reason = `Dot variants move with their parent. Move &quot;${escapeHtml(group?.name || 'parent deck')}&quot; instead.`;
   return `
-    <wa-button class="kebab-item" appearance="plain" variant="neutral" size="small" disabled title="${reason}">
+    <wa-button class="kebab-item" appearance="plain" variant="neutral" size="s" disabled title="${reason}">
       <wa-icon slot="start" name="up-down-left-right"></wa-icon>Move to slot
     </wa-button>
   `;
@@ -854,7 +854,7 @@ function getDeckActionsKebabHtml(deck, isInGroup) {
     : "";
   return `
     <wa-dropdown class="deck-actions-kebab">
-      <wa-button slot="trigger" appearance="plain" variant="neutral" size="small" title="Actions"
+      <wa-button slot="trigger" appearance="plain" variant="neutral" size="s" title="Actions"
         aria-label="Actions for ${escapeHtml(deck.name)}">
         <wa-icon name="ellipsis-vertical"></wa-icon>
       </wa-button>
@@ -873,8 +873,8 @@ export function renderDeckCard(deck, showActions = true, processedCards = null) 
   const isInGroup = !!deck.splitGroupId;
   const isDot = isDotVariant(deck, state.currentPrism);
   const slotTagHtml = isDot
-    ? `<wa-tag size="small" variant="brand">Dot variant</wa-tag>`
-    : `<wa-tag size="small" variant="${isInGroup ? "brand" : "neutral"}">${formatSlotLabel(deck.stripePosition)}</wa-tag>`;
+    ? `<wa-tag size="s" variant="brand">Dot variant</wa-tag>`
+    : `<wa-tag size="s" variant="${isInGroup ? "brand" : "neutral"}">${formatSlotLabel(deck.stripePosition)}</wa-tag>`;
 
   return `
     <div class="deck-card-inner ${isInGroup ? "split-child-card" : ""}" data-deck-id="${deck.id}">
@@ -885,7 +885,7 @@ export function renderDeckCard(deck, showActions = true, processedCards = null) 
             <div class="wa-cluster wa-gap-s wa-align-items-center">
               <${isInGroup ? "h4" : "h3"} class="${isInGroup ? "wa-heading-s" : "wa-heading-m"}" style="margin: 0;">${escapeHtml(deck.name)}</${isInGroup ? "h4" : "h3"}>
               ${slotTagHtml}
-              <wa-tag size="small" variant="neutral">Bracket ${deck.bracket}</wa-tag>
+              <wa-tag size="s" variant="neutral">Bracket ${deck.bracket}</wa-tag>
             </div>
             <div class="wa-caption-m" style="color: var(--wa-color-neutral-text-subtle);">
               ${escapeHtml(commanderNames(deck).join(' / '))}${processedCards ? (() => { const { pool, core } = getDeckPoolCoreCounts(deck, processedCards); return ` • ${pool} pool • ${core} core`; })() : ` • ${deck.cards.length} cards`}
@@ -899,7 +899,7 @@ export function renderDeckCard(deck, showActions = true, processedCards = null) 
           ${
             state.currentPrism.decks.length >= 2
               ? `
-          <wa-button appearance="plain" variant="neutral" size="small"
+          <wa-button appearance="plain" variant="neutral" size="s"
             class="btn-what-if" data-deck-id="${deck.id}" title="What if I remove this deck?"
             aria-label="What if I remove ${escapeHtml(deck.name)}?">
             <wa-icon name="flask"></wa-icon>
@@ -911,7 +911,7 @@ export function renderDeckCard(deck, showActions = true, processedCards = null) 
           ${
             !isInGroup
               ? `
-          <wa-button appearance="plain" variant="neutral" size="small"
+          <wa-button appearance="plain" variant="neutral" size="s"
             class="btn-split-deck" data-deck-id="${deck.id}" title="Split into variants"
             aria-label="Split ${escapeHtml(deck.name)} into variants">
             <wa-icon name="code-branch"></wa-icon>
@@ -919,12 +919,12 @@ export function renderDeckCard(deck, showActions = true, processedCards = null) 
           `
               : ""
           }
-          <wa-button appearance="plain" variant="neutral" size="small"
+          <wa-button appearance="plain" variant="neutral" size="s"
             class="btn-edit-deck" data-deck-id="${deck.id}" title="Edit deck"
             aria-label="Edit ${escapeHtml(deck.name)}">
             <wa-icon name="pen-to-square"></wa-icon>
           </wa-button>
-          <wa-button appearance="plain" variant="neutral" size="small"
+          <wa-button appearance="plain" variant="neutral" size="s"
             class="btn-delete-deck" data-deck-id="${deck.id}" title="Delete deck"
             aria-label="Delete ${escapeHtml(deck.name)}">
             <wa-icon name="trash"></wa-icon>
@@ -1001,13 +1001,13 @@ export function renderDecksList() {
               <div class="wa-stack wa-gap-2xs">
                 <div class="wa-cluster wa-gap-s wa-align-items-center">
                   <h3 class="wa-heading-m" style="margin: 0;">${escapeHtml(group.name)}</h3>
-                  <wa-tag size="small" variant="neutral">${formatSlotLabel(group.sideAPosition, "a")}</wa-tag>
-                  <wa-tag size="small" variant="brand" appearance="outlined">
+                  <wa-tag size="s" variant="neutral">${formatSlotLabel(group.sideAPosition, "a")}</wa-tag>
+                  <wa-tag size="s" variant="brand" appearance="outlined">
                     <wa-icon name="code-branch" style="font-size: 0.8em;"></wa-icon>
                     ${children.length} variants
                   </wa-tag>
-                  <wa-tag size="small" variant="${(group.splitStyle || 'stripes') === 'dots' ? 'success' : 'neutral'}" appearance="outlined">
-                    <wa-icon name="${(group.splitStyle || 'stripes') === 'dots' ? 'circles-three' : 'lines-horizontal'}" style="font-size: 0.8em;"></wa-icon>
+                  <wa-tag size="s" variant="${(group.splitStyle || 'stripes') === 'dots' ? 'success' : 'neutral'}" appearance="outlined">
+                    <wa-icon name="${(group.splitStyle || 'stripes') === 'dots' ? 'ellipsis' : 'grip-lines'}" style="font-size: 0.8em;"></wa-icon>
                     ${(group.splitStyle || 'stripes') === 'dots' ? 'Dots' : 'Stripes'}
                   </wa-tag>
                 </div>
@@ -1017,23 +1017,23 @@ export function renderDecksList() {
               </div>
             </div>
             <div class="wa-cluster wa-gap-xs">
-              <wa-button appearance="plain" variant="neutral" size="small"
+              <wa-button appearance="plain" variant="neutral" size="s"
                 class="btn-move-group" data-group-id="${group.id}" title="Move group to a different slot"
                 aria-label="Move ${escapeHtml(group.name)} to a different slot">
                 <wa-icon name="up-down-left-right"></wa-icon>
               </wa-button>
-              <wa-button appearance="plain" variant="neutral" size="small"
+              <wa-button appearance="plain" variant="neutral" size="s"
                 class="btn-edit-group" data-group-id="${group.id}" title="Edit group name and color"
                 aria-label="Edit ${escapeHtml(group.name)} name and color">
                 <wa-icon name="pen-to-square"></wa-icon>
               </wa-button>
-              <wa-button appearance="plain" variant="neutral" size="small"
+              <wa-button appearance="plain" variant="neutral" size="s"
                 class="btn-add-split" data-group-id="${group.id}" title="Add another variant"
                 aria-label="Add another variant to ${escapeHtml(group.name)}"
                 ${(group.splitStyle || 'stripes') === 'dots' && group.childDeckIds.length >= 2 ? 'disabled' : ''}>
                 <wa-icon name="plus"></wa-icon>
               </wa-button>
-              <wa-button appearance="plain" variant="neutral" size="small"
+              <wa-button appearance="plain" variant="neutral" size="s"
                 class="btn-unsplit" data-group-id="${group.id}" title="Merge back into one deck"
                 aria-label="Merge ${escapeHtml(group.name)} back into one deck">
                 <wa-icon name="code-merge"></wa-icon>

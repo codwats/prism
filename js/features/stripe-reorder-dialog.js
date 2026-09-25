@@ -293,8 +293,8 @@ function showSwapConfirmation(activeDeck, targetInfo, targetPosition) {
         <strong>${escapeHtml(targetInfo.name)}</strong>. Swap positions?
       </span>
       <div class="wa-cluster wa-gap-xs">
-        <wa-button size="small" variant="neutral" appearance="outlined" class="btn-swap-cancel">Cancel</wa-button>
-        <wa-button size="small" variant="brand" class="btn-swap-confirm">Swap</wa-button>
+        <wa-button size="s" variant="neutral" appearance="outlined" class="btn-swap-cancel">Cancel</wa-button>
+        <wa-button size="s" variant="brand" class="btn-swap-confirm">Swap</wa-button>
       </div>
     </div>
   `;

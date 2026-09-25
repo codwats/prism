@@ -98,7 +98,7 @@
           <p style="text-align: center; color: var(--wa-color-neutral-text-subtle);">
             Sign in to manage your PRISMs across devices and access your account settings.
           </p>
-          <wa-button id="btn-profile-login" variant="brand" size="large">
+          <wa-button id="btn-profile-login" variant="brand" size="l">
             <wa-icon slot="start" name="right-to-bracket"></wa-icon>
             Sign In
           </wa-button>
@@ -115,7 +115,7 @@
                 <span id="profile-meta" class="wa-caption-m" style="color: var(--wa-color-neutral-text-subtle);"></span>
               </div>
             </div>
-            <wa-button id="btn-profile-logout" variant="neutral" appearance="outlined" size="small">
+            <wa-button id="btn-profile-logout" variant="neutral" appearance="outlined" size="s">
               <wa-icon slot="start" name="right-from-bracket"></wa-icon>
               Sign out
             </wa-button>
@@ -125,7 +125,7 @@
           <section class="wa-stack wa-gap-m">
             <div class="wa-split wa-align-items-center">
               <h2 class="wa-heading-l" style="margin: 0;">My PRISMs</h2>
-              <wa-button id="btn-new-prism" variant="neutral" appearance="outlined" size="small">
+              <wa-button id="btn-new-prism" variant="neutral" appearance="outlined" size="s">
                 <wa-icon slot="start" name="plus"></wa-icon>
                 New PRISM
               </wa-button>
@@ -149,7 +149,7 @@
                     <span style="font-weight: var(--wa-font-weight-semibold);">Email</span>
                     <span id="account-email-caption" class="wa-caption-m" style="color: var(--wa-color-neutral-text-subtle);"></span>
                   </div>
-                  <wa-button id="btn-open-email-dialog" appearance="plain" variant="neutral" size="small">Change</wa-button>
+                  <wa-button id="btn-open-email-dialog" appearance="plain" variant="neutral" size="s">Change</wa-button>
                 </div>
                 <wa-divider style="--spacing: 0;"></wa-divider>
                 <div class="wa-split wa-align-items-center" style="padding-block: var(--wa-space-s);">
@@ -157,7 +157,7 @@
                     <span style="font-weight: var(--wa-font-weight-semibold);">Password</span>
                     <span class="wa-caption-m" style="color: var(--wa-color-neutral-text-subtle);">Update your account password</span>
                   </div>
-                  <wa-button id="btn-open-password-dialog" appearance="plain" variant="neutral" size="small">Change</wa-button>
+                  <wa-button id="btn-open-password-dialog" appearance="plain" variant="neutral" size="s">Change</wa-button>
                 </div>
                 <wa-divider style="--spacing: 0;"></wa-divider>
                 <div class="wa-split wa-align-items-center" style="padding-block: var(--wa-space-s);">
@@ -165,7 +165,7 @@
                     <span style="font-weight: var(--wa-font-weight-semibold);">Download my data</span>
                     <span class="wa-caption-m" style="color: var(--wa-color-neutral-text-subtle);">A .json backup of each PRISM, decks and marks included</span>
                   </div>
-                  <wa-button id="btn-download-data" appearance="plain" variant="neutral" size="small">
+                  <wa-button id="btn-download-data" appearance="plain" variant="neutral" size="s">
                     <wa-icon slot="start" name="file-code"></wa-icon>
                     Download
                   </wa-button>
@@ -176,7 +176,7 @@
                     <span style="font-weight: var(--wa-font-weight-semibold);">Restore from backup</span>
                     <span class="wa-caption-m" style="color: var(--wa-color-neutral-text-subtle);">Import an exported .json as a new PRISM</span>
                   </div>
-                  <wa-button id="btn-open-restore-dialog" appearance="plain" variant="neutral" size="small">
+                  <wa-button id="btn-open-restore-dialog" appearance="plain" variant="neutral" size="s">
                     <wa-icon slot="start" name="file-import"></wa-icon>
                     Import
                   </wa-button>
@@ -184,7 +184,7 @@
               </div>
             </wa-card>
             <div class="wa-cluster wa-gap-s wa-align-items-center">
-              <wa-button id="btn-open-delete-account-dialog" appearance="plain" variant="danger" size="small">Delete account</wa-button>
+              <wa-button id="btn-open-delete-account-dialog" appearance="plain" variant="danger" size="s">Delete account</wa-button>
               <span class="wa-caption-s" style="color: var(--wa-color-neutral-text-subtle);">Removes your account and synced PRISMs. Local data stays in your browser.</span>
             </div>
           </section>
@@ -197,16 +197,16 @@
                 <div class="wa-stack wa-gap-3xs">
                   <div class="wa-cluster wa-gap-xs wa-align-items-center">
                     <span style="font-weight: var(--wa-font-weight-semibold);">PRISM Membership</span>
-                    <wa-tag id="subscription-status-tag" size="small" variant="neutral" hidden></wa-tag>
+                    <wa-tag id="subscription-status-tag" size="s" variant="neutral" hidden></wa-tag>
                   </div>
                   <span id="subscription-caption" class="wa-caption-m" style="color: var(--wa-color-neutral-text-subtle);"></span>
                 </div>
                 <div class="wa-cluster wa-gap-xs wa-align-items-center">
-                  <wa-button id="btn-manage-billing" appearance="outlined" size="small" hidden>
+                  <wa-button id="btn-manage-billing" appearance="outlined" size="s" hidden>
                     <wa-icon slot="start" name="gear"></wa-icon>
                     Manage billing
                   </wa-button>
-                  <wa-button id="btn-subscribe" appearance="outlined" size="small" data-open-membership hidden>
+                  <wa-button id="btn-subscribe" appearance="outlined" size="s" data-open-membership hidden>
                     <wa-icon slot="start" name="credit-card"></wa-icon>
                     Membership and Extras
                   </wa-button>
@@ -250,7 +250,7 @@
     <wa-dialog id="restore-dialog" label="Restore from backup">
       <div class="wa-stack wa-gap-m">
         <p class="wa-caption-m" style="color: var(--wa-color-neutral-text-subtle); margin: 0;">The imported file becomes a new PRISM. Your existing PRISMs are untouched.</p>
-        <wa-file-input id="profile-json-input" accept=".json" label="Import File" hint="Drag & drop or click to select your exported .json file" size="small"></wa-file-input>
+        <wa-file-input id="profile-json-input" accept=".json" label="Import File" hint="Drag & drop or click to select your exported .json file" size="s"></wa-file-input>
       </div>
       <div slot="footer" class="wa-cluster wa-gap-s">
         <wa-button variant="neutral" appearance="outlined" data-dialog-close>Cancel</wa-button>

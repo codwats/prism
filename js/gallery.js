@@ -234,12 +234,12 @@ function safeUrl(url) {
   }
 }
 
-function typeTagHtml(type, size = 'small') {
+function typeTagHtml(type, size = 's') {
   const variant = TYPE_TAG_VARIANTS[type] || 'neutral';
   return `<wa-tag size="${size}" variant="${variant}" appearance="outlined">${TYPE_LABELS[type] || type}</wa-tag>`;
 }
 
-function aiTagHtml(size = 'small') {
+function aiTagHtml(size = 's') {
   return `<wa-tag size="${size}" variant="neutral" appearance="filled"><wa-icon slot="start" name="robot"></wa-icon>AI-generated</wa-tag>`;
 }
 
