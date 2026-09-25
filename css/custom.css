@@ -592,7 +592,7 @@ wa-page[view='desktop'] [data-toggle-nav] {
   padding: var(--wa-space-2xs);
 }
 
-.deck-actions-kebab-menu .kebab-item::part(base) {
+.deck-actions-kebab-menu .kebab-item::part(button) {
   width: 100%;
   justify-content: flex-start;
 }
@@ -665,7 +665,7 @@ wa-page[view='desktop'] [data-toggle-nav] {
   padding: var(--wa-space-2xs);
 }
 
-.deck-filter-menu wa-button::part(base) {
+.deck-filter-menu wa-button::part(button) {
   width: 100%;
   justify-content: flex-start;
 }
