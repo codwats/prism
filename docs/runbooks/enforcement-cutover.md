@@ -586,9 +586,10 @@ alone would discount the same billing period, which PRODUCT.md forbids.
 A custom offer would need server-side continuous-membership eligibility,
 durable once-per-account redemption across cancellation and rejoining, and an
 annual-switch payment flow with explicit first-year and renewal pricing. That
-is disproportionate for this optional $3 saving. Do not configure a substitute coupon, pause offer,
-or extra decline screen. PRODUCT.md's permission and price-lock carve-out remain
-policy for any future implementation, not a claim that the offer is live.
+is disproportionate for this optional $3 saving. Do not configure a substitute
+coupon, pause offer, or extra decline screen. PRODUCT.md's permission and
+price-lock carve-out remain policy for any future implementation, not a claim
+that the offer is live.
 
 ### Portal configuration and rehearsal
 

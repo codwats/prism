@@ -14,7 +14,7 @@ export function joinLabel(period, signedIn) {
  * Order matches the spec exactly: state notice, price, three benefits,
  * billing period, where to pay, one button, Extras — Extras is always last.
  */
-export function membershipContent({ entitled, signedIn, createdName = null }) {
+export function membershipContent({ entitled, signedIn, createdName = null, period = 'month' }) {
   if (entitled) {
     return `<div class="wa-stack wa-gap-l">
       <p>Your Membership is included. Cloud sync and Extras are yours to use.</p>
@@ -35,7 +35,7 @@ export function membershipContent({ entitled, signedIn, createdName = null }) {
         <li>PRISM Extras</li>
         <li>A member role in the Discord</li>
       </ul>
-      <wa-radio-group label="Billing" name="membership-period" value="month" data-membership-period>
+      <wa-radio-group label="Billing" name="membership-period" value="${period}" data-membership-period>
         <wa-radio value="month">Monthly, $3</wa-radio>
         <wa-radio value="year">Yearly, $30</wa-radio>
       </wa-radio-group>
@@ -45,7 +45,7 @@ export function membershipContent({ entitled, signedIn, createdName = null }) {
         <wa-radio value="patreon" disabled>On Patreon</wa-radio>
       </wa-radio-group>
       <p class="wa-caption-m">Paying on Patreon is not available yet.</p>
-      <wa-button variant="brand" data-membership-checkout>${joinLabel('month', signedIn)}</wa-button>
+      <wa-button variant="brand" data-membership-checkout>${joinLabel(period, signedIn)}</wa-button>
       <p data-membership-error role="alert" hidden></p>
       <p class="wa-caption-m">Your price stays the same while your Membership continues. Cancel and rejoin at the current price.</p>
       ${signedIn ? '' : '<p class="wa-caption-m">A free account lets you like and upload work in the gallery. <button type="button" class="membership-account-link" data-membership-signin>Create a free account</button></p>'}
@@ -63,6 +63,8 @@ let content;
 let openButtons = [];
 let renderVersion = 0;
 let openRequest = null;
+// Survives the auth re-render, so a yearly pick made before sign-in holds.
+let chosenPeriod = 'month';
 
 /** Called only by build/profile, after their initial auth and local render. */
 export function initMembershipDrawer() {
@@ -138,7 +140,8 @@ export async function openMembershipDrawer({ createdId = null } = {}) {
   }
   content.innerHTML = membershipContent({
     entitled, signedIn: !!user,
-    createdName: createdId ? prism.name : null
+    createdName: createdId ? prism.name : null,
+    period: chosenPeriod
   });
   wireCheckout();
   drawer.setAttribute('open', '');
@@ -159,6 +162,7 @@ function wireCheckout() {
   // The attribute covers a click before WA upgrades the group.
   const period = () => periodGroup.value || periodGroup.getAttribute('value');
   periodGroup.addEventListener('change', () => {
+    chosenPeriod = period();
     button.textContent = joinLabel(period(), !!getCurrentUser());
     error.hidden = true;
   });

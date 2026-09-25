@@ -33,6 +33,12 @@ test('the join button names the chosen period and price', () => {
   assert.equal(joinLabel('year', false), 'Sign in to join for $30 a year');
 });
 
+test('a re-render keeps the chosen period, so signing in does not drop a yearly choice', () => {
+  const html = membershipContent({ entitled: false, signedIn: true, period: 'year' });
+  assert.match(html, /<wa-radio-group[^>]*name="membership-period"[^>]*value="year"/);
+  assert.match(html, /data-membership-checkout>Join for \$30 a year</);
+});
+
 test('opening Membership over an existing PRISM does not claim it was just created', () => {
   assert.doesNotMatch(membershipContent({ entitled: false, signedIn: true }), /stays on this device/);
 });
