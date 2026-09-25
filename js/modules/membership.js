@@ -3,12 +3,18 @@ import { getCurrentUser, onAuthChange, canPaintAuthState, ensureAuthReady } from
 import { getCurrentPrism } from './storage.js';
 import { isEntitled, isMembershipDrawerAvailable, startCheckout } from './billing.js';
 
+const PRICES = { month: '$3 a month', year: '$30 a year' };
+
+export function joinLabel(period, signedIn) {
+  return `${signedIn ? 'Join' : 'Sign in to join'} for ${PRICES[period]}`;
+}
+
 /**
  * The entire sell is one branch: entitled Members never render a price.
  * Order matches the spec exactly: state notice, price, three benefits,
- * where to pay, one button, Extras — Extras is always last.
+ * billing period, where to pay, one button, Extras — Extras is always last.
  */
-export function membershipContent({ entitled, signedIn, createdName = null }) {
+export function membershipContent({ entitled, signedIn, createdName = null, period = 'month' }) {
   if (entitled) {
     return `<div class="wa-stack wa-gap-l">
       <p>Your Membership is included. Cloud sync and Extras are yours to use.</p>
@@ -23,19 +29,23 @@ export function membershipContent({ entitled, signedIn, createdName = null }) {
     <p>${createdName !== null ? `<strong>${escapeHtml(createdName || 'Your new PRISM')}</strong> stays on this device.` : 'Your PRISMs work on this device without a Membership.'}
       Keep creating, marking and exporting for free.</p>
     <section class="wa-stack wa-gap-m" aria-label="Join PRISM">
-      <p class="membership-price"><strong>$3</strong> a month. USD.</p>
+      <p class="membership-price"><strong>$3</strong> a month or <strong>$30</strong> a year. USD.</p>
       <ul class="wa-stack wa-gap-xs">
         <li>Your PRISMs on every device</li>
         <li>PRISM Extras</li>
         <li>A member role in the Discord</li>
       </ul>
+      <wa-radio-group label="Billing" name="membership-period" value="${period}" data-membership-period>
+        <wa-radio value="month">Monthly, $3</wa-radio>
+        <wa-radio value="year">Yearly, $30</wa-radio>
+      </wa-radio-group>
       <wa-radio-group label="Where would you like to pay?" name="membership-rail" value="stripe"
         hint="Same price either way. Patreon also carries our videos, extra media and site updates.">
         <wa-radio value="stripe">Here, through Stripe</wa-radio>
         <wa-radio value="patreon" disabled>On Patreon</wa-radio>
       </wa-radio-group>
       <p class="wa-caption-m">Paying on Patreon is not available yet.</p>
-      <wa-button variant="brand" data-membership-checkout>${signedIn ? 'Join for $3 a month' : 'Sign in to join for $3 a month'}</wa-button>
+      <wa-button variant="brand" data-membership-checkout>${joinLabel(period, signedIn)}</wa-button>
       <p data-membership-error role="alert" hidden></p>
       <p class="wa-caption-m">Your price stays the same while your Membership continues. Cancel and rejoin at the current price.</p>
       ${signedIn ? '' : '<p class="wa-caption-m">A free account lets you like and upload work in the gallery. <button type="button" class="membership-account-link" data-membership-signin>Create a free account</button></p>'}
@@ -53,6 +63,8 @@ let content;
 let openButtons = [];
 let renderVersion = 0;
 let openRequest = null;
+// Survives the auth re-render, so a yearly pick made before sign-in holds.
+let chosenPeriod = 'month';
 
 /** Called only by build/profile, after their initial auth and local render. */
 export function initMembershipDrawer() {
@@ -128,7 +140,8 @@ export async function openMembershipDrawer({ createdId = null } = {}) {
   }
   content.innerHTML = membershipContent({
     entitled, signedIn: !!user,
-    createdName: createdId ? prism.name : null
+    createdName: createdId ? prism.name : null,
+    period: chosenPeriod
   });
   wireCheckout();
   drawer.setAttribute('open', '');
@@ -145,6 +158,14 @@ function wireCheckout() {
   const button = content.querySelector('[data-membership-checkout]');
   if (!button) return;
   const error = content.querySelector('[data-membership-error]');
+  const periodGroup = content.querySelector('[data-membership-period]');
+  // The attribute covers a click before WA upgrades the group.
+  const period = () => periodGroup.value || periodGroup.getAttribute('value');
+  periodGroup.addEventListener('change', () => {
+    chosenPeriod = period();
+    button.textContent = joinLabel(period(), !!getCurrentUser());
+    error.hidden = true;
+  });
   button.addEventListener('click', async () => {
     if (button.loading) return;
     if (!getCurrentUser()) {
@@ -154,7 +175,7 @@ function wireCheckout() {
     button.loading = true;
     error.hidden = true;
     try {
-      await startCheckout();
+      await startCheckout(period());
     } catch (err) {
       error.textContent = err.message || 'Could not start checkout. Please try again.';
       error.hidden = false;
