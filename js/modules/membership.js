@@ -133,30 +133,36 @@ async function updateExtrasLinks() {
  * Gate an Extras page (ADR 0003): Members get [data-extra-tool], anyone else
  * [data-extra-pitch]. Soft by design — the page source stays public.
  * Entitlement fails open, and so does an auth verdict that never arrives.
+ * Re-renders on every auth change (sign-out does not reload the page); a
+ * render superseded by a later one, or by a user change, is discarded.
  */
+let gateVersion = 0;
+
 export async function initExtraGate() {
   const [tool, pitch, loading] = ['tool', 'pitch', 'loading']
     .map(part => document.querySelector(`[data-extra-${part}]`));
-  await startAuth();
-  const user = getCurrentUser();
-  const entitled = !canPaintAuthState() || (user ? await isEntitled() : false);
-  loading.remove();
-  if (entitled) {
-    tool.hidden = false;
-    return;
-  }
-  pitch.hidden = false;
   const signIn = pitch.querySelector('[data-extra-signin]');
-  if (user) {
-    signIn.hidden = true;
-    initMembershipDrawer();
-  } else {
-    pitch.querySelector('[data-open-membership]').hidden = true;
-    signIn.addEventListener('click', () => {
-      ensureAuthReady();
-      document.getElementById('auth-dialog')?.setAttribute('open', '');
-    });
-  }
+  signIn.addEventListener('click', () => {
+    ensureAuthReady();
+    document.getElementById('auth-dialog')?.setAttribute('open', '');
+  });
+
+  const render = async () => {
+    const version = ++gateVersion;
+    const user = getCurrentUser();
+    const entitled = !canPaintAuthState() || (user ? await isEntitled() : false);
+    if (version !== gateVersion || user !== getCurrentUser()) return;
+    loading.remove();
+    tool.hidden = !entitled;
+    pitch.hidden = entitled;
+    signIn.hidden = !!user;
+  };
+
+  await startAuth();
+  // Owns the pitch's "See Membership" button, including its visibility.
+  initMembershipDrawer();
+  onAuthChange(render);
+  render();
 }
 
 /** A create is already persisted by the caller. This function never gates it. */
