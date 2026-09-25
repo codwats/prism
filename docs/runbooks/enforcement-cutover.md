@@ -536,10 +536,13 @@ real `is_entitled()` answer and must show no price or checkout controls.
 
 Before enabling Membership:
 
-- Configure `STRIPE_PRICE_ID` for the monthly price in Netlify. Annual billing
-  (a `period` selector, `STRIPE_ANNUAL_PRICE_ID`) is deliberately not part of
-  this drawer — it lives on `feature/216-annual-billing`, a follow-up split out
-  of the #216 review, and lands separately.
+- Configure `STRIPE_PRICE_ID` (monthly) and `STRIPE_ANNUAL_PRICE_ID` (yearly)
+  in Netlify. The drawer offers a Billing choice, monthly by default, and passes
+  it to checkout as `period` (#257). If the yearly price is unset the endpoint
+  answers 503, the drawer shows its message, and monthly stays usable.
+- Rehearse a yearly checkout end to end: `subscriptions.price_id` must be the
+  yearly price. Then cancel and refund it, and repeat the portal checklist below
+  for the yearly member.
 - Patreon is statically unavailable in this drawer: the "On Patreon" option is
   always disabled and captioned "not available yet". Nothing here reads an
   `app_config` Patreon URL. Wiring a real Patreon destination in is #208's job
@@ -583,8 +586,7 @@ alone would discount the same billing period, which PRODUCT.md forbids.
 A custom offer would need server-side continuous-membership eligibility,
 durable once-per-account redemption across cancellation and rejoining, and an
 annual-switch payment flow with explicit first-year and renewal pricing. That
-is disproportionate for this optional $3 saving, especially while annual billing
-is still a separate delivery. Do not configure a substitute coupon, pause offer,
+is disproportionate for this optional $3 saving. Do not configure a substitute coupon, pause offer,
 or extra decline screen. PRODUCT.md's permission and price-lock carve-out remain
 policy for any future implementation, not a claim that the offer is live.
 
@@ -603,7 +605,7 @@ Before enabling paid Membership, in the Stripe account used by Netlify:
 4. Cancel in the test portal. Verify Stripe schedules cancellation at period end,
    access remains until then, and the final webhook moves the subscription to
    `canceled`. After lapse, verify the existing dated paused-sync notice and
-   continued read/export access. Repeat for annual billing when it lands.
+   continued read/export access. Repeat with a yearly member (#257).
 5. Verify an account without a Stripe subscription sees no portal control, and
    portal errors leave the button usable for retry.
 
