@@ -99,7 +99,7 @@ function injectHeadResources() {
   const head = document.head;
 
   // Web Awesome CDN — CSS links
-  const WA_BASE = 'https://ka-p.webawesome.com/kit/da021fed1e5141f2/webawesome@3.11.0';
+  const WA_BASE = 'https://ka-p.webawesome.com/kit/da021fed1e5141f2/webawesome@3.14.0';
   const waStyles = [
     `${WA_BASE}/styles/themes/default.css`,
     `${WA_BASE}/styles/native.css`,
