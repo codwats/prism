@@ -85,18 +85,18 @@
                 label="PRISM name"
                 class="wa-visually-hidden-label"
                 placeholder="My PRISM"
-                size="large"
+                size="l"
                 style="--wa-input-border-width: 0; font-weight: 600;"
               ></wa-input>
             </div>
             <div class="wa-cluster wa-gap-s wa-align-items-center">
               <span id="sync-status" class="sync-status-indicator" style="display: none;"></span>
-              <wa-button id="btn-sync-now" size="small" appearance="plain" variant="neutral" title="Sync now" aria-label="Sync now" style="display: none;">
+              <wa-button id="btn-sync-now" size="s" appearance="plain" variant="neutral" title="Sync now" aria-label="Sync now" style="display: none;">
                 <wa-icon name="arrows-rotate"></wa-icon>
               </wa-button>
-              <wa-tag id="deck-count-tag" variant="neutral" size="small">0 decks</wa-tag>
+              <wa-tag id="deck-count-tag" variant="neutral" size="s">0 decks</wa-tag>
               <wa-dropdown id="prism-overflow" placement="bottom-end">
-                <wa-button slot="trigger" appearance="plain" variant="neutral" size="small" aria-label="More actions">
+                <wa-button slot="trigger" appearance="plain" variant="neutral" size="s" aria-label="More actions">
                   <wa-icon name="ellipsis"></wa-icon>
                 </wa-button>
                 <!-- Switch-PRISM entries are injected before this divider by
@@ -132,7 +132,7 @@
              in features/init.js, which fills in the date of the last synced
              copy. Sits above the tabs so it is visible from every panel. -->
         <wa-callout id="sync-paused-notice" variant="warning" style="display: none;">
-          <wa-icon slot="icon" name="cloud-slash"></wa-icon>
+          <wa-icon slot="icon" name="circle-pause"></wa-icon>
           <strong>Cloud sync is paused.</strong>
           <span id="sync-paused-detail"></span>
         </wa-callout>
@@ -163,7 +163,7 @@
                       <span><a href="guide.html#read-a-sleeve">Read a marked sleeve</a></span>
                     </div>
                   </div>
-                  <wa-button id="onboarding-dismiss" appearance="filled-outlined" size="small">
+                  <wa-button id="onboarding-dismiss" appearance="filled-outlined" size="s">
                     <wa-icon slot="start" name="xmark"></wa-icon>
                     Dismiss
                   </wa-button>
@@ -172,7 +172,7 @@
 
               <!-- Per-PRISM marking settings -->
               <div class="wa-stack wa-gap-2xs">
-                <wa-switch id="dedicated-commander-copies" size="small">Dedicated commander copies</wa-switch>
+                <wa-switch id="dedicated-commander-copies" size="s">Dedicated commander copies</wa-switch>
                 <p class="wa-caption-s" style="color: var(--wa-color-neutral-text-subtle); margin: 0;">
                   Sleeve a dedicated copy of each commander instead of sharing it with other decks. Synced with this PRISM.
                 </p>
@@ -225,7 +225,7 @@
                     ></wa-input>
                   </div>
 
-                  <wa-switch id="deck-two-commanders" size="small">Two commanders</wa-switch>
+                  <wa-switch id="deck-two-commanders" size="s">Two commanders</wa-switch>
 
                   <wa-radio-group
                     id="deck-bracket"
@@ -262,7 +262,7 @@
                   </div>
 
 
-                  <wa-file-input id="deck-file-input" accept=".txt,.dec,.dek,.mwDeck" label="Decklist file" hint="Drag & drop or click to upload a .txt, .dec, .dek, or .mwDeck file" size="small"></wa-file-input>
+                  <wa-file-input id="deck-file-input" accept=".txt,.dec,.dek,.mwDeck" label="Decklist file" hint="Drag & drop or click to upload a .txt, .dec, .dek, or .mwDeck file" size="s"></wa-file-input>
 
                   <wa-textarea
                     id="deck-list"
@@ -332,7 +332,7 @@
                 </wa-callout>
                 <div class="wa-split wa-align-items-center wa-gap-s">
                   <p style="margin: 0;">Marks go on the Perfect Fit inner. An outer sleeve goes over it and protects the paint. <a href="guide.html#mark-a-session">Run a marking session</a></p>
-                  <wa-button id="marking-prereq-dismiss" appearance="filled-outlined" size="small">
+                  <wa-button id="marking-prereq-dismiss" appearance="filled-outlined" size="s">
                     <wa-icon slot="start" name="xmark"></wa-icon>
                     Dismiss
                   </wa-button>
@@ -400,7 +400,7 @@
 
               <!-- Persistent undone-only filter
               <div class="wa-cluster wa-gap-s wa-align-items-center" style="flex-wrap: wrap;">
-                <wa-switch id="undone-filter" size="small">Show undone only</wa-switch>
+                <wa-switch id="undone-filter" size="s">Show undone only</wa-switch>
               </div> -->
 
               <!-- Filter -->
@@ -409,32 +409,32 @@
 
                 <!-- Deck Filter Dropdown -->
                 <wa-dropdown id="deck-filter-dropdown" stay-open-on-select>
-                  <wa-button slot="trigger" appearance="plain" variant="neutral" size="small" caret>
+                  <wa-button slot="trigger" appearance="plain" variant="neutral" size="s" caret>
                     <wa-icon slot="start" name="filter"></wa-icon>
                     Filters
                   </wa-button>
                 <div class="wa-stack wa-gap-2xs deck-filter-menu">
-                <wa-switch id="undone-filter" size="small">Undone only</wa-switch>
-                <wa-switch id="show-all-slots" size="small">All slots</wa-switch>
+                <wa-switch id="undone-filter" size="s">Undone only</wa-switch>
+                <wa-switch id="show-all-slots" size="s">All slots</wa-switch>
                   </div>
                   <div class="wa-stack wa-gap-0 deck-filter-menu" id="deck-filter-menu">
                     <!-- Deck filter buttons will be dynamically inserted here -->
                   </div>
                 </wa-dropdown>
                 <!--Results-->
-                <wa-radio-group id="results-filter" orientation="horizontal" value="all" size="small">
-                  <wa-radio appearance="button" value="all" size="small">All Cards</wa-radio>
-                  <wa-radio appearance="button" value="shared" size="small">Pool</wa-radio>
-                  <wa-radio appearance="button" value="basics-by-deck" size="small">One Mark at a Time</wa-radio>
-                  <wa-radio appearance="button" value="removed" id="removed-filter-btn" size="small">Stale Marks</wa-radio>
+                <wa-radio-group id="results-filter" orientation="horizontal" value="all" size="s">
+                  <wa-radio appearance="button" value="all" size="s">All Cards</wa-radio>
+                  <wa-radio appearance="button" value="shared" size="s">Pool</wa-radio>
+                  <wa-radio appearance="button" value="basics-by-deck" size="s">One Mark at a Time</wa-radio>
+                  <wa-radio appearance="button" value="removed" id="removed-filter-btn" size="s">Stale Marks</wa-radio>
                 </wa-radio-group>
                 <!-- Search -->
-                <wa-input id="results-search" placeholder="Search cards..." size="medium" style="max-width: 400px; flex: 1; min-width: 10rem;">
+                <wa-input id="results-search" placeholder="Search cards..." size="m" style="max-width: 400px; flex: 1; min-width: 10rem;">
                   <wa-icon slot="start" name="search"></wa-icon>
                 </wa-input>
                 <!-- Deck legend (prints on the guide) -->
                 <wa-dropdown id="legend-dropdown" placement="bottom-end">
-                  <wa-button slot="trigger" appearance="plain" variant="neutral" size="small" caret>
+                  <wa-button slot="trigger" appearance="plain" variant="neutral" size="s" caret>
                     <wa-icon slot="start" name="palette"></wa-icon>
                     Legend
                   </wa-button>
@@ -447,7 +447,7 @@
                 </wa-dropdown>
                 <!-- Export actions -->
                 <wa-dropdown id="export-dropdown" placement="bottom-end">
-                  <wa-button slot="trigger" variant="brand" appearance="outlined" size="small" caret>
+                  <wa-button slot="trigger" variant="brand" appearance="outlined" size="s" caret>
                     <wa-icon slot="start" name="download"></wa-icon>
                     Export
                   </wa-button>
@@ -471,7 +471,7 @@
                   </wa-dropdown-item>
                 </wa-dropdown>
                 <!-- SCRY-Mode launcher (hidden in Removed view) -->
-                <wa-button id="btn-scry" appearance="filled" variant="brand" size="small">
+                <wa-button id="btn-scry" appearance="filled" variant="brand" size="s">
                   <wa-icon slot="start" name="expand"></wa-icon>
                   SCRY-Mode
                 </wa-button>
@@ -519,7 +519,7 @@
         <p class="wa-caption-m" style="color: var(--wa-color-neutral-text-subtle); margin: 0;">
           Import a previously exported PRISM JSON file to restore your decks and settings. This replaces the current PRISM.
         </p>
-        <wa-file-input id="prism-json-input" accept=".json" label="Import File" hint="Drag & drop or click to select your exported .json file" size="small"></wa-file-input>
+        <wa-file-input id="prism-json-input" accept=".json" label="Import File" hint="Drag & drop or click to select your exported .json file" size="s"></wa-file-input>
       </div>
       <div slot="footer" class="wa-cluster wa-gap-s">
         <wa-button id="btn-cancel-import" variant="neutral" appearance="outlined">Cancel</wa-button>
@@ -587,7 +587,7 @@
           ></wa-input>
         </div>
 
-        <wa-switch id="edit-deck-two-commanders" size="small">Two commanders</wa-switch>
+        <wa-switch id="edit-deck-two-commanders" size="s">Two commanders</wa-switch>
 
         <wa-radio-group
           id="edit-deck-bracket"
@@ -634,7 +634,7 @@
           </div>
         </wa-details>
 
-        <wa-file-input id="edit-deck-file-input" accept=".txt,.dec,.dek,.mwDeck" label="Decklist file" hint="Drag & drop or click to upload a .txt, .dec, .dek, or .mwDeck file" size="small"></wa-file-input>
+        <wa-file-input id="edit-deck-file-input" accept=".txt,.dec,.dek,.mwDeck" label="Decklist file" hint="Drag & drop or click to upload a .txt, .dec, .dek, or .mwDeck file" size="s"></wa-file-input>
 
         <div id="edit-deck-list-updated" class="wa-caption-s" style="color: var(--wa-color-neutral-text-subtle);"></div>
 

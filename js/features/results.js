@@ -519,7 +519,7 @@ export function renderResults({ preserveRows = false } = {}) {
             <wa-button
               appearance="plain"
               variant="neutral"
-              size="small"
+              size="s"
               class="btn-clear-removed"
               data-card-name="${escapeHtml(card.name)}"
               data-deck-id="${card.removedDeckId}"
@@ -786,7 +786,7 @@ function renderResultsHeader() {
         </th>
         <th>Remove Mark From</th>
         <th style="width: 80px; text-align: center;">
-          <wa-button id="clear-all-removed-btn" appearance="outlined" variant="danger" size="small">Clear All</wa-button>
+          <wa-button id="clear-all-removed-btn" appearance="outlined" variant="danger" size="s">Clear All</wa-button>
         </th>
       </tr>
     `;
@@ -849,7 +849,7 @@ function renderDeckFilterMenu() {
   // Plain wa-buttons (not wa-menu-item) to match the deck-actions kebab menu
   // styling and dodge the flaky wa-menu CDN autoload (see CLAUDE.md).
   state.elements.deckFilterMenu.innerHTML = `
-    <wa-button class="deck-filter-clear" appearance="plain" variant="neutral" size="small">
+    <wa-button class="deck-filter-clear" appearance="plain" variant="neutral" size="s">
       <wa-icon slot="start" name="xmark"></wa-icon>
       Clear All Filters
     </wa-button>
@@ -858,7 +858,7 @@ function renderDeckFilterMenu() {
       const selected = state.selectedDeckIds.has(deck.id);
       return `
       <wa-button class="deck-filter-item" data-deck-id="${deck.id}"
-        appearance="plain" variant="neutral" size="small">
+        appearance="plain" variant="neutral" size="s">
         <wa-icon slot="start" name="check" style="visibility: ${selected ? 'visible' : 'hidden'};"></wa-icon>
         <span class="deck-color-indicator small" style="background-color: ${deck.color};"></span>
         ${escapeHtml(deck.name)}

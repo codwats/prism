@@ -394,7 +394,7 @@ function injectNav(activePage) {
             <span class="wa-caption-s" style="color: var(--wa-color-neutral-text-subtle);">
               Couldn't reach the login service. Your decks are saved on this device.
             </span>
-            <wa-button id="btn-auth-retry" variant="neutral" appearance="outlined" size="small" style="width: 100%;">
+            <wa-button id="btn-auth-retry" variant="neutral" appearance="outlined" size="s" style="width: 100%;">
               <wa-icon slot="start" name="rotate-right"></wa-icon>
               Retry
             </wa-button>
@@ -406,7 +406,7 @@ function injectNav(activePage) {
               <wa-icon slot="start" name="circle-user"></wa-icon>
               Profile
             </wa-button>
-            <wa-button id="btn-logout" variant="neutral" appearance="plain" size="small">
+            <wa-button id="btn-logout" variant="neutral" appearance="plain" size="s">
               <wa-icon slot="start" name="right-from-bracket"></wa-icon>
               Log Out
             </wa-button>
@@ -454,7 +454,7 @@ function injectHeader(ctaConfig) {
 
   header.innerHTML = `
         <div class="wa-cluster wa-gap-m wa-align-items-center">
-          <wa-button data-toggle-nav appearance="plain" variant="neutral" size="small" aria-label="Menu">
+          <wa-button data-toggle-nav appearance="plain" variant="neutral" size="s" aria-label="Menu">
             <wa-icon name="bars"></wa-icon>
           </wa-button>
           <a href="index.html" class="wa-cluster wa-gap-xs wa-align-items-center" style="text-decoration: none; color: inherit;">
@@ -462,14 +462,14 @@ function injectHeader(ctaConfig) {
             <img src="./assets/Prism-Icon-Main.svg" alt="Prism Logo" style="height:1.5em;" class="wa-border-radius-square theme-logo-light">
             <span class="wa-heading-l wa-desktop-only">PRISM</span>
           </a>
-          <wa-tag size="small" variant="brand" appearance="outlined" title="PRISM is in open beta — expect rough edges and tell us about them">Beta</wa-tag>
+          <wa-tag size="s" variant="brand" appearance="outlined" title="PRISM is in open beta — expect rough edges and tell us about them">Beta</wa-tag>
         </div>
         <div class="wa-cluster wa-gap-xs wa-align-items-center">
-          <wa-button id="btn-settings" appearance="plain" variant="neutral" size="small" aria-label="Settings">
+          <wa-button id="btn-settings" appearance="plain" variant="neutral" size="s" aria-label="Settings">
             <wa-icon name="gear"></wa-icon>
           </wa-button>
           <wa-tooltip for="btn-settings">Settings</wa-tooltip>
-          ${suppressCta ? '' : `<wa-button${ctaId}${ctaHref} variant="${ctaVariant}"${ctaAppearanceAttr} size="small">
+          ${suppressCta ? '' : `<wa-button${ctaId}${ctaHref} variant="${ctaVariant}"${ctaAppearanceAttr} size="s">
             <wa-icon slot="start" name="${ctaIcon}"></wa-icon>
             ${ctaLabel}
           </wa-button>`}
@@ -602,7 +602,7 @@ function injectAuthDialog() {
           <wa-button id="btn-forgot-submit" type="submit" variant="brand" style="width: 100%;">Send Reset Link</wa-button>
         </form>
         <wa-divider></wa-divider>
-        <wa-button id="btn-back-to-login" type="button" appearance="plain" size="small" style="align-self: center;">
+        <wa-button id="btn-back-to-login" type="button" appearance="plain" size="s" style="align-self: center;">
           Back to login
         </wa-button>
       </div>
@@ -651,7 +651,7 @@ function injectSettingsDrawer() {
             <wa-icon name="circle-half-stroke" style="color: var(--wa-color-brand-fill);"></wa-icon>
             <span class="wa-heading-s">Display</span>
           </div>
-          <wa-select id="color-scheme" label="Color Scheme" value="${getColorScheme()}" size="small">
+          <wa-select id="color-scheme" label="Color Scheme" value="${getColorScheme()}" size="s">
             <wa-option value="auto">Auto (match system)</wa-option>
             <wa-option value="light">Light</wa-option>
             <wa-option value="dark">Dark</wa-option>
@@ -673,7 +673,7 @@ function injectSettingsDrawer() {
             <wa-radio value="bottom-right">Bottom Right</wa-radio>
             <wa-radio value="bottom-left">Bottom Left</wa-radio>
           </wa-radio-group>
-          <wa-button id="stripe-start-corner-apply" appearance="filled" variant="brand" size="small" disabled>Apply</wa-button>
+          <wa-button id="stripe-start-corner-apply" appearance="filled" variant="brand" size="s" disabled>Apply</wa-button>
           <p class="wa-caption-s" style="color: var(--wa-color-neutral-text-subtle); margin: 0;">Slot numbers stay the same — stripes move so Slot 1 starts at the chosen corner.</p>
           <wa-slider
             id="stripe-position-numbers-mode"

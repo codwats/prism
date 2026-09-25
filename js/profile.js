@@ -411,7 +411,7 @@ function renderPrismsList() {
       <div class="wa-stack wa-gap-s">
         <div class="wa-split wa-align-items-center">
           <span class="wa-heading-s">${escapeHtml(prism.name)}</span>
-          ${isActive ? '<wa-tag size="small" variant="brand">Current</wa-tag>' : '<span></span>'}
+          ${isActive ? '<wa-tag size="s" variant="brand">Current</wa-tag>' : '<span></span>'}
         </div>
         <span class="wa-caption-m" style="color: var(--wa-color-neutral-text-subtle);">
           ${deckCount} deck${deckCount === 1 ? '' : 's'} · ${cardCount} card${cardCount === 1 ? '' : 's'} · updated ${formatDate(prism.updatedAt)}
@@ -420,11 +420,11 @@ function renderPrismsList() {
           ${sortedDecks.map(deck => `<span class="stripe-indicator" style="background: ${deck.color};"></span>`).join('')}
         </div>
         <div class="wa-cluster wa-gap-s" style="padding-block-start: var(--wa-space-xs);">
-          <wa-button variant="brand" appearance="outlined" size="small" class="btn-open-prism" data-prism-id="${prism.id}">
+          <wa-button variant="brand" appearance="outlined" size="s" class="btn-open-prism" data-prism-id="${prism.id}">
             <wa-icon slot="start" name="wand-magic-sparkles"></wa-icon>
             Open
           </wa-button>
-          <wa-button appearance="plain" variant="danger" size="small" class="btn-delete-prism" data-prism-id="${prism.id}" title="Delete PRISM">
+          <wa-button appearance="plain" variant="danger" size="s" class="btn-delete-prism" data-prism-id="${prism.id}" title="Delete PRISM">
             <wa-icon name="trash"></wa-icon>
           </wa-button>
         </div>
