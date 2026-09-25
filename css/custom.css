@@ -520,6 +520,11 @@ wa-page[view='desktop'] [data-toggle-nav] {
    Loading Skeletons
    ============================================================================ */
 
+/* An Extra's tool wrapper adds no box, so its cards keep the page's stack gap */
+[data-extra-tool]:not([hidden]) {
+  display: contents;
+}
+
 /* Card-shaped placeholder approximating a rendered deck card */
 .skeleton-deck-card {
   display: flex;

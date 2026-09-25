@@ -1,5 +1,5 @@
 import { escapeHtml } from '../core/utils.js';
-import { getCurrentUser, onAuthChange, canPaintAuthState, ensureAuthReady } from './auth.js';
+import { getCurrentUser, onAuthChange, canPaintAuthState, ensureAuthReady, startAuth } from './auth.js';
 import { getCurrentPrism } from './storage.js';
 import { isEntitled, isMembershipDrawerAvailable, startCheckout } from './billing.js';
 
@@ -61,6 +61,7 @@ export function membershipContent({ entitled, signedIn, createdName = null, peri
 let drawer;
 let content;
 let openButtons = [];
+let extrasLinks = [];
 let renderVersion = 0;
 let openRequest = null;
 // Survives the auth re-render, so a yearly pick made before sign-in holds.
@@ -76,6 +77,10 @@ export function initMembershipDrawer() {
   openButtons.forEach(button => {
     button.addEventListener('click', () => openMembershipDrawer());
   });
+  extrasLinks = [...document.querySelectorAll('[data-extras-link]')];
+  extrasLinks.forEach(link => {
+    link.addEventListener('click', () => { window.location.href = link.dataset.extrasLink; });
+  });
   drawer.addEventListener('wa-hide', event => {
     if (event.target !== drawer) return;
     openRequest = null;
@@ -87,8 +92,10 @@ export function initMembershipDrawer() {
     content.replaceChildren();
     if (openRequest) openMembershipDrawer(openRequest);
     else updateAvailability();
+    updateExtrasLinks();
   });
   updateAvailability();
+  updateExtrasLinks();
 
   // The profile's create redirects here only after saving. Consume its notice
   // once; reloading or opening an old PRISM must never produce a create notice.
@@ -111,6 +118,45 @@ async function updateAvailability() {
   const available = await isMembershipDrawerAvailable();
   openButtons.forEach(button => { button.hidden = !available; });
   return available;
+}
+
+// Extras links are Members-only and follow entitlement, not the drawer's
+// enforcement flag: until the flip every signed-in account is a Member.
+async function updateExtrasLinks() {
+  const user = getCurrentUser();
+  const entitled = user ? await isEntitled() : false;
+  if (user !== getCurrentUser()) return;
+  extrasLinks.forEach(link => { link.hidden = !entitled; });
+}
+
+/**
+ * Gate an Extras page (ADR 0003): Members get [data-extra-tool], anyone else
+ * [data-extra-pitch]. Soft by design — the page source stays public.
+ * Entitlement fails open, and so does an auth verdict that never arrives.
+ */
+export async function initExtraGate() {
+  const [tool, pitch, loading] = ['tool', 'pitch', 'loading']
+    .map(part => document.querySelector(`[data-extra-${part}]`));
+  await startAuth();
+  const user = getCurrentUser();
+  const entitled = !canPaintAuthState() || (user ? await isEntitled() : false);
+  loading.remove();
+  if (entitled) {
+    tool.hidden = false;
+    return;
+  }
+  pitch.hidden = false;
+  const signIn = pitch.querySelector('[data-extra-signin]');
+  if (user) {
+    signIn.hidden = true;
+    initMembershipDrawer();
+  } else {
+    pitch.querySelector('[data-open-membership]').hidden = true;
+    signIn.addEventListener('click', () => {
+      ensureAuthReady();
+      document.getElementById('auth-dialog')?.setAttribute('open', '');
+    });
+  }
 }
 
 /** A create is already persisted by the caller. This function never gates it. */
