@@ -44,15 +44,21 @@
       .sp-incoming { display: flex; gap: var(--wa-space-l); align-items: center; }
       .sp-incoming-img { width: 8rem; border-radius: var(--wa-border-radius-l); box-shadow: var(--wa-shadow-m); }
       .sp-list { list-style: none; margin: 0; padding: 0; }
-      .sp-row { display: flex; align-items: center; gap: var(--wa-space-m); width: 100%; padding: var(--wa-space-s) var(--wa-space-m);
+      .sp-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: var(--wa-space-m);
+        width: 100%; height: auto; padding: var(--wa-space-s) var(--wa-space-m); white-space: normal; line-height: var(--wa-line-height-normal);
         border: var(--wa-border-width-s) solid var(--wa-color-surface-border); border-radius: var(--wa-border-radius-m);
         background: var(--wa-color-surface-default); color: inherit; font: inherit; text-align: start; cursor: pointer;
         transition: border-color var(--wa-transition-fast), background-color var(--wa-transition-fast); }
       .sp-row:hover { border-color: var(--wa-color-brand-border-normal); background: var(--wa-color-brand-fill-quiet); }
       .sp-row:focus-visible { outline: var(--wa-focus-ring); outline-offset: var(--wa-focus-ring-offset); }
-      .sp-row-text { flex: 1; min-width: 0; }
-      .sp-swatches { display: inline-flex; gap: var(--wa-space-3xs); flex: none; }
-      .sp-swatch { inline-size: var(--wa-space-xs); block-size: var(--wa-space-xl); border-radius: var(--wa-border-radius-s); background: var(--deck); }
+      .sp-row-main { display: flex; flex-direction: column; gap: var(--wa-space-2xs); min-width: 0; }
+      .sp-row-title { overflow-wrap: anywhere; }
+      .sp-row-end { display: flex; align-items: center; gap: var(--wa-space-s); }
+      .sp-chevron { color: var(--wa-color-text-quiet); }
+      .sp-decks { display: flex; flex-wrap: wrap; gap: var(--wa-space-2xs) var(--wa-space-m); }
+      .sp-deck { display: inline-flex; align-items: center; gap: var(--wa-space-2xs); font-size: var(--wa-font-size-s); color: var(--wa-color-text-quiet); }
+      .sp-swatch { inline-size: var(--wa-space-2xs); block-size: 1em; border-radius: var(--wa-border-radius-s); background: var(--deck); flex: none; }
+      .sp-far::part(content) { padding-block-start: var(--wa-space-s); }
       .sp-meta { color: var(--wa-color-text-quiet); font-size: var(--wa-font-size-s); }
       .sp-card { font-weight: var(--wa-font-weight-semibold); text-decoration: underline dotted; text-underline-offset: 0.2em; cursor: help; }
       .sp-cost-headline { font-size: var(--wa-font-size-xl); font-weight: var(--wa-font-weight-bold); }
@@ -76,7 +82,7 @@
     <wa-page mobile-breakpoint="768">
       <main style="max-width: 900px; margin: 0 auto; padding: var(--wa-space-xl);">
         <div class="wa-stack wa-gap-xl">
-          <wa-callout variant="warning">PROTOTYPE (#276), round 2. Nothing is saved.</wa-callout>
+          <wa-callout variant="warning">PROTOTYPE (#276), round 3. Nothing is saved.</wa-callout>
           <div class="wa-stack wa-gap-s">
             <h1 class="wa-heading-xl">Swap Planner</h1>
             <p style="color: var(--wa-color-text-quiet); max-width: 70ch;">

@@ -16,7 +16,7 @@ import { showPreview, hidePreview, updatePosition, buildCardWithStripes, createL
 
 
 // ---------- card attributes (PROTOTYPE cache, wipe me) ----------
-const ATTR_KEY = 'prism_swap_prototype_attrs';
+const ATTR_KEY = 'prism_swap_prototype_attrs_v2'; // v2 adds oracle_id
 let attrs = {};
 try { attrs = JSON.parse(localStorage.getItem(ATTR_KEY) || '{}'); } catch { /* fresh */ }
 const front = n => n.split(' // ')[0].toLowerCase();
@@ -27,6 +27,7 @@ const slim = c => ({
   type: (c.type_line || c.card_faces?.[0]?.type_line || ''),
   cmc: c.cmc ?? 0,
   mana: c.mana_cost ?? c.card_faces?.[0]?.mana_cost ?? '',
+  oid: c.oracle_id ?? c.card_faces?.[0]?.oracle_id,
 });
 
 async function fetchAttrs(names, onProgress) {
@@ -40,10 +41,66 @@ async function fetchAttrs(names, onProgress) {
     });
     const json = await res.json();
     for (const c of json.data || []) attrs[front(c.name)] = slim(c);
-    await sleep(120);
+    await sleep(500); // /cards/collection is limited to 2/s (#271)
   }
   try { localStorage.setItem(ATTR_KEY, JSON.stringify(attrs)); } catch { /* full */ }
 }
+
+// ---------- oracle-tag roles (#271, #278: ranking only, never printed) ----------
+// Allowlisted role roots, rolled up through child_ids. ponytail: pinned by slug
+// for the prototype; production pins UUIDs and keeps a deny list (#271).
+const ROLE_ROOTS = ['ramp', 'mana-producer', 'removal', 'sweeper', 'card-advantage', 'tutor', 'counterspell',
+  'recursion', 'protects-permanent', 'protects-creature', 'lifegain', 'sacrifice-outlet', 'burn', 'discard',
+  'mill', 'evasion', 'anthem', 'cost-reducer', 'untapper', 'copy', 'extra-turn', 'fog', 'hate', 'combat-trick'];
+let roleIndex = null; // oracle_id -> { roles: Set<root slug>, leaves: Set<tag id> }
+
+async function loadRoles() {
+  const bulk = await (await fetch('https://api.scryfall.com/bulk-data')).json();
+  const entry = bulk.data.find(d => d.type === 'oracle_tags');
+  // data.scryfall.io is unmetered; the dated URL is immutable, so the HTTP cache serves repeats.
+  const bytes = new Uint8Array(await (await fetch(entry.jsonl_download_uri ?? entry.download_uri)).arrayBuffer());
+  const text = bytes[0] === 0x1f && bytes[1] === 0x8b
+    ? await new Response(new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'))).text()
+    : new TextDecoder().decode(bytes);
+  const byId = new Map();
+  const bySlug = new Map();
+  for (const line of text.split('\n')) {
+    if (!line.trim()) continue;
+    const t = JSON.parse(line);
+    byId.set(t.id, t);
+    bySlug.set(t.slug, t);
+  }
+  const index = new Map();
+  for (const root of ROLE_ROOTS) {
+    const start = bySlug.get(root);
+    if (!start) { console.warn(`Swap prototype: role tag "${root}" not found`); continue; }
+    const stack = [start];
+    const seen = new Set();
+    while (stack.length) {
+      const t = stack.pop();
+      if (seen.has(t.id)) continue;
+      seen.add(t.id);
+      for (const { oracle_id } of t.taggings || []) {
+        if (!index.has(oracle_id)) index.set(oracle_id, { roles: new Set(), leaves: new Set() });
+        const e = index.get(oracle_id);
+        e.roles.add(root);
+        e.leaves.add(t.id);
+      }
+      for (const id of t.child_ids || []) if (byId.has(id)) stack.push(byId.get(id));
+    }
+  }
+  roleIndex = index;
+}
+
+const overlap = (a, b) => [...a].filter(v => b.has(v)).length;
+/** How alike two cards' jobs are: shared role roots, then shared leaf tags. */
+function likeness(x, y) {
+  const a = roleIndex?.get(x.oid);
+  const b = roleIndex?.get(y.oid);
+  if (!a || !b) return { roles: 0, leaves: 0 };
+  return { roles: overlap(a.roles, b.roles), leaves: overlap(a.leaves, b.leaves) };
+}
+const byLikeness = (x, a, b) => b.like.roles - a.like.roles || b.like.leaves - a.like.leaves || Math.abs(a.attrs.cmc - x.cmc) - Math.abs(b.attrs.cmc - x.cmc);
 
 // ---------- domain (rough applySwap + cost diff, per #274) ----------
 const MAIN_TYPES = ['Creature', 'Instant', 'Sorcery', 'Artifact', 'Enchantment', 'Planeswalker', 'Land', 'Battle'];
@@ -100,7 +157,8 @@ function buildOptions(prism, x) {
     const comparable = deck.cards
       .filter(c => !c.isCommander && !c.isBasicLand && c.quantity === 1 && attrOf(c.name))
       .filter(c => mainTypes(attrOf(c.name).type).some(t => xTypes.includes(t)))
-      .sort((a, b) => Math.abs(attrOf(a.name).cmc - x.cmc) - Math.abs(attrOf(b.name).cmc - x.cmc))
+      .map(c => ({ ...c, attrs: attrOf(c.name), like: likeness(x, attrOf(c.name)) }))
+      .sort((a, b) => byLikeness(x, a, b))
       .slice(0, 8);
 
     for (const y of comparable) {
@@ -110,7 +168,7 @@ function buildOptions(prism, x) {
         const d = prism.decks.find(dd => dd.id === id);
         return fits(x, cis.get(id)) && !runs(d, x.name) && d.cards.find(c => c.name === y.name)?.quantity === 1;
       });
-      const base = { outgoing: y.name, incoming: x.name, attrs: attrOf(y.name), stripes: pc?.stripes || [] };
+      const base = { outgoing: y.name, incoming: x.name, attrs: y.attrs, like: y.like, stripes: pc?.stripes || [] };
 
       if (sleeveOk && !seenSleeve.has(batch.key)) {
         seenSleeve.add(batch.key);
@@ -145,11 +203,7 @@ function costText(o) {
   if (o.cost.stale) parts.push(plural(o.cost.stale, 'stale mark'));
   return parts.join(' · ') || 'No mark changes';
 }
-const costBadge = o => o.kind === 'sleeve'
-  ? `<wa-badge variant="success"><wa-icon slot="start" name="circle-check"></wa-icon>No new marks</wa-badge>`
-  : `<wa-badge variant="neutral" appearance="outlined">${costText(o)}</wa-badge>`;
 const meta = a => `<span class="sp-meta">${escapeHtml(a.mana)} · ${escapeHtml(a.type)}</span>`;
-const swatches = ids => `<span class="sp-swatches" aria-hidden="true">${ids.map(id => `<span class="sp-swatch" style="--deck:${deckById(id).color}"></span>`).join('')}</span>`;
 // Marks the incoming card carries after the Swap (a Sleeve swap inherits the outgoing sleeve's).
 const xStripesAfter = o => (o.kind === 'sleeve' ? o.cost.check.xAfter : o.cost.xAfter)?.stripes || [];
 
@@ -157,7 +211,7 @@ const xStripesAfter = o => (o.kind === 'sleeve' ? o.cost.check.xAfter : o.cost.x
 function groupOptions(options) {
   const groups = new Map();
   for (const o of options) {
-    if (!groups.has(o.outgoing)) groups.set(o.outgoing, { outgoing: o.outgoing, attrs: o.attrs, stripes: o.stripes, options: [] });
+    if (!groups.has(o.outgoing)) groups.set(o.outgoing, { outgoing: o.outgoing, attrs: o.attrs, like: o.like, stripes: o.stripes, options: [] });
     groups.get(o.outgoing).options.push(o);
   }
   for (const g of groups.values()) {
@@ -165,8 +219,7 @@ function groupOptions(options) {
     g.best = g.options[0];
     g.deckIds = [...new Set(g.options.flatMap(o => o.deckIds))];
   }
-  return [...groups.values()].sort((a, b) => total(a.best) - total(b.best) ||
-    Math.abs(a.attrs.cmc - ctx.x.cmc) - Math.abs(b.attrs.cmc - ctx.x.cmc) || a.outgoing.localeCompare(b.outgoing));
+  return [...groups.values()].sort((a, b) => byLikeness(ctx.x, a, b) || total(a.best) - total(b.best) || a.outgoing.localeCompare(b.outgoing));
 }
 
 function scopeLabel(o) {
@@ -268,47 +321,69 @@ function setState(extra) {
   const o = ctx.selected;
   document.getElementById('sp-state').textContent = JSON.stringify({
     incoming: ctx.x && { name: ctx.x.name, type: ctx.x.type, mana: ctx.x.mana, cmc: ctx.x.cmc },
+    rolesLoaded: !!roleIndex, incomingHasRoles: !!roleIndex?.get(ctx.x?.oid)?.roles.size,
     xInPrism: ctx.xInPrism, eligibleDecks: ctx.eligible?.map(d => d.name), skippedNoCommander: ctx.skipped?.map(d => d.name),
     comparableCards: ctx.groups?.length, sleeveSwaps: ctx.options?.filter(x => x.kind === 'sleeve').length,
-    selected: o && { kind: o.kind, outgoing: o.outgoing, decks: deckNames(o), cost: { stale: o.cost.stale, add: o.cost.add, buy: o.cost.buy }, done: o.done },
+    selected: o && { kind: o.kind, outgoing: o.outgoing, like: o.like, decks: deckNames(o), cost: { stale: o.cost.stale, add: o.cost.add, buy: o.cost.buy }, done: o.done },
     ...extra,
   }, null, 2);
 }
 
 // ---------- page ----------
+window.__sp = { roles: () => roleIndex, attrs: () => attrs }; // PROTOTYPE debug handle
 const ctx = { prism: null, x: null, options: [], groups: [], eligible: [], skipped: [], group: null, selected: null };
 
 function render() {
   const root = document.getElementById('sp-root');
   if (!ctx.x) { root.innerHTML = ''; setState(); return; }
+  // With no roles for the incoming card there is nothing to split on: fall back to type + mana value.
+  const xHasRoles = !!roleIndex?.get(ctx.x.oid)?.roles.size;
+  const alike = g => !xHasRoles || g.like.roles > 0;
   const sleeves = ctx.groups.filter(g => g.best.kind === 'sleeve');
   const rest = ctx.groups.filter(g => g.best.kind !== 'sleeve');
+  const deckChips = ids => ids.map(id => {
+    const d = deckById(id);
+    return `<span class="sp-deck"><span class="sp-swatch" style="--deck:${d.color}"></span>${escapeHtml(d.name)}</span>`;
+  }).join('');
   const row = g => `
     <li>
       <button class="sp-row" data-group="${ctx.groups.indexOf(g)}">
-        ${swatches(g.deckIds)}
-        <span class="wa-stack wa-gap-3xs sp-row-text">
-          <span><span class="sp-card" data-card="${escapeHtml(g.outgoing)}">${escapeHtml(g.outgoing)}</span> ${meta(g.attrs)}</span>
-          <span class="sp-meta">In ${escapeHtml(g.deckIds.map(id => deckById(id).name).join(', '))}</span>
+        <span class="sp-row-main">
+          <span class="sp-row-title"><span class="sp-card" data-card="${escapeHtml(g.outgoing)}">${escapeHtml(g.outgoing)}</span> ${meta(g.attrs)}</span>
+          <span class="sp-decks">${deckChips(g.deckIds)}</span>
         </span>
-        ${costBadge(g.best)}
+        <span class="sp-row-end">
+          ${g.best.kind === 'sleeve' ? '' : `<span class="sp-meta">${costText(g.best)}</span>`}
+          <wa-icon name="chevron-right" class="sp-chevron"></wa-icon>
+        </span>
       </button>
     </li>`;
-  const section = (title, hint, list, empty) => `
-    <section class="wa-stack wa-gap-s">
-      <div class="wa-stack wa-gap-3xs">
-        <h2 class="wa-heading-m">${title}</h2>
-        <span class="sp-meta">${hint}</span>
-      </div>
-      ${list.length ? `<ul class="sp-list wa-stack wa-gap-xs">${list.map(row).join('')}</ul>` : `<p class="sp-meta">${empty}</p>`}
-    </section>`;
+  const list = items => `<ul class="sp-list wa-stack wa-gap-xs">${items.map(row).join('')}</ul>`;
+  const section = (title, hint, items, empty) => {
+    const near = items.filter(alike);
+    const far = items.filter(g => !alike(g));
+    return `
+      <section class="wa-stack wa-gap-s">
+        <div class="wa-stack wa-gap-3xs">
+          <h2 class="wa-heading-m">${title}</h2>
+          <span class="sp-meta">${hint}</span>
+        </div>
+        ${near.length ? list(near) : `<p class="sp-meta">${items.length ? `No card here does the same job as ${escapeHtml(ctx.x.name)}.` : empty}</p>`}
+        ${far.length ? `
+          <wa-details class="sp-far">
+            <span slot="summary">${plural(far.length, 'more card')} of the same type, doing a different job</span>
+            ${list(far)}
+          </wa-details>` : ''}
+      </section>`;
+  };
+  const nearCount = ctx.groups.filter(alike).length;
   root.innerHTML = `
     <div class="sp-incoming">
       <img src="${ctx.x.image}" alt="${escapeHtml(ctx.x.name)}" class="sp-incoming-img">
       <div class="wa-stack wa-gap-2xs">
         <span class="wa-heading-l">${escapeHtml(ctx.x.name)}</span>
         ${meta(ctx.x)}
-        <span>Fits ${plural(ctx.eligible.length, 'deck')}. ${plural(ctx.groups.length, 'comparable card')}${sleeves.length ? `, ${sleeves.length} with no new marks` : ''}.</span>
+        <span>Fits ${plural(ctx.eligible.length, 'deck')}. ${xHasRoles ? `${plural(nearCount, 'card')} in them ${nearCount === 1 ? 'does' : 'do'} a similar job` : plural(ctx.groups.length, 'card') + ' of the same type'}.</span>
         ${ctx.skipped.length ? `<span class="sp-meta">Skipped ${plural(ctx.skipped.length, 'deck')} with no commander set: ${escapeHtml(ctx.skipped.map(d => d.name).join(', '))}</span>` : ''}
       </div>
     </div>
@@ -327,6 +402,8 @@ async function loadIncoming(name) {
   const x = { name: c.name.split(' // ')[0], ...slim(c), image: c.image_uris?.normal || c.card_faces?.[0]?.image_uris?.normal };
   // Stage 2 of #273: fetch attributes for every card in decks whose colors fit.
   const fitting = ctx.prism.decks.filter(d => fits(x, deckCi(d)));
+  status.textContent = 'Reading card roles…';
+  await ctx.rolesReady;
   await fetchAttrs(fitting.flatMap(d => d.cards.map(c2 => c2.name)), (i, n) => { status.textContent = `Reading deck cards ${i}/${n}…`; });
   Object.assign(ctx, { x, selected: null, group: null }, buildOptions(ctx.prism, x));
   ctx.groups = groupOptions(ctx.options);
@@ -342,6 +419,7 @@ export async function initSwapPlannerPrototype() {
   const status = document.getElementById('sp-status');
   if (!ctx.prism?.decks?.length) ctx.prism = demoPrism();
   document.getElementById('sp-prism').textContent = `${ctx.prism.name || 'Untitled PRISM'} · ${plural(ctx.prism.decks.length, 'deck')}`;
+  ctx.rolesReady = loadRoles().catch(err => console.warn('Swap prototype: oracle tags unavailable, ranking by type + mana value', err));
   // Stage 1 of #273: commanders first, for color identity.
   status.textContent = 'Reading commanders…';
   await fetchAttrs(ctx.prism.decks.flatMap(commanderNames));
