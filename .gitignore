@@ -6,3 +6,6 @@ dist/
 AGENTS.md
 design_handoff_ui_usability_pass/
 docs/research/paywall-dossier.html
+
+# Impeccable design-hook state, rewritten every session
+.impeccable/hook.cache.json
