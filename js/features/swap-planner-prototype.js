@@ -2,9 +2,9 @@
 // prototype/swap-planner-flow only; never merge to main.
 //
 // Question: what should the Swap Planner flow look and feel like?
-// Three structurally different variants on one page, switched by ?variant=
-// (A = stepper, B = ranked list, C = deck board). All share the same
-// data + cost logic below; only rendering differs.
+// Round 1 compared a stepper, a ranked list and a deck board (see this
+// branch's first commit). Round 2 keeps the ranked list, one row per
+// comparable card, with a side-by-side compare in the confirm dialog.
 //
 // Reads the current PRISM from localStorage. Nothing is saved: "Swap" applies
 // in memory and shows what would be written.
@@ -12,10 +12,8 @@
 import { getCurrentPrism } from '../modules/storage.js';
 import { processCards, commanderNames, DEFAULT_COLORS } from '../modules/processor.js';
 import { escapeHtml, countVisibleMarks, passKeysForCard } from '../core/utils.js';
-import { showPreview, hidePreview, updatePosition } from '../modules/card-preview.js';
+import { showPreview, hidePreview, updatePosition, buildCardWithStripes, createLoadingElement, createErrorElement } from '../modules/card-preview.js';
 
-const VARIANTS = { A: 'Stepper', B: 'Ranked list', C: 'Deck board' };
-const variant = VARIANTS[new URLSearchParams(location.search).get('variant')] ? new URLSearchParams(location.search).get('variant') : 'A';
 
 // ---------- card attributes (PROTOTYPE cache, wipe me) ----------
 const ATTR_KEY = 'prism_swap_prototype_attrs';
@@ -135,10 +133,11 @@ function buildOptions(prism, x) {
   return { eligible, skipped, options, xInPrism };
 }
 
-// ---------- shared bits (not layout) ----------
+// ---------- shared bits ----------
 const deckById = id => ctx.prism.decks.find(d => d.id === id);
 const deckNames = o => o.deckIds.map(id => deckById(id).name).join(', ');
 const plural = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`;
+const total = o => o.kind === 'sleeve' ? 0 : o.cost.add + o.cost.stale;
 function costText(o) {
   if (o.kind === 'sleeve') return 'No new marks';
   const parts = [];
@@ -146,39 +145,100 @@ function costText(o) {
   if (o.cost.stale) parts.push(plural(o.cost.stale, 'stale mark'));
   return parts.join(' · ') || 'No mark changes';
 }
-const costBadge = o => `<wa-badge variant="${o.kind === 'sleeve' ? 'success' : 'neutral'}" appearance="${o.kind === 'sleeve' ? 'accent' : 'outlined'}">${costText(o)}</wa-badge>`;
-const cardName = (o) => `<span class="sp-card" data-card="${escapeHtml(o.outgoing)}" data-opt="${ctx.options.indexOf(o)}">${escapeHtml(o.outgoing)}</span>`;
+const costBadge = o => o.kind === 'sleeve'
+  ? `<wa-badge variant="success"><wa-icon slot="start" name="circle-check"></wa-icon>No new marks</wa-badge>`
+  : `<wa-badge variant="neutral" appearance="outlined">${costText(o)}</wa-badge>`;
 const meta = a => `<span class="sp-meta">${escapeHtml(a.mana)} · ${escapeHtml(a.type)}</span>`;
-const xImg = (size = 'normal') => `<img class="sp-ximg" alt="${escapeHtml(ctx.x.name)}" src="${ctx.x.image}" data-size="${size}">`;
+const swatches = ids => `<span class="sp-swatches" aria-hidden="true">${ids.map(id => `<span class="sp-swatch" style="--deck:${deckById(id).color}"></span>`).join('')}</span>`;
+// Marks the incoming card carries after the Swap (a Sleeve swap inherits the outgoing sleeve's).
+const xStripesAfter = o => (o.kind === 'sleeve' ? o.cost.check.xAfter : o.cost.xAfter)?.stripes || [];
 
-function confirmHtml(o) {
-  const deck = deckById(o.deckIds[0]);
-  const cmdr = commanderNames(deck).join(' and ') || 'your commander';
+/** One row per comparable card: its options (Sleeve swap and/or single-deck Swaps), best first. */
+function groupOptions(options) {
+  const groups = new Map();
+  for (const o of options) {
+    if (!groups.has(o.outgoing)) groups.set(o.outgoing, { outgoing: o.outgoing, attrs: o.attrs, stripes: o.stripes, options: [] });
+    groups.get(o.outgoing).options.push(o);
+  }
+  for (const g of groups.values()) {
+    g.options.sort((a, b) => total(a) - total(b));
+    g.best = g.options[0];
+    g.deckIds = [...new Set(g.options.flatMap(o => o.deckIds))];
+  }
+  return [...groups.values()].sort((a, b) => total(a.best) - total(b.best) ||
+    Math.abs(a.attrs.cmc - ctx.x.cmc) - Math.abs(b.attrs.cmc - ctx.x.cmc) || a.outgoing.localeCompare(b.outgoing));
+}
+
+function scopeLabel(o) {
+  if (o.kind === 'sleeve' && o.deckIds.length > 1) return `Every deck in this sleeve: ${escapeHtml(deckNames(o))}`;
+  return `Only ${escapeHtml(deckNames(o))}`;
+}
+
+function confirmBody(g, o) {
+  const cmdrs = [...new Set(o.deckIds.flatMap(id => commanderNames(deckById(id))))];
+  const cmdr = cmdrs.join(' and ') || 'your commander';
   const kindLine = {
-    sleeve: `<strong>${escapeHtml(o.incoming)}</strong> moves into ${escapeHtml(o.outgoing)}'s sleeve in ${escapeHtml(deckNames(o))}. The marks are already painted.${o.done ? ' This sleeve is marked, so the new card starts marked.' : ''}`,
-    plain: `Swaps ${escapeHtml(o.outgoing)} for <strong>${escapeHtml(o.incoming)}</strong> in ${escapeHtml(deckNames(o))}.`,
-    'add-mark': `<strong>${escapeHtml(o.incoming)}</strong> is already in your PRISM. Its sleeve gets a mark for ${escapeHtml(deckNames(o))}, so there's no copy to buy.`,
+    sleeve: `${escapeHtml(o.incoming)} goes into ${escapeHtml(o.outgoing)}'s sleeve. The marks are already painted.${o.done ? ' That sleeve is marked, so the new card starts marked.' : ''}`,
+    plain: `${escapeHtml(o.incoming)} needs its own sleeve, and ${escapeHtml(o.outgoing)}'s sleeve keeps a mark it no longer needs.`,
+    'add-mark': `${escapeHtml(o.incoming)} is already in your PRISM. Its sleeve gets one more mark, so there's no copy to buy.`,
   }[o.kind];
   return `
-    <div class="wa-stack wa-gap-m">
-      <div class="wa-cluster wa-gap-s wa-align-items-center">
-        <span class="wa-heading-m">${escapeHtml(o.outgoing)} → ${escapeHtml(o.incoming)}</span>
+    <div class="sp-compare">
+      <figure class="wa-stack wa-gap-xs">
+        <div class="sp-slot" data-img="out"></div>
+        <figcaption class="wa-caption-m">Out · ${escapeHtml(o.outgoing)}</figcaption>
+      </figure>
+      <wa-icon name="arrow-right" class="sp-compare-arrow" label="replaced by"></wa-icon>
+      <figure class="wa-stack wa-gap-xs">
+        <div class="sp-slot" data-img="in"></div>
+        <figcaption class="wa-caption-m">In · ${escapeHtml(o.incoming)}</figcaption>
+      </figure>
+    </div>
+    <div class="wa-stack wa-gap-l">
+      <div class="wa-stack wa-gap-2xs">
+        <span class="sp-cost-headline ${o.kind === 'sleeve' ? 'sp-sleeve' : ''}">${costText(o)}</span>
+        <span class="sp-meta">${o.kind === 'add-mark' ? 'No copy to buy' : `${plural(o.cost.buy, 'copy')} to buy`}</span>
+        <p>${kindLine}</p>
       </div>
-      <div class="sp-cost-headline ${o.kind === 'sleeve' ? 'sp-sleeve' : ''}">${costText(o)}${o.kind !== 'add-mark' ? ` · ${plural(o.cost.buy, 'copy')} to buy` : ''}</div>
-      <p>${kindLine}</p>
+      ${g.options.length > 1 ? `
+        <wa-radio-group label="Swap it in" id="sp-scope" value="${g.options.indexOf(o)}">
+          ${g.options.map((opt, i) => `<wa-radio value="${i}">${scopeLabel(opt)} <span class="sp-meta">· ${costText(opt)}</span></wa-radio>`).join('')}
+        </wa-radio-group>` : `<p class="wa-caption-m">${scopeLabel(o)}</p>`}
       <div class="wa-stack wa-gap-2xs sp-checklist">
-        <span class="wa-caption-m" style="color: var(--wa-color-neutral-text-subtle)">Before you swap, ask yourself:</span>
+        <span class="sp-meta">Before you swap, ask yourself:</span>
         <span>Does ${escapeHtml(o.incoming)} do the same job as ${escapeHtml(o.outgoing)}?</span>
         <span>Is it better at that job?</span>
         <span>What does the deck lose?</span>
         <span>Does it work with ${escapeHtml(cmdr)}?</span>
         <a href="guide.html#swap-a-card">How to compare cards →</a>
       </div>
-      <div class="wa-cluster wa-gap-s">
-        <wa-button variant="brand" data-apply="${ctx.options.indexOf(o)}">Swap</wa-button>
-        <span class="wa-caption-s" style="color: var(--wa-color-neutral-text-subtle)">Prototype: nothing is saved.</span>
-      </div>
     </div>`;
+}
+
+async function fillImage(slot, name, stripes) {
+  slot.replaceChildren(createLoadingElement());
+  try {
+    const el = await buildCardWithStripes(name, stripes);
+    el.dataset.card = name;
+    if (slot.isConnected) slot.replaceChildren(el);
+  } catch {
+    slot.replaceChildren(createErrorElement('Image not available'));
+  }
+}
+
+function openConfirm(g, o) {
+  ctx.group = g;
+  ctx.selected = o;
+  const dialog = document.getElementById('sp-dialog');
+  const oldOut = dialog.querySelector('[data-img="out"] .card-preview-image')?.parentElement;
+  dialog.setAttribute('label', `Swap ${o.outgoing} for ${o.incoming}`);
+  dialog.querySelector('[data-body]').innerHTML = confirmBody(g, o);
+  // Changing scope only changes the incoming card's marks; keep the outgoing image.
+  if (oldOut && oldOut.dataset.card === o.outgoing) dialog.querySelector('[data-img="out"]').replaceChildren(oldOut);
+  else fillImage(dialog.querySelector('[data-img="out"]'), o.outgoing, g.stripes);
+  fillImage(dialog.querySelector('[data-img="in"]'), o.incoming, xStripesAfter(o));
+  dialog.setAttribute('open', '');
+  setState();
 }
 
 function applyOption(o) {
@@ -191,6 +251,7 @@ function applyOption(o) {
     sleeveCheck_xMarksAfter: o.cost.check ? countVisibleMarks(o.cost.check.xAfter?.stripes) : undefined,
     sleeveCheck_yMarksBefore: o.kind === 'sleeve' ? countVisibleMarks(o.stripes) : undefined,
   };
+  document.getElementById('sp-dialog').removeAttribute('open');
   setState({ applied: summary, cardCountBefore: countCards(ctx.prism), cardCountAfter: countCards(next) });
   toast(`Swapped ${o.outgoing} for ${o.incoming}. Update the deck on Moxfield or Archidekt too, since PRISM only changes its own decklist.`);
 }
@@ -198,110 +259,61 @@ const countCards = p => p.decks.reduce((n, d) => n + d.cards.reduce((m, c) => m 
 
 function toast(msg) {
   const el = document.getElementById('sp-toast');
-  el.textContent = msg;
+  el.querySelector('[data-msg]').textContent = msg;
   el.hidden = false;
   clearTimeout(toast.t);
-  toast.t = setTimeout(() => { el.hidden = true; }, 6000);
+  toast.t = setTimeout(() => { el.hidden = true; }, 7000);
 }
 function setState(extra) {
   const o = ctx.selected;
   document.getElementById('sp-state').textContent = JSON.stringify({
-    variant, incoming: ctx.x && { name: ctx.x.name, type: ctx.x.type, mana: ctx.x.mana, cmc: ctx.x.cmc },
+    incoming: ctx.x && { name: ctx.x.name, type: ctx.x.type, mana: ctx.x.mana, cmc: ctx.x.cmc },
     xInPrism: ctx.xInPrism, eligibleDecks: ctx.eligible?.map(d => d.name), skippedNoCommander: ctx.skipped?.map(d => d.name),
-    optionCount: ctx.options?.length, sleeveSwaps: ctx.options?.filter(x => x.kind === 'sleeve').length,
-    selected: o && { kind: o.kind, outgoing: o.outgoing, decks: deckNames(o), cost: { ...o.cost, check: undefined, xAfter: undefined }, done: o.done },
+    comparableCards: ctx.groups?.length, sleeveSwaps: ctx.options?.filter(x => x.kind === 'sleeve').length,
+    selected: o && { kind: o.kind, outgoing: o.outgoing, decks: deckNames(o), cost: { stale: o.cost.stale, add: o.cost.add, buy: o.cost.buy }, done: o.done },
     ...extra,
   }, null, 2);
 }
 
-// ---------- variants ----------
-const ctx = { prism: null, x: null, options: [], eligible: [], skipped: [], selected: null, deckId: null };
-
-function renderA(root) {
-  const decks = ctx.eligible;
-  const sleeves = ctx.options.filter(o => o.kind === 'sleeve');
-  const deckOpts = id => ctx.options.filter(o => o.deckIds.includes(id));
-  const step = (n, title, body, on = true) => `
-    <wa-card class="${on ? '' : 'sp-dim'}">
-      <div slot="header" class="wa-heading-m">${n} · ${title}</div>${on ? body : ''}
-    </wa-card>`;
-  root.innerHTML = `
-    ${sleeves.length ? `<wa-callout variant="success"><wa-icon slot="icon" name="circle-check"></wa-icon>
-      ${plural(sleeves.length, 'Sleeve swap')} available: ${escapeHtml(ctx.x.name)} can take over a sleeve with no new marks. Look for the green badge.</wa-callout>` : ''}
-    ${step(2, 'Pick a deck', `
-      <div class="wa-stack wa-gap-xs">${decks.map(d => `
-        <button class="sp-row ${ctx.deckId === d.id ? 'sp-on' : ''}" data-deck="${d.id}" style="--deck:${d.color}">
-          <span class="sp-swatch"></span><span>${escapeHtml(d.name)}</span>
-          <span class="sp-grow"></span>
-          ${deckOpts(d.id).some(o => o.kind === 'sleeve') ? '<wa-badge variant="success">Sleeve swap</wa-badge>' : ''}
-          <span class="wa-caption-s">${plural(deckOpts(d.id).length, 'comparable card')}</span>
-        </button>`).join('') || '<p>No deck can take this card.</p>'}
-      </div>`)}
-    ${step(3, 'Pick a card to replace', `
-      <div class="wa-stack wa-gap-xs">${deckOpts(ctx.deckId).map(o => `
-        <button class="sp-row ${ctx.selected === o ? 'sp-on' : ''}" data-pick="${ctx.options.indexOf(o)}">
-          ${cardName(o)} ${meta(o.attrs)}<span class="sp-grow"></span>${costBadge(o)}
-        </button>`).join('')}
-      </div>`, !!ctx.deckId)}
-    ${step(4, 'Check the marks and confirm', ctx.selected ? confirmHtml(ctx.selected) : '', !!ctx.selected)}`;
-}
-
-function renderB(root) {
-  const sleeves = ctx.options.filter(o => o.kind === 'sleeve');
-  const rest = ctx.options.filter(o => o.kind !== 'sleeve');
-  const row = o => `
-    <button class="sp-row" data-pick="${ctx.options.indexOf(o)}">
-      <span class="sp-swatches">${o.deckIds.map(id => `<span class="sp-swatch" style="--deck:${deckById(id).color}"></span>`).join('')}</span>
-      <span class="wa-stack wa-gap-3xs" style="text-align:left">
-        <span>Swap out ${cardName(o)} ${meta(o.attrs)}</span>
-        <span class="wa-caption-s">in ${escapeHtml(deckNames(o))}</span>
-      </span>
-      <span class="sp-grow"></span>${costBadge(o)}
-    </button>`;
-  root.innerHTML = `
-    <div class="sp-b">
-      <div class="wa-cluster wa-gap-m wa-align-items-center">
-        ${xImg('small')}
-        <div class="wa-stack wa-gap-2xs"><span class="wa-heading-l">${escapeHtml(ctx.x.name)}</span>${meta(ctx.x)}
-          <span class="wa-caption-m">Fits ${plural(ctx.eligible.length, 'deck')} · ${plural(ctx.options.length, 'way')} to swap it in</span></div>
-      </div>
-      <h2 class="wa-heading-m">No new marks</h2>
-      <div class="wa-stack wa-gap-xs">${sleeves.map(row).join('') || '<p class="wa-caption-m">No Sleeve swap for this card.</p>'}</div>
-      <h2 class="wa-heading-m">Other swaps</h2>
-      <div class="wa-stack wa-gap-xs">${rest.map(row).join('')}</div>
-    </div>
-    <wa-dialog id="sp-dialog" label="Confirm Swap">${ctx.selected ? confirmHtml(ctx.selected) : ''}</wa-dialog>`;
-  if (ctx.selected) root.querySelector('#sp-dialog').setAttribute('open', '');
-}
-
-function renderC(root) {
-  const tile = d => {
-    const opts = ctx.options.filter(o => o.deckIds.includes(d.id)).slice(0, 6);
-    return `
-      <div class="sp-tile" style="--deck:${d.color}">
-        <div class="wa-heading-s">${escapeHtml(d.name)}</div>
-        <div class="wa-caption-s">${escapeHtml(commanderNames(d).join(' / '))}</div>
-        <div class="wa-stack wa-gap-2xs">${opts.map(o => `
-          <button class="sp-chip ${o.kind === 'sleeve' ? 'sp-chip-sleeve' : ''} ${ctx.selected === o ? 'sp-on' : ''}" data-pick="${ctx.options.indexOf(o)}">
-            ${cardName(o)}<span class="sp-grow"></span><span class="wa-caption-s">${o.kind === 'sleeve' ? 'no new marks' : `+${o.cost.add} / ${o.cost.stale} stale`}</span>
-          </button>`).join('') || '<span class="wa-caption-s">No comparable card</span>'}
-        </div>
-      </div>`;
-  };
-  root.innerHTML = `
-    <div class="sp-c">
-      <aside class="sp-c-side wa-stack wa-gap-s">${xImg()}<span class="wa-heading-m">${escapeHtml(ctx.x.name)}</span>${meta(ctx.x)}
-        <span class="wa-caption-m">Green = Sleeve swap, no new marks.</span></aside>
-      <div class="sp-c-grid">${ctx.eligible.map(tile).join('')}</div>
-    </div>
-    <wa-drawer id="sp-drawer" label="Confirm Swap" placement="bottom">${ctx.selected ? confirmHtml(ctx.selected) : ''}</wa-drawer>`;
-  if (ctx.selected) root.querySelector('#sp-drawer').setAttribute('open', '');
-}
+// ---------- page ----------
+const ctx = { prism: null, x: null, options: [], groups: [], eligible: [], skipped: [], group: null, selected: null };
 
 function render() {
   const root = document.getElementById('sp-root');
   if (!ctx.x) { root.innerHTML = ''; setState(); return; }
-  ({ A: renderA, B: renderB, C: renderC })[variant](root);
+  const sleeves = ctx.groups.filter(g => g.best.kind === 'sleeve');
+  const rest = ctx.groups.filter(g => g.best.kind !== 'sleeve');
+  const row = g => `
+    <li>
+      <button class="sp-row" data-group="${ctx.groups.indexOf(g)}">
+        ${swatches(g.deckIds)}
+        <span class="wa-stack wa-gap-3xs sp-row-text">
+          <span><span class="sp-card" data-card="${escapeHtml(g.outgoing)}">${escapeHtml(g.outgoing)}</span> ${meta(g.attrs)}</span>
+          <span class="sp-meta">In ${escapeHtml(g.deckIds.map(id => deckById(id).name).join(', '))}</span>
+        </span>
+        ${costBadge(g.best)}
+      </button>
+    </li>`;
+  const section = (title, hint, list, empty) => `
+    <section class="wa-stack wa-gap-s">
+      <div class="wa-stack wa-gap-3xs">
+        <h2 class="wa-heading-m">${title}</h2>
+        <span class="sp-meta">${hint}</span>
+      </div>
+      ${list.length ? `<ul class="sp-list wa-stack wa-gap-xs">${list.map(row).join('')}</ul>` : `<p class="sp-meta">${empty}</p>`}
+    </section>`;
+  root.innerHTML = `
+    <div class="sp-incoming">
+      <img src="${ctx.x.image}" alt="${escapeHtml(ctx.x.name)}" class="sp-incoming-img">
+      <div class="wa-stack wa-gap-2xs">
+        <span class="wa-heading-l">${escapeHtml(ctx.x.name)}</span>
+        ${meta(ctx.x)}
+        <span>Fits ${plural(ctx.eligible.length, 'deck')}. ${plural(ctx.groups.length, 'comparable card')}${sleeves.length ? `, ${sleeves.length} with no new marks` : ''}.</span>
+        ${ctx.skipped.length ? `<span class="sp-meta">Skipped ${plural(ctx.skipped.length, 'deck')} with no commander set: ${escapeHtml(ctx.skipped.map(d => d.name).join(', '))}</span>` : ''}
+      </div>
+    </div>
+    ${section('No new marks', `${escapeHtml(ctx.x.name)} takes over the sleeve, marks and all.`, sleeves, 'No card here can hand over its sleeve.')}
+    ${section('Other swaps', 'These need new marks and leave a stale one behind.', rest, 'Nothing else to compare.')}`;
   setState();
 }
 
@@ -316,7 +328,8 @@ async function loadIncoming(name) {
   // Stage 2 of #273: fetch attributes for every card in decks whose colors fit.
   const fitting = ctx.prism.decks.filter(d => fits(x, deckCi(d)));
   await fetchAttrs(fitting.flatMap(d => d.cards.map(c2 => c2.name)), (i, n) => { status.textContent = `Reading deck cards ${i}/${n}…`; });
-  Object.assign(ctx, { x, selected: null, deckId: null }, buildOptions(ctx.prism, x));
+  Object.assign(ctx, { x, selected: null, group: null }, buildOptions(ctx.prism, x));
+  ctx.groups = groupOptions(ctx.options);
   status.textContent = '';
   const url = new URL(location.href);
   url.searchParams.set('card', x.name);
@@ -350,48 +363,33 @@ export async function initSwapPlannerPrototype() {
 
   const root = document.getElementById('sp-root');
   root.addEventListener('click', e => {
-    const apply = e.target.closest('[data-apply]');
-    if (apply) { applyOption(ctx.options[+apply.dataset.apply]); return; }
-    const deck = e.target.closest('[data-deck]');
-    if (deck) { ctx.deckId = deck.dataset.deck; ctx.selected = null; render(); return; }
-    const pick = e.target.closest('[data-pick]');
-    if (pick) { ctx.selected = ctx.options[+pick.dataset.pick]; render(); }
+    const row = e.target.closest('[data-group]');
+    if (!row) return;
+    hidePreview();
+    const g = ctx.groups[+row.dataset.group];
+    openConfirm(g, g.best);
   });
-  root.addEventListener('wa-after-hide', () => { ctx.selected = null; setState(); });
+  // The build.html hover: card image with its current stripes.
   root.addEventListener('mouseover', e => {
     const el = e.target.closest('.sp-card');
-    if (el) showPreview(el.dataset.card, ctx.options[+el.dataset.opt]?.stripes || [], e);
+    if (el) showPreview(el.dataset.card, ctx.groups.find(g => g.outgoing === el.dataset.card)?.stripes || [], e);
   });
   root.addEventListener('mousemove', e => { if (e.target.closest('.sp-card')) updatePosition(e); });
   root.addEventListener('mouseout', e => { if (e.target.closest('.sp-card')) hidePreview(); });
 
-  initSwitcher();
+  const dialog = document.getElementById('sp-dialog');
+  dialog.addEventListener('change', e => {
+    if (e.target.id !== 'sp-scope') return;
+    const o = ctx.group.options[+e.target.value];
+    ctx.selected = o;
+    openConfirm(ctx.group, o);
+  });
+  dialog.querySelector('[data-apply]').addEventListener('click', () => applyOption(ctx.selected));
+  dialog.addEventListener('wa-after-hide', e => { if (e.target === dialog) { ctx.selected = null; setState(); } });
+
   setState();
   const card = new URLSearchParams(location.search).get('card');
   if (card) { input.value = card; loadIncoming(card); }
-}
-
-// ---------- floating variant switcher (prototype chrome) ----------
-function initSwitcher() {
-  if (location.hostname === 'prismmtg.com') return;
-  const keys = Object.keys(VARIANTS);
-  const go = step => {
-    const url = new URL(location.href);
-    url.searchParams.set('variant', keys[(keys.indexOf(variant) + step + keys.length) % keys.length]);
-    location.replace(url);
-  };
-  const bar = document.createElement('div');
-  bar.className = 'sp-switcher';
-  bar.innerHTML = `<button aria-label="Previous variant">←</button><span>${variant} (${VARIANTS[variant]})</span><button aria-label="Next variant">→</button>`;
-  const [prev, next] = bar.querySelectorAll('button');
-  prev.onclick = () => go(-1);
-  next.onclick = () => go(1);
-  document.addEventListener('keydown', e => {
-    if (e.target.closest('input, textarea, [contenteditable]')) return;
-    if (e.key === 'ArrowLeft') go(-1);
-    if (e.key === 'ArrowRight') go(1);
-  });
-  document.body.appendChild(bar);
 }
 
 // ---------- demo PRISM (in memory only; used when this browser has no decks) ----------
