@@ -421,7 +421,8 @@ in the Supabase dashboard, then delete its `founders` row.
 
 The flip (step 5) ran 2026-09-25
 ([#268](https://github.com/codwats/prism/issues/268)) after a pre-flight count of
-`0` accounts without a Founder row; step 6's verification is tracked on #268.
+`0` accounts without a Founder row, and step 6's checks passed for a Founder, a
+non-Founder test account and a signed-out visitor.
 Kept as the record of how, and for a rollback-and-reflip.
 
 1. **Stamp.** Every row in `auth.users`, no predicate. Idempotent, and run
