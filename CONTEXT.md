@@ -46,11 +46,11 @@ A qualifier on a Core batch that exists because the PRISM gives a commander its 
 The number of physical copies of a card needed across a PRISM. It equals the sum of that card's marking-batch quantities.
 
 **Swap**:
-One card replacing another in a deck: a pair of an outgoing card and an incoming card, never two unrelated edits. What a Swap costs is measured in paint, meaning the marks that go stale and the marks that must be added.
-_Avoid_: replacement (as a term), substitution
+One card replacing another in a deck: a pair of an outgoing card and an incoming card, never two unrelated edits. What a Swap costs is counted in marks: the marks that go stale and the marks that must be added.
+_Avoid_: replacement (as a term), substitution, paint cost
 
 **Sleeve swap**:
-A Swap applied in every deck of one marking batch, so the incoming card moves into the outgoing card's sleeve with its marks already painted. It costs no paint. It follows the marking batch, not the card name: another batch of the same card is a separate sleeve and a separate decision.
+A Swap applied in every deck of one marking batch, so the incoming card moves into the outgoing card's sleeve with its marks already painted. It needs no new marks. It follows the marking batch, not the card name: another batch of the same card is a separate sleeve and a separate decision.
 
 **Mark**:
 A painted indicator on a sleeve edge. Every mark is either a stripe or a dot.
