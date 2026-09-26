@@ -52,7 +52,19 @@ the signup lock and [#222](https://github.com/codwats/prism/issues/222) owns the
 site edits, but the two sessions are weeks apart and this file is the only thing
 that spans them.
 
-### Schedule (updated 2026-09-17)
+### Schedule (updated 2026-09-25)
+
+**Enforcement was flipped on 2026-09-25, ahead of the campaign**
+([#268](https://github.com/codwats/prism/issues/268)). It no longer waits for
+campaign close: signups were already shut and the pre-flight count of accounts
+without a Founder row was `0`, so the cohort was final and nothing was gained by
+holding the flag. Everything below that says "the flip" as a future event now
+means the other items it was bundled with, which still run on the campaign's
+dates. The backer survey and allowlist (#240) grant Membership after the flip
+just as well as before it. Reopening signups is its own decision
+([#206](https://github.com/codwats/prism/issues/206)): with enforcement on, a new
+account is a free account, not a Founder, so the lock no longer protects the
+cohort, but the #240 claim RPC must be deployed first.
 
 **The campaign moved to November.** The previous schedule (site changeover
 Sunday 2026-09-13, pre-launch Monday the 14th, funding launch Monday the 21st)
@@ -76,8 +88,8 @@ below as a placeholder until that conversation happens.
 - **Roughly a week after pre-launch:** funding launch. No site deploy: the
   campaign block reads correctly in both phases and the pre-launch URL becomes
   the live one. See below.
-- **December, date not set:** campaign close. Then the backer survey, the
-  Founder stamp, and the flip, in that order.
+- **December, date not set:** campaign close. Then the backer survey and the
+  allowlist load. The flip is done (2026-09-25); the Founder stamp is final.
 - **January:** fulfilment target.
 
 Fill in the exact dates once the team has met. An approximate month in this
@@ -115,8 +127,7 @@ when it launches, so the single URL needs no second edit either. Those three
 deviations from #221's verbatim copy are deliberate and noted at the block in
 `index.html`.
 
-Payment enforcement stays off during this changeover; the Founder stamp and
-enforcement flip remain after campaign close.
+Payment enforcement is already on (2026-09-25); the changeover does not touch it.
 
 **At the site changeover:**
 
@@ -173,8 +184,8 @@ enforcement flip remain after campaign close.
 4. **Delete the campaign block** from `index.html`, and nothing else yet. Its
    copy asks a visitor to back a live campaign and goes stale the moment funding
    ends, and the close date and the flip date are not the same day. The revert
-   is a deletion, not new copy: the page returns to its prior state. Between
-   close and the flip, signups are still shut and backers reach their Membership
+   is a deletion, not new copy: the page returns to its prior state. Until
+   signups reopen (#206), backers reach their Membership
    through the backer survey
    ([#204](https://github.com/codwats/prism/issues/204)), never through the site.
 5. **Collect and load the backer allowlist**
@@ -200,12 +211,12 @@ enforcement flip remain after campaign close.
    nobody can create. `grep -rn "CAMPAIGN WINDOW"` lists all four markers; only
    the `index.html` one is in scope at this step.
 
-**At the flip, this session, after step 6 of the cutover below:**
+**When signups reopen ([#206](https://github.com/codwats/prism/issues/206)):**
 
 6. **Re-enable signups** in Supabase, then revert the remaining three
-   `CAMPAIGN WINDOW` markers, only after the stamp is verified and
-   `payment_enforcement` is true. Reopening any earlier lets new accounts into
-   the Founder cohort. #240's claim RPC must be deployed **before** this
+   `CAMPAIGN WINDOW` markers. The flip (2026-09-25) already made this safe for
+   the Founder cohort: a new account is now a free account. When to do it is
+   #206's call, no longer this runbook's. #240's claim RPC must be deployed **before** this
    step — reopening signups is exactly when the first backer account gets
    created, and without the claim path that account is refused.
 
@@ -240,7 +251,7 @@ supplied by the browser. An entry grants an ordinary `founders` row once;
 without changing their Membership. A consumed entry stays consumed even if its
 claimant later deletes their account.
 
-After campaign close and before the flip, take the PRISM-email column from
+After campaign close, take the PRISM-email column from
 Jay's survey CSV. In the SQL editor, paste the addresses as SQL text values
 (double any single quote inside an address), replacing the example values below.
 Do not paste CSV syntax directly into SQL or commit actual survey emails.
@@ -408,6 +419,9 @@ locked the UI cannot make one. Create it from Authentication → Users → Add u
 in the Supabase dashboard, then delete its `founders` row.
 
 ## The cutover — in order
+
+Done 2026-09-25 ([#268](https://github.com/codwats/prism/issues/268)). Kept as
+the record of how, and for a rollback-and-reflip.
 
 1. **Stamp.** Every row in `auth.users`, no predicate. Idempotent, and run
    twice already (before the 2026-08-30 rehearsal, and again on 2026-09-20).

@@ -121,7 +121,7 @@ async function updateAvailability() {
 }
 
 // Extras links are Members-only and follow entitlement, not the drawer's
-// enforcement flag: until the flip every signed-in account is a Member.
+// enforcement flag: with the flag off every signed-in account is a Member.
 async function updateExtrasLinks() {
   const user = getCurrentUser();
   const entitled = user ? await isEntitled() : false;
