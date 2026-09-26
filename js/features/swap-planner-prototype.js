@@ -51,7 +51,7 @@ async function fetchAttrs(names, onProgress) {
 // for the prototype; production pins UUIDs and keeps a deny list (#271).
 const ROLE_ROOTS = ['ramp', 'mana-producer', 'removal', 'sweeper', 'card-advantage', 'tutor', 'counterspell',
   'recursion', 'protects-permanent', 'protects-creature', 'lifegain', 'sacrifice-outlet', 'burn', 'discard',
-  'mill', 'evasion', 'anthem', 'cost-reducer', 'untapper', 'copy', 'extra-turn', 'fog', 'hate', 'combat-trick'];
+  'mill', 'evasion', 'anthem', 'cost-reducer', 'untapper', 'copy', 'extra-turn', 'fog', 'hate', 'combat-trick', 'flicker'];
 let roleIndex = null; // oracle_id -> { roles: Set<root slug>, leaves: Set<tag id> }
 
 async function loadRoles() {
@@ -141,8 +141,11 @@ function costOf(prism, before, opt, xName) {
   return { stale, add, buy, xAfter: xA };
 }
 
-/** Every Swap option for incoming card X across the PRISM. */
-function buildOptions(prism, x) {
+/**
+ * Every Swap option for incoming card X across the PRISM. Same card type by default;
+ * otherTypes drops the type rule and keeps only cards sharing a specific role tag.
+ */
+function buildOptions(prism, x, { otherTypes = false } = {}) {
   const processed = processCards(prism);
   const xInPrism = prism.decks.some(d => runs(d, x.name));
   const marked = new Set(prism.markedCards || []);
@@ -156,8 +159,12 @@ function buildOptions(prism, x) {
   for (const deck of eligible) {
     const comparable = deck.cards
       .filter(c => !c.isCommander && !c.isBasicLand && c.quantity === 1 && attrOf(c.name))
-      .filter(c => mainTypes(attrOf(c.name).type).some(t => xTypes.includes(t)))
       .map(c => ({ ...c, attrs: attrOf(c.name), like: likeness(x, attrOf(c.name)) }))
+      .filter(c => {
+        const sameType = mainTypes(c.attrs.type).some(t => xTypes.includes(t));
+        // Across types a shared role is too loose (every mana rock is "ramp"), so require a shared specific tag.
+        return otherTypes ? !sameType && c.like.leaves > 0 : sameType;
+      })
       .sort((a, b) => byLikeness(x, a, b))
       .slice(0, 8);
 
@@ -339,8 +346,10 @@ function render() {
   // With no roles for the incoming card there is nothing to split on: fall back to type + mana value.
   const xHasRoles = !!roleIndex?.get(ctx.x.oid)?.roles.size;
   const alike = g => !xHasRoles || g.like.roles > 0;
-  const sleeves = ctx.groups.filter(g => g.best.kind === 'sleeve');
-  const rest = ctx.groups.filter(g => g.best.kind !== 'sleeve');
+  const sameType = ctx.groups.filter(g => !g.wide);
+  const sleeves = sameType.filter(g => g.best.kind === 'sleeve');
+  const rest = sameType.filter(g => g.best.kind !== 'sleeve');
+  const wide = ctx.groups.filter(g => g.wide);
   const deckChips = ids => ids.map(id => {
     const d = deckById(id);
     return `<span class="sp-deck"><span class="sp-swatch" style="--deck:${d.color}"></span>${escapeHtml(d.name)}</span>`;
@@ -353,7 +362,7 @@ function render() {
           <span class="sp-decks">${deckChips(g.deckIds)}</span>
         </span>
         <span class="sp-row-end">
-          ${g.best.kind === 'sleeve' ? '' : `<span class="sp-meta">${costText(g.best)}</span>`}
+          ${g.best.kind === 'sleeve' && !g.wide ? '' : `<span class="sp-meta">${costText(g.best)}</span>`}
           <wa-icon name="chevron-right" class="sp-chevron"></wa-icon>
         </span>
       </button>
@@ -376,19 +385,31 @@ function render() {
           </wa-details>` : ''}
       </section>`;
   };
-  const nearCount = ctx.groups.filter(alike).length;
+  const nearCount = sameType.filter(alike).length;
+  const typeWords = mainTypes(ctx.x.type).map(t => t.toLowerCase().replace(/y$/, 'ie') + 's').join(' and ');
+  const widen = !xHasRoles ? '' : `
+    <section class="wa-stack wa-gap-s">
+      <div class="wa-stack wa-gap-3xs">
+        <h2 class="wa-heading-m">Other card types</h2>
+        <span class="sp-meta">Cards that aren't ${escapeHtml(typeWords)} but do a similar job.</span>
+      </div>
+      ${ctx.widened
+        ? (wide.length ? list(wide) : `<p class="sp-meta">No card of another type does a similar job.</p>`)
+        : `<div><wa-button data-widen variant="${nearCount ? 'neutral' : 'brand'}" appearance="${nearCount ? 'outlined' : 'accent'}">Look beyond ${escapeHtml(typeWords)}</wa-button></div>`}
+    </section>`;
   root.innerHTML = `
     <div class="sp-incoming">
       <img src="${ctx.x.image}" alt="${escapeHtml(ctx.x.name)}" class="sp-incoming-img">
       <div class="wa-stack wa-gap-2xs">
         <span class="wa-heading-l">${escapeHtml(ctx.x.name)}</span>
         ${meta(ctx.x)}
-        <span>Fits ${plural(ctx.eligible.length, 'deck')}. ${xHasRoles ? `${plural(nearCount, 'card')} in them ${nearCount === 1 ? 'does' : 'do'} a similar job` : plural(ctx.groups.length, 'card') + ' of the same type'}.</span>
+        <span>Fits ${plural(ctx.eligible.length, 'deck')}. ${xHasRoles ? `${plural(nearCount, 'card')} of the same type ${nearCount === 1 ? 'does' : 'do'} a similar job` : plural(sameType.length, 'card') + ' of the same type'}.</span>
         ${ctx.skipped.length ? `<span class="sp-meta">Skipped ${plural(ctx.skipped.length, 'deck')} with no commander set: ${escapeHtml(ctx.skipped.map(d => d.name).join(', '))}</span>` : ''}
       </div>
     </div>
     ${section('No new marks', `${escapeHtml(ctx.x.name)} takes over the sleeve, marks and all.`, sleeves, 'No card here can hand over its sleeve.')}
-    ${section('Other swaps', 'These need new marks and leave a stale one behind.', rest, 'Nothing else to compare.')}`;
+    ${section('Other swaps', 'These need new marks and leave a stale one behind.', rest, 'Nothing else to compare.')}
+    ${widen}`;
   setState();
 }
 
@@ -405,7 +426,7 @@ async function loadIncoming(name) {
   status.textContent = 'Reading card roles…';
   await ctx.rolesReady;
   await fetchAttrs(fitting.flatMap(d => d.cards.map(c2 => c2.name)), (i, n) => { status.textContent = `Reading deck cards ${i}/${n}…`; });
-  Object.assign(ctx, { x, selected: null, group: null }, buildOptions(ctx.prism, x));
+  Object.assign(ctx, { x, selected: null, group: null, widened: false }, buildOptions(ctx.prism, x));
   ctx.groups = groupOptions(ctx.options);
   status.textContent = '';
   const url = new URL(location.href);
@@ -441,6 +462,14 @@ export async function initSwapPlannerPrototype() {
 
   const root = document.getElementById('sp-root');
   root.addEventListener('click', e => {
+    if (e.target.closest('[data-widen]')) {
+      const wide = buildOptions(ctx.prism, ctx.x, { otherTypes: true }).options;
+      ctx.options = [...ctx.options, ...wide];
+      ctx.groups = [...ctx.groups, ...groupOptions(wide).map(g => ({ ...g, wide: true }))];
+      ctx.widened = true;
+      render();
+      return;
+    }
     const row = e.target.closest('[data-group]');
     if (!row) return;
     hidePreview();
