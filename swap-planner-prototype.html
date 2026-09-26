@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en" class="wa-cloak">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- Unlisted utility page: not in nav, not for search engines -->
+    <meta name="robots" content="noindex,nofollow" />
+    <title>Swap Planner PROTOTYPE - PRISM</title>
+    <style>.wa-cloak { visibility: hidden; }</style>
+    <style>wa-page:not(:defined) { visibility: hidden; }</style>
+    <!-- CDN resilience. Both rules above hide the page until Web Awesome loads, and
+         nothing removes them if it never does, so a blocked or stalled kit leaves a
+         blank white document. Reveal at 5s regardless: unstyled but readable beats
+         invisible. WA removes the class itself on a normal load, well before this. -->
+    <style>
+      @keyframes prism-uncloak { to { visibility: visible; } }
+      .wa-cloak,
+      wa-page:not(:defined) { animation: prism-uncloak 0s linear 5s forwards; }
+    </style>
+    <!-- iOS Home Screen icon (layout.js injects these as a fallback) -->
+    <link rel="apple-touch-icon" href="./assets/apple-touch-icon.png" />
+    <link rel="manifest" href="./assets/site.webmanifest" />
+    <meta name="theme-color" content="#281645" />
+    <meta name="apple-mobile-web-app-title" content="PRISM" />
+    <!-- Preconnect to CDNs (Supabase SDK on cdn.jsdelivr.net is lazy-loaded for logged-in users) -->
+    <link rel="preconnect" href="https://ka-p.webawesome.com" />
+    <link rel="preconnect" href="https://ka-p.webawesome.com" crossorigin />
+    <link rel="preconnect" href="https://fonts.bunny.net" />
+    <link rel="preconnect" href="https://fonts.bunny.net" crossorigin />
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" />
+    <link rel="preconnect" href="https://use.typekit.net" />
+    <link rel="preconnect" href="https://use.typekit.net" crossorigin />
+    <!-- Web Awesome, fonts, and app CSS as static tags so the browser preload scanner
+         starts them immediately; layout.js injectHeadResources skips tags already present -->
+    <link rel="stylesheet" href="https://ka-p.webawesome.com/kit/da021fed1e5141f2/webawesome@3.14.0/styles/themes/default.css" />
+    <link rel="stylesheet" href="https://ka-p.webawesome.com/kit/da021fed1e5141f2/webawesome@3.14.0/styles/native.css" />
+    <link rel="stylesheet" href="https://ka-p.webawesome.com/kit/da021fed1e5141f2/webawesome@3.14.0/styles/utilities.css" />
+    <script type="module" src="https://ka-p.webawesome.com/kit/da021fed1e5141f2/webawesome@3.14.0/webawesome.loader.js"></script>
+    <link rel="stylesheet" href="https://fonts.bunny.net/css2?family=Geist+Mono:wght@100..900&display=swap" />
+    <link rel="stylesheet" href="https://use.typekit.net/gbw6ibc.css" />
+    <style>
+      /* PROTOTYPE styles, throwaway */
+      .sp-row { display: flex; align-items: center; gap: var(--wa-space-s); width: 100%; padding: var(--wa-space-s) var(--wa-space-m);
+        border: 1px solid var(--wa-color-surface-border); border-radius: var(--wa-border-radius-m); background: var(--wa-color-surface-default);
+        color: inherit; font: inherit; cursor: pointer; text-align: left; }
+      .sp-row:hover, .sp-chip:hover { border-color: var(--wa-color-brand-border-normal); }
+      .sp-on { outline: 2px solid var(--wa-color-brand-fill-loud); }
+      .sp-grow { flex: 1; }
+      .sp-swatch { width: 10px; height: 22px; border-radius: 2px; background: var(--deck); flex: none; display: inline-block; }
+      .sp-swatches { display: inline-flex; gap: 3px; }
+      .sp-meta { color: var(--wa-color-neutral-text-subtle); font-size: var(--wa-font-size-s); }
+      .sp-card { font-weight: 600; text-decoration: underline dotted; }
+      .sp-dim { opacity: .45; }
+      .sp-cost-headline { font-size: var(--wa-font-size-xl); font-weight: 700; }
+      .sp-cost-headline.sp-sleeve { color: var(--wa-color-success-on-quiet); }
+      .sp-checklist { padding: var(--wa-space-m); background: var(--wa-color-neutral-fill-quiet); border-radius: var(--wa-border-radius-m); }
+      .sp-ximg { width: 244px; border-radius: 12px; }
+      .sp-ximg[data-size="small"] { width: 120px; border-radius: 6px; }
+      .sp-b { display: flex; flex-direction: column; gap: var(--wa-space-l); }
+      .sp-c { display: grid; grid-template-columns: 260px 1fr; gap: var(--wa-space-l); align-items: start; }
+      .sp-c-side { position: sticky; top: var(--wa-space-l); }
+      .sp-c-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: var(--wa-space-m); }
+      .sp-tile { border: 1px solid var(--wa-color-surface-border); border-left: 6px solid var(--deck); border-radius: var(--wa-border-radius-m);
+        padding: var(--wa-space-s); display: flex; flex-direction: column; gap: var(--wa-space-xs); }
+      .sp-chip { display: flex; gap: var(--wa-space-xs); align-items: center; padding: 4px 8px; border: 1px solid var(--wa-color-surface-border);
+        border-radius: var(--wa-border-radius-s); background: none; color: inherit; font: inherit; font-size: var(--wa-font-size-s); cursor: pointer; text-align: left; }
+      .sp-chip-sleeve { background: var(--wa-color-success-fill-quiet); border-color: var(--wa-color-success-border-quiet); }
+      .sp-switcher { position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%); z-index: 9999; display: flex; gap: 12px; align-items: center;
+        padding: 8px 14px; border-radius: 999px; background: #111; color: #fff; font: 600 14px system-ui; box-shadow: 0 4px 16px #0006; }
+      .sp-switcher button { background: #333; color: #fff; border: 0; border-radius: 999px; width: 28px; height: 28px; cursor: pointer; }
+      #sp-toast { position: fixed; bottom: 70px; right: 16px; max-width: 360px; z-index: 9998; }
+      @media (max-width: 768px) { .sp-c { grid-template-columns: 1fr; } .sp-c-side { position: static; } }
+    </style>
+  </head>
+  <body>
+    <wa-page mobile-breakpoint="768">
+      <main style="max-width: 1100px; margin: 0 auto; padding: var(--wa-space-xl);">
+        <div class="wa-stack wa-gap-xl">
+          <wa-callout variant="warning">PROTOTYPE (#276): three variants of the Swap Planner flow, switch with the bar at the bottom or ← →. Nothing is saved.</wa-callout>
+          <div class="wa-stack wa-gap-s">
+            <h1 class="wa-heading-xl">Swap Planner</h1>
+            <p style="color: var(--wa-color-neutral-text-subtle); max-width: 70ch;">
+              Search a card you just got. See which decks it fits, which card it could replace, and what the Swap costs in marks.
+              <a href="guide.html#swap-a-card">How to compare cards →</a>
+            </p>
+            <span id="sp-prism" class="wa-caption-m"></span>
+          </div>
+          <div class="wa-stack wa-gap-xs">
+            <label for="sp-search" class="wa-heading-s">1 · Search a card</label>
+            <input id="sp-search" list="sp-suggest" placeholder="Start typing a card name" autocomplete="off" style="max-width: 420px;" />
+            <datalist id="sp-suggest"></datalist>
+            <span id="sp-status" class="wa-caption-m"></span>
+          </div>
+          <div id="sp-root" class="wa-stack wa-gap-l"></div>
+          <details>
+            <summary>Prototype state</summary>
+            <pre id="sp-state" style="font-size: 12px; white-space: pre-wrap;"></pre>
+          </details>
+        </div>
+      </main>
+    </wa-page>
+    <wa-callout id="sp-toast" variant="success" hidden></wa-callout>
+    <script type="module">
+      import { initLayout } from './js/layout.js';
+      import { initSwapPlannerPrototype } from './js/features/swap-planner-prototype.js';
+      initLayout({ activePage: '', headerCta: { href: 'build.html', label: 'Build PRISM', icon: 'wand-magic-sparkles' } });
+      initSwapPlannerPrototype();
+    </script>
+  </body>
+</html>
