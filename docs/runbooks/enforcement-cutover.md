@@ -60,10 +60,10 @@ campaign close: signups were already shut and the pre-flight count of accounts
 without a Founder row was `0`, so the cohort was final and nothing was gained by
 holding the flag. The campaign-window steps below still run on the campaign's
 dates. The backer survey and allowlist (#240) grant Membership after the flip
-just as well as before it. Reopening signups is its own decision
-([#206](https://github.com/codwats/prism/issues/206)): with enforcement on, a new
-account is a free account, not a Founder, so the lock no longer protects the
-cohort, but the #240 claim RPC must be deployed first.
+just as well as before it. Signups reopen after the campaign concludes, in late
+November ([#206](https://github.com/codwats/prism/issues/206)). With enforcement
+on, a new account is a free account, not a Founder, so the lock no longer
+protects the cohort, but the #240 claim RPC must be deployed first.
 
 **The campaign moved to November.** The previous schedule (site changeover
 Sunday 2026-09-13, pre-launch Monday the 14th, funding launch Monday the 21st)
@@ -87,8 +87,9 @@ below as a placeholder until that conversation happens.
 - **Roughly a week after pre-launch:** funding launch. No site deploy: the
   campaign block reads correctly in both phases and the pre-launch URL becomes
   the live one. See below.
-- **December, date not set:** campaign close. Then the backer survey and the
-  allowlist load. The flip is done (2026-09-25).
+- **Late November, date not set:** campaign close. Then the backer survey, the
+  allowlist load, and reopening signups (step 6 below, after the #240 claim RPC
+  is deployed). The flip is done (2026-09-25).
 - **January:** fulfilment target.
 
 Fill in the exact dates once the team has met. An approximate month in this
