@@ -95,13 +95,6 @@ below as a placeholder until that conversation happens.
 Fill in the exact dates once the team has met. An approximate month in this
 file is fine; a stale exact date is not.
 
-**Do not deploy the changeover early.** The signup lock is the only control on
-the size of the Founder cohort ([PRODUCT.md](../../PRODUCT.md)), and it
-now has to hold from the changeover all the way to a flip that is two months
-further out than it was. Every day the lock runs ahead of pre-launch turns away
-new accounts and buys nothing, so it is anchored to pre-launch, not to a date
-on a calendar.
-
 [Draft PR #236](https://github.com/codwats/prism/pull/236) already prepares
 #222 and #206. It no longer waits on the Kickstarter URL: the CTA ships
 `disabled`, labelled "Coming soon", so the block can go up before the
