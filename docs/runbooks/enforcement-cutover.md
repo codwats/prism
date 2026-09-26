@@ -47,7 +47,7 @@ INSERT on `prisms` and INSERT on `decks`. Nothing else.
 
 Decided in [#221](https://github.com/codwats/prism/issues/221). The window opens
 with the site changeover, a few days before the Kickstarter pre-launch page
-goes up, and ends here, at the flip. Nothing else records it end to end: [#206](https://github.com/codwats/prism/issues/206) owns
+goes up, and ends when signups reopen (#206). Nothing else records it end to end: [#206](https://github.com/codwats/prism/issues/206) owns
 the signup lock and [#222](https://github.com/codwats/prism/issues/222) owns the
 site edits, but the two sessions are weeks apart and this file is the only thing
 that spans them.
@@ -58,8 +58,7 @@ that spans them.
 ([#268](https://github.com/codwats/prism/issues/268)). It no longer waits for
 campaign close: signups were already shut and the pre-flight count of accounts
 without a Founder row was `0`, so the cohort was final and nothing was gained by
-holding the flag. Everything below that says "the flip" as a future event now
-means the other items it was bundled with, which still run on the campaign's
+holding the flag. The campaign-window steps below still run on the campaign's
 dates. The backer survey and allowlist (#240) grant Membership after the flip
 just as well as before it. Reopening signups is its own decision
 ([#206](https://github.com/codwats/prism/issues/206)): with enforcement on, a new
@@ -89,7 +88,7 @@ below as a placeholder until that conversation happens.
   campaign block reads correctly in both phases and the pre-launch URL becomes
   the live one. See below.
 - **December, date not set:** campaign close. Then the backer survey and the
-  allowlist load. The flip is done (2026-09-25); the Founder stamp is final.
+  allowlist load. The flip is done (2026-09-25).
 - **January:** fulfilment target.
 
 Fill in the exact dates once the team has met. An approximate month in this
@@ -179,11 +178,11 @@ Payment enforcement is already on (2026-09-25); the changeover does not touch it
    Those two are prose, not a call to action, and they stay true throughout the
    window: accounts exist and still sync, there is just no way to make a new one.
 
-**At campaign close, before the flip:**
+**At campaign close:**
 
 4. **Delete the campaign block** from `index.html`, and nothing else yet. Its
    copy asks a visitor to back a live campaign and goes stale the moment funding
-   ends, and the close date and the flip date are not the same day. The revert
+   ends, and signups do not reopen the same day. The revert
    is a deletion, not new copy: the page returns to its prior state. Until
    signups reopen (#206), backers reach their Membership
    through the backer survey
@@ -233,7 +232,7 @@ Payment enforcement is already on (2026-09-25); the changeover does not touch it
    drawer ([#216](https://github.com/codwats/prism/issues/216)).
 
 The closed-signup window and the campaign-copy window share a start and do not
-share an end: the copy comes out at campaign close, the signup lock at the flip.
+share an end: the copy comes out at campaign close, the signup lock when signups reopen.
 That asymmetry is the reason this section exists.
 
 ### Backer claim deployment and ingestion (#240)
@@ -420,8 +419,10 @@ in the Supabase dashboard, then delete its `founders` row.
 
 ## The cutover — in order
 
-Done 2026-09-25 ([#268](https://github.com/codwats/prism/issues/268)). Kept as
-the record of how, and for a rollback-and-reflip.
+The flip (step 5) ran 2026-09-25
+([#268](https://github.com/codwats/prism/issues/268)) after a pre-flight count of
+`0` accounts without a Founder row; step 6's verification is tracked on #268.
+Kept as the record of how, and for a rollback-and-reflip.
 
 1. **Stamp.** Every row in `auth.users`, no predicate. Idempotent, and run
    twice already (before the 2026-08-30 rehearsal, and again on 2026-09-20).
@@ -458,7 +459,7 @@ the record of how, and for a rollback-and-reflip.
    This is the failure the 2026-08-30 rehearsal had to design around.
 
    Do not sign up a throwaway here: signups are shut from the site changeover
-   until they reopen after the flip (step 6 of the campaign-window list above),
+   until they reopen (step 6 of the campaign-window list above),
    so the site cannot make one. Use the rehearsal throwaway, which
    already exists and has been re-stamped since, or create an account from
    Authentication → Users → Add user in the Supabase dashboard, which works with

@@ -445,8 +445,8 @@ function renderGrid(root) {
 // Detail view
 // ============================================================
 
-// CAMPAIGN WINDOW (#222): the logged-out download caption below. Reverted at the
-// enforcement flip, see docs/runbooks/enforcement-cutover.md. A JS comment, not an
+// CAMPAIGN WINDOW (#222): the logged-out download caption below. Reverted when
+// signups reopen (#206), see docs/runbooks/enforcement-cutover.md. A JS comment, not an
 // HTML one inside the template literal: that renders into public page source.
 function renderDetail(root, id) {
   const artwork = findArtwork(id);
@@ -680,8 +680,8 @@ function readArtworkFields(root) {
 // Upload view
 // ============================================================
 
-// CAMPAIGN WINDOW (#222): the signed-out upload gate copy below. Reverted at the
-// enforcement flip, see docs/runbooks/enforcement-cutover.md. A JS comment, not an
+// CAMPAIGN WINDOW (#222): the signed-out upload gate copy below. Reverted when
+// signups reopen (#206), see docs/runbooks/enforcement-cutover.md. A JS comment, not an
 // HTML one inside the template literal: that renders into public page source.
 function renderUpload(root) {
   const user = getCurrentUser();

@@ -552,9 +552,8 @@ function injectAuthDialog() {
   // CAMPAIGN WINDOW (#206): the #btn-show-signup toggle and the whole
   // #auth-signup-view block were replaced in the markup below by one caption line for
   // the Kickstarter window. Restore both when signups reopen (#206), runbook step 6 —
-  // NOT at step 4 with the rest of the campaign-window revert. Signups stay shut until
-  // #240's claim RPC is deployed; the runbook has the reason, which
-  // does not belong in a file the public can fetch.
+  // NOT at step 4 with the rest of the campaign-window revert. The runbook has the
+  // reason, which does not belong in a file the public can fetch.
   // Deleted rather than hidden: hidden markup still ships an input[type=password] for
   // a password manager to offer, and a display toggle is one devtools edit away from a
   // working form. A caption rather than a disabled button: someone who opened this

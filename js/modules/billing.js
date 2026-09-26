@@ -3,8 +3,8 @@
  *
  * Reads subscription state that the stripe-webhook edge function writes into
  * Supabase (RLS scopes reads to the signed-in user's own row). Nothing here
- * restricts any feature: the gate is RLS via is_entitled(). isPaymentEnforced()
- * reads the app_config 'payment_enforcement' row for UI that follows the flag.
+ * enforces anything: the server gate is RLS via is_entitled(). isEntitled() and
+ * isPaymentEnforced() are reads for UI that follows entitlement or the flag.
  */
 
 import { getSupabase, SUPABASE_URL, SUPABASE_ANON_KEY } from './supabase-client.js';
