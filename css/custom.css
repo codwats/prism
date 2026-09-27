@@ -762,7 +762,6 @@ wa-page[view='desktop'] [data-toggle-nav] {
 
 .overlap-cell.overlap-has-value {
   font-weight: var(--wa-font-weight-semibold);
-  cursor: default;
 }
 
 .overlap-header {
@@ -1592,11 +1591,11 @@ wa-page[view='desktop'] [data-toggle-nav] {
   gap: var(--wa-space-xs);
 }
 
-.gallery-suggest {
+.card-suggest {
   position: relative;
 }
 
-.gallery-suggest-list {
+.card-suggest-list {
   position: absolute;
   z-index: 10;
   inset-inline: 0;
@@ -1608,7 +1607,7 @@ wa-page[view='desktop'] [data-toggle-nav] {
   overflow-y: auto;
 }
 
-.gallery-suggest-list button {
+.card-suggest-list button {
   display: block;
   width: 100%;
   text-align: left;
@@ -1620,8 +1619,63 @@ wa-page[view='desktop'] [data-toggle-nav] {
   color: inherit;
 }
 
-.gallery-suggest-list button:hover {
+.card-suggest-list button:hover {
   background: var(--wa-color-surface-lowered);
+}
+
+/* ============================================================================
+   Swap Planner (swap-planner.html)
+   ============================================================================ */
+
+.swap-planner {
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: var(--wa-space-xl);
+}
+
+/* Half the hover preview's width: enough to recognise the card */
+.swap-incoming {
+  --flank-size: 146px;
+}
+
+.swap-incoming img {
+  inline-size: 146px;
+  border-radius: var(--wa-border-radius-m);
+}
+
+.swap-intro-steps {
+  margin: 0;
+  padding-inline-start: var(--wa-space-l);
+}
+
+.swap-rows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.swap-row {
+  margin: 0;
+  padding-block: var(--wa-space-s);
+  border-block-start: var(--wa-border-width-s) solid var(--wa-color-surface-border);
+}
+
+.swap-row .card-name-cell {
+  font-weight: var(--wa-font-weight-semibold);
+}
+
+.swap-row wa-tag .stripe-detail-swatch {
+  margin-inline-end: var(--wa-space-2xs);
+}
+
+.swap-row wa-tag [data-cost-out] {
+  margin-inline-start: var(--wa-space-2xs);
+}
+
+@media (max-width: 768px) {
+  .swap-planner {
+    padding: var(--wa-space-m);
+  }
 }
 
 /* Rows (my uploads / moderation queue) */

@@ -349,7 +349,7 @@ export function getCacheStats() {
 }
 
 // Card attributes for the Swap Planner (#273/#293): color identity, type
-// line, mana value and oracle id. Scryfall data, not user data — kept in its
+// line, mana cost, mana value and oracle id. Scryfall data, not user data — kept in its
 // own localStorage key, never synced, no expiry (stale data only skews a
 // ranking, never a mark). Misses are not cached so a later name fix heals.
 const ATTRIBUTES_KEY = 'prism_card_attributes';
@@ -377,13 +377,14 @@ function saveAttributes(cache) {
  * /cards/collection (75 per request, on the shared rate chain). Multi-face
  * names are sent as their front face.
  * @param {string[]} names
- * @returns {Promise<Map<string, {colorIdentity: string[], typeLine: string, cmc: number, oracleId: string}|null>>}
+ * @returns {Promise<Map<string, {colorIdentity: string[], typeLine: string, manaCost: string, cmc: number, oracleId: string}|null>>}
  *   keyed by the input name; null = Scryfall couldn't match it
  */
 export async function getCardAttributes(names) {
   const cache = loadAttributes();
   const asWritten = new Map(names.map((n) => [attributeKey(n), n]));
-  const uncached = [...asWritten.keys()].filter((k) => !cache[k]);
+  // Entries cached before manaCost joined the record are fetched again once.
+  const uncached = [...asWritten.keys()].filter((k) => !cache[k] || !('manaCost' in cache[k]));
 
   for (let i = 0; i < uncached.length; i += COLLECTION_BATCH_SIZE) {
     const chunk = uncached.slice(i, i + COLLECTION_BATCH_SIZE);
@@ -403,6 +404,9 @@ export async function getCardAttributes(names) {
         const attrs = {
           colorIdentity: card.color_identity || [],
           typeLine: card.type_line || '',
+          // Top-level only, like the free card hover: a multi-face card's
+          // cost lives on its faces, and the Planner prints nothing the hover doesn't.
+          manaCost: card.mana_cost || '',
           cmc: card.cmc ?? 0,
           oracleId: card.oracle_id,
         };

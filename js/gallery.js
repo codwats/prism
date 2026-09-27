@@ -23,6 +23,7 @@ import { initLayout } from './layout.js';
 import { getCurrentUser, onAuthChange, ensureAuthReady } from './modules/auth.js';
 import { getSupabase, hasStoredSession, SUPABASE_URL, SUPABASE_ANON_KEY } from './modules/supabase-client.js';
 import { showSuccess, showError, showToast } from './core/notifications.js';
+import { wireCardAutocomplete as wireCardAutocompleteInput } from './modules/card-autocomplete.js';
 import { escapeHtml } from './core/utils.js';
 
 // ============================================================
@@ -591,12 +592,12 @@ function artworkFieldsHtml(v = {}) {
         <wa-radio value="token">Token</wa-radio>
         <wa-radio value="showcase">Showcase</wa-radio>
       </wa-radio-group>
-      <div class="gallery-suggest">
+      <div class="card-suggest">
         <wa-input id="up-card" label="Original card (optional)" placeholder="Start typing a card name" autocomplete="off" value="${escapeHtml(v.originalCard?.name || '')}">
           <wa-icon slot="start" name="magnifying-glass"></wa-icon>
           <span slot="hint">Leave blank for tokens or original art with no source card.</span>
         </wa-input>
-        <div class="gallery-suggest-list" id="up-card-suggest" hidden></div>
+        <div class="card-suggest-list" id="up-card-suggest" hidden></div>
       </div>
       <wa-textarea id="up-desc" label="Description" placeholder="Tell players about this piece (optional)" rows="3" value="${escapeHtml(v.description || '')}"></wa-textarea>
       <div>
@@ -618,33 +619,8 @@ let acDismissCleanup = null;
 
 /** Scryfall card-name autocomplete for the #up-card input. */
 function wireCardAutocomplete(root) {
-  const cardInput = root.querySelector('#up-card');
-  const suggest = root.querySelector('#up-card-suggest');
-  let acTimer;
-  cardInput.addEventListener('input', () => {
-    clearTimeout(acTimer);
-    const q = (cardInput.value || '').trim();
-    if (q.length < 2) { suggest.hidden = true; return; }
-    acTimer = setTimeout(async () => {
-      try {
-        const res = await fetch(`https://api.scryfall.com/cards/autocomplete?q=${encodeURIComponent(q)}`);
-        const data = await res.json();
-        const names = (data.data || []).slice(0, 8);
-        suggest.innerHTML = names.map(n => `<button type="button">${escapeHtml(n)}</button>`).join('');
-        suggest.hidden = names.length === 0;
-        suggest.querySelectorAll('button').forEach(b => b.addEventListener('click', () => {
-          cardInput.value = b.textContent;
-          suggest.hidden = true;
-        }));
-      } catch {
-        suggest.hidden = true;
-      }
-    }, 250);
-  });
   acDismissCleanup?.();
-  const onDocClick = e => { if (!suggest.contains(e.target) && e.target !== cardInput) suggest.hidden = true; };
-  document.addEventListener('click', onDocClick);
-  acDismissCleanup = () => document.removeEventListener('click', onDocClick);
+  acDismissCleanup = wireCardAutocompleteInput(root.querySelector('#up-card'), root.querySelector('#up-card-suggest'));
 }
 
 // WA inputs store values in shadow DOM; fall back to the internal

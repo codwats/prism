@@ -23,6 +23,7 @@ prism/
 ├── tools.html              Paint pen recommendations
 ├── gallery.html            Community artwork gallery (see Gallery section)
 ├── mpc-stripes.html        MPC Stripe Compositor — a paid Extra, Members-only via `initExtraGate()` in membership.js (soft gate, ADR 0003)
+├── swap-planner.html       Swap Planner — a paid Extra, same gate; `initExtraGate(onTool)` starts its Scryfall/tag fetches for Members only
 ├── links.html              QR/social funnel page (#243) — standalone: no layout.js, no nav, its own inlined tokens, so it can move to another domain unchanged
 ├── profile.html            User account management
 ├── privacy.html / terms.html
@@ -31,6 +32,7 @@ prism/
 │   ├── app.js              Entry point for build.html (~12 lines, imports init)
 │   ├── profile.js          Entry point for profile.html
 │   ├── gallery.js          Entry point for gallery.html
+│   ├── swap-planner.js     Entry point for swap-planner.html: search → rankComparables → rows; "Other swaps" costs fill in after render (applySwap per deck)
 │   ├── layout.js           Shared layout injection (nav, header, footer, auth dialog)
 │   ├── core/
 │   │   ├── state.js        Singleton mutable state (ES module = same reference everywhere)
@@ -59,7 +61,8 @@ prism/
 │       ├── comparables.js  Swap Planner ranking: eligible decks, comparable cards (same type / different job / look beyond), Sleeve-swap rows
 │       ├── oracle-tags.js  Swap Planner job index: 51 pinned Tagger jobs + land families, built from the Oracle Tags bulk file, IndexedDB, daily
 │       ├── export.js       CSV/JSON/printable guide export
-│       └── card-preview.js Hover tooltip showing card image
+│       ├── card-autocomplete.js  Scryfall name autocomplete under an input (gallery upload, Swap Planner search)
+│       └── card-preview.js Hover tooltip: card image, stripes, type line + mana cost; `wireCardPreview(root, stripesFor)` wires hover / mobile tap-to-open
 ├── netlify/
 │   └── edge-functions/     Deno TypeScript, deployed to Netlify Edge
 │       ├── moxfield-edge.ts   POST proxy → api2.moxfield.com

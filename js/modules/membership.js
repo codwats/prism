@@ -22,6 +22,8 @@ export function membershipContent({ entitled, signedIn, createdName = null, peri
         <h3 id="membership-extras-heading" class="wa-heading-m">Extras</h3>
         <a href="mpc-stripes.html">MPC Stripe Compositor</a>
         <p>Add your stripe marks to MPC Autofill images before you order. Needs a finished MPC Autofill order and Chrome.</p>
+        <a href="swap-planner.html">Swap Planner</a>
+        <p>Find the cards a new card could replace across your decks, and what each Swap costs in marks.</p>
       </section>
     </div>`;
   }
@@ -54,6 +56,8 @@ export function membershipContent({ entitled, signedIn, createdName = null, peri
       <h3 id="membership-extras-heading" class="wa-heading-m">Extras</h3>
       <p><strong>MPC Stripe Compositor</strong></p>
       <p>Add your stripe marks to MPC Autofill images before you order. Included with Membership. Needs a finished MPC Autofill order and Chrome.</p>
+      <p><strong>Swap Planner</strong></p>
+      <p>Find the cards a new card could replace across your decks, and what each Swap costs in marks. Included with Membership.</p>
     </section>
   </div>`;
 }
@@ -135,10 +139,12 @@ async function updateExtrasLinks() {
  * Entitlement fails open, and so does an auth verdict that never arrives.
  * Re-renders on every auth change (sign-out does not reload the page); a
  * render superseded by a later one, or by a user change, is discarded.
+ * onTool runs each time the tool is revealed, so a page starts its
+ * Members-only fetches only for Members.
  */
 let gateVersion = 0;
 
-export async function initExtraGate() {
+export async function initExtraGate(onTool) {
   const [tool, pitch, loading] = ['tool', 'pitch', 'loading']
     .map(part => document.querySelector(`[data-extra-${part}]`));
   const signIn = pitch.querySelector('[data-extra-signin]');
@@ -156,6 +162,7 @@ export async function initExtraGate() {
     tool.hidden = !entitled;
     pitch.hidden = entitled;
     signIn.hidden = !!user;
+    if (entitled) onTool?.();
   };
 
   await startAuth();
