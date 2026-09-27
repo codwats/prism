@@ -28,6 +28,7 @@ import {
   getRemovalStripePosition,
   stripeCountMap,
   unmarkCardsWithNewStripes as unmarkCardsWithNewStripesIn,
+  clearReturnedRemovals,
 } from "../modules/swap.js";
 import { savePrism, setCurrentPrism, recordUnmarkedCards, getPrism } from "../modules/storage.js";
 import { trackEvent } from "../modules/supabase-client.js";
@@ -71,8 +72,8 @@ function cardListChanged(oldCards, newCards) {
   return false;
 }
 
-export function unmarkCardsWithNewStripes(beforeCounts) {
-  return unmarkCardsWithNewStripesIn(state.currentPrism, beforeCounts);
+export function unmarkCardsWithNewStripes(beforeCounts, stillPainted) {
+  return unmarkCardsWithNewStripesIn(state.currentPrism, beforeCounts, stillPainted);
 }
 
 export function unmarkSharedCards(newCardNames) {
@@ -413,8 +414,6 @@ export async function handleEditConfirm() {
     if (isNew) removedCount++;
   }
 
-  const autoClearedCount = autoClearRemovedCards(parseResult.cards);
-
   const cardsChanged = cardListChanged(oldCards, parseResult.cards);
 
   deck.name = name;
@@ -424,7 +423,12 @@ export async function handleEditConfirm() {
   deck.updatedAt = now;
   if (cardsChanged) deck.cardsUpdatedAt = now;
 
-  const unmarkedKeys = unmarkCardsWithNewStripes(beforeCounts);
+  // A card back in this deck whose stale mark is still on the sleeve keeps
+  // its done state (#307); the name-only auto-clear takes the rest.
+  const stillPainted = clearReturnedRemovals(state.currentPrism, deck);
+  const autoClearedCount = stillPainted.length + autoClearRemovedCards(parseResult.cards);
+
+  const unmarkedKeys = unmarkCardsWithNewStripes(beforeCounts, stillPainted);
   const unmarkedCount = unmarkedKeys.length;
   if (unmarkedKeys.length > 0) {
     recordUnmarkedCards(state.currentPrism.id, unmarkedKeys);
