@@ -16,7 +16,7 @@ PRISM ("Personal Reference Index & Sleeve Marking") assigns each deck a unique c
 
 ## Positioning
 
-The mechanism a spreadsheet or generic label system can't replicate: PRISM encodes deck membership as a physical stripe-position system (up to 48 slots, 96 with dot splits) with a marking-batch engine that deduplicates shared cards into minimal physical copy counts (Pool/Core/Dedicated classification) and stays tournament-legal (marks don't change a card's identifiable profile — MTR 3.12). It is not deck-building or collection-tracking software; it exists specifically to make physical card-sharing across decks fast to execute and safe to trust.
+The mechanism a spreadsheet or generic label system can't replicate: PRISM encodes deck membership as a physical stripe-position system (up to 48 slots, 96 with dot splits) with a marking-batch engine that deduplicates shared cards into minimal physical copy counts (Pool/Core/Dedicated classification) and stays tournament-legal (marks don't change a card's identifiable profile — MTR 3.12). It is not deck-building or collection-tracking software; it exists specifically to make physical card-sharing across decks fast to execute and safe to trust. The Swap Planner treats changing a deck as a marking problem, not deck-building: it works out what a Swap costs in marks and never recommends what to play.
 
 ## Operating Context
 
