@@ -347,3 +347,96 @@ export function getCacheStats() {
     expired,
   };
 }
+
+// Card attributes for the Swap Planner (#273/#293): color identity, type
+// line, mana value and oracle id. Scryfall data, not user data — kept in its
+// own localStorage key, never synced, no expiry (stale data only skews a
+// ranking, never a mark). Misses are not cached so a later name fix heals.
+const ATTRIBUTES_KEY = 'prism_card_attributes';
+const attributeKey = (name) => name.toLowerCase().trim();
+
+function loadAttributes() {
+  try {
+    return JSON.parse(localStorage.getItem(ATTRIBUTES_KEY)) || {};
+  } catch {
+    return {};
+  }
+}
+
+function saveAttributes(cache) {
+  try {
+    localStorage.setItem(ATTRIBUTES_KEY, JSON.stringify(cache));
+  } catch {
+    // Out of space: this cache gives way, never prism_data.
+    localStorage.removeItem(ATTRIBUTES_KEY);
+  }
+}
+
+/**
+ * Look up attributes for card names, fetching only uncached ones through
+ * /cards/collection (75 per request, on the shared rate chain). Multi-face
+ * names are sent as their front face.
+ * @param {string[]} names
+ * @returns {Promise<Map<string, {colorIdentity: string[], typeLine: string, cmc: number, oracleId: string}|null>>}
+ *   keyed by the input name; null = Scryfall couldn't match it
+ */
+export async function getCardAttributes(names) {
+  const cache = loadAttributes();
+  const asWritten = new Map(names.map((n) => [attributeKey(n), n]));
+  const uncached = [...asWritten.keys()].filter((k) => !cache[k]);
+
+  for (let i = 0; i < uncached.length; i += COLLECTION_BATCH_SIZE) {
+    const chunk = uncached.slice(i, i + COLLECTION_BATCH_SIZE);
+    try {
+      await rateLimit();
+      const response = await fetch(`${API_BASE}/cards/collection`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ identifiers: chunk.map((k) => ({ name: asWritten.get(k).split(' // ')[0].trim() })) }),
+      });
+      if (!response.ok) {
+        console.warn(`Scryfall attribute lookup failed: ${response.status}`);
+        continue;
+      }
+      const found = new Map();
+      for (const card of (await response.json()).data || []) {
+        const attrs = {
+          colorIdentity: card.color_identity || [],
+          typeLine: card.type_line || '',
+          cmc: card.cmc ?? 0,
+          oracleId: card.oracle_id,
+        };
+        found.set(attributeKey(card.name), attrs);
+        found.set(attributeKey(card.name.split(' // ')[0]), attrs);
+      }
+      for (const k of chunk) {
+        const attrs = found.get(k) || found.get(attributeKey(k.split(' // ')[0]));
+        if (attrs) cache[k] = attrs;
+      }
+    } catch (err) {
+      console.warn('Scryfall attribute batch failed:', err.message);
+    }
+  }
+
+  if (uncached.length) saveAttributes(cache);
+  return new Map(names.map((n) => [n, cache[attributeKey(n)] || null]));
+}
+
+/**
+ * A deck's color identity: the union of its commanders' (WUBRG order).
+ * Null when the deck has no commander or one couldn't be matched — the
+ * Planner shows that deck as "identity unknown" instead of filtering it.
+ * @param {Object} deck
+ * @param {Map} attributes - from getCardAttributes, covering the commanders
+ */
+export function deckColorIdentity(deck, attributes) {
+  const commanders = deck.cards.filter((c) => c.isCommander);
+  if (!commanders.length) return null;
+  const colors = new Set();
+  for (const c of commanders) {
+    const attrs = attributes.get(c.name);
+    if (!attrs) return null;
+    attrs.colorIdentity.forEach((color) => colors.add(color));
+  }
+  return [...'WUBRG'].filter((color) => colors.has(color));
+}
