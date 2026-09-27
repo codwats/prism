@@ -121,6 +121,7 @@
         <a href="#count-copies" data-step="count-copies" class="step-chip"><wa-tag variant="neutral" appearance="outlined" size="s" pill>Count the copies you need</wa-tag></a>
         <a href="#mark-variants" data-step="mark-variants" class="step-chip"><wa-tag variant="neutral" appearance="outlined" size="s" pill>Mark a split group</wa-tag></a>
         <a href="#fix-a-mark" data-step="fix-a-mark" class="step-chip"><wa-tag variant="neutral" appearance="outlined" size="s" pill>Fix a mark you no longer want</wa-tag></a>
+        <a href="#swap-a-card" data-step="swap-a-card" class="step-chip"><wa-tag variant="neutral" appearance="outlined" size="s" pill>Swap a card</wa-tag></a>
         <wa-icon id="step-bar-hint" name="chevron-right" aria-hidden="true"></wa-icon>
       </div>
 
@@ -259,6 +260,34 @@
             <li>Mark the new sleeve with every mark the card still needs.</li>
             <li>Clear the stale mark in PRISM.</li>
           </ol>
+        </section>
+
+        <wa-divider></wa-divider>
+
+        <section id="swap-a-card" class="wa-stack wa-gap-m guide-step">
+          <h2 class="wa-heading-xl">Swap a card</h2>
+          <p>A Swap takes one card out of a deck and puts another in its place. Before you change a deck, count what the Swap costs in marks.</p>
+          <p><strong>Marks to add.</strong> The new card needs a mark for each deck it joins. If you already have it in a sleeve, that sleeve takes the new mark. If not, its new sleeve needs every mark for those decks.</p>
+          <p><strong>Stale marks.</strong> The old card's sleeve keeps its mark for the deck it left. It becomes a stale mark, and PRISM lists it under the Stale Marks filter until you clear the sleeve.</p>
+          <p><strong>A Sleeve swap needs no new marks.</strong> When the old card's sleeve is marked for exactly the decks the new card joins, the new card goes into that same sleeve. The marks already say the right thing, so nothing is added and nothing goes stale. PRISM offers a Sleeve swap when the new card isn't in your PRISM yet.</p>
+          <p>The <a href="swap-planner.html">Swap Planner</a> works out these costs for every deck a card fits.</p>
+          <p>Before you swap, ask yourself:</p>
+          <ol style="padding-left: var(--wa-space-xl); line-height: 1.8; margin: 0;">
+            <li>Does the new card do the same job as the old one?</li>
+            <li>Is it better at that job?</li>
+            <li>What does the deck lose?</li>
+            <li>Does it work with your commander?</li>
+          </ol>
+          <p>More on judging a card, from DefCat MTG:</p>
+          <iframe
+            src="https://www.youtube-nocookie.com/embed/LlCbR5oF3dM"
+            title="You don't know your FAVORITE Magic Card yet, by DefCat MTG"
+            loading="lazy"
+            allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            referrerpolicy="strict-origin-when-cross-origin"
+            allowfullscreen
+            style="inline-size: 100%; aspect-ratio: 16 / 9; border: 0; border-radius: var(--wa-border-radius-m);"></iframe>
+          <p>Update the deck on Moxfield or Archidekt too, since PRISM only changes its own decklist.</p>
         </section>
 
         <!-- CTA -->
