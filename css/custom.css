@@ -872,6 +872,17 @@ wa-page[view='desktop'] [data-toggle-nav] {
   object-fit: cover;
 }
 
+.card-preview-caption {
+  width: 244px;
+  padding: var(--wa-space-2xs) var(--wa-space-2xs) 0;
+  font-size: var(--wa-font-size-s);
+  color: var(--wa-color-text-quiet);
+}
+
+.card-preview-caption:empty {
+  display: none;
+}
+
 .card-preview-stripes {
   position: absolute;
   top: 0;
