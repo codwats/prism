@@ -225,6 +225,20 @@ function createPreviewElement(imageUri, stripes) {
   return container;
 }
 
+// Type line and mana cost under the hover image. The Swap Planner prints these
+// too, so they must be free here (PRODUCT.md, "never the card data").
+function createCardCaption(cardData) {
+  const caption = document.createElement('div');
+  caption.className = 'card-preview-caption';
+  for (const text of [cardData.type_line, cardData.mana_cost]) {
+    if (!text) continue;
+    const line = document.createElement('div');
+    line.textContent = text;
+    caption.appendChild(line);
+  }
+  return caption;
+}
+
 // Position tooltip near cursor, keeping it in viewport
 function positionTooltip(tooltip, event) {
   const padding = 20;
@@ -261,7 +275,7 @@ function positionTooltip(tooltip, event) {
 let tooltipElement = null;
 let currentCardName = null;
 let currentStripes = null;
-let currentImageUri = null;
+let currentCardData = null;
 
 // Get or create tooltip element
 function getTooltip() {
@@ -312,10 +326,11 @@ export async function showPreview(cardName, stripes, event) {
     if (currentCardName !== cardName) return;
 
     // Show preview with stripes
-    currentImageUri = cardData.image_uri;
+    currentCardData = cardData;
     currentStripes = stripes;
     tooltip.innerHTML = '';
     tooltip.appendChild(createPreviewElement(cardData.image_uri, stripes));
+    tooltip.appendChild(createCardCaption(cardData));
     positionTooltip(tooltip, event);
   } catch (error) {
     console.warn(`Failed to load card preview for "${cardName}":`, error.message);
@@ -342,9 +357,10 @@ export function hidePreview() {
 // toggles) using the cached image + stripes — no refetch.
 export function refreshOpenPreview() {
   const tooltip = getTooltip();
-  if (!tooltip || tooltip.hidden || !currentImageUri || !currentStripes) return;
+  if (!tooltip || tooltip.hidden || !currentCardData || !currentStripes) return;
   tooltip.innerHTML = '';
-  tooltip.appendChild(createPreviewElement(currentImageUri, currentStripes));
+  tooltip.appendChild(createPreviewElement(currentCardData.image_uri, currentStripes));
+  tooltip.appendChild(createCardCaption(currentCardData));
 }
 
 // Update tooltip position (for mousemove)
