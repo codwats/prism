@@ -55,6 +55,7 @@ prism/
 │       ├── scryfall.js     Scryfall API with localStorage cache (24h TTL) + rate limiting
 │       ├── moxfield.js     Moxfield deck import (via /api/moxfield-edge proxy)
 │       ├── archidekt.js    Archidekt deck import (via /api/archidekt-edge proxy)
+│       ├── swap.js         Swap engine (applySwap, cost in marks) + removed-card/unmark bookkeeping shared with deck edits
 │       ├── export.js       CSV/JSON/printable guide export
 │       └── card-preview.js Hover tooltip showing card image
 ├── netlify/
