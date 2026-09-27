@@ -56,6 +56,7 @@ prism/
 │       ├── moxfield.js     Moxfield deck import (via /api/moxfield-edge proxy)
 │       ├── archidekt.js    Archidekt deck import (via /api/archidekt-edge proxy)
 │       ├── swap.js         Swap engine (applySwap, cost in marks) + removed-card/unmark bookkeeping shared with deck edits
+│       ├── oracle-tags.js  Swap Planner job index: 51 pinned Tagger jobs + land families, built from the Oracle Tags bulk file, IndexedDB, daily
 │       ├── export.js       CSV/JSON/printable guide export
 │       └── card-preview.js Hover tooltip showing card image
 ├── netlify/
