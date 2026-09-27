@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en" class="wa-cloak">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- Unlisted utility page: not in nav, not for search engines -->
+    <meta name="robots" content="noindex,nofollow" />
+    <title>Swap Planner - PRISM</title>
+    <style>.wa-cloak { visibility: hidden; }</style>
+    <style>wa-page:not(:defined) { visibility: hidden; }</style>
+    <!-- CDN resilience. Both rules above hide the page until Web Awesome loads, and
+         nothing removes them if it never does, so a blocked or stalled kit leaves a
+         blank white document. Reveal at 5s regardless: unstyled but readable beats
+         invisible. WA removes the class itself on a normal load, well before this. -->
+    <style>
+      @keyframes prism-uncloak { to { visibility: visible; } }
+      .wa-cloak,
+      wa-page:not(:defined) { animation: prism-uncloak 0s linear 5s forwards; }
+    </style>
+    <!-- iOS Home Screen icon (layout.js injects these as a fallback) -->
+    <link rel="apple-touch-icon" href="./assets/apple-touch-icon.png" />
+    <link rel="manifest" href="./assets/site.webmanifest" />
+    <meta name="theme-color" content="#281645" />
+    <meta name="apple-mobile-web-app-title" content="PRISM" />
+    <!-- Preconnect to CDNs (Supabase SDK on cdn.jsdelivr.net is lazy-loaded for logged-in users) -->
+    <link rel="preconnect" href="https://ka-p.webawesome.com" />
+    <link rel="preconnect" href="https://ka-p.webawesome.com" crossorigin />
+    <link rel="preconnect" href="https://fonts.bunny.net" />
+    <link rel="preconnect" href="https://fonts.bunny.net" crossorigin />
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" />
+    <link rel="preconnect" href="https://use.typekit.net" />
+    <link rel="preconnect" href="https://use.typekit.net" crossorigin />
+    <!-- Web Awesome, fonts, and app CSS as static tags so the browser preload scanner
+         starts them immediately; layout.js injectHeadResources skips tags already present -->
+    <link rel="stylesheet" href="https://ka-p.webawesome.com/kit/da021fed1e5141f2/webawesome@3.14.0/styles/themes/default.css" />
+    <link rel="stylesheet" href="https://ka-p.webawesome.com/kit/da021fed1e5141f2/webawesome@3.14.0/styles/native.css" />
+    <link rel="stylesheet" href="https://ka-p.webawesome.com/kit/da021fed1e5141f2/webawesome@3.14.0/styles/utilities.css" />
+    <script type="module" src="https://ka-p.webawesome.com/kit/da021fed1e5141f2/webawesome@3.14.0/webawesome.loader.js"></script>
+    <link rel="stylesheet" href="https://fonts.bunny.net/css2?family=Geist+Mono:wght@100..900&display=swap" />
+    <link rel="stylesheet" href="https://use.typekit.net/gbw6ibc.css" />
+    <link rel="stylesheet" href="css/custom.css" />
+  </head>
+  <body>
+    <wa-page mobile-breakpoint="768">
+      <main class="swap-planner">
+        <div class="wa-stack wa-gap-xl">
+          <div class="wa-stack wa-gap-s">
+            <h1 class="wa-heading-xl">Swap Planner</h1>
+            <p class="wa-color-text-quiet" style="max-width: 70ch;">
+              Search for a card you want to add. The Swap Planner lists the comparable cards already
+              in the decks it fits, and what each Swap costs in marks. A Sleeve swap puts the new card
+              in a sleeve that already carries the right marks, so it needs no new marks.
+            </p>
+            <a href="guide.html#swap-a-card">How to compare cards →</a>
+          </div>
+
+          <!-- Members-only Extra (ADR 0003): initExtraGate() in modules/membership.js
+               reveals exactly one of loading → tool | pitch. -->
+          <div data-extra-loading class="skeleton-deck-card" aria-hidden="true">
+            <wa-skeleton effect="pulse" class="skeleton-line-title"></wa-skeleton>
+            <wa-skeleton effect="pulse" class="skeleton-line"></wa-skeleton>
+            <wa-skeleton effect="pulse" class="skeleton-line-short"></wa-skeleton>
+          </div>
+
+          <wa-card data-extra-pitch hidden>
+            <div class="wa-stack wa-gap-m">
+              <p>The Swap Planner is one of the Extras included with Membership.</p>
+              <div class="wa-cluster wa-gap-m">
+                <wa-button variant="brand" data-extra-signin>Log in</wa-button>
+                <wa-button variant="brand" data-open-membership>See Membership</wa-button>
+              </div>
+            </div>
+          </wa-card>
+
+          <div data-extra-tool hidden>
+          <div class="wa-stack wa-gap-l">
+            <!-- First-run callout; dismissal persisted in prism_swap_intro_dismissed -->
+            <wa-callout id="swap-intro" variant="brand" hidden>
+              <wa-icon slot="icon" name="lightbulb"></wa-icon>
+              <div class="wa-stack wa-gap-xs">
+                <ol class="swap-intro-steps">
+                  <li>Search a card.</li>
+                  <li>Pick a card to swap out.</li>
+                  <li>Check the marks and confirm.</li>
+                </ol>
+                <span>A Sleeve swap needs no new marks: the new card goes into a sleeve whose decks are exactly the decks it joins, so the marks are already there.</span>
+                <div class="wa-cluster wa-gap-m wa-align-items-center">
+                  <a href="guide.html#swap-a-card">How to compare cards →</a>
+                  <wa-button id="swap-intro-dismiss" appearance="plain" size="s">
+                    <wa-icon slot="start" name="xmark"></wa-icon>
+                    Dismiss
+                  </wa-button>
+                </div>
+              </div>
+            </wa-callout>
+
+            <div class="card-suggest">
+              <wa-input id="swap-search" label="Card to add" placeholder="Start typing a card name" autocomplete="off">
+                <wa-icon slot="start" name="magnifying-glass"></wa-icon>
+              </wa-input>
+              <div class="card-suggest-list" id="swap-search-suggest" hidden></div>
+            </div>
+
+            <p id="swap-status" class="wa-color-text-quiet" role="status" hidden></p>
+
+            <section id="swap-incoming" class="swap-incoming wa-flank wa-align-items-start" hidden>
+              <img id="swap-incoming-image" alt="" />
+              <div class="wa-stack wa-gap-2xs">
+                <h2 id="swap-incoming-name" class="wa-heading-xl"></h2>
+                <p id="swap-incoming-meta" class="wa-color-text-quiet"></p>
+                <p id="swap-fit"></p>
+                <p id="swap-unmatched" class="wa-caption-s wa-color-text-quiet" hidden></p>
+              </div>
+            </section>
+
+            <div id="swap-results" class="wa-stack wa-gap-l"></div>
+          </div>
+          </div>
+        </div>
+      </main>
+    </wa-page>
+
+    <div id="card-preview-tooltip" class="card-preview-tooltip" hidden></div>
+
+    <wa-drawer id="membership-drawer" label="Membership" placement="end">
+      <div data-membership-content></div>
+      <wa-button slot="footer" appearance="plain" data-drawer="close">Close</wa-button>
+    </wa-drawer>
+
+    <!-- Toast notification container -->
+    <wa-toast placement="bottom-end" id="toast-container"></wa-toast>
+
+    <script type="module" src="js/swap-planner.js"></script>
+  </body>
+</html>

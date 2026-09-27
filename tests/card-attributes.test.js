@@ -15,7 +15,7 @@ globalThis.localStorage = {
 
 const CARDS = {
 	'Delver of Secrets // Insectile Aberration': { color_identity: ['U'], type_line: 'Creature — Human Wizard // Creature — Human Insect', cmc: 1, oracle_id: 'o-delver' },
-	'Meren of Clan Nel Toth': { color_identity: ['B', 'G'], type_line: 'Legendary Creature — Human Shaman', cmc: 4, oracle_id: 'o-meren' },
+	'Meren of Clan Nel Toth': { color_identity: ['B', 'G'], type_line: 'Legendary Creature — Human Shaman', mana_cost: '{2}{B}{G}', cmc: 4, oracle_id: 'o-meren' },
 	'Tymna the Weaver': { color_identity: ['W', 'B'], type_line: 'Legendary Creature — Human Cleric', cmc: 3, oracle_id: 'o-tymna' },
 };
 
@@ -44,8 +44,19 @@ test('multi-face names go out as their front face and match either form', async 
 	const attrs = await getCardAttributes(['Delver of Secrets // Insectile Aberration']);
 	assert.deepEqual(requests, [['Delver of Secrets']]);
 	assert.deepEqual(attrs.get('Delver of Secrets // Insectile Aberration'), {
-		colorIdentity: ['U'], typeLine: 'Creature — Human Wizard // Creature — Human Insect', cmc: 1, oracleId: 'o-delver',
+		colorIdentity: ['U'], typeLine: 'Creature — Human Wizard // Creature — Human Insect', manaCost: '', cmc: 1, oracleId: 'o-delver',
 	});
+});
+
+test('an entry cached without manaCost is fetched again once', async () => {
+	reset();
+	store.set('prism_card_attributes', JSON.stringify({
+		'meren of clan nel toth': { colorIdentity: ['B', 'G'], typeLine: 'Legendary Creature — Human Shaman', cmc: 4, oracleId: 'o-meren' },
+	}));
+	const attrs = await getCardAttributes(['Meren of Clan Nel Toth']);
+	assert.equal(attrs.get('Meren of Clan Nel Toth').manaCost, '{2}{B}{G}');
+	await getCardAttributes(['Meren of Clan Nel Toth']);
+	assert.equal(requests.length, 1);
 });
 
 test('cached names make no request; only uncached ones are fetched', async () => {
