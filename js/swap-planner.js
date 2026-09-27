@@ -5,15 +5,16 @@
 
 import { initLayout } from './layout.js';
 import { initExtraGate } from './modules/membership.js';
-import { getCurrentPrism } from './modules/storage.js';
+import { getCurrentPrism, savePrism, recordUnmarkedCards } from './modules/storage.js';
 import { fetchCard, getCardAttributes } from './modules/scryfall.js';
 import { loadJobIndex } from './modules/oracle-tags.js';
 import { rankComparables, mainType } from './modules/comparables.js';
 import { applySwap } from './modules/swap.js';
 import { processCards } from './modules/processor.js';
-import { wireCardPreview } from './modules/card-preview.js';
+import { wireCardPreview, buildCardWithStripes, createLoadingElement, createErrorElement } from './modules/card-preview.js';
 import { wireCardAutocomplete } from './modules/card-autocomplete.js';
 import { escapeHtml } from './core/utils.js';
+import { showError, showSuccess } from './core/notifications.js';
 
 const INTRO_KEY = 'prism_swap_intro_dismissed';
 const $ = (id) => document.getElementById(id);
@@ -23,6 +24,8 @@ const commanderNames = (prism) => prism.decks.flatMap((d) => d.cards.filter((c) 
 let jobIndexReady = null;
 let stripesByName = new Map();
 let searchVersion = 0;
+// The last search's incoming card and ranking, for the confirm dialog.
+let current = null;
 
 initLayout({ activePage: '', headerCta: { href: 'build.html', label: 'Build PRISM', icon: 'wand-magic-sparkles' } });
 initExtraGate(() => {
@@ -37,6 +40,7 @@ initExtraGate(() => {
 wireIntro();
 wireCardAutocomplete($('swap-search'), $('swap-search-suggest'), search);
 wireCardPreview($('swap-results'), (name) => stripesByName.get(name) || []);
+wireSwapDialog();
 
 function wireIntro() {
   const intro = $('swap-intro');
@@ -60,6 +64,7 @@ async function search(name) {
   const stale = () => version !== searchVersion;
   $('swap-incoming').hidden = true;
   $('swap-results').replaceChildren();
+  current = null;
 
   const prism = getCurrentPrism();
   if (!prism?.decks?.length) {
@@ -100,6 +105,7 @@ async function search(name) {
 
   const ranked = rankComparables(prism, incoming, attributes, jobIndex);
   stripesByName = new Map(processCards(prism).map((c) => [c.name, c.stripes]));
+  current = { incoming, ranked };
   setStatus('');
   renderSummary(ranked);
   renderResults(prism, incoming, ranked, attributes, version);
@@ -147,15 +153,16 @@ function renderResults(prism, incoming, ranked, attributes, version) {
   if (!ranked.eligibleDecks.length) return;
   const decks = new Map(prism.decks.map((d) => [d.id, d]));
 
-  // An "Other swaps" chip gets a cost slot that fillCosts prices after render.
+  // One button per deck opens the confirm dialog. An "Other swaps" button
+  // gets a cost slot that fillCosts prices after render.
   const chip = (name, deckId, withCost) => {
     const deck = decks.get(deckId);
     const cost = withCost
       ? `<span data-cost-out="${escapeHtml(name)}" data-cost-deck="${escapeHtml(deckId)}">· …</span>`
       : '';
-    return `<wa-tag size="s" appearance="outlined" variant="neutral"><span class="stripe-detail-swatch" style="background:${escapeHtml(deck.color)}"></span>${escapeHtml(deck.name)}${cost}</wa-tag>`;
+    return `<wa-button size="s" appearance="outlined" variant="neutral" data-swap-deck="${escapeHtml(deckId)}"><span slot="start" class="stripe-detail-swatch" style="background:${escapeHtml(deck.color)}"></span>${escapeHtml(deck.name)}${cost}</wa-button>`;
   };
-  const row = (r, withCost) => `<li class="swap-row wa-stack wa-gap-2xs">
+  const row = (r, withCost) => `<li class="swap-row wa-stack wa-gap-2xs" data-swap-out="${escapeHtml(r.name)}"${withCost ? '' : ` data-sleeve="${escapeHtml(r.deckIds.join(','))}"`}>
       <span class="card-name-cell" data-card-name="${escapeHtml(r.name)}">${escapeHtml(r.name)}</span>
       <span class="wa-caption-s wa-color-text-quiet">${escapeHtml(metaLine(attributes.get(r.name) || r))}</span>
       <span class="wa-cluster wa-gap-2xs">${r.deckIds.map((id) => chip(r.name, id, withCost)).join('')}</span>
@@ -201,4 +208,157 @@ async function fillCosts(prism, incoming, version) {
     });
     el.textContent = `· ${costText(summary)}`;
   }
+}
+
+// ============================================================================
+// Confirm dialog (#297)
+// ============================================================================
+
+const listFormat = new Intl.ListFormat('en', { type: 'conjunction' });
+const copiesText = (n) => `${n} ${n === 1 ? 'copy' : 'copies'}`;
+let dialogState = null;
+
+// Scope choices for an outgoing card, from every row it has in the ranking:
+// a Sleeve swap per "No new marks" row, then one deck at a time. Rows only
+// ever hold decks where the card isn't the commander, so a commander deck
+// never appears.
+function scopesFor(name) {
+  const { ranked } = current;
+  const rows = [ranked.sameType, ranked.differentJob, ranked.lookBeyond]
+    .filter(Boolean)
+    .flatMap((s) => [...s.noNewMarks.map((r) => ({ ...r, sleeve: true })), ...s.otherSwaps])
+    .filter((r) => r.name === name);
+  const sleeves = rows.filter((r) => r.sleeve).map((r) => ({
+    value: `sleeve:${r.deckIds.join(',')}`, deckIds: r.deckIds, copies: r.copyCount, sleeve: true,
+  }));
+  const deckIds = [...new Set(rows.flatMap((r) => r.deckIds))];
+  return [...sleeves, ...deckIds.map((id) => ({ value: `deck:${id}`, deckIds: [id], copies: 1 }))];
+}
+
+function wireSwapDialog() {
+  const dialog = $('swap-dialog');
+  const scope = $('swap-scope');
+
+  $('swap-results').addEventListener('click', (e) => {
+    // On mobile a tap on the name opens the card preview instead.
+    if (e.target.closest('.card-name-cell') && window.matchMedia('(max-width: 768px)').matches) return;
+    const row = e.target.closest('[data-swap-out]');
+    if (!row || !current) return;
+    const deckId = e.target.closest('[data-swap-deck]')?.dataset.swapDeck;
+    const first = row.dataset.sleeve ? `sleeve:${row.dataset.sleeve}` : `deck:${deckId || row.querySelector('[data-swap-deck]').dataset.swapDeck}`;
+    openSwapDialog(row.dataset.swapOut, first);
+  });
+
+  scope.addEventListener('change', () => renderSwapPreview(scope.value || scope.getAttribute('value')));
+  $('swap-confirm').addEventListener('click', confirmSwap);
+  dialog.addEventListener('wa-after-hide', (e) => {
+    if (e.target === dialog) dialogState = null;
+  });
+}
+
+function openSwapDialog(outgoing, firstScope) {
+  const prism = getCurrentPrism();
+  const scopes = scopesFor(outgoing);
+  const decks = new Map(prism.decks.map((d) => [d.id, d]));
+  dialogState = { outgoing, incoming: current.incoming.name, scopes, decks };
+
+  const dialog = $('swap-dialog');
+  dialog.setAttribute('label', `Swap ${outgoing} for ${current.incoming.name}`);
+  $('swap-out-caption').textContent = `${outgoing}, marked now`;
+  $('swap-in-caption').textContent = `${current.incoming.name}, after the Swap`;
+  showCard($('swap-out-card'), outgoing, stripesByName.get(outgoing) || []);
+
+  const scope = $('swap-scope');
+  scope.innerHTML = scopes.map((s) => {
+    const label = s.sleeve
+      ? `Every deck in this sleeve (${s.deckIds.map((id) => decks.get(id).name).join(', ')})`
+      : `Only ${decks.get(s.deckIds[0]).name}`;
+    return `<wa-radio value="${escapeHtml(s.value)}">${escapeHtml(label)}</wa-radio>`;
+  }).join('');
+  scope.value = firstScope;
+  scope.setAttribute('value', firstScope);
+  renderSwapPreview(firstScope);
+  dialog.setAttribute('open', '');
+}
+
+// The same applySwap call prices the preview and performs the Swap.
+function swapFor(prism, value) {
+  const s = dialogState.scopes.find((x) => x.value === value);
+  return {
+    scope: s,
+    result: applySwap(prism, { outgoing: dialogState.outgoing, incoming: dialogState.incoming, deckIds: s.deckIds, copies: s.copies }),
+  };
+}
+
+function renderSwapPreview(value) {
+  if (!dialogState) return;
+  const { outgoing, incoming, decks } = dialogState;
+  const prism = getCurrentPrism();
+  let preview;
+  try {
+    preview = swapFor(prism, value);
+  } catch (err) {
+    showError(err.message);
+    return;
+  }
+  const { scope, result: { prism: after, summary } } = preview;
+  const incomingAfter = processCards(after).find((c) => c.name === incoming);
+  showCard($('swap-in-card'), incoming, incomingAfter?.stripes || []);
+
+  $('swap-cost').textContent = costText(summary);
+  $('swap-copies').textContent = summary.copiesToBuy ? `Buy ${copiesText(summary.copiesToBuy)} of ${incoming}.` : 'No copy to buy.';
+  const alreadyHere = prism.decks.some((d) => d.cards.some((c) => c.name === incoming));
+  $('swap-sleeve').textContent = summary.sleeveSwap
+    ? `${incoming} goes into the ${outgoing} sleeve, which already carries these decks' marks.`
+    : alreadyHere
+      ? `The ${incoming} sleeve you already have takes the new marks.`
+      : `${incoming} gets its own sleeve.${summary.staleMarks ? ` The ${outgoing} sleeve's stale marks show under Stale Marks on the Results tab.` : ''}`;
+
+  const scopeDecks = scope.deckIds.map((id) => decks.get(id));
+  const commanders = [...new Set(scopeDecks.flatMap((d) => d.cards.filter((c) => c.isCommander).map((c) => c.name)))];
+  const em = (t) => `<em>${escapeHtml(t)}</em>`;
+  $('swap-questions').innerHTML = [
+    `Does ${em(incoming)} do the same job as ${em(outgoing)}?`,
+    'Is it better at that job?',
+    'What does the deck lose?',
+    `Does it work with ${commanders.length ? em(listFormat.format(commanders)) : 'your commander'}?`,
+  ].map((q) => `<li>${q}</li>`).join('');
+}
+
+let cardToken = 0;
+async function showCard(holder, name, stripes) {
+  const token = String(++cardToken);
+  holder.dataset.token = token;
+  holder.replaceChildren(createLoadingElement());
+  let el;
+  try {
+    el = await buildCardWithStripes(name, stripes);
+  } catch {
+    el = createErrorElement();
+  }
+  // A later preview for this holder may have landed first.
+  if (holder.dataset.token !== token) return;
+  holder.replaceChildren(el);
+}
+
+function confirmSwap() {
+  if (!dialogState) return;
+  const scope = $('swap-scope');
+  const prism = getCurrentPrism();
+  let swap;
+  try {
+    swap = swapFor(prism, scope.value || scope.getAttribute('value'));
+  } catch (err) {
+    showError(err.message);
+    return;
+  }
+  const { scope: chosen, result } = swap;
+  recordUnmarkedCards(prism.id, result.summary.unmarkedKeys);
+  savePrism(result.prism);
+
+  const { outgoing, incoming, decks } = dialogState;
+  const deckNames = listFormat.format(chosen.deckIds.map((id) => decks.get(id).name));
+  $('swap-dialog').removeAttribute('open');
+  showSuccess(`Swapped ${outgoing} for ${incoming} in ${deckNames}. Update the deck on Moxfield or Archidekt too; PRISM only changes its own decklist.`);
+  search(incoming);
 }

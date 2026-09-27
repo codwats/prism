@@ -1655,6 +1655,7 @@ wa-page[view='desktop'] [data-toggle-nav] {
 }
 
 .swap-row {
+  cursor: pointer;
   margin: 0;
   padding-block: var(--wa-space-s);
   border-block-start: var(--wa-border-width-s) solid var(--wa-color-surface-border);
@@ -1664,17 +1665,42 @@ wa-page[view='desktop'] [data-toggle-nav] {
   font-weight: var(--wa-font-weight-semibold);
 }
 
-.swap-row wa-tag .stripe-detail-swatch {
-  margin-inline-end: var(--wa-space-2xs);
+.swap-row [data-cost-out] {
+  margin-inline-start: var(--wa-space-2xs);
+  color: var(--wa-color-text-quiet);
 }
 
-.swap-row wa-tag [data-cost-out] {
-  margin-inline-start: var(--wa-space-2xs);
+/* Two 244px card previews side by side, with room for the arrow */
+.swap-dialog {
+  --width: 42rem;
+}
+
+.swap-dialog figure {
+  margin: 0;
+}
+
+.swap-dialog-arrow {
+  font-size: var(--wa-font-size-xl);
+  color: var(--wa-color-text-quiet);
+}
+
+.swap-questions {
+  margin: 0;
+  padding-inline-start: var(--wa-space-l);
 }
 
 @media (max-width: 768px) {
   .swap-planner {
     padding: var(--wa-space-m);
+  }
+
+  /* The cards stack, so the arrow points down */
+  .swap-dialog-cards {
+    flex-direction: column;
+  }
+
+  .swap-dialog-arrow {
+    rotate: 90deg;
   }
 }
 
