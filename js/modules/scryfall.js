@@ -3,7 +3,10 @@ import { logToSupabase } from './supabase-client.js';
 
 const CACHE_KEY = 'scryfall_card_cache';
 const CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours
-const REQUEST_DELAY = 100; // ms between requests
+// Every request on the chain below is /cards/named or /cards/collection,
+// which Scryfall limits to 2 per second (#279). Autocomplete (10/s) stays
+// off the chain.
+const REQUEST_DELAY = 500; // ms between requests
 const API_BASE = 'https://api.scryfall.com';
 
 // Rate limiting state
@@ -110,7 +113,7 @@ async function fetchWithRetry(url) {
   if (response.status === 429) {
     logToSupabase('warn', 'scryfall_rate_limited', { url });
     // Hold the gate through the backoff so every request path backs off.
-    await rateLimit(REQUEST_DELAY * 10);
+    await rateLimit(1000); // #280 owns the 30 s lockout
     const retry = await fetch(url);
     if (!retry.ok) {
       throw new Error(`Rate limited by Scryfall (retry failed: ${retry.status})`);
