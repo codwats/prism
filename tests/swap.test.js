@@ -11,7 +11,7 @@ globalThis.localStorage = {
 
 const { createPrism, createDeck, createSplitGroup, processCards } = await import('../js/modules/processor.js');
 const { isCardDone } = await import('../js/core/utils.js');
-const { applySwap, canSleeveSwap } = await import('../js/modules/swap.js');
+const { applySwap, canSleeveSwap, clearReturnedRemovals, unmarkCardsWithNewStripes, stripeCountMap, trackRemovedCard } = await import('../js/modules/swap.js');
 
 const NOW = '2026-09-27T12:00:00.000Z';
 
@@ -138,6 +138,66 @@ test('Swapping back resurrects the marks', () => {
 	});
 	assert.equal(back.summary.sleeveSwap, true);
 	assert.ok(isCardDone(find(back.prism, 'Cultivate'), new Set(back.prism.markedCards)));
+});
+
+// #307: a card swapped out and straight back, stale mark not yet cleared.
+test('Plain Swap back while the stale mark is still on the sleeve keeps the card done', () => {
+	const prism = threeDecks();
+	const a = prism.decks[0].id;
+	prism.markedCards = ['Cultivate'];
+	const there = applySwap(prism, { outgoing: 'Cultivate', incoming: 'Skyshroud Claim', deckIds: [a], now: NOW }).prism;
+	assert.equal(there.removedCards.length, 1, 'Cultivate/A is a stale mark');
+
+	const back = applySwap(there, { outgoing: 'Skyshroud Claim', incoming: 'Cultivate', deckIds: [a], now: NOW });
+	assert.deepEqual(back.summary.unmarkedKeys, [], 'Cultivate is not un-marked');
+	assert.ok(isCardDone(find(back.prism, 'Cultivate'), new Set(back.prism.markedCards)));
+	assert.equal(back.summary.marksToAdd, 0, 'the A mark is still painted');
+	assert.equal(back.summary.copiesToBuy, 0);
+	assert.deepEqual(back.prism.removedCards.map((r) => r.cardName), ['Skyshroud Claim'], 'Cultivate/A clears; Claim/A is the new stale mark');
+});
+
+test('A card that comes back after its stale mark was cleared is un-marked', () => {
+	const prism = threeDecks();
+	const a = prism.decks[0].id;
+	prism.markedCards = ['Cultivate'];
+	const there = applySwap(prism, { outgoing: 'Cultivate', incoming: 'Skyshroud Claim', deckIds: [a], now: NOW }).prism;
+	there.removedCards = []; // the user cleared the sleeve
+
+	const back = applySwap(there, { outgoing: 'Skyshroud Claim', incoming: 'Cultivate', deckIds: [a], now: NOW });
+	assert.deepEqual(back.summary.unmarkedKeys, ['Cultivate']);
+	assert.equal(back.summary.marksToAdd, 1);
+});
+
+test('A stale mark at a slot the deck has since left does not count as painted', () => {
+	const prism = threeDecks();
+	const a = prism.decks[0].id;
+	prism.markedCards = ['Cultivate'];
+	const there = applySwap(prism, { outgoing: 'Cultivate', incoming: 'Skyshroud Claim', deckIds: [a], now: NOW }).prism;
+	there.decks[0].stripePosition = 9; // deck A moved slots
+
+	const back = applySwap(there, { outgoing: 'Skyshroud Claim', incoming: 'Cultivate', deckIds: [a], now: NOW });
+	assert.deepEqual(back.summary.unmarkedKeys, ['Cultivate']);
+	assert.equal(back.prism.removedCards.filter((r) => r.cardName === 'Cultivate').length, 1, 'the old-slot row stays');
+});
+
+test('Deck edit: re-adding a card with its stale mark still painted keeps it done', () => {
+	const prism = threeDecks();
+	const a = prism.decks[0];
+	prism.markedCards = ['Cultivate'];
+	// Edit 1: Cultivate leaves A.
+	a.cards = a.cards.filter((c) => c.name !== 'Cultivate');
+	trackRemovedCard(prism, {
+		cardName: 'Cultivate', deckId: a.id, deckName: 'A', deckColor: a.color,
+		stripePosition: 1, removedAt: NOW, previousQuantity: 1, newQuantity: 0,
+	});
+	// Edit 2: Cultivate comes back, the way handleEditConfirm runs it.
+	const beforeCounts = stripeCountMap(prism);
+	a.cards.push(card('Cultivate'));
+	const stillPainted = clearReturnedRemovals(prism, a);
+	assert.equal(stillPainted.length, 1);
+	assert.deepEqual(unmarkCardsWithNewStripes(prism, beforeCounts, stillPainted), []);
+	assert.deepEqual(prism.markedCards, ['Cultivate']);
+	assert.equal(prism.removedCards.length, 0);
 });
 
 test('Multi-batch outgoing: the Sleeve swap follows the batch, not the name', () => {

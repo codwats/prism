@@ -47,16 +47,46 @@ export function stripeCountMap(prism) {
   return new Map(processCards(prism).map((c) => [c.name, countVisibleMarks(c.stripes)]));
 }
 
+// Stale-mark rows for cards back in the deck they left, at their full
+// quantity, with the deck still in the slot and color the row recorded: that
+// mark is still on the sleeve and valid again (#307). Removes the rows from
+// prism.removedCards and returns them.
+export function clearReturnedRemovals(prism, deck) {
+  const quantities = new Map(deck.cards.map((c) => [normalizeCardName(c.name), c.quantity || 1]));
+  const position = getRemovalStripePosition(prism, deck);
+  const cleared = [];
+  prism.removedCards = (prism.removedCards || []).filter((rc) => {
+    const quantity = quantities.get(normalizeCardName(rc.cardName));
+    const back = rc.deckId === deck.id
+      && quantity != null
+      && quantity >= (rc.previousQuantity || 1)
+      && rc.stripePosition === position
+      && rc.deckColor === deck.color;
+    if (back) cleared.push(rc);
+    return !back;
+  });
+  return cleared;
+}
+
 // Drop marks on cards that gained a visible stripe since beforeCounts: the
-// sleeve needs a new mark, so it is no longer done. Returns the removed keys
-// for recordUnmarkedCards.
-export function unmarkCardsWithNewStripes(prism, beforeCounts) {
+// sleeve needs a new mark, so it is no longer done. Stripes a stillPainted row
+// (clearReturnedRemovals) accounts for are already on the sleeve and don't
+// count. Returns the removed keys for recordUnmarkedCards.
+// ponytail: counts stripes, one per returning deck; exact per-mark matching if
+// a returning split variant ever adds more than one visible mark.
+export function unmarkCardsWithNewStripes(prism, beforeCounts, stillPainted = []) {
   if (!prism?.markedCards?.length) return [];
   const afterCounts = stripeCountMap(prism);
+  const painted = new Map();
+  for (const row of stillPainted) {
+    const name = normalizeCardName(row.cardName);
+    painted.set(name, (painted.get(name) || 0) + 1);
+  }
   const unmarkedKeys = [];
   prism.markedCards = prism.markedCards.filter((cardKey) => {
     const cardName = cardKey.includes("|") ? cardKey.split("|")[0] : cardKey;
-    if ((afterCounts.get(cardName) || 0) > (beforeCounts.get(cardName) || 0)) {
+    const gained = (afterCounts.get(cardName) || 0) - (beforeCounts.get(cardName) || 0);
+    if (gained > (painted.get(normalizeCardName(cardName)) || 0)) {
       unmarkedKeys.push(cardKey);
       return false;
     }
@@ -132,6 +162,9 @@ export function applySwap(prism, { outgoing, incoming, deckIds, copies = 1, now 
   const next = structuredClone(prism);
   next.removedCards ??= [];
   next.markedCards ??= [];
+  // Stale marks a plain Swap brings back into use. A Sleeve swap puts the
+  // incoming card in the outgoing card's sleeve, so its old sleeve stays stale.
+  const returned = [];
 
   for (const deckId of deckIds) {
     const deck = next.decks.find((d) => d.id === deckId);
@@ -161,6 +194,7 @@ export function applySwap(prism, { outgoing, incoming, deckIds, copies = 1, now 
         previousQuantity,
         newQuantity: out.quantity,
       });
+      returned.push(...clearReturnedRemovals(next, deck));
     }
   }
   next.updatedAt = now;
@@ -168,6 +202,7 @@ export function applySwap(prism, { outgoing, incoming, deckIds, copies = 1, now 
   const unmarkedKeys = unmarkCardsWithNewStripes(
     next,
     new Map(before.map((c) => [c.name, countVisibleMarks(c.stripes)])),
+    returned,
   );
 
   const after = processCards(next);
@@ -200,9 +235,10 @@ export function applySwap(prism, { outgoing, incoming, deckIds, copies = 1, now 
     prism: next,
     summary: {
       sleeveSwap: !!sleeveBatch,
-      marksToAdd: cost.add,
+      // A returned stale mark is already painted, on a copy already owned.
+      marksToAdd: Math.max(0, cost.add - returned.length),
       staleMarks: cost.stale,
-      copiesToBuy: (incomingAfter?.totalQuantity || 0) - (incomingBefore?.totalQuantity || 0),
+      copiesToBuy: Math.max(0, (incomingAfter?.totalQuantity || 0) - (incomingBefore?.totalQuantity || 0) - returned.length),
       unmarkedKeys,
       carriedKey,
     },
