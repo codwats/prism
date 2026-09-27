@@ -32,7 +32,7 @@ prism/
 │   ├── app.js              Entry point for build.html (~12 lines, imports init)
 │   ├── profile.js          Entry point for profile.html
 │   ├── gallery.js          Entry point for gallery.html
-│   ├── swap-planner.js     Entry point for swap-planner.html: search → rankComparables → rows; "Other swaps" costs fill in after render (applySwap per deck)
+│   ├── swap-planner.js     Entry point for swap-planner.html: search → rankComparables → rows; "Other swaps" costs fill in after render (applySwap per deck); the confirm dialog previews and applies through the same applySwap call, then recordUnmarkedCards → savePrism
 │   ├── layout.js           Shared layout injection (nav, header, footer, auth dialog)
 │   ├── core/
 │   │   ├── state.js        Singleton mutable state (ES module = same reference everywhere)
