@@ -4,7 +4,7 @@
 
 import { state } from "../core/state.js";
 import { showError, showSuccess } from "../core/notifications.js";
-import { escapeHtml, debugLog } from "../core/utils.js";
+import { escapeHtml, debugLog, countVisibleMarks } from "../core/utils.js";
 import { parseDecklist, validateDecklist, cardsToDecklistText, normalizeCardName } from "../modules/parser.js";
 import {
   processCards,
@@ -23,6 +23,12 @@ import {
   updateSplitGroupInPrism,
   applyCommanderFallback,
 } from "../modules/processor.js";
+import {
+  trackRemovedCard,
+  getRemovalStripePosition,
+  stripeCountMap,
+  unmarkCardsWithNewStripes as unmarkCardsWithNewStripesIn,
+} from "../modules/swap.js";
 import { savePrism, setCurrentPrism, recordUnmarkedCards, getPrism } from "../modules/storage.js";
 import { trackEvent } from "../modules/supabase-client.js";
 import { openMembershipDrawer } from "../modules/membership.js";
@@ -44,22 +50,8 @@ import { renderResults, updateRemovedFilterBadge, updateMarkedProgress } from ".
 // Stripe count helpers (for marked cards regression fix)
 // ============================================================================
 
-// Count only stripes that map to a physical mark the user applies to a sleeve.
-// markType === 'membership' entries are invisible filter anchors (dot-style split
-// groups, card in ALL variants) and carry no paint mark, so they must not inflate
-// the stripe count used to decide whether a Done card gained a new mark.
-function countVisibleStripes(stripes) {
-  return stripes.filter((s) => s.markType !== "membership").length;
-}
-
 export function getStripeCountMap() {
-  if (!state.currentPrism || !state.currentPrism.decks.length) return new Map();
-  const processed = processCards(state.currentPrism);
-  const map = new Map();
-  for (const card of processed) {
-    map.set(card.name, countVisibleStripes(card.stripes));
-  }
-  return map;
+  return stripeCountMap(state.currentPrism);
 }
 
 // True if the two card lists differ in membership or quantity (order-insensitive).
@@ -80,26 +72,7 @@ function cardListChanged(oldCards, newCards) {
 }
 
 export function unmarkCardsWithNewStripes(beforeCounts) {
-  if (!state.currentPrism?.markedCards?.length) return [];
-
-  const afterCounts = getStripeCountMap();
-  const unmarkedKeys = [];
-
-  state.currentPrism.markedCards = state.currentPrism.markedCards.filter(
-    (cardKey) => {
-      const cardName = cardKey.includes("|") ? cardKey.split("|")[0] : cardKey;
-      const before = beforeCounts.get(cardName) || 0;
-      const after = afterCounts.get(cardName) || 0;
-
-      if (after > before) {
-        unmarkedKeys.push(cardKey);
-        return false;
-      }
-      return true;
-    },
-  );
-
-  return unmarkedKeys;
+  return unmarkCardsWithNewStripesIn(state.currentPrism, beforeCounts);
 }
 
 export function unmarkSharedCards(newCardNames) {
@@ -118,7 +91,7 @@ export function unmarkSharedCards(newCardNames) {
 
       if (newCardNames.has(cardName)) {
         const card = cardMap.get(cardName);
-        if (card && countVisibleStripes(card.stripes) > 1) {
+        if (card && countVisibleMarks(card.stripes) > 1) {
           unmarkedKeys.push(cardKey);
           return false;
         }
@@ -151,36 +124,6 @@ export function autoClearRemovedCards(newCards) {
   });
 
   return before - state.currentPrism.removedCards.length;
-}
-
-// Upsert a removedCards row by (cardName, deckId): successive quantity edits
-// merge instead of duplicating — previousQuantity keeps its max (5→4→3 must
-// not under-report the surplus), the latest newQuantity/removedAt win.
-// Mirrors mergeRemovedCards in storage.js. Returns true if the row is new.
-function trackRemovedCard(row) {
-  const list = state.currentPrism.removedCards;
-  const rowName = normalizeCardName(row.cardName);
-  const idx = list.findIndex(
-    (rc) => normalizeCardName(rc.cardName) === rowName && rc.deckId === row.deckId,
-  );
-  if (idx >= 0) {
-    row.previousQuantity = Math.max(row.previousQuantity || 1, list[idx].previousQuantity || 0);
-    list.splice(idx, 1);
-  }
-  list.push(row);
-  return idx < 0;
-}
-
-// Slot to record in removedCards for a deck's cleared marks. Dot variants own
-// no slot of their own (stripePosition null) — their physical marks live at
-// the parent group's Side A position, so record that instead of null (which
-// rendered as "Remove from Side A - Slot null" in the Removed view).
-function getRemovalStripePosition(deck) {
-  if (typeof deck.stripePosition === 'number') return deck.stripePosition;
-  const group = (state.currentPrism.splitGroups || []).find(
-    (g) => g.id === deck.splitGroupId,
-  );
-  return group?.sideAPosition ?? null;
 }
 
 // ============================================================================
@@ -454,10 +397,10 @@ export async function handleEditConfirm() {
 
   const now = new Date().toISOString();
   let removedCount = 0;
-  const removalPosition = getRemovalStripePosition(deck);
+  const removalPosition = getRemovalStripePosition(state.currentPrism, deck);
 
   for (const removedCard of removedFromDeck) {
-    const isNew = trackRemovedCard({
+    const isNew = trackRemovedCard(state.currentPrism, {
       cardName: removedCard.name,
       deckId: deck.id,
       deckName: deck.name,
@@ -516,10 +459,10 @@ export function handleDeleteConfirm() {
 
   const now = new Date().toISOString();
   let removedCount = 0;
-  const removalPosition = getRemovalStripePosition(deck);
+  const removalPosition = getRemovalStripePosition(state.currentPrism, deck);
 
   for (const card of deck.cards) {
-    const isNew = trackRemovedCard({
+    const isNew = trackRemovedCard(state.currentPrism, {
       cardName: card.name,
       deckId: deck.id,
       deckName: deck.name,
