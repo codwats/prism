@@ -52,7 +52,7 @@ test('the first request is not delayed', async () => {
 // Both request paths (the single-card queue and the batched collection POST)
 // must share one rate limiter. Before the fix they gated on the same mutable
 // timestamp, so concurrent loops read it, slept to the same deadline, and
-// fired in the same tick — roughly double Scryfall's 10 req/s ceiling.
+// fired in the same tick — roughly double Scryfall's 2 req/s ceiling for these endpoints.
 test('single-card queue and canonicalizeCards never fire in the same tick', async () => {
 	store.clear();
 	calls.length = 0;
@@ -66,6 +66,6 @@ test('single-card queue and canonicalizeCards never fire in the same tick', asyn
 	const sorted = [...calls].sort((a, b) => a - b);
 	for (let i = 1; i < sorted.length; i++) {
 		const gap = sorted[i] - sorted[i - 1];
-		assert.ok(gap >= 90, `requests ${i - 1}→${i} were ${gap}ms apart, under the 100ms floor`);
+		assert.ok(gap >= 490, `requests ${i - 1}→${i} were ${gap}ms apart, under the 500ms floor`);
 	}
 });
