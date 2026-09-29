@@ -45,7 +45,7 @@ export default async function handler(request: Request): Promise<Response> {
 
   const missing = missingEnv(
     ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY', 'STRIPE_SECRET_KEY'],
-    (name) => Deno.env.get(name)
+    (name: string) => Deno.env.get(name)
   );
   if (missing.length > 0) {
     console.error(`Stripe portal: missing env vars: ${missing.join(', ')}`);
