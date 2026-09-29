@@ -13,7 +13,7 @@
  * default.
  */
 
-import { missingEnv, safeReturnPath } from './lib/stripe-helpers.js';
+import { isMissingCustomer, missingEnv, safeReturnPath } from './lib/stripe-helpers.js';
 
 function getCorsHeaders(request: Request): Record<string, string> {
   const origin = request.headers.get('origin') || 'https://prismmtg.com';
@@ -81,9 +81,10 @@ export default async function handler(request: Request): Promise<Response> {
     }
     const rows = await lookupRes.json();
     const customerId = rows[0]?.stripe_customer_id;
+    const noAccount = () => jsonResponse(request, 404, { error: 'No Stripe billing account found for this user.' });
     if (!customerId) {
       // Patreon members and never-subscribed users land here — nothing to manage.
-      return jsonResponse(request, 404, { error: 'No Stripe billing account found for this user.' });
+      return noAccount();
     }
 
     const portalConfigId = Deno.env.get('STRIPE_PORTAL_CONFIGURATION_ID');
@@ -102,6 +103,12 @@ export default async function handler(request: Request): Promise<Response> {
       }),
     });
     const session = await res.json();
+    if (!res.ok && isMissingCustomer(session?.error)) {
+      // The stored id does not exist under this key (#258). Nothing to manage;
+      // checkout replaces the row, the portal never creates a customer.
+      console.warn(`Stale stripe customer ${customerId} for user ${user.id}`);
+      return noAccount();
+    }
     if (!res.ok) {
       console.error('Stripe billing_portal error:', res.status, JSON.stringify(session?.error || session));
       return jsonResponse(request, 500, { error: 'Could not open the billing portal' });

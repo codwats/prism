@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { missingEnv, safeReturnPath, subscriptionRow } from '../netlify/edge-functions/lib/stripe-helpers.js';
+import { isMissingCustomer, missingEnv, safeReturnPath, subscriptionRow } from '../netlify/edge-functions/lib/stripe-helpers.js';
 
 test('safeReturnPath allows same-site paths only', () => {
 	assert.equal(safeReturnPath('/profile.html'), '/profile.html');
@@ -58,4 +58,17 @@ test('missingEnv names every unset or empty variable, in order', () => {
 
 test('missingEnv returns an empty list when everything is set', () => {
 	assert.deepEqual(missingEnv(['A'], () => 'x'), []);
+});
+
+test('isMissingCustomer matches only a missing customer (#258)', () => {
+	// The live-key-on-test-customer error from #253.
+	assert.equal(isMissingCustomer({
+		code: 'resource_missing',
+		param: 'customer',
+		message: "No such customer: 'cus_123'; a similar object exists in test mode, but a live mode key was used to make this request."
+	}), true);
+	assert.equal(isMissingCustomer({ code: 'resource_missing', param: 'line_items[0][price]' }), false);
+	assert.equal(isMissingCustomer({ code: 'card_declined', param: 'customer' }), false);
+	assert.equal(isMissingCustomer(undefined), false);
+	assert.equal(isMissingCustomer(null), false);
 });
