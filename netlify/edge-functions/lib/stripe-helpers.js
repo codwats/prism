@@ -38,3 +38,11 @@ export function subscriptionRow(sub, userId, eventCreated) {
 export function missingEnv(names, get) {
   return names.filter((name) => !get(name));
 }
+
+// True when a Stripe error says the customer id we sent does not exist under
+// the current key: a test-mode id after a switch to live keys, a customer
+// deleted in the dashboard, or a database restored from before a key change
+// (#258). Takes the `error` object from a Stripe API response body.
+export function isMissingCustomer(stripeError) {
+  return stripeError?.code === 'resource_missing' && stripeError?.param === 'customer';
+}

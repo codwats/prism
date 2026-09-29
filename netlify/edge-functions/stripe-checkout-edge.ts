@@ -10,7 +10,7 @@
  * SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY.
  */
 
-import { missingEnv, safeReturnPath } from './lib/stripe-helpers.js';
+import { isMissingCustomer, missingEnv, safeReturnPath } from './lib/stripe-helpers.js';
 
 function getCorsHeaders(request: Request): Record<string, string> {
   const origin = request.headers.get('origin') || 'https://prismmtg.com';
@@ -53,9 +53,57 @@ async function stripePost(path: string, params: Record<string, string>): Promise
   const data = await res.json();
   if (!res.ok) {
     console.error(`Stripe ${path} error:`, res.status, JSON.stringify(data?.error || data));
-    throw new Error(data?.error?.message || `Stripe API error ${res.status}`);
+    // Keep Stripe's error object so callers can branch on code/param.
+    throw Object.assign(new Error(data?.error?.message || `Stripe API error ${res.status}`), { stripeError: data?.error });
   }
   return data;
+}
+
+// Create a Stripe customer for the user and store its id. With staleId, the
+// row is swapped only while it still holds staleId: if a concurrent checkout
+// already replaced it, that winner's id is returned instead, so every
+// session lands on the customer the webhook will resolve. Returns null when
+// the id could not be stored or read back.
+async function createCustomer(
+  supabaseUrl: string,
+  user: { id: string; email?: string },
+  staleId?: string
+): Promise<string | null> {
+  const customer = await stripePost('customers', {
+    'email': user.email || '',
+    'metadata[supabase_user_id]': user.id,
+  });
+  const customerId = customer.id as string;
+  const storeRes = staleId
+    ? await fetch(
+        `${supabaseUrl}/rest/v1/stripe_customers?user_id=eq.${user.id}&stripe_customer_id=eq.${encodeURIComponent(staleId)}`,
+        {
+          method: 'PATCH',
+          headers: { ...serviceHeaders(), 'Prefer': 'return=representation' },
+          body: JSON.stringify({ stripe_customer_id: customerId }),
+        }
+      )
+    : await fetch(`${supabaseUrl}/rest/v1/stripe_customers`, {
+        method: 'POST',
+        headers: { ...serviceHeaders(), 'Prefer': 'resolution=merge-duplicates' },
+        body: JSON.stringify({ user_id: user.id, stripe_customer_id: customerId }),
+      });
+  if (!storeRes.ok) {
+    console.error('Failed to store stripe customer:', storeRes.status, await storeRes.text());
+    return null;
+  }
+  if (!staleId || (await storeRes.json()).length > 0) return customerId;
+
+  // Lost the swap. The customer just created has nothing attached.
+  const winnerRes = await fetch(
+    `${supabaseUrl}/rest/v1/stripe_customers?user_id=eq.${user.id}&select=stripe_customer_id`,
+    { headers: serviceHeaders() }
+  );
+  if (!winnerRes.ok) {
+    console.error('Failed to look up stripe customer:', winnerRes.status, await winnerRes.text());
+    return null;
+  }
+  return (await winnerRes.json())[0]?.stripe_customer_id ?? null;
 }
 
 export default async function handler(request: Request): Promise<Response> {
@@ -68,7 +116,7 @@ export default async function handler(request: Request): Promise<Response> {
 
   const missing = missingEnv(
     ['SUPABASE_URL', 'STRIPE_PRICE_ID', 'STRIPE_SECRET_KEY', 'SUPABASE_SERVICE_ROLE_KEY'],
-    (name) => Deno.env.get(name)
+    (name: string) => Deno.env.get(name)
   );
   if (missing.length > 0) {
     console.error(`Stripe checkout: missing env vars: ${missing.join(', ')}`);
@@ -119,31 +167,33 @@ export default async function handler(request: Request): Promise<Response> {
     let customerId = rows[0]?.stripe_customer_id;
 
     if (!customerId) {
-      const customer = await stripePost('customers', {
-        'email': user.email || '',
-        'metadata[supabase_user_id]': user.id,
-      });
-      customerId = customer.id as string;
-      const insertRes = await fetch(`${supabaseUrl}/rest/v1/stripe_customers`, {
-        method: 'POST',
-        headers: { ...serviceHeaders(), 'Prefer': 'resolution=merge-duplicates' },
-        body: JSON.stringify({ user_id: user.id, stripe_customer_id: customerId }),
-      });
-      if (!insertRes.ok) {
-        console.error('Failed to store stripe customer:', insertRes.status, await insertRes.text());
-        return jsonResponse(request, 500, { error: 'Failed to start checkout' });
-      }
+      customerId = await createCustomer(supabaseUrl, user);
+      if (!customerId) return jsonResponse(request, 500, { error: 'Failed to start checkout' });
     }
 
-    const session = await stripePost('checkout/sessions', {
+    const startSession = (customer: string) => stripePost('checkout/sessions', {
       'mode': 'subscription',
-      'customer': customerId,
+      'customer': customer,
       'client_reference_id': user.id,
       'line_items[0][price]': selectedPriceId,
       'line_items[0][quantity]': '1',
       'success_url': `${siteOrigin}${returnPath}?checkout=success`,
       'cancel_url': `${siteOrigin}${returnPath}?checkout=cancel`,
     });
+
+    let session;
+    try {
+      session = await startSession(customerId);
+    } catch (error) {
+      if (!isMissingCustomer((error as { stripeError?: unknown }).stripeError)) throw error;
+      // The stored id does not exist under this key (#258), so overwriting it
+      // orphans nothing — unlike the lookup failure above. Retry once only.
+      const staleId = customerId;
+      customerId = await createCustomer(supabaseUrl, user, staleId);
+      if (!customerId) return jsonResponse(request, 500, { error: 'Failed to start checkout' });
+      console.warn(`Replaced stale stripe customer ${staleId} with ${customerId} for user ${user.id}`);
+      session = await startSession(customerId);
+    }
 
     return jsonResponse(request, 200, { url: session.url });
   } catch (error) {
