@@ -50,7 +50,11 @@ One card replacing another in a deck: a pair of an outgoing card and an incoming
 _Avoid_: replacement (as a term), substitution, paint cost
 
 **Sleeve swap**:
-A Swap applied in every deck of one marking batch, so the incoming card moves into the outgoing card's sleeve with its marks already painted. It needs no new marks. It follows the marking batch, not the card name: another batch of the same card is a separate sleeve and a separate decision. A marking batch that holds a deck's commander has no Sleeve swap.
+A Swap applied in every deck of one marking batch, so the incoming card moves into the outgoing card's sleeve with its marks already painted. It needs no new marks. It follows the marking batch, not the card name: another batch of the same card is a separate sleeve and a separate decision. A marking batch that holds a deck's commander has no Sleeve swap. When the incoming card is already in the PRISM, the Sleeve swap still applies and gives it a Separate sleeve: the player buys a copy instead of adding marks to the sleeve they already have. The Swap Planner offers both, the Sleeve swap first.
+
+**Separate sleeve**:
+A qualifier on a Pool or Core batch that exists because a copy was given its own sleeve, instead of sharing the sleeve the same card already has for other decks. Written `Core (separate sleeve)` or `Pool (separate sleeve)`, lowercase in the parentheses. Never a third category beside Pool and Core. It lasts until the card leaves the deck.
+_In code_: the `sleeve` id on a deck's card row (`deck_cards.sleeve`); rows sharing an id are one batch with `isSeparateSleeve`.
 
 **Comparable card**:
 A card already in a deck the incoming card fits, which could be the outgoing card of a Swap because it does a similar job. By default it shares the incoming card's main type. Looking beyond the type, it must do every job the incoming card does. Lands are compared by the colors they fit.

@@ -583,7 +583,9 @@ export function renderResults({ preserveRows = false } = {}) {
     return parentRow + batches.map(b => {
       const marked = markedSetForRows.has(b.key);
       // Two batches can share a copy count, so the class disambiguates the label.
-      const batchClass = b.isDedicated ? 'dedicated' : (b.isPool ? 'pool' : 'core');
+      const batchClass = b.isDedicated
+        ? 'dedicated'
+        : `${b.isPool ? 'pool' : 'core'}${b.isSeparateSleeve ? ' (separate sleeve)' : ''}`;
       const stripes = stripesCell(b.stripes, band);
       return `
         <tr class="batch-subrow ${marked ? 'marked-row' : ''}${band}" data-card-key="${escapeHtml(b.key)}">

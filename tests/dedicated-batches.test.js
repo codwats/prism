@@ -150,3 +150,56 @@ test('flag off leaves derivation untouched (slice-3 behavior)', () => {
 	assert.equal(krark.batches[0].isDedicated, undefined);
 	assert.equal(krark.totalQuantity, 1);
 });
+
+// #309: rows sharing a sleeve id are a Separate sleeve batch.
+const sleeved = (name, quantity, sleeve, isCommander = false) => ({ ...card(name, quantity, isCommander), sleeve });
+
+test('Separate sleeve: its own batch, out of the shared derivation', () => {
+	const prism = createPrism('T');
+	prism.decks = [
+		standalone('A', 1, [card('Beast Within')]),
+		standalone('B', 2, [card('Beast Within')]),
+		standalone('C', 3, [sleeved('Beast Within', 1, 's1')]),
+		standalone('D', 4, [sleeved('Beast Within', 1, 's1')]),
+	];
+	const [a, b, c, d] = prism.decks;
+	const bw = findCard(prism, 'Beast Within');
+	assert.equal(bw.totalQuantity, 2);
+	const shared = bw.batches.find((x) => !x.isSeparateSleeve);
+	const separate = bw.batches.find((x) => x.isSeparateSleeve);
+	assert.deepEqual(shared.participantIds, [a.id, b.id].sort());
+	assert.deepEqual(separate.participantIds, [c.id, d.id].sort());
+	assert.equal(separate.copyCount, 1);
+	assert.equal(separate.isPool, true);
+	assert.equal(visible(separate.stripes).length, 2);
+	assert.notEqual(separate.key, shared.key);
+});
+
+test('Separate sleeve: covers the full quantity; raising it re-keys the batch', () => {
+	const prism = createPrism('T');
+	prism.decks = [
+		standalone('A', 1, [card('Beast Within')]),
+		standalone('C', 3, [sleeved('Beast Within', 1, 's1')]),
+	];
+	const before = findCard(prism, 'Beast Within').batches.find((x) => x.isSeparateSleeve);
+	prism.decks[1].cards[0].quantity = 2;
+	const bw = findCard(prism, 'Beast Within');
+	const after = bw.batches.find((x) => x.isSeparateSleeve);
+	assert.equal(after.copyCount, 2);
+	assert.equal(bw.totalQuantity, 3);
+	assert.notEqual(after.key, before.key);
+	assert.equal(after.isPool, false, 'one logical deck is Core');
+});
+
+test('Separate sleeve alongside dedication: dedication wins for a commander row', () => {
+	const prism = createPrism('T');
+	prism.useDedicatedCommanderCopies = true;
+	prism.decks = [
+		standalone('A', 1, [sleeved(KRARK, 1, 's1', true)]),
+		standalone('B', 2, [sleeved(KRARK, 1, 's1')]),
+		standalone('C', 3, [card(KRARK)]),
+	];
+	const k = findCard(prism, KRARK);
+	assert.equal(k.totalQuantity, 3);
+	assert.deepEqual(k.batches.map((x) => [!!x.isDedicated, !!x.isSeparateSleeve]), [[true, false], [false, true], [false, false]]);
+});

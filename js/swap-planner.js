@@ -271,7 +271,7 @@ function openSwapDialog(outgoing, firstScope) {
   const scope = $('swap-scope');
   scope.innerHTML = scopes.map((s) => {
     const label = s.sleeve
-      ? `Every deck in this sleeve (${s.deckIds.map((id) => decks.get(id).name).join(', ')})`
+      ? `Sleeve swap: every deck in this sleeve (${s.deckIds.map((id) => decks.get(id).name).join(', ')})`
       : `Only ${decks.get(s.deckIds[0]).name}`;
     return `<wa-radio value="${escapeHtml(s.value)}">${escapeHtml(label)}</wa-radio>`;
   }).join('');
@@ -286,7 +286,7 @@ function swapFor(prism, value) {
   const s = dialogState.scopes.find((x) => x.value === value);
   return {
     scope: s,
-    result: applySwap(prism, { outgoing: dialogState.outgoing, incoming: dialogState.incoming, deckIds: s.deckIds, copies: s.copies }),
+    result: applySwap(prism, { outgoing: dialogState.outgoing, incoming: dialogState.incoming, deckIds: s.deckIds, copies: s.copies, sleeve: !!s.sleeve }),
   };
 }
 
@@ -309,7 +309,7 @@ function renderSwapPreview(value) {
   $('swap-copies').textContent = summary.copiesToBuy ? `Buy ${copiesText(summary.copiesToBuy)} of ${incoming}.` : 'No copy to buy.';
   const alreadyHere = prism.decks.some((d) => d.cards.some((c) => c.name === incoming));
   $('swap-sleeve').textContent = summary.sleeveSwap
-    ? `${incoming} goes into the ${outgoing} sleeve, which already carries these decks' marks.`
+    ? `${incoming} goes into the ${outgoing} sleeve, which already carries these decks' marks.${alreadyHere ? ` Your other ${incoming} sleeve stays as it is.` : ''}`
     : alreadyHere
       ? `The ${incoming} sleeve you already have takes the new marks.`
       : `${incoming} gets its own sleeve.${summary.staleMarks ? ` The ${outgoing} sleeve's stale marks show under Stale Marks on the Results tab.` : ''}`;
