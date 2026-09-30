@@ -29,6 +29,7 @@ import {
   stripeCountMap,
   unmarkCardsWithNewStripes as unmarkCardsWithNewStripesIn,
   clearReturnedRemovals,
+  keepSeparateSleeves,
 } from "../modules/swap.js";
 import { savePrism, setCurrentPrism, recordUnmarkedCards, getPrism } from "../modules/storage.js";
 import { trackEvent } from "../modules/supabase-client.js";
@@ -414,6 +415,7 @@ export async function handleEditConfirm() {
     if (isNew) removedCount++;
   }
 
+  keepSeparateSleeves(oldCards, parseResult.cards);
   const cardsChanged = cardListChanged(oldCards, parseResult.cards);
 
   deck.name = name;

@@ -350,7 +350,8 @@ function buildPrismFromRow(prism) {
         name: card.card_name,
         quantity: card.quantity,
         isCommander: card.is_commander,
-        isBasicLand: card.is_basic_land
+        isBasicLand: card.is_basic_land,
+        ...(card.sleeve ? { sleeve: card.sleeve } : {})
       }))
     })).sort((a, b) => a.stripePosition - b.stripePosition)
   };
@@ -458,7 +459,8 @@ const PRISM_SELECT = `
       card_name,
       quantity,
       is_commander,
-      is_basic_land
+      is_basic_land,
+      sleeve
     )
   )
 `;
@@ -515,6 +517,7 @@ async function replaceDeckCardsFallback(supabase, deckId, localCards, deckUpdate
       quantity: card.quantity || 1,
       is_commander: !!card.isCommander,
       is_basic_land: !!card.isBasicLand,
+      sleeve: card.sleeve || null,
       created_at: deckUpdatedAt
     })));
 
@@ -723,7 +726,8 @@ async function savePrismToSupabase(prism) {
             card_name: card.name,
             quantity: card.quantity || 1,
             is_commander: card.isCommander || false,
-            is_basic_land: card.isBasicLand || false
+            is_basic_land: card.isBasicLand || false,
+            sleeve: card.sleeve || null
           })),
           p_created_at: deckUpdatedAt
         });

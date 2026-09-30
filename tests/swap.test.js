@@ -11,7 +11,7 @@ globalThis.localStorage = {
 
 const { createPrism, createDeck, createSplitGroup, processCards } = await import('../js/modules/processor.js');
 const { isCardDone } = await import('../js/core/utils.js');
-const { applySwap, canSleeveSwap, clearReturnedRemovals, unmarkCardsWithNewStripes, stripeCountMap, trackRemovedCard } = await import('../js/modules/swap.js');
+const { applySwap, canSleeveSwap, clearReturnedRemovals, keepSeparateSleeves, unmarkCardsWithNewStripes, stripeCountMap, trackRemovedCard } = await import('../js/modules/swap.js');
 
 const NOW = '2026-09-27T12:00:00.000Z';
 
@@ -41,7 +41,7 @@ test('Sleeve swap: whole batch, no new marks, no stale rows, done state carries'
 	const prism = threeDecks();
 	prism.markedCards = ['Cultivate'];
 	const { prism: next, summary } = applySwap(prism, {
-		outgoing: 'Cultivate', incoming: 'Skyshroud Claim', deckIds: ids(prism), now: NOW,
+		outgoing: 'Cultivate', incoming: 'Skyshroud Claim', deckIds: ids(prism), sleeve: true, now: NOW,
 	});
 
 	assert.equal(summary.sleeveSwap, true);
@@ -61,7 +61,7 @@ test('Sleeve swap: whole batch, no new marks, no stale rows, done state carries'
 test('Sleeve swap of an unmarked batch carries nothing', () => {
 	const prism = threeDecks();
 	const { summary } = applySwap(prism, {
-		outgoing: 'Cultivate', incoming: 'Skyshroud Claim', deckIds: ids(prism), now: NOW,
+		outgoing: 'Cultivate', incoming: 'Skyshroud Claim', deckIds: ids(prism), sleeve: true, now: NOW,
 	});
 	assert.equal(summary.sleeveSwap, true);
 	assert.equal(summary.carriedKey, null);
@@ -90,7 +90,7 @@ test('Plain Swap in one deck: 1 mark to add, 1 stale mark, a removed-card row', 
 	assert.equal(next.decks[1].cardsUpdatedAt, prism.decks[1].cardsUpdatedAt, 'untouched deck keeps its timestamp');
 });
 
-test('Incoming card already in the PRISM is "add a mark", never a Sleeve swap', () => {
+test('Incoming card already in the PRISM, plain Swap: "add a mark"', () => {
 	const prism = threeDecks();
 	prism.decks.push(deck('D', 4, [card('Skyshroud Claim')]));
 	prism.markedCards = ['Skyshroud Claim'];
@@ -131,10 +131,10 @@ test('Swapping back resurrects the marks', () => {
 	const prism = threeDecks();
 	prism.markedCards = ['Cultivate'];
 	const there = applySwap(prism, {
-		outgoing: 'Cultivate', incoming: 'Skyshroud Claim', deckIds: ids(prism), now: NOW,
+		outgoing: 'Cultivate', incoming: 'Skyshroud Claim', deckIds: ids(prism), sleeve: true, now: NOW,
 	}).prism;
 	const back = applySwap(there, {
-		outgoing: 'Skyshroud Claim', incoming: 'Cultivate', deckIds: ids(prism), now: NOW,
+		outgoing: 'Skyshroud Claim', incoming: 'Cultivate', deckIds: ids(prism), sleeve: true, now: NOW,
 	});
 	assert.equal(back.summary.sleeveSwap, true);
 	assert.ok(isCardDone(find(back.prism, 'Cultivate'), new Set(back.prism.markedCards)));
@@ -212,7 +212,7 @@ test('Multi-batch outgoing: the Sleeve swap follows the batch, not the name', ()
 	prism.markedCards = [shared.key];
 
 	const { prism: next, summary } = applySwap(prism, {
-		outgoing: 'Rat Colony', incoming: 'Relentless Rats', deckIds: shared.participantIds, now: NOW,
+		outgoing: 'Rat Colony', incoming: 'Relentless Rats', deckIds: shared.participantIds, sleeve: true, now: NOW,
 	});
 	assert.equal(summary.sleeveSwap, true);
 	assert.equal(summary.marksToAdd, 0);
@@ -237,7 +237,7 @@ for (const splitStyle of ['stripes', 'dots']) {
 		prism.splitGroups = [group];
 
 		const { summary } = applySwap(prism, {
-			outgoing: 'Cultivate', incoming: 'Skyshroud Claim', deckIds: [v1.id, v2.id], now: NOW,
+			outgoing: 'Cultivate', incoming: 'Skyshroud Claim', deckIds: [v1.id, v2.id], sleeve: true, now: NOW,
 		});
 		assert.equal(summary.sleeveSwap, true);
 		assert.equal(summary.marksToAdd, 0);
@@ -252,3 +252,152 @@ for (const splitStyle of ['stripes', 'dots']) {
 		assert.equal(one.prism.removedCards[0].stripePosition, splitStyle === 'dots' ? 1 : 25);
 	});
 }
+
+// #309: a Sleeve swap into a card the PRISM already has gives it a Separate sleeve.
+function claimElsewhere() {
+	const prism = threeDecks();
+	prism.decks.push(deck('D', 4, [card('Skyshroud Claim')]), deck('E', 5, [card('Skyshroud Claim')]));
+	return prism;
+}
+
+test('Separate sleeve: no new marks, one copy, existing sleeve untouched and still done', () => {
+	const prism = claimElsewhere();
+	prism.markedCards = ['Cultivate', 'Skyshroud Claim'];
+	const cultivateDecks = ids(prism).slice(0, 3);
+	const existing = find(prism, 'Skyshroud Claim').batches[0];
+
+	const { prism: next, summary } = applySwap(prism, {
+		outgoing: 'Cultivate', incoming: 'Skyshroud Claim', deckIds: cultivateDecks, sleeve: true, now: NOW,
+	});
+	assert.equal(summary.sleeveSwap, true);
+	assert.equal(summary.marksToAdd, 0);
+	assert.equal(summary.staleMarks, 0);
+	assert.equal(summary.copiesToBuy, 1);
+	assert.deepEqual(summary.unmarkedKeys, []);
+	assert.deepEqual(next.removedCards, []);
+
+	const claim = find(next, 'Skyshroud Claim');
+	assert.equal(claim.totalQuantity, 2, 'two physical sleeves');
+	const kept = claim.batches.find((b) => !b.isSeparateSleeve);
+	assert.deepEqual(kept.participantIds, existing.participantIds);
+	assert.deepEqual(kept.stripes, existing.stripes, 'existing sleeve gets no new marks');
+	const separate = claim.batches.find((b) => b.isSeparateSleeve);
+	assert.deepEqual(separate.participantIds, [...cultivateDecks].sort());
+	assert.equal(separate.copyCount, 1);
+	assert.ok(isCardDone(claim, new Set(next.markedCards)), 'both sleeves done');
+
+	const tags = next.decks.flatMap((d) => d.cards).filter((c) => c.name === 'Skyshroud Claim').map((c) => c.sleeve);
+	assert.equal(new Set(tags.filter(Boolean)).size, 1, 'the three new rows share one id');
+	assert.equal(tags.filter(Boolean).length, 3, 'existing rows stay untagged');
+});
+
+test('Separate sleeve: preview equals apply for both options', () => {
+	const prism = claimElsewhere();
+	const [a] = prism.decks;
+	const options = [
+		{ deckIds: ids(prism).slice(0, 3), sleeve: true },
+		{ deckIds: [a.id], sleeve: false },
+	];
+	for (const o of options) {
+		const run = () => applySwap(prism, { outgoing: 'Cultivate', incoming: 'Skyshroud Claim', now: NOW, ...o });
+		const preview = run();
+		const applied = run();
+		const { carriedKey, ...previewSummary } = preview.summary;
+		assert.deepEqual({ ...applied.summary, carriedKey }, { ...previewSummary, carriedKey });
+		assert.deepEqual(
+			processCards(applied.prism).map((c) => [c.name, c.totalQuantity, c.stripes.length]),
+			processCards(preview.prism).map((c) => [c.name, c.totalQuantity, c.stripes.length]),
+		);
+	}
+});
+
+test('Separate sleeve: an unmarked existing sleeve stays unmarked, nothing carried', () => {
+	const prism = claimElsewhere();
+	const { prism: next, summary } = applySwap(prism, {
+		outgoing: 'Cultivate', incoming: 'Skyshroud Claim', deckIds: ids(prism).slice(0, 3), sleeve: true, now: NOW,
+	});
+	assert.equal(summary.carriedKey, null);
+	assert.deepEqual(next.markedCards, []);
+});
+
+test('Two Sleeve swaps into the same card stay two Separate sleeves', () => {
+	const prism = createPrism('T');
+	prism.decks = [
+		deck('A', 1, [card('Cultivate')]),
+		deck('B', 2, [card('Rampant Growth')]),
+		deck('D', 4, [card('Skyshroud Claim')]),
+	];
+	const [a, b] = prism.decks;
+	const one = applySwap(prism, { outgoing: 'Cultivate', incoming: 'Skyshroud Claim', deckIds: [a.id], sleeve: true, now: NOW }).prism;
+	const two = applySwap(one, { outgoing: 'Rampant Growth', incoming: 'Skyshroud Claim', deckIds: [b.id], sleeve: true, now: NOW }).prism;
+	const claim = find(two, 'Skyshroud Claim');
+	assert.equal(claim.totalQuantity, 3);
+	assert.equal(claim.batches.filter((x) => x.isSeparateSleeve).length, 2);
+});
+
+test('sleeve: true throws when the decks are not one whole batch or already run the card', () => {
+	const prism = claimElsewhere();
+	assert.throws(
+		() => applySwap(prism, { outgoing: 'Cultivate', incoming: 'Skyshroud Claim', deckIds: [prism.decks[0].id], sleeve: true }),
+		/No Sleeve swap/,
+	);
+	prism.decks[0].cards.push(card('Skyshroud Claim'));
+	const [batch] = find(prism, 'Cultivate').batches;
+	assert.equal(canSleeveSwap(prism, batch, { outgoing: 'Cultivate', incoming: 'Skyshroud Claim' }), false);
+});
+
+test('keepSeparateSleeves carries the id by name onto rebuilt rows', () => {
+	const old = [{ ...card('Beast Within'), sleeve: 's1' }, card('Cultivate')];
+	const rebuilt = [card('beast within', 2), card('Cultivate'), card('Harrow')];
+	keepSeparateSleeves(old, rebuilt);
+	assert.deepEqual(rebuilt.map((c) => c.sleeve), ['s1', undefined, undefined]);
+});
+
+test('A second Sleeve swap keeps an existing Separate sleeve done', () => {
+	const prism = createPrism('T');
+	prism.decks = [
+		deck('A', 1, [card('Cultivate')]),
+		deck('B', 2, [card('Rampant Growth')]),
+		deck('D', 4, [{ ...card('Skyshroud Claim'), sleeve: 's1' }]),
+	];
+	prism.markedCards = ['Skyshroud Claim'];
+	const [a] = prism.decks;
+	const { prism: next } = applySwap(prism, {
+		outgoing: 'Cultivate', incoming: 'Skyshroud Claim', deckIds: [a.id], sleeve: true, now: NOW,
+	});
+	const claim = find(next, 'Skyshroud Claim');
+	const old = claim.batches.find((b) => b.participantIds.includes(prism.decks[2].id));
+	assert.ok(next.markedCards.includes(old.key), 'the existing sleeve stays done under its batch key');
+});
+
+test('A card done through pass keys keeps its existing sleeve done', () => {
+	const prism = createPrism('T');
+	prism.decks = [
+		deck('A', 1, [card('Cultivate')]),
+		deck('D', 4, [card('Skyshroud Claim', 2)]),
+		deck('E', 5, [card('Skyshroud Claim', 2)]),
+	];
+	prism.markedCards = ['Skyshroud Claim|D', 'Skyshroud Claim|E'];
+	assert.ok(isCardDone(find(prism, 'Skyshroud Claim'), new Set(prism.markedCards)));
+	const { prism: next } = applySwap(prism, {
+		outgoing: 'Cultivate', incoming: 'Skyshroud Claim', deckIds: [prism.decks[0].id], sleeve: true, now: NOW,
+	});
+	const kept = find(next, 'Skyshroud Claim').batches.find((b) => !b.isSeparateSleeve);
+	assert.ok(next.markedCards.includes(kept.key));
+});
+
+test('No Sleeve swap beside a sibling variant whose dedicated commander is the incoming card', () => {
+	const prism = createPrism('T');
+	prism.useDedicatedCommanderCopies = true;
+	const v1 = deck('V1', 25, [card('Cultivate')], '#110000');
+	const v2 = deck('V2', 26, [card('Skyshroud Claim', 1, true)], '#220000');
+	const group = createSplitGroup({ name: 'G', sideAPosition: 1, sideAColor: '#000000', splitStyle: 'stripes' });
+	group.childDeckIds = [v1.id, v2.id];
+	v1.splitGroupId = v2.splitGroupId = group.id;
+	prism.decks = [v1, v2];
+	prism.splitGroups = [group];
+	const [batch] = find(prism, 'Cultivate').batches;
+	assert.equal(canSleeveSwap(prism, batch, { outgoing: 'Cultivate', incoming: 'Skyshroud Claim' }), false);
+	prism.useDedicatedCommanderCopies = false;
+	assert.equal(canSleeveSwap(prism, batch, { outgoing: 'Cultivate', incoming: 'Skyshroud Claim' }), true);
+});

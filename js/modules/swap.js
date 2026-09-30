@@ -30,6 +30,17 @@ export function trackRemovedCard(prism, row) {
   return idx < 0;
 }
 
+// Carry each card's Separate sleeve id (#309) from a deck's old rows onto its
+// rebuilt ones, by name: decklist text can't hold it, and every path that
+// replaces a deck's cards (form save, URL re-import, file upload) saves here.
+export function keepSeparateSleeves(oldCards, newCards) {
+  const sleeves = new Map(oldCards.filter((c) => c.sleeve).map((c) => [normalizeCardName(c.name), c.sleeve]));
+  for (const card of newCards) {
+    const sleeve = sleeves.get(normalizeCardName(card.name));
+    if (sleeve) card.sleeve = sleeve;
+  }
+}
+
 // Slot to record in removedCards for a deck's cleared marks. Dot variants own
 // no slot of their own (stripePosition null) — their physical marks live at
 // the parent group's Side A position, so record that instead of null (which
@@ -97,17 +108,24 @@ export function unmarkCardsWithNewStripes(prism, beforeCounts, stillPainted = []
 
 /**
  * Whether swapping `outgoing` for `incoming` across one marking batch can be
- * a Sleeve swap: the incoming card is new to the PRISM (an incoming card
- * already here is "add a mark"), and no deck in the batch has the outgoing
- * card as its commander. Color-identity fit is the caller's check.
+ * a Sleeve swap: no deck in the batch has the outgoing card as its commander
+ * or already runs the incoming card. An incoming card elsewhere in the PRISM
+ * is fine — the Sleeve swap gives it a Separate sleeve (#309) — unless it is a
+ * dedicated commander in a sibling split variant: dedication would fold the
+ * new copy into that commander's sleeve. Color-identity fit is the caller's
+ * check.
  */
 export function canSleeveSwap(prism, batch, { outgoing, incoming }) {
-  const inPrism = prism.decks.some((d) => d.cards.some((c) => sameName(c.name, incoming)));
-  const holdsCommander = prism.decks.some(
+  const dedicatedGroups = new Set(prism.useDedicatedCommanderCopies
+    ? prism.decks
+      .filter((d) => d.splitGroupId && d.cards.some((c) => c.isCommander && sameName(c.name, incoming)))
+      .map((d) => d.splitGroupId)
+    : []);
+  return !prism.decks.some(
     (d) => batch.participantIds.includes(d.id)
-      && d.cards.some((c) => c.isCommander && sameName(c.name, outgoing)),
+      && (dedicatedGroups.has(d.splitGroupId)
+        || d.cards.some((c) => sameName(c.name, incoming) || (c.isCommander && sameName(c.name, outgoing)))),
   );
-  return !inPrism && !holdsCommander;
 }
 
 // Copies per physical mark on a card: { "<side>|<pos>|<type>|<color>": copies }.
@@ -137,27 +155,33 @@ function diffMarks(before, after) {
 
 /**
  * Apply a Swap: `copies` of `outgoing` leave each deck in `deckIds` and the
- * same number of `incoming` come in. When `deckIds` is exactly one of the
- * outgoing card's marking batches, `copies` is its copyCount and
- * canSleeveSwap holds, it is a Sleeve swap: no stale-mark rows, and the
- * batch's done state carries to the incoming card. Otherwise it is a plain
- * Swap per deck. The outgoing card's mark keys are never pruned, so swapping
- * back resurrects them.
+ * same number of `incoming` come in. With `sleeve`, it is a Sleeve swap:
+ * `deckIds` must be exactly one of the outgoing card's marking batches,
+ * `copies` its copyCount, and canSleeveSwap must hold. No stale-mark rows,
+ * and the batch's done state carries to the incoming card. An incoming card
+ * already in the PRISM gets a Separate sleeve: the new rows share a `sleeve`
+ * id, and its existing sleeves keep their marks and done state. Otherwise it
+ * is a plain Swap per deck. The outgoing card's mark keys are never pruned,
+ * so swapping back resurrects them.
  *
  * @returns {{ prism: Object, summary: { sleeveSwap: boolean, marksToAdd: number,
  *   staleMarks: number, copiesToBuy: number, unmarkedKeys: string[], carriedKey: string|null } }}
  *   The caller calls recordUnmarkedCards(prism.id, summary.unmarkedKeys) before savePrism.
  */
-export function applySwap(prism, { outgoing, incoming, deckIds, copies = 1, now = new Date().toISOString() }) {
+export function applySwap(prism, { outgoing, incoming, deckIds, copies = 1, sleeve = false, now = new Date().toISOString() }) {
   const before = processCards(prism);
   const outgoingBefore = findCard(before, outgoing);
   const incomingBefore = findCard(before, incoming);
   const deckSet = [...deckIds].sort().join(",");
-  const sleeveBatch = (outgoingBefore?.batches || []).find(
-    (b) => b.participantIds.join(",") === deckSet
-      && b.copyCount === copies
-      && canSleeveSwap(prism, b, { outgoing, incoming }),
-  );
+  const sleeveBatch = sleeve
+    ? (outgoingBefore?.batches || []).find(
+      (b) => b.participantIds.join(",") === deckSet
+        && b.copyCount === copies
+        && canSleeveSwap(prism, b, { outgoing, incoming }),
+    )
+    : null;
+  if (sleeve && !sleeveBatch) throw new Error(`No Sleeve swap of ${outgoing} for ${incoming} in these decks.`);
+  const separateSleeve = sleeveBatch && incomingBefore ? crypto.randomUUID() : null;
 
   const next = structuredClone(prism);
   next.removedCards ??= [];
@@ -179,7 +203,10 @@ export function applySwap(prism, { outgoing, incoming, deckIds, copies = 1, now 
     if (out.quantity === 0) deck.cards = deck.cards.filter((c) => c !== out);
     const existing = deck.cards.find((c) => sameName(c.name, incoming));
     if (existing) existing.quantity += copies;
-    else deck.cards.push({ name: incoming, quantity: copies, isCommander: false, isBasicLand: false });
+    else deck.cards.push({
+      name: incoming, quantity: copies, isCommander: false, isBasicLand: false,
+      ...(separateSleeve ? { sleeve: separateSleeve } : {}),
+    });
     deck.updatedAt = now;
     deck.cardsUpdatedAt = now;
 
@@ -199,11 +226,10 @@ export function applySwap(prism, { outgoing, incoming, deckIds, copies = 1, now 
   }
   next.updatedAt = now;
 
-  const unmarkedKeys = unmarkCardsWithNewStripes(
-    next,
-    new Map(before.map((c) => [c.name, countVisibleMarks(c.stripes)])),
-    returned,
-  );
+  const beforeCounts = new Map(before.map((c) => [c.name, countVisibleMarks(c.stripes)]));
+  // A Separate sleeve's marks are on the new sleeve, never the existing ones.
+  if (separateSleeve) beforeCounts.set(incomingBefore.name, Infinity);
+  const unmarkedKeys = unmarkCardsWithNewStripes(next, beforeCounts, returned);
 
   const after = processCards(next);
   const outgoingAfter = findCard(after, outgoing);
@@ -222,11 +248,25 @@ export function applySwap(prism, { outgoing, incoming, deckIds, copies = 1, now 
     }
   }
 
+  // A Separate sleeve can make the incoming card multi-batch, where only batch
+  // keys count: each existing sleeve that was done stays done under its key.
+  if (separateSleeve) {
+    const wasDone = isCardDone(incomingBefore, markedSet);
+    const doneBefore = (b) => wasDone || markedSet.has(incomingBefore.batches.length === 1 ? incomingBefore.name : b.key);
+    for (const b of incomingBefore.batches.filter(doneBefore)) {
+      const key = incomingAfter.batches.find((a) => a.key === b.key)?.key;
+      if (key && incomingAfter.batches.length > 1 && !next.markedCards.includes(key)) {
+        next.markedCards.push(key);
+        next.markedCardsUpdatedAt = now;
+      }
+    }
+  }
+
   // A Sleeve swap moves marks from one card to the other in the same sleeve,
   // so both cards are tallied together; a plain Swap paints a new sleeve and
   // leaves a stale mark on the old one, so each card is tallied alone.
   const cost = sleeveBatch
-    ? diffMarks(tallyMarks([outgoingBefore]), tallyMarks([outgoingAfter, incomingAfter]))
+    ? diffMarks(tallyMarks([outgoingBefore, incomingBefore]), tallyMarks([outgoingAfter, incomingAfter]))
     : [[outgoingBefore, outgoingAfter], [incomingBefore, incomingAfter]]
       .map(([b, a]) => diffMarks(tallyMarks([b]), tallyMarks([a])))
       .reduce((s, d) => ({ add: s.add + d.add, stale: s.stale + d.stale }));

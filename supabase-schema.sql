@@ -47,6 +47,7 @@ CREATE TABLE IF NOT EXISTS deck_cards (
   quantity INTEGER DEFAULT 1,
   is_commander BOOLEAN DEFAULT false,
   is_basic_land BOOLEAN DEFAULT false,
+  sleeve TEXT DEFAULT NULL,
   created_at TIMESTAMPTZ DEFAULT now()
 );
 
@@ -190,13 +191,14 @@ AS $$
 BEGIN
   DELETE FROM deck_cards WHERE deck_id = p_deck_id;
 
-  INSERT INTO deck_cards (deck_id, card_name, quantity, is_commander, is_basic_land, created_at)
+  INSERT INTO deck_cards (deck_id, card_name, quantity, is_commander, is_basic_land, sleeve, created_at)
   SELECT
     p_deck_id,
     (c->>'card_name')::TEXT,
     COALESCE((c->>'quantity')::INTEGER, 1),
     COALESCE((c->>'is_commander')::BOOLEAN, false),
     COALESCE((c->>'is_basic_land')::BOOLEAN, false),
+    c->>'sleeve',
     p_created_at
   FROM jsonb_array_elements(p_cards) AS c
   WHERE jsonb_array_length(p_cards) > 0;
@@ -240,6 +242,17 @@ BEGIN;
   ALTER TABLE prisms
     ADD COLUMN IF NOT EXISTS use_dedicated_commander_copies BOOLEAN NOT NULL DEFAULT false,
     ADD COLUMN IF NOT EXISTS use_dedicated_commander_copies_updated_at TIMESTAMPTZ DEFAULT NULL;
+COMMIT;
+
+-- ============================================
+-- MIGRATION: Add deck_cards.sleeve (#309)
+-- ============================================
+-- A Separate sleeve: rows of one card sharing a sleeve id are one marking
+-- batch of their own. Rides the deck row, so it merges with the deck.
+-- replace_deck_cards writes it. Safe to re-run (IF NOT EXISTS).
+BEGIN;
+  ALTER TABLE deck_cards
+    ADD COLUMN IF NOT EXISTS sleeve TEXT DEFAULT NULL;
 COMMIT;
 
 -- ============================================

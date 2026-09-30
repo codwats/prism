@@ -113,11 +113,13 @@ test('same type: Sleeve swaps first, ranked by job overlap then mana value', () 
 	assert.ok(!JSON.stringify({ sameType, lookBeyond }).includes('land-ramp'), 'no job name leaves ranking');
 });
 
-test('an incoming card already in the PRISM is never a Sleeve swap', () => {
-	const { prism } = fixture({ claimDeck: true });
-	const { sameType } = rankComparables(prism, { name: 'Skyshroud Claim', ...attrs('Skyshroud Claim') }, attributes, JOB_INDEX);
-	assert.deepEqual(sameType.noNewMarks, []);
-	assert.deepEqual(names(sameType.otherSwaps), ['Explosive Vegetation', 'Cultivate', "Kodama's Reach", 'Rampant Growth']);
+test('an incoming card already in the PRISM still gets its Sleeve swap rows (#309)', () => {
+	const incoming = { name: 'Skyshroud Claim', ...attrs('Skyshroud Claim') };
+	const withClaim = rankComparables(fixture({ claimDeck: true }).prism, incoming, attributes, JOB_INDEX).sameType;
+	const without = rankComparables(fixture().prism, incoming, attributes, JOB_INDEX).sameType;
+	assert.ok(withClaim.noNewMarks.length > 0);
+	assert.deepEqual(names(withClaim.noNewMarks), names(without.noNewMarks));
+	assert.deepEqual(names(withClaim.otherSwaps), names(without.otherSwaps), 'no duplicate "add a mark" rows');
 });
 
 test('no jobs (or no index): type + mana value only, Look beyond hidden', () => {

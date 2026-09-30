@@ -292,6 +292,7 @@ export function processCards(prism) {
 					sideAGroups: new Set(), // Track which split groups already have a Side A stripe
 					deckIds: new Set(), // Track unique deck IDs for deckCount
 					commanderDeckIds: new Set(), // Decks where this card is isCommander-flagged (#150)
+					sleeveOf: new Map(), // deckId -> Separate sleeve id (#309)
 				});
 			}
 
@@ -301,6 +302,7 @@ export function processCards(prism) {
 			cardData.quantities.set(deck.id, card.quantity);
 			cardData.deckIds.add(deck.id);
 			if (card.isCommander) cardData.commanderDeckIds.add(deck.id);
+			if (card.sleeve) cardData.sleeveOf.set(deck.id, card.sleeve);
 
 			if (group) {
 				// Split deck: add Side A stripe (deduplicated per group)
@@ -451,6 +453,10 @@ export function processCards(prism) {
 			qty: qty || 1,
 		}));
 		const batches = [];
+		const logicalIdOf = (deckId) => {
+			const deck = decks.find((d) => d.id === deckId);
+			return (deck?.splitGroupId && groupMap.has(deck.splitGroupId)) ? deck.splitGroupId : deckId;
+		};
 
 		// Dedicated commander copies (#150): one rule per (commander card,
 		// logical deck) — emit a dedicated batch at the logical deck's full
@@ -460,10 +466,6 @@ export function processCards(prism) {
 		// dedicates when the card is flagged in at least one child variant, and
 		// emits ONE batch for the whole group, never one per variant.
 		if (prism.useDedicatedCommanderCopies && cardData.commanderDeckIds.size > 0) {
-			const logicalIdOf = (deckId) => {
-				const deck = decks.find((d) => d.id === deckId);
-				return (deck?.splitGroupId && groupMap.has(deck.splitGroupId)) ? deck.splitGroupId : deckId;
-			};
 			const byLogical = new Map(); // logicalId -> parts[]
 			for (const p of parts) {
 				const lid = logicalIdOf(p.deckId);
@@ -490,6 +492,32 @@ export function processCards(prism) {
 			parts = parts.filter((p) => !dedicatedDeckIds.has(p.deckId));
 		}
 
+		// Separate sleeves (#309): rows sharing a sleeve id are one batch at
+		// their highest quantity, and leave the threshold derivation — the same
+		// replace-not-add rule as dedication, which runs first and wins.
+		const sleeves = new Map(); // sleeve id -> parts[]
+		for (const p of parts) {
+			const id = cardData.sleeveOf.get(p.deckId);
+			if (!id) continue;
+			if (!sleeves.has(id)) sleeves.set(id, []);
+			sleeves.get(id).push(p);
+		}
+		for (const [, sleeveParts] of sleeves) {
+			const participantIds = sleeveParts.map((p) => p.deckId).sort();
+			const copyCount = Math.max(...sleeveParts.map((p) => p.qty));
+			const logical = new Set(participantIds.map(logicalIdOf));
+			batches.push({
+				copyCount,
+				participantIds,
+				key: `${cardData.name}|#b|${participantIds.join(",")}|${copyCount}`,
+				logicalDeckCount: logical.size,
+				isPool: logical.size > 1,
+				isSeparateSleeve: true,
+				stripes: marksForParticipants(decks, splitGroups, new Set(participantIds), cardData.quantities),
+			});
+		}
+		parts = parts.filter((p) => !sleeves.has(cardData.sleeveOf.get(p.deckId)));
+
 		const tiers = [...new Set(parts.map((p) => p.qty))].sort((a, b) => a - b);
 		let prevTier = 0;
 		for (const tier of tiers) {
@@ -497,12 +525,7 @@ export function processCards(prism) {
 				.filter((p) => p.qty >= tier)
 				.map((p) => p.deckId)
 				.sort();
-			const logical = new Set(
-				participantIds.map((id) => {
-					const deck = decks.find((d) => d.id === id);
-					return (deck?.splitGroupId && groupMap.has(deck.splitGroupId)) ? deck.splitGroupId : id;
-				}),
-			);
+			const logical = new Set(participantIds.map(logicalIdOf));
 			const copyCount = tier - prevTier;
 			batches.push({
 				copyCount,
