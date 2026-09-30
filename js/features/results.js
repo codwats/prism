@@ -583,16 +583,16 @@ export function renderResults({ preserveRows = false } = {}) {
     return parentRow + batches.map(b => {
       const marked = markedSetForRows.has(b.key);
       // Two batches can share a copy count, so the class disambiguates the label.
-      const batchClass = b.isDedicated
-        ? 'dedicated'
-        : `${b.isPool ? 'pool' : 'core'}${b.isSeparateSleeve ? ' (separate sleeve)' : ''}`;
+      const batchLabel = b.isDedicated
+        ? 'Core (dedicated)'
+        : `${b.isPool ? 'Pool' : 'Core'}${b.isSeparateSleeve ? ' (separate sleeve)' : ''}`;
       const stripes = stripesCell(b.stripes, band);
       return `
         <tr class="batch-subrow ${marked ? 'marked-row' : ''}${band}" data-card-key="${escapeHtml(b.key)}">
           <td style="text-align: center;">
-            <label class="mark-checkbox-hit"><input type="checkbox" class="mark-checkbox" aria-label="Mark ${b.copyCount} ${batchClass} ${escapeHtml(card.name)} copies done" ${marked ? "checked" : ""}></label>
+            <label class="mark-checkbox-hit"><input type="checkbox" class="mark-checkbox" aria-label="Mark ${b.copyCount} ${batchLabel} ${escapeHtml(card.name)} copies done" ${marked ? "checked" : ""}></label>
           </td>
-          <td class="batch-subrow-label" data-card-name="${escapeHtml(card.name)}">${b.copyCount} ${b.copyCount === 1 ? 'copy' : 'copies'} — ${batchClass}</td>${copiesCell(b.copyCount)}
+          <td class="batch-subrow-label" data-card-name="${escapeHtml(card.name)}">${b.copyCount} ${b.copyCount === 1 ? 'copy' : 'copies'} — ${batchLabel}</td>${copiesCell(b.copyCount)}
           ${stripes.cell}
         </tr>
         ${stripes.detailRow}

@@ -245,7 +245,7 @@ export function applySwap(prism, { outgoing, incoming, deckIds, copies = 1, slee
   if (separateSleeve) {
     const doneBefore = (b) => markedSet.has(incomingBefore.batches.length === 1 ? incomingBefore.name : b.key);
     for (const b of incomingBefore.batches.filter(doneBefore)) {
-      const key = incomingAfter.batches.find((a) => a.key === b.key && !a.isSeparateSleeve)?.key;
+      const key = incomingAfter.batches.find((a) => a.key === b.key)?.key;
       if (key && incomingAfter.batches.length > 1 && !next.markedCards.includes(key)) {
         next.markedCards.push(key);
         next.markedCardsUpdatedAt = now;

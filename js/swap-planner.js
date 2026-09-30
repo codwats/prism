@@ -165,7 +165,8 @@ function renderResults(prism, incoming, ranked, attributes, version) {
   const row = (r, withCost) => `<li class="swap-row wa-stack wa-gap-2xs" data-swap-out="${escapeHtml(r.name)}"${withCost ? '' : ` data-sleeve="${escapeHtml(r.deckIds.join(','))}"`}>
       <span class="card-name-cell" data-card-name="${escapeHtml(r.name)}">${escapeHtml(r.name)}</span>
       <span class="wa-caption-s wa-color-text-quiet">${escapeHtml(metaLine(attributes.get(r.name) || r))}</span>
-      <span class="wa-cluster wa-gap-2xs">${r.deckIds.map((id) => chip(r.name, id, withCost)).join('')}</span>
+      <span class="wa-cluster wa-gap-2xs">${r.deckIds.map((id) => chip(r.name, id, withCost)).join('')}</span>${withCost ? '' : `
+      <span class="wa-caption-s wa-color-text-quiet">No new marks · buy ${copiesText(r.copyCount)}</span>`}
     </li>`;
   const sectionsHtml = ({ noNewMarks, otherSwaps }) => [
     noNewMarks.length && `<section class="wa-stack wa-gap-s"><h3 class="wa-heading-l">No new marks</h3><ul class="swap-rows">${noNewMarks.map((r) => row(r, false)).join('')}</ul></section>`,
@@ -271,7 +272,7 @@ function openSwapDialog(outgoing, firstScope) {
   const scope = $('swap-scope');
   scope.innerHTML = scopes.map((s) => {
     const label = s.sleeve
-      ? `Sleeve swap: every deck in this sleeve (${s.deckIds.map((id) => decks.get(id).name).join(', ')})`
+      ? `Sleeve swap (${s.deckIds.map((id) => decks.get(id).name).join(', ')})`
       : `Only ${decks.get(s.deckIds[0]).name}`;
     return `<wa-radio value="${escapeHtml(s.value)}">${escapeHtml(label)}</wa-radio>`;
   }).join('');

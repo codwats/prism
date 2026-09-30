@@ -352,3 +352,20 @@ test('keepSeparateSleeves carries the id by name onto rebuilt rows', () => {
 	keepSeparateSleeves(old, rebuilt);
 	assert.deepEqual(rebuilt.map((c) => c.sleeve), ['s1', undefined, undefined]);
 });
+
+test('A second Sleeve swap keeps an existing Separate sleeve done', () => {
+	const prism = createPrism('T');
+	prism.decks = [
+		deck('A', 1, [card('Cultivate')]),
+		deck('B', 2, [card('Rampant Growth')]),
+		deck('D', 4, [{ ...card('Skyshroud Claim'), sleeve: 's1' }]),
+	];
+	prism.markedCards = ['Skyshroud Claim'];
+	const [a] = prism.decks;
+	const { prism: next } = applySwap(prism, {
+		outgoing: 'Cultivate', incoming: 'Skyshroud Claim', deckIds: [a.id], sleeve: true, now: NOW,
+	});
+	const claim = find(next, 'Skyshroud Claim');
+	const old = claim.batches.find((b) => b.participantIds.includes(prism.decks[2].id));
+	assert.ok(next.markedCards.includes(old.key), 'the existing sleeve stays done under its batch key');
+});
