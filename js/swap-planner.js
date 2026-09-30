@@ -303,8 +303,10 @@ function renderSwapPreview(value) {
     return;
   }
   const { scope, result: { prism: after, summary } } = preview;
+  // The sleeve the incoming copy goes into, not every sleeve of the card.
   const incomingAfter = processCards(after).find((c) => c.name === incoming);
-  showCard($('swap-in-card'), incoming, incomingAfter?.stripes || []);
+  const sleeveBatch = incomingAfter?.batches.find((b) => scope.deckIds.every((id) => b.participantIds.includes(id)));
+  showCard($('swap-in-card'), incoming, sleeveBatch?.stripes || incomingAfter?.stripes || []);
 
   $('swap-cost').textContent = costText(summary);
   $('swap-copies').textContent = summary.copiesToBuy ? `Buy ${copiesText(summary.copiesToBuy)} of ${incoming}.` : 'No copy to buy.';

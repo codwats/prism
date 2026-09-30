@@ -110,13 +110,21 @@ export function unmarkCardsWithNewStripes(prism, beforeCounts, stillPainted = []
  * Whether swapping `outgoing` for `incoming` across one marking batch can be
  * a Sleeve swap: no deck in the batch has the outgoing card as its commander
  * or already runs the incoming card. An incoming card elsewhere in the PRISM
- * is fine — the Sleeve swap gives it a Separate sleeve (#309). Color-identity
- * fit is the caller's check.
+ * is fine — the Sleeve swap gives it a Separate sleeve (#309) — unless it is a
+ * dedicated commander in a sibling split variant: dedication would fold the
+ * new copy into that commander's sleeve. Color-identity fit is the caller's
+ * check.
  */
 export function canSleeveSwap(prism, batch, { outgoing, incoming }) {
+  const dedicatedGroups = new Set(prism.useDedicatedCommanderCopies
+    ? prism.decks
+      .filter((d) => d.splitGroupId && d.cards.some((c) => c.isCommander && sameName(c.name, incoming)))
+      .map((d) => d.splitGroupId)
+    : []);
   return !prism.decks.some(
     (d) => batch.participantIds.includes(d.id)
-      && d.cards.some((c) => sameName(c.name, incoming) || (c.isCommander && sameName(c.name, outgoing))),
+      && (dedicatedGroups.has(d.splitGroupId)
+        || d.cards.some((c) => sameName(c.name, incoming) || (c.isCommander && sameName(c.name, outgoing)))),
   );
 }
 
@@ -243,7 +251,8 @@ export function applySwap(prism, { outgoing, incoming, deckIds, copies = 1, slee
   // A Separate sleeve can make the incoming card multi-batch, where only batch
   // keys count: each existing sleeve that was done stays done under its key.
   if (separateSleeve) {
-    const doneBefore = (b) => markedSet.has(incomingBefore.batches.length === 1 ? incomingBefore.name : b.key);
+    const wasDone = isCardDone(incomingBefore, markedSet);
+    const doneBefore = (b) => wasDone || markedSet.has(incomingBefore.batches.length === 1 ? incomingBefore.name : b.key);
     for (const b of incomingBefore.batches.filter(doneBefore)) {
       const key = incomingAfter.batches.find((a) => a.key === b.key)?.key;
       if (key && incomingAfter.batches.length > 1 && !next.markedCards.includes(key)) {

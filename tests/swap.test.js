@@ -369,3 +369,35 @@ test('A second Sleeve swap keeps an existing Separate sleeve done', () => {
 	const old = claim.batches.find((b) => b.participantIds.includes(prism.decks[2].id));
 	assert.ok(next.markedCards.includes(old.key), 'the existing sleeve stays done under its batch key');
 });
+
+test('A card done through pass keys keeps its existing sleeve done', () => {
+	const prism = createPrism('T');
+	prism.decks = [
+		deck('A', 1, [card('Cultivate')]),
+		deck('D', 4, [card('Skyshroud Claim', 2)]),
+		deck('E', 5, [card('Skyshroud Claim', 2)]),
+	];
+	prism.markedCards = ['Skyshroud Claim|D', 'Skyshroud Claim|E'];
+	assert.ok(isCardDone(find(prism, 'Skyshroud Claim'), new Set(prism.markedCards)));
+	const { prism: next } = applySwap(prism, {
+		outgoing: 'Cultivate', incoming: 'Skyshroud Claim', deckIds: [prism.decks[0].id], sleeve: true, now: NOW,
+	});
+	const kept = find(next, 'Skyshroud Claim').batches.find((b) => !b.isSeparateSleeve);
+	assert.ok(next.markedCards.includes(kept.key));
+});
+
+test('No Sleeve swap beside a sibling variant whose dedicated commander is the incoming card', () => {
+	const prism = createPrism('T');
+	prism.useDedicatedCommanderCopies = true;
+	const v1 = deck('V1', 25, [card('Cultivate')], '#110000');
+	const v2 = deck('V2', 26, [card('Skyshroud Claim', 1, true)], '#220000');
+	const group = createSplitGroup({ name: 'G', sideAPosition: 1, sideAColor: '#000000', splitStyle: 'stripes' });
+	group.childDeckIds = [v1.id, v2.id];
+	v1.splitGroupId = v2.splitGroupId = group.id;
+	prism.decks = [v1, v2];
+	prism.splitGroups = [group];
+	const [batch] = find(prism, 'Cultivate').batches;
+	assert.equal(canSleeveSwap(prism, batch, { outgoing: 'Cultivate', incoming: 'Skyshroud Claim' }), false);
+	prism.useDedicatedCommanderCopies = false;
+	assert.equal(canSleeveSwap(prism, batch, { outgoing: 'Cultivate', incoming: 'Skyshroud Claim' }), true);
+});
