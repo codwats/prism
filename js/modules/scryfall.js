@@ -192,7 +192,8 @@ function extractCardData(data) {
     image_uri: imageUri,
     scryfall_uri: data.scryfall_uri,
     type_line: data.type_line,
-    mana_cost: data.mana_cost,
+    // Transform cards and MDFCs carry their cost on the faces.
+    mana_cost: data.mana_cost || data.card_faces?.[0]?.mana_cost,
   };
 }
 
@@ -379,34 +380,35 @@ function saveAttributes(cache) {
  * @param {string[]} names
  * @returns {Promise<Map<string, {colorIdentity: string[], typeLine: string, manaCost: string, cmc: number, oracleId: string}|null>>}
  *   keyed by the input name; null = Scryfall couldn't match it
+ * @throws when a request fails (network, 429, 5xx), so a failure never reads as a miss
  */
 export async function getCardAttributes(names) {
   const cache = loadAttributes();
   const asWritten = new Map(names.map((n) => [attributeKey(n), n]));
-  // Entries cached before manaCost joined the record are fetched again once.
-  const uncached = [...asWritten.keys()].filter((k) => !cache[k] || !('manaCost' in cache[k]));
+  // Entries cached before manaCost joined the record, or before it fell back
+  // to the front face (a nonland multi-face card with no cost), are fetched again once.
+  const stale = (a) => !('manaCost' in a)
+    || (!a.manaCost && a.typeLine.includes(' // ') && !a.typeLine.split(' // ')[0].includes('Land'));
+  const uncached = [...asWritten.keys()].filter((k) => !cache[k] || stale(cache[k]));
 
-  for (let i = 0; i < uncached.length; i += COLLECTION_BATCH_SIZE) {
-    const chunk = uncached.slice(i, i + COLLECTION_BATCH_SIZE);
-    try {
+  try {
+    for (let i = 0; i < uncached.length; i += COLLECTION_BATCH_SIZE) {
+      const chunk = uncached.slice(i, i + COLLECTION_BATCH_SIZE);
       await rateLimit();
       const response = await fetch(`${API_BASE}/cards/collection`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ identifiers: chunk.map((k) => ({ name: asWritten.get(k).split(' // ')[0].trim() })) }),
       });
-      if (!response.ok) {
-        console.warn(`Scryfall attribute lookup failed: ${response.status}`);
-        continue;
-      }
+      if (!response.ok) throw new Error(`Scryfall attribute lookup failed: ${response.status}`);
       const found = new Map();
       for (const card of (await response.json()).data || []) {
         const attrs = {
           colorIdentity: card.color_identity || [],
           typeLine: card.type_line || '',
-          // Top-level only, like the free card hover: a multi-face card's
-          // cost lives on its faces, and the Planner prints nothing the hover doesn't.
-          manaCost: card.mana_cost || '',
+          // Front face when the card carries its cost on the faces, like the
+          // free card hover: the Planner prints nothing the hover doesn't.
+          manaCost: card.mana_cost || card.card_faces?.[0]?.mana_cost || '',
           cmc: card.cmc ?? 0,
           oracleId: card.oracle_id,
         };
@@ -417,12 +419,11 @@ export async function getCardAttributes(names) {
         const attrs = found.get(k) || found.get(attributeKey(k.split(' // ')[0]));
         if (attrs) cache[k] = attrs;
       }
-    } catch (err) {
-      console.warn('Scryfall attribute batch failed:', err.message);
     }
+  } finally {
+    // Chunks that answered stay cached even when a later one fails.
+    if (uncached.length) saveAttributes(cache);
   }
-
-  if (uncached.length) saveAttributes(cache);
   return new Map(names.map((n) => [n, cache[attributeKey(n)] || null]));
 }
 

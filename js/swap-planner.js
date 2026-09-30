@@ -34,7 +34,8 @@ initExtraGate(() => {
   if (jobIndexReady) return;
   jobIndexReady = loadJobIndex();
   const prism = getCurrentPrism();
-  if (prism?.decks?.length) getCardAttributes(commanderNames(prism));
+  // A failure here is ignored: the search asks again and reports it.
+  if (prism?.decks?.length) getCardAttributes(commanderNames(prism)).catch(() => {});
 });
 
 wireIntro();
@@ -59,8 +60,23 @@ function setStatus(text) {
   $('swap-status').hidden = !text;
 }
 
+// A Scryfall failure stops the search with no partial results: a list ranked
+// on missing identities would read as real.
 async function search(name) {
   const version = ++searchVersion;
+  try {
+    await runSearch(name, version);
+  } catch (err) {
+    console.error('Swap Planner search failed:', err);
+    if (version !== searchVersion) return;
+    $('swap-incoming').hidden = true;
+    $('swap-results').replaceChildren();
+    current = null;
+    setStatus("Scryfall didn't answer. Try the search again.");
+  }
+}
+
+async function runSearch(name, version) {
   const stale = () => version !== searchVersion;
   $('swap-incoming').hidden = true;
   $('swap-results').replaceChildren();
