@@ -11,6 +11,7 @@ globalThis.localStorage = {
 };
 
 const calls = [];
+const collectionNames = [];
 
 function jsonResponse(body) {
 	return { ok: true, status: 200, json: async () => body };
@@ -21,7 +22,14 @@ globalThis.fetch = async (url, options) => {
 	calls.push(Date.now());
 	if (href.includes('/cards/collection')) {
 		const identifiers = JSON.parse(options.body).identifiers;
-		return jsonResponse({ data: identifiers.map((i) => ({ name: i.name })), not_found: [] });
+		collectionNames.push(...identifiers.map((i) => i.name));
+		// Like Scryfall, name identifiers match a face name, never "A // B".
+		const oracle = { fire: 'Fire // Ice', 'lightning bolt': 'Lightning Bolt', counterspell: 'Counterspell' };
+		const found = identifiers.filter((i) => oracle[i.name.toLowerCase()]);
+		return jsonResponse({
+			data: found.map((i) => ({ name: oracle[i.name.toLowerCase()] })),
+			not_found: identifiers.filter((i) => !found.includes(i)),
+		});
 	}
 	const name = decodeURIComponent(href.split('=').pop());
 	return jsonResponse({
@@ -68,4 +76,16 @@ test('single-card queue and canonicalizeCards never fire in the same tick', asyn
 		const gap = sorted[i] - sorted[i - 1];
 		assert.ok(gap >= 490, `requests ${i - 1}→${i} were ${gap}ms apart, under the 500ms floor`);
 	}
+});
+
+// /cards/collection never matches a full multi-face name, so canonicalizeCards
+// must ask by front face and still store the Oracle name.
+test('canonicalizeCards resolves multi-face names by front face', async () => {
+	store.clear();
+	collectionNames.length = 0;
+
+	const cards = await canonicalizeCards([{ name: 'fire // ice' }]);
+
+	assert.deepEqual(collectionNames, ['fire']);
+	assert.equal(cards[0].name, 'Fire // Ice');
 });
