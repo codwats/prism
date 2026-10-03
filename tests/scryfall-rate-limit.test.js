@@ -103,9 +103,11 @@ test('a 429 fails without a retry, and every path then fails without a request',
 	assert.equal(calls.length, 1, 'no retry after the 429');
 
 	rateLimited = false; // Scryfall would still answer 429 inside the window
+	const start = Date.now();
 	await assert.rejects(fetchCard('Arcane Signet'), /Rate limited/);
 	await assert.rejects(getCardAttributes(['Counterspell']), /Rate limited/);
 	const cards = await canonicalizeCards([{ name: 'lightning bolt' }]);
 	assert.equal(cards[0].name, 'lightning bolt', 'canonicalization leaves the name as it was');
 	assert.equal(calls.length, 1, 'nothing reached Scryfall during the lockout');
+	assert.ok(Date.now() - start < 100, 'locked-out requests fail without waiting on the rate gate');
 });

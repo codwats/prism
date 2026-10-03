@@ -112,8 +112,12 @@ export function clearCache() {
 const LOCKOUT_MS = 30_000;
 let lockedUntil = 0;
 async function scryfallFetch(url, options) {
+  // Checked before the gate so a locked-out request doesn't hold a 500 ms
+  // slot just to fail, and after it for requests already waiting at the 429.
+  const lockedOut = () => Date.now() < lockedUntil;
+  if (lockedOut()) throw new Error('Rate limited by Scryfall');
   await rateLimit();
-  if (Date.now() < lockedUntil) throw new Error('Rate limited by Scryfall');
+  if (lockedOut()) throw new Error('Rate limited by Scryfall');
   const response = await fetch(url, options);
   if (response.status === 429) {
     lockedUntil = Date.now() + LOCKOUT_MS;
