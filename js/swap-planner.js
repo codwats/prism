@@ -72,7 +72,10 @@ async function search(name) {
     $('swap-incoming').hidden = true;
     $('swap-results').replaceChildren();
     current = null;
-    setStatus("Scryfall didn't answer. Try the search again.");
+    // A 429 blocks every request for 30 s, so an immediate retry would fail too.
+    setStatus(/Rate limited/.test(err.message)
+      ? 'Scryfall asked PRISM to slow down. Try the search again in 30 seconds.'
+      : "Scryfall didn't answer. Try the search again.");
   }
 }
 

@@ -105,22 +105,25 @@ export function clearCache() {
   localStorage.removeItem(CACHE_KEY);
 }
 
-// Fetch a single URL with 429 retry (one attempt after backoff)
-async function fetchWithRetry(url) {
+// A 429 locks the client out for 30 s (Scryfall's documented penalty), so a
+// retry inside that window fails too (#280). Nothing is retried: the request
+// that hit the 429 fails, and every request until the lockout ends fails
+// without reaching Scryfall. Every request path goes through here.
+const LOCKOUT_MS = 30_000;
+let lockedUntil = 0;
+async function scryfallFetch(url, options) {
+  // Checked before the gate so a locked-out request doesn't hold a 500 ms
+  // slot just to fail, and after it for requests already waiting at the 429.
+  const lockedOut = () => Date.now() < lockedUntil;
+  if (lockedOut()) throw new Error('Rate limited by Scryfall');
   await rateLimit();
-  const response = await fetch(url);
-
+  if (lockedOut()) throw new Error('Rate limited by Scryfall');
+  const response = await fetch(url, options);
   if (response.status === 429) {
-    logToSupabase('warn', 'scryfall_rate_limited', { url });
-    // Hold the gate through the backoff so every request path backs off.
-    await rateLimit(1000); // #280 owns the 30 s lockout
-    const retry = await fetch(url);
-    if (!retry.ok) {
-      throw new Error(`Rate limited by Scryfall (retry failed: ${retry.status})`);
-    }
-    return retry;
+    lockedUntil = Date.now() + LOCKOUT_MS;
+    logToSupabase('warn', 'scryfall_rate_limited', { url }).catch(() => {});
+    throw new Error('Rate limited by Scryfall');
   }
-
   return response;
 }
 
@@ -129,11 +132,11 @@ async function fetchFromScryfall(cardName) {
   const encodedName = encodeURIComponent(cardName);
   const url = `${API_BASE}/cards/named?exact=${encodedName}`;
 
-  const response = await fetchWithRetry(url);
+  const response = await scryfallFetch(url);
 
   if (response.status === 404) {
     const fuzzyUrl = `${API_BASE}/cards/named?fuzzy=${encodedName}`;
-    const fuzzyResponse = await fetchWithRetry(fuzzyUrl);
+    const fuzzyResponse = await scryfallFetch(fuzzyUrl);
 
     if (!fuzzyResponse.ok) {
       throw new Error(`Card not found: ${cardName}`);
@@ -281,9 +284,7 @@ export async function canonicalizeCards(cards) {
     const identifiers = chunk.map(c => ({ name: c.name.split(' // ')[0] }));
 
     try {
-      await rateLimit();
-
-      const response = await fetch(`${API_BASE}/cards/collection`, {
+      const response = await scryfallFetch(`${API_BASE}/cards/collection`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ identifiers }),
@@ -396,8 +397,7 @@ export async function getCardAttributes(names) {
   try {
     for (let i = 0; i < uncached.length; i += COLLECTION_BATCH_SIZE) {
       const chunk = uncached.slice(i, i + COLLECTION_BATCH_SIZE);
-      await rateLimit();
-      const response = await fetch(`${API_BASE}/cards/collection`, {
+      const response = await scryfallFetch(`${API_BASE}/cards/collection`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ identifiers: chunk.map((k) => ({ name: asWritten.get(k).split(' // ')[0].trim() })) }),
