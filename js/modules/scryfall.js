@@ -228,8 +228,8 @@ export async function prefetchCards(cardNames) {
 }
 
 // Canonicalize card names via Scryfall's /cards/collection endpoint.
-// Resolves UB reprints (e.g., "Dwight Schrute, Hay King" → "Heliod, Sun-Crowned")
-// and normalizes DFC names to the Oracle name.
+// Corrects spelling/capitalization and normalizes multi-face names to the
+// Oracle name ("fire" → "Fire // Ice").
 // Mutates the cards array in place, setting each card's name to the Oracle name.
 const COLLECTION_BATCH_SIZE = 75; // Scryfall's max per request
 
@@ -276,7 +276,9 @@ export async function canonicalizeCards(cards) {
   // Batch lookup uncached cards
   for (let batch = 0; batch < uncachedCards.length; batch += COLLECTION_BATCH_SIZE) {
     const chunk = uncachedCards.slice(batch, batch + COLLECTION_BATCH_SIZE);
-    const identifiers = chunk.map(c => ({ name: c.name }));
+    // Name identifiers match face names only, so a full "A // B" name always
+    // comes back not_found — send the front face (#281).
+    const identifiers = chunk.map(c => ({ name: c.name.split(' // ')[0] }));
 
     try {
       await rateLimit();
