@@ -104,7 +104,7 @@ test('deck identity is the union of its commanders, or null when unknown', async
 });
 
 test('a failed request throws instead of reading as a miss, and caches nothing', async () => {
-	for (const status of [429, 503, 'network']) {
+	for (const status of [503, 'network']) {
 		reset();
 		failWith = status;
 		await assert.rejects(getCardAttributes(['Meren of Clan Nel Toth']));

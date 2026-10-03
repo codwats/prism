@@ -17,9 +17,11 @@ function jsonResponse(body) {
 	return { ok: true, status: 200, json: async () => body };
 }
 
+let rateLimited = false;
 globalThis.fetch = async (url, options) => {
 	const href = String(url);
 	calls.push(Date.now());
+	if (rateLimited) return { ok: false, status: 429, json: async () => ({}) };
 	if (href.includes('/cards/collection')) {
 		const identifiers = JSON.parse(options.body).identifiers;
 		collectionNames.push(...identifiers.map((i) => i.name));
@@ -41,7 +43,7 @@ globalThis.fetch = async (url, options) => {
 	});
 };
 
-const { fetchCard, canonicalizeCards } = await import('../js/modules/scryfall.js');
+const { fetchCard, canonicalizeCards, getCardAttributes } = await import('../js/modules/scryfall.js');
 
 // A request that owes nothing (the very first one, or one long after the
 // previous) must fire immediately — the gate paces requests, it does not tax
@@ -88,4 +90,22 @@ test('canonicalizeCards resolves multi-face names by front face', async () => {
 
 	assert.deepEqual(collectionNames, ['fire']);
 	assert.equal(cards[0].name, 'Fire // Ice');
+});
+
+// A 429 locks the client out for 30 s, so retrying inside the window only
+// fails again (#280). Runs last: the lockout outlives the test.
+test('a 429 fails without a retry, and every path then fails without a request', async () => {
+	store.clear();
+	calls.length = 0;
+	rateLimited = true;
+
+	await assert.rejects(fetchCard('Sol Ring'), /Rate limited/);
+	assert.equal(calls.length, 1, 'no retry after the 429');
+
+	rateLimited = false; // Scryfall would still answer 429 inside the window
+	await assert.rejects(fetchCard('Arcane Signet'), /Rate limited/);
+	await assert.rejects(getCardAttributes(['Counterspell']), /Rate limited/);
+	const cards = await canonicalizeCards([{ name: 'lightning bolt' }]);
+	assert.equal(cards[0].name, 'lightning bolt', 'canonicalization leaves the name as it was');
+	assert.equal(calls.length, 1, 'nothing reached Scryfall during the lockout');
 });
