@@ -43,7 +43,7 @@ globalThis.fetch = async (url, options) => {
 	});
 };
 
-const { fetchCard, canonicalizeCards, getCardAttributes } = await import('../js/modules/scryfall.js');
+const { fetchCard, prefetchCards, canonicalizeCards, getCardAttributes } = await import('../js/modules/scryfall.js');
 
 // A request that owes nothing (the very first one, or one long after the
 // previous) must fire immediately — the gate paces requests, it does not tax
@@ -90,6 +90,25 @@ test('canonicalizeCards resolves multi-face names by front face', async () => {
 
 	assert.deepEqual(collectionNames, ['fire']);
 	assert.equal(cards[0].name, 'Fire // Ice');
+});
+
+// Each save re-serializes the whole cache, so saving per card is O(N²) over a
+// prefetch (#282). The queue saves once when it drains.
+test('a prefetch writes the card cache once, keeping every card', async () => {
+	store.clear();
+	const setItem = globalThis.localStorage.setItem;
+	let writes = 0;
+	globalThis.localStorage.setItem = (k, v) => {
+		if (k === 'scryfall_card_cache') writes++;
+		setItem(k, v);
+	};
+	try {
+		await prefetchCards(['Prefetch A', 'Prefetch B', 'Prefetch C']);
+	} finally {
+		globalThis.localStorage.setItem = setItem;
+	}
+	assert.equal(writes, 1);
+	assert.deepEqual(Object.keys(JSON.parse(store.get('scryfall_card_cache'))).sort(), ['prefetch a', 'prefetch b', 'prefetch c']);
 });
 
 // A 429 locks the client out for 30 s, so retrying inside the window only

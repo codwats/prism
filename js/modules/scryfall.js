@@ -74,11 +74,14 @@ function saveCache(cache) {
   }
 }
 
+// Fetched cards not yet written to localStorage. Writing re-serializes the
+// whole cache, so the queue saves once when it drains instead of per card (#282).
+let pendingCards = {};
+
 // Get cached card if still fresh
 function getCachedCard(cardName) {
-  const cache = loadCache();
   const normalizedName = cardName.toLowerCase().trim();
-  const entry = cache[normalizedName];
+  const entry = pendingCards[normalizedName] || loadCache()[normalizedName];
 
   if (entry && Date.now() - entry.cached_at < CACHE_TTL) {
     return entry;
@@ -87,21 +90,25 @@ function getCachedCard(cardName) {
   return null;
 }
 
-// Cache a card
+// Cache a card (in memory until flushCards)
 function cacheCard(cardName, data) {
-  const cache = loadCache();
-  const normalizedName = cardName.toLowerCase().trim();
-
-  cache[normalizedName] = {
+  pendingCards[cardName.toLowerCase().trim()] = {
     ...data,
     cached_at: Date.now(),
   };
+}
 
-  saveCache(cache);
+// Write pending cards in one save. Reloads first so entries another tab
+// wrote in the meantime survive.
+function flushCards() {
+  if (!Object.keys(pendingCards).length) return;
+  saveCache({ ...loadCache(), ...pendingCards });
+  pendingCards = {};
 }
 
 // Clear entire cache
 export function clearCache() {
+  pendingCards = {};
   localStorage.removeItem(CACHE_KEY);
 }
 
@@ -176,6 +183,7 @@ async function processQueue() {
     }
   }
 
+  flushCards();
   isProcessing = false;
 }
 
@@ -220,14 +228,10 @@ export function fetchCard(cardName) {
 export async function prefetchCards(cardNames) {
   const uncached = cardNames.filter((name) => !getCachedCard(name));
 
-  // Fetch uncached cards in batches
-  for (const cardName of uncached) {
-    try {
-      await fetchCard(cardName);
-    } catch (error) {
-      console.warn(`Failed to prefetch ${cardName}:`, error.message);
-    }
-  }
+  // Queue them all at once so the queue drains, and saves, once.
+  await Promise.all(uncached.map((cardName) => fetchCard(cardName).catch((error) => {
+    console.warn(`Failed to prefetch ${cardName}:`, error.message);
+  })));
 }
 
 // Canonicalize card names via Scryfall's /cards/collection endpoint.
