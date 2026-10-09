@@ -5,7 +5,7 @@
 import { state } from '../core/state.js';
 import { getLogicalDeckCount, debugLog, pausedSyncDetail } from '../core/utils.js';
 import { createPrism, getUsedPositions, MAX_STRIPE_SLOTS, applyCommanderFallback } from '../modules/processor.js';
-import { getCurrentPrism, savePrism, setCurrentPrism, getPreferences, onSyncStatusChange, forceSyncCurrentPrism, getAllPrisms, isCloudWritePaused, getLastCloudSyncDate } from '../modules/storage.js';
+import { getCurrentPrism, savePrism, setCurrentPrism, getPreferences, onSyncStatusChange, forceSyncCurrentPrism, getAllPrisms, isCloudWritePaused, getLastCloudSyncDate, isPrismLocalOnly } from '../modules/storage.js';
 import { startAuth, getCurrentUser, onAuthChange } from '../modules/auth.js';
 import { logToSupabase } from '../modules/supabase-client.js';
 import { initColorSwatches } from './deck-form.js';
@@ -168,6 +168,7 @@ function getElements() {
     btnSyncNow: document.getElementById('btn-sync-now'),
     syncPausedNotice: document.getElementById('sync-paused-notice'),
     syncPausedDetail: document.getElementById('sync-paused-detail'),
+    localOnlyNotice: document.getElementById('local-only-notice'),
   };
 }
 
@@ -241,6 +242,7 @@ export async function init() {
 export function renderAll() {
   renderPrismHeader();
   renderSyncPausedNotice();
+  renderLocalOnlyNotice();
   // Per-PRISM toggle reflects the loaded/synced prism, not just user clicks
   if (state.elements.dedicatedCommanderToggle) {
     state.elements.dedicatedCommanderToggle.checked = !!state.currentPrism?.useDedicatedCommanderCopies;
@@ -364,6 +366,17 @@ function renderSyncPausedNotice() {
   syncPausedNotice.style.display = lastSync ? '' : 'none';
 }
 
+/**
+ * The server refused this PRISM a cloud copy: the account is at its 25 cloud
+ * PRISMs (#209). The create still succeeded, so say where it lives. Per-PRISM,
+ * so re-rendered from renderAll() like the paused notice.
+ */
+function renderLocalOnlyNotice() {
+  const { localOnlyNotice } = state.elements;
+  if (!localOnlyNotice) return;
+  localOnlyNotice.style.display = isPrismLocalOnly(state.currentPrism?.id) ? '' : 'none';
+}
+
 function setupSyncStatus() {
   const { syncStatus, btnSyncNow } = state.elements;
   if (!syncStatus || !btnSyncNow) return;
@@ -412,7 +425,11 @@ function setupSyncStatus() {
     } else if (status === 'failed') {
       syncStatus.textContent = 'Sync failed — Retry';
       syncStatus.className = 'sync-status-indicator sync-status-failed';
+    } else if (status === 'local-only') {
+      syncStatus.textContent = 'On this device only';
+      syncStatus.className = 'sync-status-indicator sync-status-paused';
     }
+    renderLocalOnlyNotice();
   });
 
   syncStatus.addEventListener('click', () => {

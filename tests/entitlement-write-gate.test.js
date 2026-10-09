@@ -102,7 +102,8 @@ const {
 	forceSyncCurrentPrism,
 	isCloudWritePaused,
 	importAllData,
-	getLastCloudSyncDate
+	getLastCloudSyncDate,
+	isPrismLocalOnly
 } = await import('../js/modules/storage.js');
 
 // Let every already-queued microtask and timer-free continuation run.
@@ -146,4 +147,23 @@ test('an import records a baseline only once the upload succeeds', async () => {
 	assert.equal(importOne('p4'), true);
 	await settle();
 	assert.equal(getLastCloudSyncDate('p4'), '2026-03-12T10:00:00.000Z');
+});
+
+test('a PRISM the cap refuses stays on this device', async () => {
+	// #209: past 25 cloud PRISMs the server refuses the create with an RLS
+	// error. The PRISM lives on this device and the notice says so.
+	upsertError = { code: '42501', message: 'new row violates row-level security policy' };
+	assert.equal(importAllData(JSON.stringify({ version: 2, prisms: { p5: prism('p5') } })), true);
+	await settle();
+	assert.equal(isPrismLocalOnly('p5'), true);
+	assert.equal(getLastCloudSyncDate('p5'), null);
+
+	// A PRISM the cloud already holds is never the cap, whatever the error.
+	upsertError = null;
+	assert.equal(importAllData(JSON.stringify({ version: 2, currentPrismId: 'p6', prisms: { p6: prism('p6') } })), true);
+	await settle();
+	upsertError = { code: '42501', message: 'new row violates row-level security policy' };
+	await forceSyncCurrentPrism();
+	assert.equal(isPrismLocalOnly('p6'), false);
+	upsertError = null;
 });

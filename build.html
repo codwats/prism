@@ -145,6 +145,13 @@
           <span id="sync-paused-detail"></span>
         </wa-callout>
 
+        <!-- Over the 25-cloud-PRISM cap (#209): the create succeeded locally.
+             Shown by renderLocalOnlyNotice() in features/init.js. -->
+        <wa-callout id="local-only-notice" variant="neutral" style="display: none;">
+          <wa-icon slot="icon" name="hard-drive"></wa-icon>
+          This PRISM is saved on this device only. You have 25 cloud PRISMs.
+        </wa-callout>
+
         <!-- Tab Navigation -->
         <wa-tab-group id="main-tabs">
           <wa-tab slot="nav" panel="decks">

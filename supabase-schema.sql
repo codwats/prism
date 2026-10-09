@@ -708,10 +708,20 @@ COMMIT;
 -- is DELETE + INSERT, so gating it would block editing a deck you already
 -- have), and not UPDATE, SELECT or DELETE on anything.
 BEGIN;
+  -- 25 cloud PRISMs: a runaway-cost ceiling, not an anti-sharing measure (#209).
+  -- Counts the owner's OTHER prisms because an upsert of an existing prism is
+  -- checked against this policy too; at the cap, saving a PRISM already in the
+  -- cloud must still pass. ponytail: concurrent inserts can overshoot by a few,
+  -- fine for a cost ceiling.
   DROP POLICY IF EXISTS "Users can create own prisms" ON prisms;
   CREATE POLICY "Users can create own prisms"
     ON prisms FOR INSERT
-    WITH CHECK (auth.uid() = user_id AND is_entitled());
+    WITH CHECK (
+      auth.uid() = user_id
+      AND is_entitled()
+      AND (SELECT count(*) FROM prisms p
+            WHERE p.user_id = auth.uid() AND p.id <> prisms.id) < 25
+    );
 
   DROP POLICY IF EXISTS "Users can create decks in own prisms" ON decks;
   CREATE POLICY "Users can create decks in own prisms"
