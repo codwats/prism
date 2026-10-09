@@ -602,6 +602,15 @@ async function canWriteToSupabase() {
   return shouldWriteToSupabase();
 }
 
+// PRISMs the server refused under the 25-cloud-PRISM cap (#209). They stay
+// on this device and are not retried this page load, except by Sync Now.
+const localOnlyPrismIds = new Set();
+
+/** Whether this PRISM was refused a cloud copy by the cap. Drives the local-only notice. */
+export function isPrismLocalOnly(prismId) {
+  return localOnlyPrismIds.has(prismId);
+}
+
 /** Whether cloud writes are paused by a lapse. Drives the paused notice. */
 export function isCloudWritePaused() {
   return cloudWritesPaused;
@@ -660,6 +669,12 @@ async function savePrismToSupabase(prism) {
       }, { onConflict: 'id' });
 
     if (prismError) {
+      // An RLS refusal for a PRISM the cloud has never held is the cap: writes
+      // only get here entitled and as the owner (#209).
+      if (prismError.code === '42501' && !getLastCloudSyncDate(prism.id)) {
+        localOnlyPrismIds.add(prism.id);
+        return false;
+      }
       console.error('Error saving prism to Supabase:', prismError);
       return false;
     }
@@ -1036,7 +1051,7 @@ export async function syncWithSupabase() {
 }
 
 async function syncPrismToSupabase(prismId) {
-  if (!(await canWriteToSupabase())) return;
+  if (!(await canWriteToSupabase()) || localOnlyPrismIds.has(prismId)) return;
 
   emitSyncStatus('syncing');
 
@@ -1075,7 +1090,7 @@ async function syncPrismToSupabase(prismId) {
     saveStorage(storage);
     emitSyncStatus('synced');
   } else {
-    emitSyncStatus('failed');
+    emitSyncStatus(localOnlyPrismIds.has(prismId) ? 'local-only' : 'failed');
   }
 }
 
@@ -1192,6 +1207,8 @@ export async function forceSyncCurrentPrism() {
   // Sync the current prism plus anything still queued from the debounce so a
   // pending sync for a different prism isn't silently discarded.
   queuedPrismIds.delete(prismId);
+  // Sync Now retries a capped PRISM: a cloud PRISM may have been deleted elsewhere.
+  localOnlyPrismIds.delete(prismId);
   drainQueuedSyncs();
   await syncPrismToSupabase(prismId).catch(err => {
     console.error('Force sync failed:', err);
