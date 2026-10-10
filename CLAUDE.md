@@ -69,7 +69,8 @@ prism/
 │       ├── archidekt-edge.ts  POST proxy → archidekt.com/api
 │       ├── stripe-checkout-edge.ts  Creates Stripe Checkout sessions (subscription mode)
 │       ├── stripe-portal-edge.ts    Creates Stripe billing portal sessions (manage card/cancel)
-│       └── stripe-webhook-edge.ts   Stripe webhook → Supabase subscription state
+│       ├── stripe-webhook-edge.ts   Stripe webhook → Supabase subscription state
+│       └── commission-edge.ts       Commission relay (#325): Turnstile + session + rate limits (`gallery_commission_sends`) → one Resend email, reply_to the requester
 ├── netlify.toml            Deployment config (publish ".", edge function routes)
 ├── supabase-schema.sql     Database schema (prisms, decks, deck_cards, app_logs, replace_deck_cards RPC)
 └── package.json            Minimal (no deps, node >=18)

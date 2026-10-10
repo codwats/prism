@@ -61,6 +61,8 @@ const TYPE_TAG_VARIANTS = { proxy: 'neutral', token: 'brand', showcase: 'warning
 const LICENSE_HTML = 'Personal, non-commercial use only — credit the artist. <a href="terms.html">Full terms</a>';
 // An alter is a photograph of a real painted card, never a file to print (#322).
 const ALTER_LICENSE_HTML = 'Display only — not for reproduction. Commission the artist for your own.';
+// shortcut: Cloudflare's always-pass test key, replace it with the production site key from scripts/setup-commission-relay.sh.
+const TURNSTILE_SITE_KEY = '1x00000000000000000000AA';
 
 // ============================================================
 // Data layer (Supabase)
@@ -572,6 +574,7 @@ function renderArtist(root, id) {
         </div>` : ''}
       </div>
     </div>
+    ${artist.commissionsOpen ? '<section id="commission" style="margin-bottom: var(--wa-space-xl); max-width: 40rem;"></section>' : ''}
     <div class="gallery-eyebrow"><wa-icon name="images"></wa-icon>Works <span class="count">&middot; ${works.length}</span></div>
     ${works.length
       ? `<div class="wa-grid wa-gap-m gallery-grid">${works.map(cardHtml).join('')}</div>`
@@ -579,6 +582,94 @@ function renderArtist(root, id) {
 
   wireLikeButtons(root);
   renderClaimSlot(root.querySelector('#artist-claim'), artist);
+  renderCommissionForm(root.querySelector('#commission'), artist, works);
+}
+
+let turnstileReady = null;
+function loadTurnstile() {
+  turnstileReady ??= new Promise((resolve, reject) => {
+    const script = document.createElement('script');
+    script.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';
+    script.async = true;
+    script.onload = () => resolve(window.turnstile);
+    script.onerror = () => { turnstileReady = null; reject(new Error('Turnstile failed to load')); };
+    document.head.appendChild(script);
+  });
+  return turnstileReady;
+}
+
+/** The Commission form under the artist's note: relayed once by /api/commission. */
+function renderCommissionForm(section, artist, works) {
+  if (!section) return;
+  const heading = '<div class="gallery-eyebrow"><wa-icon name="paintbrush"></wa-icon>Request a commission</div>';
+  const done = (variant, icon, text) => {
+    section.innerHTML = `${heading}<wa-callout variant="${variant}"><wa-icon slot="icon" name="${icon}"></wa-icon>${text}</wa-callout>`;
+  };
+  if (!getCurrentUser()) {
+    section.innerHTML = `${heading}
+      <p style="color: var(--wa-color-neutral-text); margin-top: 0;">Sign in to send ${escapeHtml(artist.name)} a commission request. Their reply comes straight to your email.</p>
+      <wa-button size="s" variant="brand" id="btn-commission-signin"><wa-icon slot="start" name="right-to-bracket"></wa-icon>Sign in</wa-button>`;
+    section.querySelector('#btn-commission-signin').addEventListener('click', promptSignIn);
+    return;
+  }
+  const refId = new URLSearchParams(window.location.search).get('art');
+  const selected = works.some(w => w.id === refId) ? refId : 'none';
+  section.innerHTML = `${heading}
+    <form id="commission-form" class="wa-stack wa-gap-m">
+      ${works.length ? `<wa-select id="cm-artwork" label="Reference artwork (optional)" value="${escapeHtml(selected)}">
+        <wa-option value="none">No reference</wa-option>
+        ${works.map(w => `<wa-option value="${escapeHtml(w.id)}">${escapeHtml(w.title)}</wa-option>`).join('')}
+      </wa-select>` : ''}
+      <wa-textarea id="cm-message" label="What would you like?" rows="5" maxlength="2000" required
+        hint="20 to 2000 characters. ${escapeHtml(artist.name)} replies to your account email; neither address is shown to anyone."></wa-textarea>
+      <div id="cm-turnstile"></div>
+      <div><wa-button type="submit" variant="brand" id="cm-send"><wa-icon slot="start" name="paper-plane"></wa-icon>Send request</wa-button></div>
+    </form>`;
+
+  let token = '';
+  let widgetId = null;
+  loadTurnstile().then(turnstile => {
+    if (!section.isConnected) return;
+    widgetId = turnstile.render(section.querySelector('#cm-turnstile'), {
+      sitekey: TURNSTILE_SITE_KEY,
+      callback: t => { token = t; },
+      'expired-callback': () => { token = ''; },
+    });
+  }).catch(() => showError('The human check could not load. Refresh to try again.'));
+
+  section.querySelector('#commission-form').addEventListener('submit', async e => {
+    e.preventDefault();
+    const message = fieldValue(section, '#cm-message').trim();
+    if (message.length < 20) { showError('Tell the artist a little more (at least 20 characters).'); return; }
+    if (!token) { showError('Complete the human check first.'); return; }
+    if (usingDemo) {
+      showToast('Demo data — deploy the gallery schema to send commissions', 'neutral', 'database');
+      return;
+    }
+    const artwork = fieldValue(section, '#cm-artwork');
+    const button = section.querySelector('#cm-send');
+    button.loading = true;
+    try {
+      const { data: { session } = {} } = await getSupabase()?.auth.getSession() || { data: {} };
+      const res = await fetch('/api/commission', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token || ''}` },
+        body: JSON.stringify({ artistId: artist.id, artworkId: artwork && artwork !== 'none' ? artwork : null, message, turnstileToken: token }),
+      });
+      if (res.ok) return done('success', 'circle-check', `Request sent. ${escapeHtml(artist.name)} will reply to your email if they take it on.`);
+      if (res.status === 429) return done('warning', 'clock', 'You’ve reached today’s commission limit: three requests a day, one per artist. Try again tomorrow.');
+      if (res.status === 409) return done('neutral', 'circle-pause', `${escapeHtml(artist.name)} closed commissions while you were writing. Your message wasn’t sent.`);
+      const body = await res.json().catch(() => ({}));
+      showError(body.error || 'Your request couldn’t be sent. Try again later.');
+    } catch {
+      showError('Your request couldn’t be sent. Try again later.');
+    } finally {
+      button.loading = false;
+    }
+    // A Turnstile token is single-use; get a fresh one for the retry.
+    token = '';
+    if (widgetId !== null) window.turnstile?.reset(widgetId);
+  });
 }
 
 function isOwnArtist(artist) {
@@ -1407,8 +1498,8 @@ function render() {
 
   if (view === 'edit' && art) renderEditArtwork(root, art);
   else if (view === 'edit-artist') renderEditArtist(root);
+  else if (artist) renderArtist(root, artist); // ?artist=&art= is the Commission link from an alter
   else if (art) renderDetail(root, art);
-  else if (artist) renderArtist(root, artist);
   else if (view === 'upload') renderUpload(root);
   else if (view === 'uploads') renderMyUploads(root);
   else if (view === 'admin') renderAdmin(root);

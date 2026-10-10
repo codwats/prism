@@ -366,3 +366,84 @@ BEGIN
 END $$;
 RESET ROLE;
 ROLLBACK;
+
+-- ============================================
+-- Commission relay ledger (#325): service role only, no message bodies
+-- ============================================
+BEGIN;
+
+INSERT INTO auth.users (id, email, email_confirmed_at) VALUES
+  ('32500000-0000-0000-0000-00000000000a', 'requester@example.invalid', now()),
+  ('32500000-0000-0000-0000-00000000000c', 'artist@example.invalid', now());
+INSERT INTO public.gallery_artists (id, name, user_id, commissions_open) VALUES
+  ('32500000-0000-0000-0001-000000000001', 'Relay Artist', '32500000-0000-0000-0000-00000000000c', true);
+-- As the edge function writes it (postgres here stands in for the service role).
+INSERT INTO public.gallery_commission_sends (user_id, artist_id) VALUES
+  ('32500000-0000-0000-0000-00000000000a', '32500000-0000-0000-0001-000000000001');
+
+DO $$
+BEGIN
+  ASSERT (SELECT relrowsecurity FROM pg_class WHERE oid = 'public.gallery_commission_sends'::regclass),
+    'gallery_commission_sends must have RLS enabled';
+  ASSERT (SELECT count(*) FROM pg_policies
+          WHERE schemaname = 'public' AND tablename = 'gallery_commission_sends') = 0,
+    'gallery_commission_sends must have zero policies';
+  ASSERT NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'gallery_commission_sends'
+      AND column_name NOT IN ('id', 'user_id', 'artist_id', 'artwork_id', 'created_at')
+  ), 'the ledger must keep no message body or address';
+END $$;
+
+-- ---- The requester can neither read nor write their own ledger rows ----
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', '32500000-0000-0000-0000-00000000000a', true);
+DO $$
+BEGIN
+  BEGIN
+    ASSERT (SELECT count(*) FROM public.gallery_commission_sends) = 0, 'a requester read the ledger';
+  EXCEPTION WHEN insufficient_privilege THEN NULL;
+  END;
+  BEGIN
+    INSERT INTO public.gallery_commission_sends (user_id, artist_id) VALUES
+      ('32500000-0000-0000-0000-00000000000a', '32500000-0000-0000-0001-000000000001');
+    RAISE EXCEPTION 'a requester wrote a ledger row';
+  EXCEPTION WHEN insufficient_privilege THEN NULL;
+  END;
+  BEGIN
+    DELETE FROM public.gallery_commission_sends;
+  EXCEPTION WHEN insufficient_privilege THEN NULL;
+  END;
+END $$;
+
+-- ---- Nor can the Artist ----
+SELECT set_config('request.jwt.claim.sub', '32500000-0000-0000-0000-00000000000c', true);
+DO $$
+BEGIN
+  BEGIN
+    ASSERT (SELECT count(*) FROM public.gallery_commission_sends) = 0, 'an Artist read the ledger';
+  EXCEPTION WHEN insufficient_privilege THEN NULL;
+  END;
+END $$;
+RESET ROLE;
+
+-- ---- Nor an anonymous visitor ----
+SET LOCAL ROLE anon;
+SELECT set_config('request.jwt.claim.sub', '', true);
+DO $$
+BEGIN
+  BEGIN
+    ASSERT (SELECT count(*) FROM public.gallery_commission_sends) = 0, 'anon read the ledger';
+  EXCEPTION WHEN insufficient_privilege THEN NULL;
+  END;
+END $$;
+RESET ROLE;
+
+-- A requester's DELETE above must not have removed the row.
+DO $$
+BEGIN
+  ASSERT (SELECT count(*) FROM public.gallery_commission_sends
+          WHERE user_id = '32500000-0000-0000-0000-00000000000a') = 1,
+    'a requester must not clear their own rate-limit ledger';
+END $$;
+ROLLBACK;

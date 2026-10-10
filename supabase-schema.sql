@@ -879,6 +879,29 @@ BEGIN;
 COMMIT;
 
 -- ============================================
+-- MIGRATION: Commission relay ledger (#325)
+-- ============================================
+-- One row per relayed Commission, written by the /api/commission edge function
+-- with the service role after Resend accepts the email. It is the rate-limit
+-- ledger (3 per requester per 24 h, 1 per requester per artist per 24 h) and
+-- deliberately keeps no message body or address. Tests: tests/gallery-artists.sql.
+BEGIN;
+  CREATE TABLE IF NOT EXISTS gallery_commission_sends (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    artist_id UUID NOT NULL REFERENCES gallery_artists(id) ON DELETE CASCADE,
+    artwork_id UUID REFERENCES gallery_artworks(id) ON DELETE SET NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+  );
+
+  CREATE INDEX IF NOT EXISTS gallery_commission_sends_user_recent
+    ON gallery_commission_sends (user_id, created_at DESC);
+
+  ALTER TABLE gallery_commission_sends ENABLE ROW LEVEL SECURITY;
+  -- gallery_commission_sends: RLS enabled, zero policies — service role only.
+COMMIT;
+
+-- ============================================
 -- MIGRATION: Founders and the entitlement predicate
 -- ============================================
 -- Safe to deploy before the cutover: while app_config.payment_enforcement is
