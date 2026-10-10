@@ -111,7 +111,7 @@ _In code_: the `founders` table. Both intakes write the same row: the unfiltered
 ### Gallery
 
 **Artist**:
-A person whose gallery profile is claimed by their PRISM account. The artist asks to claim the profile; an admin approves it.
+A person whose gallery profile is claimed by their PRISM account. The artist asks to claim the profile; an admin approves it — unless the profile was set up with an invite and the claim comes from that invited, confirmed email, which is approved automatically ([#331](https://github.com/codwats/prism/issues/331)).
 _Avoid_: creator, contributor, and uploader when the maker is meant
 _In code_: a `gallery_artists` row with `user_id` set.
 

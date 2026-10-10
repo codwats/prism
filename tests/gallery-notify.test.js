@@ -48,6 +48,7 @@ const originalDeno = globalThis.Deno;
 
 async function send(t, body, w = world(), { method = 'POST', token = 'user-token' } = {}) {
   const requests = [];
+  const claimed = [];
   t.mock.method(globalThis, 'fetch', async (input, options = {}) => {
     const url = String(input);
     requests.push({ url, options });
@@ -58,10 +59,17 @@ async function send(t, body, w = world(), { method = 'POST', token = 'user-token
     }
     if (url.startsWith('https://db.example/rest/v1/gallery_artworks?')) return Response.json(matches(w.artwork, url) ? [w.artwork] : []);
     if (url.startsWith('https://db.example/rest/v1/gallery_artist_claims?')) return Response.json(matches(w.claim, url) ? [w.claim] : []);
-    if (url.startsWith('https://db.example/rest/v1/gallery_review_notices?')) return Response.json(w.notices.filter(n => matches(n, url)));
-    if (url === 'https://db.example/rest/v1/gallery_review_notices') return new Response(null, { status: 201 });
+    if (url.startsWith('https://db.example/rest/v1/gallery_review_notices?') && !options.method) return Response.json(w.notices.filter(n => matches(n, url)));
+    // The ledger claim: a unique-key conflict (another request already claimed it) returns no row.
+    if (url === 'https://db.example/rest/v1/gallery_review_notices') {
+      const row = JSON.parse(options.body);
+      if (w.ledgerTaken || w.notices.some(n => n.kind === row.kind && n.item_id === row.item_id)) return Response.json([], { status: 201 });
+      claimed.push(row);
+      return Response.json([row], { status: 201 });
+    }
+    if (url.startsWith('https://db.example/rest/v1/gallery_review_notices?') && options.method === 'DELETE') return new Response(null, { status: 204 });
     if (url.startsWith('https://db.example/rest/v1/gallery_admins?')) return Response.json(w.admins.map(user_id => ({ user_id })));
-    if (url === 'https://api.resend.com/emails') return w.resendOk ? Response.json({ id: 'em_1' }) : new Response('{"message":"nope"}', { status: 500 });
+    if (url === 'https://api.resend.com/emails/batch') return w.resendOk ? Response.json({ id: 'em_1' }) : new Response('{"message":"nope"}', { status: 500 });
     throw new Error(`Unexpected request: ${url}`);
   });
   globalThis.Deno = { env: { get: key => w.env[key] } };
@@ -74,13 +82,16 @@ async function send(t, body, w = world(), { method = 'POST', token = 'user-token
   // Every path, success or refusal: no address may reach the browser.
   for (const email of [USER_EMAIL, ...Object.values(ADMIN_EMAILS)]) assert.ok(!text.includes(email), `${email} leaked`);
   return {
-    status: response.status, text, requests,
-    resend: requests.filter(r => r.url === 'https://api.resend.com/emails'),
-    ledgerWrites: requests.filter(r => r.url === 'https://db.example/rest/v1/gallery_review_notices' && r.options.method === 'POST')
+    status: response.status, text, requests, claimed,
+    resend: requests.filter(r => r.url === 'https://api.resend.com/emails/batch'),
+    ledgerWrites: requests.filter(r => r.url === 'https://db.example/rest/v1/gallery_review_notices' && r.options.method === 'POST'),
+    ledgerDeletes: requests.filter(r => r.url.startsWith('https://db.example/rest/v1/gallery_review_notices?') && r.options.method === 'DELETE')
   };
 }
 
-const email = res => JSON.parse(res.resend[0].options.body);
+// One batch call, one email per admin; `email` is the first.
+const emails = res => JSON.parse(res.resend[0].options.body);
+const email = res => emails(res)[0];
 
 endpointTest('a new upload emails every admin once and writes the ledger', async t => {
   const res = await send(t, { kind: 'upload', id: ARTWORK });
@@ -88,7 +99,7 @@ endpointTest('a new upload emails every admin once and writes the ledger', async
   assert.equal(res.resend.length, 1);
   const sent = email(res);
   assert.equal(sent.from, 'PRISM Gallery <gallery@relay.prismmtg.com>');
-  assert.deepEqual(sent.to.sort(), Object.values(ADMIN_EMAILS).sort());
+  assert.deepEqual(emails(res).map(e => e.to).sort(), Object.values(ADMIN_EMAILS).map(a => [a]).sort());
   assert.equal(sent.subject, 'New gallery upload to review');
   assert.equal(res.resend[0].options.headers.Authorization, 'Bearer test-resend-key');
   for (const body of [sent.text, sent.html]) {
@@ -98,6 +109,31 @@ endpointTest('a new upload emails every admin once and writes the ledger', async
   assert.ok(sent.text.includes('Sol Ring — Night Market'));
   assert.equal(res.ledgerWrites.length, 1);
   assert.deepEqual(JSON.parse(res.ledgerWrites[0].options.body), { kind: 'upload', item_id: ARTWORK });
+});
+
+endpointTest('no admin sees another admin\'s address', async t => {
+  const res = await send(t, { kind: 'upload', id: ARTWORK });
+  for (const sent of emails(res)) {
+    const others = Object.values(ADMIN_EMAILS).filter(a => !sent.to.includes(a));
+    assert.equal(sent.to.length, 1);
+    assert.equal(sent.cc, undefined);
+    for (const other of others) assert.ok(!JSON.stringify(sent).includes(other), `${other} visible to ${sent.to}`);
+  }
+});
+
+endpointTest('the ledger row is claimed before any email goes out', async t => {
+  const res = await send(t, { kind: 'claim', id: CLAIM });
+  const ledgerAt = res.requests.indexOf(res.ledgerWrites[0]);
+  const sendAt = res.requests.indexOf(res.resend[0]);
+  assert.ok(ledgerAt >= 0 && ledgerAt < sendAt);
+  assert.match(res.ledgerWrites[0].options.headers.Prefer, /resolution=ignore-duplicates/);
+  assert.match(res.ledgerWrites[0].options.headers.Prefer, /return=representation/);
+});
+
+endpointTest('a request that loses the ledger race is a 204 with no email', async t => {
+  const res = await send(t, { kind: 'upload', id: ARTWORK }, world({ ledgerTaken: true }));
+  assert.equal(res.status, 204);
+  assert.equal(res.resend.length, 0);
 });
 
 endpointTest('a pending claim emails every admin with the artist name', async t => {
@@ -132,7 +168,7 @@ for (const [name, body, w, opts] of [
     assert.equal(res.status, 204);
     assert.equal(res.text, '');
     assert.equal(res.resend.length, 0);
-    assert.equal(res.ledgerWrites.length, 0);
+    assert.equal(res.claimed.length, 0);
   });
 }
 
@@ -143,12 +179,15 @@ endpointTest('the upload id and the claim id are checked against their own table
   assert.ok(res.requests.every(r => !r.url.includes('gallery_artist_claims')));
 });
 
-endpointTest('a Resend failure is a 502 and leaves no ledger row', async t => {
+endpointTest('a Resend failure is a 502 and deletes the ledger row it claimed', async t => {
   t.mock.method(console, 'error', () => {});
   const res = await send(t, { kind: 'upload', id: ARTWORK }, world({ resendOk: false }));
   assert.equal(res.status, 502);
   assert.equal(res.resend.length, 1);
-  assert.equal(res.ledgerWrites.length, 0);
+  assert.equal(res.ledgerDeletes.length, 1);
+  const q = new URL(res.ledgerDeletes[0].url).searchParams;
+  assert.equal(q.get('kind'), 'eq.upload');
+  assert.equal(q.get('item_id'), `eq.${ARTWORK}`);
 });
 
 endpointTest('the subject is fixed by kind, so request fields cannot inject into it', async t => {

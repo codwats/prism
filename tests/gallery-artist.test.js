@@ -180,12 +180,15 @@ endpointTest("any other invite error is 'failed', logged by status only, artist 
   assert.ok(!res.text.includes(EMAIL));
 });
 
-endpointTest("a failed contacts insert is 'failed' and sends no invite, artist kept", async t => {
+// Not 'failed': Resend needs the stored email, so 'failed' would point the admin at a button that can't work.
+endpointTest("a failed contacts insert is 'email_not_saved' and sends no invite, artist kept", async t => {
   t.mock.method(console, 'error', () => {});
   const res = await send(t, { name: 'Kay', email: EMAIL }, world({ contactsOk: false }));
   assert.equal(res.status, 200);
-  assert.equal(res.json.invite, 'failed');
+  assert.equal(res.json.invite, 'email_not_saved');
+  assert.equal(res.json.artistId, NEW_ARTIST);
   assert.equal(res.invites.length, 0);
+  assert.ok(!res.text.includes(EMAIL));
 });
 
 endpointTest('no email: no contacts row and no invite', async t => {
@@ -242,6 +245,15 @@ endpointTest('a failed insert is a 500', async t => {
   t.mock.method(console, 'error', () => {});
   const res = await send(t, { name: 'Lu Ink' }, world({ insertOk: false }));
   assert.equal(res.status, 500);
+});
+
+endpointTest('a failed read during resend is a 500 that talks about the invite, not creating the page', async t => {
+  t.mock.method(console, 'error', () => {});
+  const w = world();
+  const res = await send(t, { artistId: NEW_ARTIST, resend: true }, { ...w, stored: { get artist() { throw new Error('db down'); } } });
+  assert.equal(res.status, 500);
+  assert.match(res.json.error, /invite/i);
+  assert.doesNotMatch(res.json.error, /created/i);
 });
 
 endpointTest('a non-POST method is refused', async t => {

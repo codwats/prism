@@ -7,9 +7,11 @@
  * gallery admin once per item that is waiting for review.
  *
  * Checks, in order: token → item exists, is the caller's, is pending and was
- * created ≤ 10 minutes ago → no ledger row yet. Any failure is a bare 204 with
- * no email, so a probe learns nothing. The ledger row is written only after
- * Resend accepts; a Resend failure is a 502. No address is ever echoed back.
+ * created ≤ 10 minutes ago → the ledger row is claimed. Any failure is a bare
+ * 204 with no email, so a probe learns nothing. The ledger row is claimed before
+ * sending, so two racing requests send at most one email; a Resend failure
+ * deletes the claim and is a 502. Each admin gets their own email, so no admin
+ * sees another's address, and no address is ever echoed back.
  *
  * Env: RESEND_API_KEY, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY.
  */
@@ -84,9 +86,6 @@ export default async function handler(request: Request): Promise<Response> {
       : await rest(`gallery_artist_claims?${recentPending}&user_id=eq.${user.id}&select=artist:gallery_artists(name)`);
     if (!item) return done();
 
-    const notices = await rest(`gallery_review_notices?kind=eq.${kind}&item_id=eq.${id}&select=item_id`);
-    if (notices.length > 0) return done();
-
     const admins: { user_id: string }[] = await rest('gallery_admins?select=user_id');
     const emails = (await Promise.all(admins.map(async ({ user_id }) => {
       const res = await fetch(`${supabaseUrl}/auth/v1/admin/users/${user_id}`, { headers: service });
@@ -100,29 +99,33 @@ export default async function handler(request: Request): Promise<Response> {
     const whatHtml = kind === 'upload'
       ? `A new ${escapeHtml(String(item.type))} upload, “${escapeHtml(name)}”,`
       : `A claim on the artist page “${escapeHtml(name)}”`;
-    const sendRes = await fetch('https://api.resend.com/emails', {
+    // Claim the ledger row first: of two racing requests only one gets a row back.
+    const ledgerRes = await fetch(`${supabaseUrl}/rest/v1/gallery_review_notices`, {
+      method: 'POST',
+      headers: { ...service, 'Prefer': 'resolution=ignore-duplicates,return=representation' },
+      body: JSON.stringify({ kind, item_id: id }),
+    });
+    if (!ledgerRes.ok) throw new Error(`Supabase gallery_review_notices claim failed: ${ledgerRes.status}`);
+    if ((await ledgerRes.json()).length === 0) return done();
+
+    const sendRes = await fetch('https://api.resend.com/emails/batch', {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${Deno.env.get('RESEND_API_KEY')}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({
+      body: JSON.stringify(emails.map(to => ({
         from: FROM,
-        to: emails,
+        to: [to],
         subject: SUBJECTS[kind as keyof typeof SUBJECTS],
         text: `${what} is waiting for review.\n\nReview it in the Admin view: ${ADMIN_LINK}`,
         html: `<p>${whatHtml} is waiting for review.</p>\n<p><a href="${ADMIN_LINK}">Open the Admin view</a></p>`,
-      }),
+      }))),
     });
     if (!sendRes.ok) {
       console.error('Gallery notify: Resend error', sendRes.status, await sendRes.text());
+      // Release the claim so a retry can send; no email went out.
+      const undo = await fetch(`${supabaseUrl}/rest/v1/gallery_review_notices?kind=eq.${kind}&item_id=eq.${id}`, { method: 'DELETE', headers: service });
+      if (!undo.ok) console.error('Gallery notify: ledger release failed', undo.status);
       return done(502);
     }
-
-    const ledgerRes = await fetch(`${supabaseUrl}/rest/v1/gallery_review_notices`, {
-      method: 'POST',
-      headers: { ...service, 'Prefer': 'return=minimal' },
-      body: JSON.stringify({ kind, item_id: id }),
-    });
-    // The email already went out; a lost ledger row only risks one repeat.
-    if (!ledgerRes.ok) console.error('Gallery notify: ledger insert failed', ledgerRes.status);
 
     return done();
   } catch (error) {

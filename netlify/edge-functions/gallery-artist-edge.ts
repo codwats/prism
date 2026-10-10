@@ -6,8 +6,9 @@
  * admin's Supabase access token. Creates the artist page with the service role;
  * with an email (#332) it then writes the contacts row (invited_email +
  * commission_email) and sends a Supabase account invite that lands on the
- * page. Returns { artistId, url, invite: 'sent'|'existing_account'|'failed'|'none' };
- * the artist row is kept whatever the invite does.
+ * page. Returns { artistId, url, invite: 'sent'|'existing_account'|'failed'|'email_not_saved'|'none' };
+ * the artist row is kept whatever the invite does. 'email_not_saved' means the
+ * contacts row failed, so no invite went out and Resend has nothing to send to.
  *
  * POST { artistId, resend: true } re-sends the invite to the stored
  * invited_email: 404 unknown artist, 409 claimed or never invited.
@@ -117,6 +118,7 @@ export default async function handler(request: Request): Promise<Response> {
   const supabaseUrl = Deno.env.get('SUPABASE_URL') as string;
   const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') as string;
   const site = Deno.env.get('SITE_URL') || SITE;
+  let resend = false;
 
   try {
     const token = request.headers.get('authorization')?.replace(/^Bearer\s+/i, '');
@@ -134,7 +136,8 @@ export default async function handler(request: Request): Promise<Response> {
     const pageUrl = (id: string) => `${site}/gallery.html?artist=${id}`;
     const body = await request.json().catch(() => null);
 
-    if (body?.resend === true) {
+    resend = body?.resend === true;
+    if (resend) {
       const artistId = String(body.artistId ?? '');
       if (!UUID_RE.test(artistId)) return jsonResponse(request, 404, { error: 'Artist not found' });
       const artistRes = await fetch(`${supabaseUrl}/rest/v1/gallery_artists?id=eq.${artistId}&select=id,user_id`, { headers: serviceHeaders });
@@ -163,7 +166,7 @@ export default async function handler(request: Request): Promise<Response> {
     if (!insertRes.ok) throw new Error(`gallery_artists insert failed: ${insertRes.status}`);
     const [{ id: artistId }] = await insertRes.json();
 
-    let invite: Invite | 'none' = 'none';
+    let invite: Invite | 'email_not_saved' | 'none' = 'none';
     if (artist.email) {
       const contactRes = await fetch(`${supabaseUrl}/rest/v1/gallery_artist_contacts`, {
         method: 'POST',
@@ -173,7 +176,7 @@ export default async function handler(request: Request): Promise<Response> {
       if (!contactRes.ok) {
         // Kept: the page exists. Without the contacts row the claim can't auto-approve, so don't invite.
         console.error(`Gallery artist: contacts insert failed: ${contactRes.status}`);
-        invite = 'failed';
+        invite = 'email_not_saved';
       } else {
         invite = await sendInvite(supabaseUrl, serviceKey, artist.email, pageUrl(artistId));
       }
@@ -181,7 +184,7 @@ export default async function handler(request: Request): Promise<Response> {
     return jsonResponse(request, 200, { artistId, url: pageUrl(artistId), invite });
   } catch (error) {
     console.error('Gallery artist error:', error);
-    return jsonResponse(request, 500, { error: 'The artist page couldn’t be created. Try again.' });
+    return jsonResponse(request, 500, { error: resend ? 'The invite couldn’t be resent. Try again.' : 'The artist page couldn’t be created. Try again.' });
   }
 }
 

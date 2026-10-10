@@ -1237,6 +1237,7 @@ const INVITE_OUTCOME = {
   sent: 'Invite sent',
   existing_account: 'They already have an account — they can sign in and claim',
   failed: 'Invite failed — try Resend',
+  email_not_saved: 'The email couldn’t be saved, so no invite went out. Send them the link below; they can sign up and claim the page.',
 };
 
 async function postGalleryArtist(body) {
