@@ -30,6 +30,10 @@
   path = "/api/stripe-webhook"
   function = "stripe-webhook-edge"
 
+[[edge_functions]]
+  path = "/api/commission"
+  function = "commission-edge"
+
 # Headers for the functions
 [[headers]]
   for = "/.netlify/functions/*"

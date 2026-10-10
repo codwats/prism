@@ -8,6 +8,7 @@
  *   gallery.html?view=upload     community upload form (signed-in)
  *   gallery.html?view=uploads    my uploads (status tracking)
  *   gallery.html?view=admin      moderation queue (gallery admins only)
+ *   gallery.html?view=edit-artist  the signed-in Artist's own profile + commission settings
  *
  * Backend: Supabase (see the GALLERY section of supabase-schema.sql).
  * Public reads go through plain PostgREST fetch with the anon key so
@@ -33,7 +34,7 @@ import { escapeHtml } from './core/utils.js';
 const DEMO_ARTISTS = [
   { id: 'reyes', name: 'M. Reyes', isPartner: true, bio: 'Illustrator specializing in artifact and enchantment treatments for Commander. Partnered with PRISM to share proxy and showcase art for personal use.', links: [{ label: 'mreyes.art', icon: 'globe', href: '#' }, { label: '@mreyes', icon: 'instagram', family: 'brands', href: '#' }] },
   { id: 'vela', name: 'Studio Vela', isPartner: true, bio: 'Two-person studio painting tokens and full-art lands with a storybook feel.', links: [{ label: 'studiovela.com', icon: 'globe', href: '#' }] },
-  { id: 'okafor', name: 'A. Okafor', isPartner: true, bio: 'Showcase treatments with bold linework and saturated color.', links: [{ label: '@aokafor', icon: 'instagram', family: 'brands', href: '#' }] },
+  { id: 'okafor', name: 'A. Okafor', isPartner: true, userId: 'demo-okafor', bio: 'Showcase treatments with bold linework and saturated color.', links: [{ label: '@aokafor', icon: 'instagram', family: 'brands', href: '#' }], commissionsOpen: true, commissionNote: 'Alters and sleeve art, about 2 weeks. Tell me the card and the mood.' },
   { id: 'kanae', name: 'kanae_art', isPartner: false, bio: 'Community uploader', links: [] },
   { id: 'deckbrewer', name: 'deckbrewer', isPartner: false, bio: 'Community uploader', links: [] },
   { id: 'lindg', name: 'lindg', isPartner: false, bio: 'Community uploader', links: [] },
@@ -51,12 +52,17 @@ const DEMO_ARTWORKS = [
   { id: 'a9', title: 'Mana Crypt', type: 'proxy', artistId: 'reyes', likes: 198, downloads: 701, isAI: false, highlighted: false, storeUrl: '', originalCard: { name: 'Mana Crypt', set: 'Eternal Masters', scryfallUrl: 'https://scryfall.com/search?q=%21%22Mana%20Crypt%22' }, description: 'The crypt rendered as a reliquary.', createdAt: '2026-05-20' },
   { id: 'a10', title: 'Smothering Tithe', type: 'showcase', artistId: 'reyes', likes: 143, downloads: 402, isAI: false, highlighted: false, storeUrl: '', originalCard: { name: 'Smothering Tithe', set: 'Ravnica Allegiance', scryfallUrl: 'https://scryfall.com/search?q=%21%22Smothering%20Tithe%22' }, description: 'Coins raining through cathedral light.', createdAt: '2026-05-28' },
   { id: 'a11', title: 'Swords to Plowshares', type: 'proxy', artistId: 'reyes', likes: 121, downloads: 350, isAI: false, highlighted: false, storeUrl: '', originalCard: { name: 'Swords to Plowshares', set: 'Alpha', scryfallUrl: 'https://scryfall.com/search?q=%21%22Swords%20to%20Plowshares%22' }, description: 'The classic answer, reforged.', createdAt: '2026-06-03' },
+  { id: 'a13', title: 'Sol Ring — Night Market', type: 'alter', artistId: 'okafor', likes: 176, downloads: 0, isAI: false, highlighted: false, storeUrl: '', originalCard: { name: 'Sol Ring', set: 'Commander 2021', scryfallUrl: 'https://scryfall.com/search?q=%21%22Sol%20Ring%22' }, description: 'Acrylic over a real Sol Ring, the art extended to the borders. One of one.', createdAt: '2026-07-04' },
   { id: 'a12', title: 'Elf Warrior Token', type: 'token', artistId: 'lindg', likes: 22, downloads: 61, isAI: false, highlighted: false, storeUrl: '', originalCard: null, description: 'A 1/1 elf warrior for the wide boards.', createdAt: '2026-07-01' },
 ];
 
-const TYPE_LABELS = { proxy: 'Proxy', token: 'Token', showcase: 'Showcase' };
-const TYPE_TAG_VARIANTS = { proxy: 'neutral', token: 'brand', showcase: 'warning' };
+const TYPE_LABELS = { proxy: 'Proxy', token: 'Token', showcase: 'Showcase', alter: 'Alter' };
+const TYPE_TAG_VARIANTS = { proxy: 'neutral', token: 'brand', showcase: 'warning', alter: 'success' };
 const LICENSE_HTML = 'Personal, non-commercial use only — credit the artist. <a href="terms.html">Full terms</a>';
+// An alter is a photograph of a real painted card, never a file to print (#322).
+const ALTER_LICENSE_HTML = 'Display only — not for reproduction. Commission the artist for your own.';
+// Public Turnstile site key (prismmtg.com + localhost); its secret is TURNSTILE_SECRET_KEY in Netlify.
+const TURNSTILE_SITE_KEY = '0x4AAAAAAFSxouNPhJdr5HGl';
 
 // ============================================================
 // Data layer (Supabase)
@@ -114,6 +120,9 @@ function mapArtist(r) {
     avatarUrl: r.avatar_url,
     links: Array.isArray(r.links) ? r.links : [],
     isPartner: r.is_partner,
+    userId: r.user_id || null, // set = a claimed Artist; null = an Attribution
+    commissionsOpen: !!r.commissions_open,
+    commissionNote: r.commission_note || '',
   };
 }
 
@@ -258,7 +267,7 @@ function artPlaceholderHtml(artwork, cls = 'gallery-art') {
 function avatarHtml(artist, sizeRem, extraStyle = '') {
   const style = `width: ${sizeRem}rem; height: ${sizeRem}rem;${extraStyle}`;
   return artist?.avatarUrl
-    ? `<div class="gallery-avatar" style="${style} overflow: hidden;"><img src="${escapeHtml(artist.avatarUrl)}" alt="" style="width: 100%; height: 100%; object-fit: cover;" /></div>`
+    ? `<div class="gallery-avatar" style="${style} overflow: hidden;"><img src="${escapeHtml(safeUrl(artist.avatarUrl))}" alt="" style="width: 100%; height: 100%; object-fit: cover;" /></div>`
     : `<div class="gallery-avatar" style="${style}"><wa-icon name="user"></wa-icon></div>`;
 }
 
@@ -285,8 +294,8 @@ function breadcrumbHtml(items) {
   </wa-breadcrumb>`;
 }
 
-function licenseHtml() {
-  return `<div class="gallery-license"><wa-icon name="scale-balanced" style="margin-top: 0.15em; flex: none;"></wa-icon><span>${LICENSE_HTML}</span></div>`;
+function licenseHtml(type) {
+  return `<div class="gallery-license"><wa-icon name="scale-balanced" style="margin-top: 0.15em; flex: none;"></wa-icon><span>${type === 'alter' ? ALTER_LICENSE_HTML : LICENSE_HTML}</span></div>`;
 }
 
 function loadingHtml() {
@@ -319,7 +328,9 @@ function wireLikeButtons(root) {
 // Grid view
 // ============================================================
 
-const filters = { type: 'all', artist: 'all', q: '', sort: 'liked' };
+// ?type=alter is Alter Alley's URL; it seeds the type filter once on load.
+const initialType = new URLSearchParams(window.location.search).get('type');
+const filters = { type: TYPE_LABELS[initialType] ? initialType : 'all', artist: 'all', q: '', sort: 'liked' };
 
 function sortArtworks(list) {
   const key = { liked: a => likeCount(a), new: a => Date.parse(a.createdAt) || 0, dl: a => a.downloads || 0 }[filters.sort];
@@ -340,6 +351,8 @@ function filteredArtworks() {
 
 function renderGrid(root) {
   const user = getCurrentUser();
+  const alley = filters.type === 'alter';
+  if (alley && filters.sort === 'dl') filters.sort = 'liked'; // alters are never downloaded
   const results = sortArtworks(filteredArtworks());
   const featured = results.filter(a => a.highlighted);
   const rest = results.filter(a => !a.highlighted);
@@ -383,8 +396,11 @@ function renderGrid(root) {
   root.innerHTML = `
     <div class="wa-split" style="align-items: flex-start; gap: var(--wa-space-m);">
       <div>
+        ${alley ? `
+        <h1 class="wa-heading-2xl">Alter Alley</h1>
+        <p style="color: var(--wa-color-neutral-text-subtle); max-width: 60ch; margin-top: var(--wa-space-2xs);">Real cards, painted over by hand. An alter is expensive, unique and expressive, so you own exactly one, and that one copy has to serve every deck that runs the card: a Pool copy by definition. One alter, every deck. Each piece is shown as a photograph, never a file to print. Commission the artist for your own.</p>` : `
         <h1 class="wa-heading-2xl">Gallery</h1>
-        <p style="color: var(--wa-color-neutral-text-subtle); max-width: 60ch; margin-top: var(--wa-space-2xs);">Partnered and community artwork for proxies, tokens, and showcase treatments. Personal, non-commercial use with credit to the artist.</p>
+        <p style="color: var(--wa-color-neutral-text-subtle); max-width: 60ch; margin-top: var(--wa-space-2xs);">Partnered and community artwork for proxies, tokens, and showcase treatments, plus hand-painted alters. Personal, non-commercial use with credit to the artist.</p>`}
       </div>
       <wa-button variant="brand" href="gallery.html?view=upload"><wa-icon slot="start" name="plus"></wa-icon>Upload artwork</wa-button>
     </div>
@@ -404,7 +420,7 @@ function renderGrid(root) {
       <div>
         <span class="gallery-tlabel">Type</span>
         <wa-button-group label="Filter by type">
-          ${['all', 'proxy', 'token', 'showcase'].map(t => `<wa-button size="s" data-type="${t}"${filters.type === t ? ' variant="brand"' : ' appearance="outlined"'}>${t === 'all' ? 'All' : TYPE_LABELS[t]}</wa-button>`).join('')}
+          ${['all', ...Object.keys(TYPE_LABELS)].map(t => `<wa-button size="s" data-type="${t}"${filters.type === t ? ' variant="brand"' : ' appearance="outlined"'}>${t === 'all' ? 'All' : TYPE_LABELS[t]}</wa-button>`).join('')}
         </wa-button-group>
       </div>
       <wa-select id="gallery-artist" size="s" label="Artist" value="${escapeHtml(filters.artist)}" style="width: 12rem;">
@@ -416,7 +432,7 @@ function renderGrid(root) {
       <wa-select id="gallery-sort" size="s" label="Sort" value="${escapeHtml(filters.sort)}" style="width: 11rem;">
         <wa-option value="liked">Most liked</wa-option>
         <wa-option value="new">Newest</wa-option>
-        <wa-option value="dl">Most downloaded</wa-option>
+        ${alley ? '' : '<wa-option value="dl">Most downloaded</wa-option>'}
       </wa-select>
     </div>
 
@@ -470,6 +486,8 @@ function renderDetail(root, id) {
           ${artwork.isAI ? aiTagHtml() : ''}
         </div>
         <h1 class="wa-heading-xl">${escapeHtml(artwork.title)}</h1>
+        ${artwork.originalCard && artwork.type === 'alter'
+          ? `<p class="wa-heading-m" style="margin: 0;">Painted over ${escapeHtml(artwork.originalCard.name)}</p>` : ''}
         ${artwork.originalCard
           ? `<div class="gallery-orig"><wa-icon name="link" style="color: var(--wa-color-neutral-text-subtle);"></wa-icon><span>Original card: <strong>${escapeHtml(artwork.originalCard.name)}</strong>${artwork.originalCard.set ? ` &middot; ${escapeHtml(artwork.originalCard.set)}` : ''}</span><a href="${escapeHtml(safeUrl(artwork.originalCard.scryfallUrl || 'https://scryfall.com/search?q=' + encodeURIComponent('!"' + artwork.originalCard.name + '"')))}" target="_blank" rel="noopener" style="margin-left: auto; font-size: var(--wa-font-size-xs);">Scryfall <wa-icon name="arrow-up-right-from-square" style="font-size: 0.7em;"></wa-icon></a></div>`
           : `<div class="gallery-orig"><wa-icon name="circle-minus" style="color: var(--wa-color-neutral-text-subtle);"></wa-icon><span style="color: var(--wa-color-neutral-text-subtle);">No original card${artwork.type === 'token' ? ' (token)' : ''}</span></div>`}
@@ -491,14 +509,16 @@ function renderDetail(root, id) {
         </div>
         <div class="wa-cluster wa-gap-s wa-align-items-center">
           <wa-button appearance="outlined" id="detail-like"><wa-icon slot="start" name="heart" family="${liked ? 'solid' : 'regular'}"${liked ? ' style="color: var(--wa-color-brand-text);"' : ''}></wa-icon>Like &middot; ${likeCount(artwork)}</wa-button>
-          ${user
+          ${artwork.type === 'alter' ? '' : user
             ? '<wa-button variant="brand" id="detail-download"><wa-icon slot="start" name="download"></wa-icon>Download</wa-button>'
             : '<wa-button variant="brand" id="detail-download-gated"><wa-icon slot="start" name="lock"></wa-icon>Sign in to download</wa-button>'}
+          ${artwork.type === 'alter' && artist?.userId && artist.commissionsOpen
+            ? `<wa-button variant="brand" href="gallery.html?artist=${encodeURIComponent(artist.id)}&art=${encodeURIComponent(artwork.id)}#commission"><wa-icon slot="start" name="paintbrush"></wa-icon>Commission this artist</wa-button>` : ''}
           ${artwork.highlighted && artwork.storeUrl ? `<wa-button appearance="outlined" href="${escapeHtml(safeUrl(artwork.storeUrl))}" target="_blank" rel="noopener"><wa-icon slot="start" name="cart-shopping"></wa-icon>Order custom sleeves <wa-icon slot="end" name="arrow-up-right-from-square" style="font-size: 0.7em;"></wa-icon></wa-button>` : ''}
           ${user && !usingDemo && (isAdmin || artwork.uploaderId === user.id) ? `<wa-button appearance="outlined" href="gallery.html?view=edit&art=${encodeURIComponent(artwork.id)}"><wa-icon slot="start" name="pen"></wa-icon>Edit</wa-button>` : ''}
         </div>
-        ${user ? '' : '<p class="wa-caption-s" style="color: var(--wa-color-neutral-text-subtle); margin: 0;">Downloads need an account, and signup is currently closed. Each download is one print-ready file (2.5&times;3.5&Prime; + bleed).</p>'}
-        ${licenseHtml()}
+        ${user || artwork.type === 'alter' ? '' : '<p class="wa-caption-s" style="color: var(--wa-color-neutral-text-subtle); margin: 0;">Downloads need an account, and signup is currently closed. Each download is one print-ready file (2.5&times;3.5&Prime; + bleed).</p>'}
+        ${licenseHtml(artwork.type)}
       </div>
     </div>
     ${more.length ? `
@@ -541,9 +561,13 @@ function renderArtist(root, id) {
         <div class="wa-cluster wa-gap-s wa-align-items-center">
           <h1 class="wa-heading-xl">${escapeHtml(artist.name)}</h1>
           ${artist.isPartner ? '<wa-tag variant="brand"><wa-icon slot="start" name="handshake-angle"></wa-icon>PRISM Partner</wa-tag>' : ''}
+          ${artist.commissionsOpen ? '<wa-tag variant="success"><wa-icon slot="start" name="paintbrush"></wa-icon>Open for commissions</wa-tag>' : ''}
+          ${isOwnArtist(artist) ? '<wa-button size="s" appearance="outlined" href="gallery.html?view=edit-artist"><wa-icon slot="start" name="pen"></wa-icon>Edit profile</wa-button>' : ''}
         </div>
         <p style="color: var(--wa-color-neutral-text); margin: var(--wa-space-xs) 0 0; max-width: 64ch;">${escapeHtml(artist.bio)}</p>
         ${artist.links.length ? `<div class="wa-cluster wa-gap-m" style="margin-top: var(--wa-space-s); font-size: var(--wa-font-size-s);">${artist.links.map(l => `<a href="${escapeHtml(safeUrl(l.href))}" target="_blank" rel="noopener"><wa-icon name="${escapeHtml(l.icon || 'globe')}"${l.family ? ` family="${escapeHtml(l.family)}"` : ''}></wa-icon> ${escapeHtml(l.label)}</a>`).join('')}</div>` : ''}
+        ${artist.commissionsOpen && artist.commissionNote ? `<p class="wa-caption-m" style="margin: var(--wa-space-xs) 0 0; max-width: 64ch;"><wa-icon name="paintbrush"></wa-icon> ${escapeHtml(artist.commissionNote)}</p>` : ''}
+        ${artist.userId ? '' : '<div id="artist-claim" class="wa-cluster wa-gap-s wa-align-items-center" style="margin-top: var(--wa-space-s);"></div>'}
         ${artist.isPartner ? `
         <div class="gallery-stats">
           <div class="gallery-stat"><b>${works.length}</b><span>Works</span></div>
@@ -552,12 +576,158 @@ function renderArtist(root, id) {
         </div>` : ''}
       </div>
     </div>
+    ${artist.commissionsOpen ? '<section id="commission" style="margin-bottom: var(--wa-space-xl); max-width: 40rem;"></section>' : ''}
     <div class="gallery-eyebrow"><wa-icon name="images"></wa-icon>Works <span class="count">&middot; ${works.length}</span></div>
     ${works.length
       ? `<div class="wa-grid wa-gap-m gallery-grid">${works.map(cardHtml).join('')}</div>`
       : '<p style="color: var(--wa-color-neutral-text-subtle);">No public works yet.</p>'}`;
 
   wireLikeButtons(root);
+  renderClaimSlot(root.querySelector('#artist-claim'), artist);
+  renderCommissionForm(root.querySelector('#commission'), artist, works);
+  // The section renders after the page loads, so the browser's own hash scroll misses it.
+  if (window.location.hash === '#commission') root.querySelector('#commission')?.scrollIntoView();
+}
+
+let turnstileReady = null;
+function loadTurnstile() {
+  turnstileReady ??= new Promise((resolve, reject) => {
+    const script = document.createElement('script');
+    script.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';
+    script.async = true;
+    script.onload = () => resolve(window.turnstile);
+    script.onerror = () => { turnstileReady = null; reject(new Error('Turnstile failed to load')); };
+    document.head.appendChild(script);
+  });
+  return turnstileReady;
+}
+
+/** The Commission form under the artist's note: relayed once by /api/commission. */
+function renderCommissionForm(section, artist, works) {
+  if (!section) return;
+  const heading = '<div class="gallery-eyebrow"><wa-icon name="paintbrush"></wa-icon>Request a commission</div>';
+  const done = (variant, icon, text) => {
+    section.innerHTML = `${heading}<wa-callout variant="${variant}"><wa-icon slot="icon" name="${icon}"></wa-icon>${text}</wa-callout>`;
+  };
+  if (!getCurrentUser()) {
+    section.innerHTML = `${heading}
+      <p style="color: var(--wa-color-neutral-text); margin-top: 0;">Sign in to send ${escapeHtml(artist.name)} a commission request. Their reply comes straight to your email.</p>
+      <wa-button size="s" variant="brand" id="btn-commission-signin"><wa-icon slot="start" name="right-to-bracket"></wa-icon>Sign in</wa-button>`;
+    section.querySelector('#btn-commission-signin').addEventListener('click', promptSignIn);
+    return;
+  }
+  const refId = new URLSearchParams(window.location.search).get('art');
+  const selected = works.some(w => w.id === refId) ? refId : 'none';
+  section.innerHTML = `${heading}
+    <form id="commission-form" class="wa-stack wa-gap-m">
+      ${works.length ? `<wa-select id="cm-artwork" label="Reference artwork (optional)" value="${escapeHtml(selected)}">
+        <wa-option value="none">No reference</wa-option>
+        ${works.map(w => `<wa-option value="${escapeHtml(w.id)}">${escapeHtml(w.title)}</wa-option>`).join('')}
+      </wa-select>` : ''}
+      <wa-textarea id="cm-message" label="What would you like?" rows="5" maxlength="2000" required
+        hint="20 to 2000 characters. ${escapeHtml(artist.name)} replies to your account email; neither address is shown to anyone."></wa-textarea>
+      <div id="cm-turnstile"></div>
+      <div><wa-button type="submit" variant="brand" id="cm-send"><wa-icon slot="start" name="paper-plane"></wa-icon>Send request</wa-button></div>
+    </form>`;
+
+  let token = '';
+  let widgetId = null;
+  loadTurnstile().then(turnstile => {
+    if (!section.isConnected) return;
+    widgetId = turnstile.render(section.querySelector('#cm-turnstile'), {
+      sitekey: TURNSTILE_SITE_KEY,
+      callback: t => { token = t; },
+      'expired-callback': () => { token = ''; },
+    });
+  }).catch(() => showError('The human check could not load. Refresh to try again.'));
+
+  section.querySelector('#commission-form').addEventListener('submit', async e => {
+    e.preventDefault();
+    const message = fieldValue(section, '#cm-message').trim();
+    if (message.length < 20) { showError('Tell the artist a little more (at least 20 characters).'); return; }
+    if (!token) { showError('Complete the human check first.'); return; }
+    if (usingDemo) {
+      showToast('Demo data — deploy the gallery schema to send commissions', 'neutral', 'database');
+      return;
+    }
+    const artwork = fieldValue(section, '#cm-artwork');
+    const button = section.querySelector('#cm-send');
+    button.setAttribute('loading', '');
+    try {
+      const { data: { session } = {} } = await getSupabase()?.auth.getSession() || { data: {} };
+      const res = await fetch('/api/commission', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token || ''}` },
+        body: JSON.stringify({ artistId: artist.id, artworkId: artwork && artwork !== 'none' ? artwork : null, message, turnstileToken: token }),
+      });
+      if (res.ok) return done('success', 'circle-check', `Request sent. ${escapeHtml(artist.name)} will reply to your email if they take it on.`);
+      if (res.status === 429) return done('warning', 'clock', 'You’ve reached today’s commission limit: three requests a day, one per artist. Try again tomorrow.');
+      if (res.status === 409) return done('neutral', 'circle-pause', `${escapeHtml(artist.name)} closed commissions while you were writing. Your message wasn’t sent.`);
+      const body = await res.json().catch(() => ({}));
+      showError(body.error || 'Your request couldn’t be sent. Try again later.');
+    } catch {
+      showError('Your request couldn’t be sent. Try again later.');
+    } finally {
+      button.removeAttribute('loading');
+    }
+    // A Turnstile token is single-use; get a fresh one for the retry.
+    token = '';
+    if (widgetId !== null) window.turnstile?.reset(widgetId);
+  });
+}
+
+function isOwnArtist(artist) {
+  const user = getCurrentUser();
+  return !!(user && artist.userId && artist.userId === user.id);
+}
+
+/** "This is me" on an unclaimed profile, or "Claim pending" once filed. */
+async function renderClaimSlot(slot, artist) {
+  if (!slot) return; // claimed profile: nothing to show
+  const user = getCurrentUser();
+  const sb = getSupabase();
+  let claims = [];
+  if (user && sb && !usingDemo) {
+    const { data } = await sb.from('gallery_artist_claims')
+      .select('status, created_at')
+      .eq('artist_id', artist.id)
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false });
+    claims = data || [];
+  }
+  if (!slot.isConnected) return; // navigated away while loading
+
+  if (claims.some(c => c.status === 'pending')) {
+    slot.innerHTML = `
+      <wa-tag variant="warning"><wa-icon slot="start" name="hourglass-half"></wa-icon>Claim pending</wa-tag>
+      <span class="wa-caption-s" style="color: var(--wa-color-neutral-text-subtle);">An admin will review it soon.</span>`;
+    return;
+  }
+  const rejected = claims[0]?.status === 'rejected';
+  slot.innerHTML = `
+    <wa-button size="s" appearance="outlined" id="btn-claim-artist"><wa-icon slot="start" name="user-check"></wa-icon>This is me</wa-button>
+    ${rejected ? '<span class="wa-caption-s" style="color: var(--wa-color-neutral-text-subtle);">Your last claim on this profile was rejected. If that was a mistake, contact PRISM.</span>' : ''}`;
+  slot.querySelector('#btn-claim-artist').addEventListener('click', async () => {
+    const me = getCurrentUser();
+    if (!me) {
+      showToast('Sign in to claim this profile', 'brand', 'user-check');
+      promptSignIn();
+      return;
+    }
+    if (usingDemo) {
+      showToast('Demo data — deploy the gallery schema to enable claims', 'neutral', 'database');
+      return;
+    }
+    const { error } = await getSupabase().from('gallery_artist_claims')
+      .insert({ artist_id: artist.id, user_id: me.id });
+    // 23505: a pending claim already exists, which is the outcome wanted anyway
+    if (error && error.code !== '23505') {
+      showError('Could not send your claim — try again.');
+      return;
+    }
+    showSuccess('Claim sent — an admin will review it.');
+    renderClaimSlot(slot, artist);
+  });
 }
 
 // ============================================================
@@ -591,6 +761,8 @@ function artworkFieldsHtml(v = {}) {
         <wa-radio value="proxy">Proxy</wa-radio>
         <wa-radio value="token">Token</wa-radio>
         <wa-radio value="showcase">Showcase</wa-radio>
+        <wa-radio value="alter">Alter</wa-radio>
+        <span slot="hint">Alter: a photo of a real card you painted by hand. It is shown, never offered as a download.</span>
       </wa-radio-group>
       <div class="card-suggest">
         <wa-input id="up-card" label="Original card (optional)" placeholder="Start typing a card name" autocomplete="off" value="${escapeHtml(v.originalCard?.name || '')}">
@@ -924,6 +1096,110 @@ async function renderEditArtwork(root, id) {
 }
 
 // ============================================================
+// Artist profile edit view (#324)
+// ============================================================
+
+/** One link per line. A line whose URL is unchanged keeps its stored label and icon. */
+function linksToText(links) {
+  return links.map(l => l.href).join('\n');
+}
+
+function textToLinks(text, oldLinks) {
+  const links = [];
+  for (const line of text.split('\n').map(l => l.trim()).filter(Boolean)) {
+    let url;
+    try { url = new URL(line); } catch { return null; }
+    if (url.protocol !== 'https:') return null; // the RPC refuses anything else
+    links.push(oldLinks.find(l => l.href === line) || { label: url.hostname.replace(/^www\./, ''), icon: 'globe', href: line });
+  }
+  return links;
+}
+
+async function renderEditArtist(root) {
+  const user = getCurrentUser();
+  if (!user) {
+    if (hasStoredSession()) { root.innerHTML = loadingHtml(); return; } // auth still restoring
+    renderNotFound(root, 'Sign in to edit your profile', 'Your artist profile is linked to your account.');
+    return;
+  }
+  if (usingDemo) {
+    renderNotFound(root, 'Editing unavailable', 'Demo data — deploy the gallery schema to enable editing.');
+    return;
+  }
+  const artist = artistsDb.find(a => a.userId === user.id);
+  const sb = getSupabase();
+  if (!artist || !sb) {
+    renderNotFound(root, 'No artist profile', 'Claim your profile with “This is me” on your artist page first.');
+    return;
+  }
+  root.innerHTML = loadingHtml();
+  // RLS: only the owning Artist (and admins) can read this row.
+  const { data: contact } = await sb.from('gallery_artist_contacts')
+    .select('commission_email').eq('artist_id', artist.id).maybeSingle();
+  if (!root.isConnected) return;
+  const backHref = `gallery.html?artist=${encodeURIComponent(artist.id)}`;
+
+  root.innerHTML = `
+    ${breadcrumbHtml([{ label: 'Gallery', href: 'gallery.html' }, { label: artist.name, href: backHref }, { label: 'Edit profile' }])}
+    <h1 class="wa-heading-2xl">Edit profile</h1>
+    <p style="color: var(--wa-color-neutral-text-subtle); margin-top: var(--wa-space-2xs);">Changes apply right away.</p>
+    <form class="gallery-form" id="artist-form" style="margin-top: var(--wa-space-l);">
+      <wa-textarea id="ar-bio" label="Bio" rows="4" value="${escapeHtml(artist.bio)}"></wa-textarea>
+      <wa-textarea id="ar-links" label="Links" rows="3" placeholder="https://your-site.example" value="${escapeHtml(linksToText(artist.links))}">
+        <span slot="hint">One web address per line: your site, shop or socials.</span>
+      </wa-textarea>
+      <wa-input id="ar-avatar" label="Avatar image URL" placeholder="https://&hellip;/me.png" value="${escapeHtml(artist.avatarUrl || '')}"></wa-input>
+      <wa-divider></wa-divider>
+      <wa-switch id="ar-open"${artist.commissionsOpen ? ' checked' : ''}>Open for commissions</wa-switch>
+      <wa-textarea id="ar-note" label="Commissions note" rows="2" placeholder="e.g. Sleeve art, ~2 weeks, DM for rates" value="${escapeHtml(artist.commissionNote)}">
+        <span slot="hint">Shown publicly on your artist page.</span>
+      </wa-textarea>
+      <wa-input id="ar-email" type="email" label="Commission email" value="${escapeHtml(contact?.commission_email || '')}">
+        <span slot="hint">Private. Requests are relayed here and it never appears on any page.</span>
+      </wa-input>
+      <div class="wa-cluster wa-gap-s">
+        <wa-button type="submit" variant="brand" id="ar-submit"><wa-icon slot="start" name="floppy-disk"></wa-icon>Save changes</wa-button>
+        <wa-button type="button" appearance="plain" href="${backHref}">Cancel</wa-button>
+      </div>
+    </form>`;
+
+  root.querySelector('#artist-form').addEventListener('submit', async e => {
+    e.preventDefault();
+    const links = textToLinks(fieldValue(root, '#ar-links'), artist.links);
+    const avatar = fieldValue(root, '#ar-avatar').trim();
+    const email = fieldValue(root, '#ar-email').trim();
+    const open = !!root.querySelector('#ar-open').checked;
+    if (!links) { showError('Each link must be a full web address starting with https://'); return; }
+    if (avatar && !/^https:\/\//i.test(avatar)) { showError('The avatar must be a web address starting with https://'); return; }
+    if (email && !EMAIL_RE.test(email)) { showError('That commission email doesn’t look right.'); return; }
+    if (open && !email) { showError('Add a commission email to open commissions.'); return; }
+
+    const submitBtn = root.querySelector('#ar-submit');
+    submitBtn.setAttribute('loading', '');
+    submitBtn.setAttribute('disabled', '');
+    const { error } = await sb.rpc('update_own_gallery_artist', {
+      p_bio: fieldValue(root, '#ar-bio').trim(),
+      p_links: links,
+      p_avatar_url: avatar,
+      p_commissions_open: open,
+      p_commission_note: fieldValue(root, '#ar-note').trim(),
+      p_commission_email: email,
+    });
+    if (error) {
+      console.error('Artist profile save failed:', error);
+      showError('Could not save your profile — try again.');
+      submitBtn.removeAttribute('loading');
+      submitBtn.removeAttribute('disabled');
+      return;
+    }
+    showSuccess('Profile saved');
+    await loadPublicData();
+    history.pushState({}, '', backHref);
+    render();
+  });
+}
+
+// ============================================================
 // My uploads view
 // ============================================================
 
@@ -1028,6 +1304,8 @@ async function renderMyUploads(root) {
 // Admin moderation queue (gallery admins only)
 // ============================================================
 
+let adminTab = 'uploads'; // kept across re-renders so approving a claim stays on Claims
+
 async function renderAdmin(root) {
   const user = getCurrentUser();
   if (!user) {
@@ -1043,25 +1321,61 @@ async function renderAdmin(root) {
     return;
   }
 
-  const { data, error } = await sb.from('gallery_artworks')
-    .select('*')
-    .eq('status', 'pending')
-    .order('created_at', { ascending: true });
+  const [{ data, error }, claimsRes] = await Promise.all([
+    sb.from('gallery_artworks')
+      .select('*')
+      .eq('status', 'pending')
+      .order('created_at', { ascending: true }),
+    sb.rpc('list_gallery_artist_claims'),
+  ]);
   if (error) {
     renderNotFound(root, 'Could not load the queue', 'Check your connection and reload.');
     return;
   }
   const pending = (data || []).map(mapArtwork);
+  const claims = claimsRes.data || [];
 
   root.innerHTML = `
     ${breadcrumbHtml([{ label: 'Gallery', href: 'gallery.html' }, { label: 'Moderation queue' }])}
     <div class="wa-split" style="align-items: flex-start;">
       <div>
         <h1 class="wa-heading-2xl">Moderation queue</h1>
-        <p style="color: var(--wa-color-neutral-text-subtle); margin-top: var(--wa-space-2xs);">Review pending uploads. Approve, reject with a reason, set Highlight and a store URL.</p>
+        <p style="color: var(--wa-color-neutral-text-subtle); margin-top: var(--wa-space-2xs);">Review pending uploads and artist claims.</p>
       </div>
-      <wa-tag variant="warning" size="l"><wa-icon slot="start" name="inbox"></wa-icon>${pending.length} pending</wa-tag>
+      <wa-tag variant="warning" size="l"><wa-icon slot="start" name="inbox"></wa-icon>${pending.length + claims.length} pending</wa-tag>
     </div>
+    <wa-tab-group id="admin-tabs" active="${adminTab}" style="margin-top: var(--wa-space-m);">
+      <wa-tab panel="uploads">Uploads &middot; ${pending.length}</wa-tab>
+      <wa-tab panel="claims">Claims &middot; ${claims.length}</wa-tab>
+      <wa-tab-panel name="claims">${claimsRes.error
+        ? '<p style="color: var(--wa-color-neutral-text-subtle);">Could not load claims. Check that the schema is deployed, then reload.</p>'
+        : claims.length === 0 ? `
+        <div class="gallery-empty">
+          <div class="ic"><wa-icon name="user-check"></wa-icon></div>
+          <h3 class="wa-heading-s">No pending claims</h3>
+          <p class="wa-caption-m" style="color: var(--wa-color-neutral-text-subtle);">When a maker clicks &ldquo;This is me&rdquo; on their profile, the claim lands here.</p>
+        </div>` : `
+        <div class="wa-stack wa-gap-m">
+          ${claims.map(c => `
+          <div class="gallery-queue-card">
+            <div class="wa-split" style="align-items: flex-start; gap: var(--wa-space-m);">
+              <div class="gallery-rowmeta">
+                <strong><a href="gallery.html?artist=${encodeURIComponent(c.artist_id)}">${escapeHtml(c.artist_name)}</a></strong>
+                <div class="gallery-rowsub">
+                  <span><wa-icon name="envelope"></wa-icon> ${escapeHtml(c.claimant_email || 'No email on account')}</span>
+                  <span>Claimed <wa-relative-time date="${escapeHtml(c.created_at)}"></wa-relative-time></span>
+                </div>
+              </div>
+              <div class="wa-cluster wa-gap-xs">
+                <wa-button size="s" variant="success" data-claim-approve="${escapeHtml(c.claim_id)}"><wa-icon slot="start" name="check"></wa-icon>Approve</wa-button>
+                <wa-button size="s" variant="danger" appearance="outlined" data-claim-reject="${escapeHtml(c.claim_id)}"><wa-icon slot="start" name="xmark"></wa-icon>Reject</wa-button>
+              </div>
+            </div>
+          </div>`).join('')}
+        </div>`}
+        <p class="wa-caption-s" style="color: var(--wa-color-neutral-text-subtle); margin-top: var(--wa-space-m);"><wa-icon name="circle-info"></wa-icon> Approving links the account to the existing profile and rejects any other pending claims on it. Check the email before approving.</p>
+      </wa-tab-panel>
+      <wa-tab-panel name="uploads">
     ${pending.length === 0 ? `
       <div class="gallery-empty">
         <div class="ic"><wa-icon name="inbox"></wa-icon></div>
@@ -1111,7 +1425,23 @@ async function renderAdmin(root) {
           </div>
         </div>`).join('')}
       </div>`}
-    <p class="wa-caption-s" style="color: var(--wa-color-neutral-text-subtle); margin-top: var(--wa-space-m);"><wa-icon name="circle-info"></wa-icon> Internal view. Rejection reasons are shown to the uploader. Room is left for a future trusted-uploader tier that skips the queue.</p>`;
+    <p class="wa-caption-s" style="color: var(--wa-color-neutral-text-subtle); margin-top: var(--wa-space-m);"><wa-icon name="circle-info"></wa-icon> Internal view. Rejection reasons are shown to the uploader. Room is left for a future trusted-uploader tier that skips the queue.</p>
+      </wa-tab-panel>
+    </wa-tab-group>`;
+
+  root.querySelector('#admin-tabs')?.addEventListener('wa-tab-show', e => { adminTab = e.detail.name; });
+
+  const claimAction = (attr, rpc, done) => root.querySelectorAll(`[${attr}]`).forEach(btn => btn.addEventListener('click', async () => {
+    btn.setAttribute('loading', '');
+    const { error: err } = await sb.rpc(rpc, { p_claim_id: btn.getAttribute(attr) });
+    btn.removeAttribute('loading');
+    if (err) showError(err.code === '23505' ? 'That profile is already claimed, or the claimant already owns one.' : 'Could not update the claim — try again.');
+    else done();
+    await loadPublicData(); // an approved claim changes the public artist row
+    render();
+  }));
+  claimAction('data-claim-approve', 'approve_gallery_artist_claim', () => showSuccess('Claim approved — the profile is now an Artist'));
+  claimAction('data-claim-reject', 'reject_gallery_artist_claim', () => showToast('Claim rejected', 'danger', 'circle-xmark'));
 
   root.querySelectorAll('[data-approve]').forEach(btn => btn.addEventListener('click', async () => {
     const id = btn.dataset.approve;
@@ -1171,8 +1501,9 @@ function render() {
   const view = params.get('view');
 
   if (view === 'edit' && art) renderEditArtwork(root, art);
+  else if (view === 'edit-artist') renderEditArtist(root);
+  else if (artist) renderArtist(root, artist); // ?artist=&art= is the Commission link from an alter
   else if (art) renderDetail(root, art);
-  else if (artist) renderArtist(root, artist);
   else if (view === 'upload') renderUpload(root);
   else if (view === 'uploads') renderMyUploads(root);
   else if (view === 'admin') renderAdmin(root);
@@ -1183,7 +1514,7 @@ function render() {
 // Init
 // ============================================================
 
-initLayout({ activePage: 'gallery' });
+initLayout({ activePage: initialType === 'alter' ? 'alter-alley' : 'gallery' });
 
 loadPublicData().then(async () => {
   await Promise.all([loadMyLikes(), loadAdminFlag()]); // no-ops unless auth already restored

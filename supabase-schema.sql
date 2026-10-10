@@ -418,7 +418,7 @@ CREATE TABLE IF NOT EXISTS gallery_artists (
 CREATE TABLE IF NOT EXISTS gallery_artworks (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   title TEXT NOT NULL,
-  type TEXT NOT NULL CHECK (type IN ('proxy', 'token', 'showcase')),
+  type TEXT NOT NULL CHECK (type IN ('proxy', 'token', 'showcase', 'alter')),
   original_card_name TEXT,
   original_card_set TEXT,
   scryfall_url TEXT,
@@ -438,6 +438,12 @@ CREATE TABLE IF NOT EXISTS gallery_artworks (
   reviewed_at TIMESTAMPTZ,
   reviewed_by UUID REFERENCES auth.users(id)
 );
+
+-- Alter Alley (#322): 'alter' joins the types. Idempotent: the inline CHECK
+-- above is Postgres-named gallery_artworks_type_check on older deployments too.
+ALTER TABLE gallery_artworks DROP CONSTRAINT IF EXISTS gallery_artworks_type_check;
+ALTER TABLE gallery_artworks ADD CONSTRAINT gallery_artworks_type_check
+  CHECK (type IN ('proxy', 'token', 'showcase', 'alter'));
 
 CREATE INDEX IF NOT EXISTS idx_gallery_artworks_status_likes ON gallery_artworks(status, likes_count DESC);
 CREATE INDEX IF NOT EXISTS idx_gallery_artworks_uploader ON gallery_artworks(uploader_id);
@@ -656,6 +662,264 @@ CREATE POLICY "Users or admins delete gallery art"
     bucket_id = 'gallery-art'
     AND ((storage.foldername(name))[1] = auth.uid()::text OR is_gallery_admin())
   );
+
+-- ============================================
+-- MIGRATION: Artist claims and private contacts (#323)
+-- ============================================
+-- A signed-in maker claims an Attribution ("This is me"); an admin approves,
+-- which sets gallery_artists.user_id on the same row, so URL and credit are
+-- unchanged. The commission email lives in its own table because
+-- gallery_artists is publicly readable. Tests: tests/gallery-artists.sql.
+BEGIN;
+  CREATE TABLE IF NOT EXISTS gallery_artist_claims (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    artist_id UUID NOT NULL REFERENCES gallery_artists(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected')),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    reviewed_at TIMESTAMPTZ,
+    reviewed_by UUID REFERENCES auth.users(id)
+  );
+
+  -- One account owns at most one Artist.
+  CREATE UNIQUE INDEX IF NOT EXISTS gallery_artists_one_per_user
+    ON gallery_artists (user_id) WHERE user_id IS NOT NULL;
+
+  -- One pending claim per user per artist; a rejected maker may file again.
+  CREATE UNIQUE INDEX IF NOT EXISTS gallery_artist_claims_one_pending
+    ON gallery_artist_claims (user_id, artist_id) WHERE status = 'pending';
+
+  ALTER TABLE gallery_artist_claims ENABLE ROW LEVEL SECURITY;
+
+  DROP POLICY IF EXISTS "Users claim unclaimed artists" ON gallery_artist_claims;
+  CREATE POLICY "Users claim unclaimed artists"
+    ON gallery_artist_claims FOR INSERT
+    WITH CHECK (
+      user_id = auth.uid()
+      AND status = 'pending'
+      AND reviewed_at IS NULL
+      AND reviewed_by IS NULL
+      AND artist_id IN (SELECT id FROM gallery_artists WHERE user_id IS NULL)
+    );
+
+  DROP POLICY IF EXISTS "Users view own claims" ON gallery_artist_claims;
+  CREATE POLICY "Users view own claims"
+    ON gallery_artist_claims FOR SELECT
+    USING (user_id = auth.uid() OR is_gallery_admin());
+
+  CREATE TABLE IF NOT EXISTS gallery_artist_contacts (
+    artist_id UUID PRIMARY KEY REFERENCES gallery_artists(id) ON DELETE CASCADE,
+    commission_email TEXT NOT NULL
+  );
+
+  -- Readable by the owning Artist and admins only; writes go through
+  -- SECURITY DEFINER RPCs, and the commission relay uses the service role.
+  ALTER TABLE gallery_artist_contacts ENABLE ROW LEVEL SECURITY;
+
+  DROP POLICY IF EXISTS "Owners and admins view artist contacts" ON gallery_artist_contacts;
+  CREATE POLICY "Owners and admins view artist contacts"
+    ON gallery_artist_contacts FOR SELECT
+    USING (
+      is_gallery_admin()
+      OR artist_id IN (SELECT id FROM gallery_artists WHERE user_id = auth.uid())
+    );
+
+  -- Errors: 42501 not an admin, P0002 claim not pending,
+  -- 23505 artist already claimed or claimant already owns an artist.
+  CREATE OR REPLACE FUNCTION approve_gallery_artist_claim(p_claim_id UUID)
+    RETURNS void
+    LANGUAGE plpgsql
+    SECURITY DEFINER
+    SET search_path = public, pg_temp
+  AS $$
+  DECLARE
+    v_claim gallery_artist_claims;
+  BEGIN
+    IF NOT is_gallery_admin() THEN
+      RAISE EXCEPTION 'Only gallery admins can approve claims' USING ERRCODE = 'insufficient_privilege';
+    END IF;
+
+    SELECT * INTO v_claim FROM gallery_artist_claims
+      WHERE id = p_claim_id AND status = 'pending' FOR UPDATE;
+    IF NOT FOUND THEN
+      RAISE EXCEPTION 'Claim is not pending' USING ERRCODE = 'no_data_found';
+    END IF;
+
+    IF EXISTS (SELECT 1 FROM gallery_artists WHERE user_id = v_claim.user_id) THEN
+      RAISE EXCEPTION 'Claimant already owns an artist' USING ERRCODE = 'unique_violation';
+    END IF;
+
+    UPDATE gallery_artists SET user_id = v_claim.user_id
+      WHERE id = v_claim.artist_id AND user_id IS NULL;
+    IF NOT FOUND THEN
+      RAISE EXCEPTION 'Artist is already claimed' USING ERRCODE = 'unique_violation';
+    END IF;
+
+    UPDATE gallery_artist_claims SET status = 'approved', reviewed_at = now(), reviewed_by = auth.uid()
+      WHERE id = p_claim_id;
+    UPDATE gallery_artist_claims SET status = 'rejected', reviewed_at = now(), reviewed_by = auth.uid()
+      WHERE artist_id = v_claim.artist_id AND status = 'pending';
+
+    INSERT INTO gallery_artist_contacts (artist_id, commission_email)
+      SELECT v_claim.artist_id, u.email FROM auth.users u
+      WHERE u.id = v_claim.user_id AND u.email IS NOT NULL
+    ON CONFLICT (artist_id) DO UPDATE SET commission_email = EXCLUDED.commission_email;
+  END;
+  $$;
+
+  CREATE OR REPLACE FUNCTION reject_gallery_artist_claim(p_claim_id UUID)
+    RETURNS void
+    LANGUAGE plpgsql
+    SECURITY DEFINER
+    SET search_path = public, pg_temp
+  AS $$
+  BEGIN
+    IF NOT is_gallery_admin() THEN
+      RAISE EXCEPTION 'Only gallery admins can reject claims' USING ERRCODE = 'insufficient_privilege';
+    END IF;
+    UPDATE gallery_artist_claims SET status = 'rejected', reviewed_at = now(), reviewed_by = auth.uid()
+      WHERE id = p_claim_id AND status = 'pending';
+  END;
+  $$;
+
+  -- PostgREST doesn't expose auth.users, so the claimant email comes from here.
+  CREATE OR REPLACE FUNCTION list_gallery_artist_claims()
+    RETURNS TABLE (
+      claim_id UUID,
+      artist_id UUID,
+      artist_name TEXT,
+      claimant_id UUID,
+      claimant_email TEXT,
+      created_at TIMESTAMPTZ
+    )
+    LANGUAGE plpgsql
+    STABLE
+    SECURITY DEFINER
+    SET search_path = public, pg_temp
+  AS $$
+  #variable_conflict use_column
+  BEGIN
+    IF NOT is_gallery_admin() THEN
+      RAISE EXCEPTION 'Only gallery admins can list claims' USING ERRCODE = 'insufficient_privilege';
+    END IF;
+    RETURN QUERY
+      SELECT c.id, c.artist_id, a.name, c.user_id, u.email::TEXT, c.created_at
+      FROM gallery_artist_claims c
+      JOIN gallery_artists a ON a.id = c.artist_id
+      JOIN auth.users u ON u.id = c.user_id
+      WHERE c.status = 'pending'
+      ORDER BY c.created_at;
+  END;
+  $$;
+
+  -- Both revokes are needed: Supabase grants anon EXECUTE directly (#231).
+  REVOKE EXECUTE ON FUNCTION approve_gallery_artist_claim(UUID) FROM public;
+  REVOKE EXECUTE ON FUNCTION approve_gallery_artist_claim(UUID) FROM anon;
+  GRANT EXECUTE ON FUNCTION approve_gallery_artist_claim(UUID) TO authenticated;
+  REVOKE EXECUTE ON FUNCTION reject_gallery_artist_claim(UUID) FROM public;
+  REVOKE EXECUTE ON FUNCTION reject_gallery_artist_claim(UUID) FROM anon;
+  GRANT EXECUTE ON FUNCTION reject_gallery_artist_claim(UUID) TO authenticated;
+  REVOKE EXECUTE ON FUNCTION list_gallery_artist_claims() FROM public;
+  REVOKE EXECUTE ON FUNCTION list_gallery_artist_claims() FROM anon;
+  GRANT EXECUTE ON FUNCTION list_gallery_artist_claims() TO authenticated;
+COMMIT;
+
+-- ============================================
+-- MIGRATION: Artist profile and commission settings (#324)
+-- ============================================
+-- The owning Artist edits bio/links/avatar and commission settings through an
+-- RPC, not an owner-UPDATE policy: WITH CHECK can't stop a write to is_partner
+-- or user_id. Edits go live without review. The commission email stays in
+-- gallery_artist_contacts, never on the public row. Tests: tests/gallery-artists.sql.
+BEGIN;
+  ALTER TABLE gallery_artists ADD COLUMN IF NOT EXISTS commissions_open BOOLEAN NOT NULL DEFAULT false;
+  ALTER TABLE gallery_artists ADD COLUMN IF NOT EXISTS commission_note TEXT DEFAULT '';
+
+  -- Errors: P0002 caller owns no artist row, 23514 bad email, open without one,
+  -- or an avatar/link href that isn't https://.
+  -- A blank p_commission_email keeps the stored address.
+  CREATE OR REPLACE FUNCTION update_own_gallery_artist(
+    p_bio TEXT,
+    p_links JSONB,
+    p_avatar_url TEXT,
+    p_commissions_open BOOLEAN,
+    p_commission_note TEXT,
+    p_commission_email TEXT
+  )
+    RETURNS void
+    LANGUAGE plpgsql
+    SECURITY DEFINER
+    SET search_path = public, pg_temp
+  AS $$
+  DECLARE
+    v_artist_id UUID;
+    v_email TEXT := nullif(btrim(coalesce(p_commission_email, '')), '');
+  BEGIN
+    SELECT id INTO v_artist_id FROM gallery_artists WHERE user_id = auth.uid() LIMIT 1;
+    IF v_artist_id IS NULL THEN
+      RAISE EXCEPTION 'You do not own an artist profile' USING ERRCODE = 'no_data_found';
+    END IF;
+
+    IF v_email IS NOT NULL AND v_email !~ '^[^@[:space:]]+@[^@[:space:]]+\.[^@[:space:]]+$' THEN
+      RAISE EXCEPTION 'Commission email is not a valid address' USING ERRCODE = 'check_violation';
+    END IF;
+    IF nullif(btrim(coalesce(p_avatar_url, '')), '') !~* '^https://' THEN
+      RAISE EXCEPTION 'Avatar must be an https:// address' USING ERRCODE = 'check_violation';
+    END IF;
+    -- CASE, not OR: jsonb_array_elements raises on a non-array, and OR has no evaluation order.
+    -- Parenthesised: PL/pgSQL ends an IF condition at the first bare THEN.
+    IF (CASE WHEN jsonb_typeof(coalesce(p_links, '[]'::jsonb)) <> 'array' THEN true
+             ELSE EXISTS (SELECT 1 FROM jsonb_array_elements(coalesce(p_links, '[]'::jsonb)) l
+                          WHERE coalesce(l->>'href', '') !~* '^https://') END) THEN
+      RAISE EXCEPTION 'Every link must be an https:// address' USING ERRCODE = 'check_violation';
+    END IF;
+    IF coalesce(p_commissions_open, false) AND v_email IS NULL
+       AND NOT EXISTS (SELECT 1 FROM gallery_artist_contacts WHERE artist_id = v_artist_id) THEN
+      RAISE EXCEPTION 'Commissions need an email to open' USING ERRCODE = 'check_violation';
+    END IF;
+
+    UPDATE gallery_artists SET
+      bio = coalesce(p_bio, ''),
+      links = coalesce(p_links, '[]'::jsonb),
+      avatar_url = nullif(btrim(coalesce(p_avatar_url, '')), ''),
+      commissions_open = coalesce(p_commissions_open, false),
+      commission_note = coalesce(p_commission_note, '')
+    WHERE id = v_artist_id;
+
+    IF v_email IS NOT NULL THEN
+      INSERT INTO gallery_artist_contacts (artist_id, commission_email) VALUES (v_artist_id, v_email)
+      ON CONFLICT (artist_id) DO UPDATE SET commission_email = EXCLUDED.commission_email;
+    END IF;
+  END;
+  $$;
+
+  REVOKE EXECUTE ON FUNCTION update_own_gallery_artist(TEXT, JSONB, TEXT, BOOLEAN, TEXT, TEXT) FROM public;
+  REVOKE EXECUTE ON FUNCTION update_own_gallery_artist(TEXT, JSONB, TEXT, BOOLEAN, TEXT, TEXT) FROM anon;
+  GRANT EXECUTE ON FUNCTION update_own_gallery_artist(TEXT, JSONB, TEXT, BOOLEAN, TEXT, TEXT) TO authenticated;
+COMMIT;
+
+-- ============================================
+-- MIGRATION: Commission relay ledger (#325)
+-- ============================================
+-- One row per relayed Commission, written by the /api/commission edge function
+-- with the service role after Resend accepts the email. It is the rate-limit
+-- ledger (3 per requester per 24 h, 1 per requester per artist per 24 h) and
+-- deliberately keeps no message body or address. Tests: tests/gallery-artists.sql.
+BEGIN;
+  CREATE TABLE IF NOT EXISTS gallery_commission_sends (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    artist_id UUID NOT NULL REFERENCES gallery_artists(id) ON DELETE CASCADE,
+    artwork_id UUID REFERENCES gallery_artworks(id) ON DELETE SET NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+  );
+
+  CREATE INDEX IF NOT EXISTS gallery_commission_sends_user_recent
+    ON gallery_commission_sends (user_id, created_at DESC);
+
+  ALTER TABLE gallery_commission_sends ENABLE ROW LEVEL SECURITY;
+  -- gallery_commission_sends: RLS enabled, zero policies — service role only.
+COMMIT;
 
 -- ============================================
 -- MIGRATION: Founders and the entitlement predicate

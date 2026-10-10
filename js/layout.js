@@ -33,6 +33,7 @@ const NAV_LINKS = [
   { href: 'guide.html', label: 'Guide', page: 'guide' },
   { href: 'tools.html', label: 'Tools', page: 'tools' },
   { href: 'gallery.html', label: 'Gallery', page: 'gallery' },
+  { href: 'gallery.html?type=alter', label: 'Alter Alley', page: 'alter-alley' },
   { href: 'build.html', label: 'My PRISM', page: 'build' },
 ];
 
