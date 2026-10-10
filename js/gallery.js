@@ -114,6 +114,7 @@ function mapArtist(r) {
     avatarUrl: r.avatar_url,
     links: Array.isArray(r.links) ? r.links : [],
     isPartner: r.is_partner,
+    userId: r.user_id || null, // set = a claimed Artist; null = an Attribution
   };
 }
 
@@ -544,6 +545,7 @@ function renderArtist(root, id) {
         </div>
         <p style="color: var(--wa-color-neutral-text); margin: var(--wa-space-xs) 0 0; max-width: 64ch;">${escapeHtml(artist.bio)}</p>
         ${artist.links.length ? `<div class="wa-cluster wa-gap-m" style="margin-top: var(--wa-space-s); font-size: var(--wa-font-size-s);">${artist.links.map(l => `<a href="${escapeHtml(safeUrl(l.href))}" target="_blank" rel="noopener"><wa-icon name="${escapeHtml(l.icon || 'globe')}"${l.family ? ` family="${escapeHtml(l.family)}"` : ''}></wa-icon> ${escapeHtml(l.label)}</a>`).join('')}</div>` : ''}
+        ${artist.userId ? '' : '<div id="artist-claim" class="wa-cluster wa-gap-s wa-align-items-center" style="margin-top: var(--wa-space-s);"></div>'}
         ${artist.isPartner ? `
         <div class="gallery-stats">
           <div class="gallery-stat"><b>${works.length}</b><span>Works</span></div>
@@ -558,6 +560,56 @@ function renderArtist(root, id) {
       : '<p style="color: var(--wa-color-neutral-text-subtle);">No public works yet.</p>'}`;
 
   wireLikeButtons(root);
+  renderClaimSlot(root.querySelector('#artist-claim'), artist);
+}
+
+/** "This is me" on an unclaimed profile, or "Claim pending" once filed. */
+async function renderClaimSlot(slot, artist) {
+  if (!slot) return; // claimed profile: nothing to show
+  const user = getCurrentUser();
+  const sb = getSupabase();
+  let claims = [];
+  if (user && sb && !usingDemo) {
+    const { data } = await sb.from('gallery_artist_claims')
+      .select('status, created_at')
+      .eq('artist_id', artist.id)
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false });
+    claims = data || [];
+  }
+  if (!slot.isConnected) return; // navigated away while loading
+
+  if (claims.some(c => c.status === 'pending')) {
+    slot.innerHTML = `
+      <wa-tag variant="warning"><wa-icon slot="start" name="hourglass-half"></wa-icon>Claim pending</wa-tag>
+      <span class="wa-caption-s" style="color: var(--wa-color-neutral-text-subtle);">An admin will review it soon.</span>`;
+    return;
+  }
+  const rejected = claims[0]?.status === 'rejected';
+  slot.innerHTML = `
+    <wa-button size="s" appearance="outlined" id="btn-claim-artist"><wa-icon slot="start" name="user-check"></wa-icon>This is me</wa-button>
+    ${rejected ? '<span class="wa-caption-s" style="color: var(--wa-color-neutral-text-subtle);">Your last claim on this profile was rejected. If that was a mistake, contact PRISM.</span>' : ''}`;
+  slot.querySelector('#btn-claim-artist').addEventListener('click', async () => {
+    const me = getCurrentUser();
+    if (!me) {
+      showToast('Sign in to claim this profile', 'brand', 'user-check');
+      promptSignIn();
+      return;
+    }
+    if (usingDemo) {
+      showToast('Demo data — deploy the gallery schema to enable claims', 'neutral', 'database');
+      return;
+    }
+    const { error } = await getSupabase().from('gallery_artist_claims')
+      .insert({ artist_id: artist.id, user_id: me.id });
+    // 23505: a pending claim already exists, which is the outcome wanted anyway
+    if (error && error.code !== '23505') {
+      showError('Could not send your claim — try again.');
+      return;
+    }
+    showSuccess('Claim sent — an admin will review it.');
+    renderClaimSlot(slot, artist);
+  });
 }
 
 // ============================================================
@@ -1028,6 +1080,8 @@ async function renderMyUploads(root) {
 // Admin moderation queue (gallery admins only)
 // ============================================================
 
+let adminTab = 'uploads'; // kept across re-renders so approving a claim stays on Claims
+
 async function renderAdmin(root) {
   const user = getCurrentUser();
   if (!user) {
@@ -1043,25 +1097,61 @@ async function renderAdmin(root) {
     return;
   }
 
-  const { data, error } = await sb.from('gallery_artworks')
-    .select('*')
-    .eq('status', 'pending')
-    .order('created_at', { ascending: true });
+  const [{ data, error }, claimsRes] = await Promise.all([
+    sb.from('gallery_artworks')
+      .select('*')
+      .eq('status', 'pending')
+      .order('created_at', { ascending: true }),
+    sb.rpc('list_gallery_artist_claims'),
+  ]);
   if (error) {
     renderNotFound(root, 'Could not load the queue', 'Check your connection and reload.');
     return;
   }
   const pending = (data || []).map(mapArtwork);
+  const claims = claimsRes.data || [];
 
   root.innerHTML = `
     ${breadcrumbHtml([{ label: 'Gallery', href: 'gallery.html' }, { label: 'Moderation queue' }])}
     <div class="wa-split" style="align-items: flex-start;">
       <div>
         <h1 class="wa-heading-2xl">Moderation queue</h1>
-        <p style="color: var(--wa-color-neutral-text-subtle); margin-top: var(--wa-space-2xs);">Review pending uploads. Approve, reject with a reason, set Highlight and a store URL.</p>
+        <p style="color: var(--wa-color-neutral-text-subtle); margin-top: var(--wa-space-2xs);">Review pending uploads and artist claims.</p>
       </div>
-      <wa-tag variant="warning" size="l"><wa-icon slot="start" name="inbox"></wa-icon>${pending.length} pending</wa-tag>
+      <wa-tag variant="warning" size="l"><wa-icon slot="start" name="inbox"></wa-icon>${pending.length + claims.length} pending</wa-tag>
     </div>
+    <wa-tab-group id="admin-tabs" active="${adminTab}" style="margin-top: var(--wa-space-m);">
+      <wa-tab panel="uploads">Uploads &middot; ${pending.length}</wa-tab>
+      <wa-tab panel="claims">Claims &middot; ${claims.length}</wa-tab>
+      <wa-tab-panel name="claims">${claimsRes.error
+        ? '<p style="color: var(--wa-color-neutral-text-subtle);">Could not load claims. Check that the schema is deployed, then reload.</p>'
+        : claims.length === 0 ? `
+        <div class="gallery-empty">
+          <div class="ic"><wa-icon name="user-check"></wa-icon></div>
+          <h3 class="wa-heading-s">No pending claims</h3>
+          <p class="wa-caption-m" style="color: var(--wa-color-neutral-text-subtle);">When a maker clicks &ldquo;This is me&rdquo; on their profile, the claim lands here.</p>
+        </div>` : `
+        <div class="wa-stack wa-gap-m">
+          ${claims.map(c => `
+          <div class="gallery-queue-card">
+            <div class="wa-split" style="align-items: flex-start; gap: var(--wa-space-m);">
+              <div class="gallery-rowmeta">
+                <strong><a href="gallery.html?artist=${encodeURIComponent(c.artist_id)}">${escapeHtml(c.artist_name)}</a></strong>
+                <div class="gallery-rowsub">
+                  <span><wa-icon name="envelope"></wa-icon> ${escapeHtml(c.claimant_email || 'No email on account')}</span>
+                  <span>Claimed <wa-relative-time date="${escapeHtml(c.created_at)}"></wa-relative-time></span>
+                </div>
+              </div>
+              <div class="wa-cluster wa-gap-xs">
+                <wa-button size="s" variant="success" data-claim-approve="${c.claim_id}"><wa-icon slot="start" name="check"></wa-icon>Approve</wa-button>
+                <wa-button size="s" variant="danger" appearance="outlined" data-claim-reject="${c.claim_id}"><wa-icon slot="start" name="xmark"></wa-icon>Reject</wa-button>
+              </div>
+            </div>
+          </div>`).join('')}
+        </div>`}
+        <p class="wa-caption-s" style="color: var(--wa-color-neutral-text-subtle); margin-top: var(--wa-space-m);"><wa-icon name="circle-info"></wa-icon> Approving links the account to the existing profile and rejects any other pending claims on it. Check the email before approving.</p>
+      </wa-tab-panel>
+      <wa-tab-panel name="uploads">
     ${pending.length === 0 ? `
       <div class="gallery-empty">
         <div class="ic"><wa-icon name="inbox"></wa-icon></div>
@@ -1111,7 +1201,23 @@ async function renderAdmin(root) {
           </div>
         </div>`).join('')}
       </div>`}
-    <p class="wa-caption-s" style="color: var(--wa-color-neutral-text-subtle); margin-top: var(--wa-space-m);"><wa-icon name="circle-info"></wa-icon> Internal view. Rejection reasons are shown to the uploader. Room is left for a future trusted-uploader tier that skips the queue.</p>`;
+    <p class="wa-caption-s" style="color: var(--wa-color-neutral-text-subtle); margin-top: var(--wa-space-m);"><wa-icon name="circle-info"></wa-icon> Internal view. Rejection reasons are shown to the uploader. Room is left for a future trusted-uploader tier that skips the queue.</p>
+      </wa-tab-panel>
+    </wa-tab-group>`;
+
+  root.querySelector('#admin-tabs')?.addEventListener('wa-tab-show', e => { adminTab = e.detail.name; });
+
+  const claimAction = (attr, rpc, done) => root.querySelectorAll(`[${attr}]`).forEach(btn => btn.addEventListener('click', async () => {
+    btn.loading = true;
+    const { error: err } = await sb.rpc(rpc, { p_claim_id: btn.getAttribute(attr) });
+    btn.loading = false;
+    if (err) showError(err.code === '23505' ? 'That profile is already claimed.' : 'Could not update the claim — try again.');
+    else done();
+    await loadPublicData(); // an approved claim changes the public artist row
+    render();
+  }));
+  claimAction('data-claim-approve', 'approve_gallery_artist_claim', () => showSuccess('Claim approved — the profile is now an Artist'));
+  claimAction('data-claim-reject', 'reject_gallery_artist_claim', () => showToast('Claim rejected', 'danger', 'circle-xmark'));
 
   root.querySelectorAll('[data-approve]').forEach(btn => btn.addEventListener('click', async () => {
     const id = btn.dataset.approve;

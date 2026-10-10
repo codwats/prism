@@ -658,6 +658,158 @@ CREATE POLICY "Users or admins delete gallery art"
   );
 
 -- ============================================
+-- MIGRATION: Artist claims and private contacts (#323)
+-- ============================================
+-- A signed-in maker claims an Attribution ("This is me"); an admin approves,
+-- which sets gallery_artists.user_id on the same row, so URL and credit are
+-- unchanged. The commission email lives in its own table because
+-- gallery_artists is publicly readable. Tests: tests/gallery-artists.sql.
+BEGIN;
+  CREATE TABLE IF NOT EXISTS gallery_artist_claims (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    artist_id UUID NOT NULL REFERENCES gallery_artists(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected')),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    reviewed_at TIMESTAMPTZ,
+    reviewed_by UUID REFERENCES auth.users(id)
+  );
+
+  -- One pending claim per user per artist; a rejected maker may file again.
+  CREATE UNIQUE INDEX IF NOT EXISTS gallery_artist_claims_one_pending
+    ON gallery_artist_claims (user_id, artist_id) WHERE status = 'pending';
+
+  ALTER TABLE gallery_artist_claims ENABLE ROW LEVEL SECURITY;
+
+  DROP POLICY IF EXISTS "Users claim unclaimed artists" ON gallery_artist_claims;
+  CREATE POLICY "Users claim unclaimed artists"
+    ON gallery_artist_claims FOR INSERT
+    WITH CHECK (
+      user_id = auth.uid()
+      AND status = 'pending'
+      AND reviewed_at IS NULL
+      AND reviewed_by IS NULL
+      AND artist_id IN (SELECT id FROM gallery_artists WHERE user_id IS NULL)
+    );
+
+  DROP POLICY IF EXISTS "Users view own claims" ON gallery_artist_claims;
+  CREATE POLICY "Users view own claims"
+    ON gallery_artist_claims FOR SELECT
+    USING (user_id = auth.uid() OR is_gallery_admin());
+
+  CREATE TABLE IF NOT EXISTS gallery_artist_contacts (
+    artist_id UUID PRIMARY KEY REFERENCES gallery_artists(id) ON DELETE CASCADE,
+    commission_email TEXT NOT NULL
+  );
+
+  -- Readable by the owning Artist and admins only; writes go through
+  -- SECURITY DEFINER RPCs, and the commission relay uses the service role.
+  ALTER TABLE gallery_artist_contacts ENABLE ROW LEVEL SECURITY;
+
+  DROP POLICY IF EXISTS "Owners and admins view artist contacts" ON gallery_artist_contacts;
+  CREATE POLICY "Owners and admins view artist contacts"
+    ON gallery_artist_contacts FOR SELECT
+    USING (
+      is_gallery_admin()
+      OR artist_id IN (SELECT id FROM gallery_artists WHERE user_id = auth.uid())
+    );
+
+  -- Errors: 42501 not an admin, P0002 claim not pending, 23505 artist already claimed.
+  CREATE OR REPLACE FUNCTION approve_gallery_artist_claim(p_claim_id UUID)
+    RETURNS void
+    LANGUAGE plpgsql
+    SECURITY DEFINER
+    SET search_path = public, pg_temp
+  AS $$
+  DECLARE
+    v_claim gallery_artist_claims;
+  BEGIN
+    IF NOT is_gallery_admin() THEN
+      RAISE EXCEPTION 'Only gallery admins can approve claims' USING ERRCODE = 'insufficient_privilege';
+    END IF;
+
+    SELECT * INTO v_claim FROM gallery_artist_claims
+      WHERE id = p_claim_id AND status = 'pending' FOR UPDATE;
+    IF NOT FOUND THEN
+      RAISE EXCEPTION 'Claim is not pending' USING ERRCODE = 'no_data_found';
+    END IF;
+
+    UPDATE gallery_artists SET user_id = v_claim.user_id
+      WHERE id = v_claim.artist_id AND user_id IS NULL;
+    IF NOT FOUND THEN
+      RAISE EXCEPTION 'Artist is already claimed' USING ERRCODE = 'unique_violation';
+    END IF;
+
+    UPDATE gallery_artist_claims SET status = 'approved', reviewed_at = now(), reviewed_by = auth.uid()
+      WHERE id = p_claim_id;
+    UPDATE gallery_artist_claims SET status = 'rejected', reviewed_at = now(), reviewed_by = auth.uid()
+      WHERE artist_id = v_claim.artist_id AND status = 'pending';
+
+    INSERT INTO gallery_artist_contacts (artist_id, commission_email)
+      SELECT v_claim.artist_id, u.email FROM auth.users u
+      WHERE u.id = v_claim.user_id AND u.email IS NOT NULL
+    ON CONFLICT (artist_id) DO UPDATE SET commission_email = EXCLUDED.commission_email;
+  END;
+  $$;
+
+  CREATE OR REPLACE FUNCTION reject_gallery_artist_claim(p_claim_id UUID)
+    RETURNS void
+    LANGUAGE plpgsql
+    SECURITY DEFINER
+    SET search_path = public, pg_temp
+  AS $$
+  BEGIN
+    IF NOT is_gallery_admin() THEN
+      RAISE EXCEPTION 'Only gallery admins can reject claims' USING ERRCODE = 'insufficient_privilege';
+    END IF;
+    UPDATE gallery_artist_claims SET status = 'rejected', reviewed_at = now(), reviewed_by = auth.uid()
+      WHERE id = p_claim_id AND status = 'pending';
+  END;
+  $$;
+
+  -- PostgREST doesn't expose auth.users, so the claimant email comes from here.
+  CREATE OR REPLACE FUNCTION list_gallery_artist_claims()
+    RETURNS TABLE (
+      claim_id UUID,
+      artist_id UUID,
+      artist_name TEXT,
+      claimant_id UUID,
+      claimant_email TEXT,
+      created_at TIMESTAMPTZ
+    )
+    LANGUAGE plpgsql
+    STABLE
+    SECURITY DEFINER
+    SET search_path = public, pg_temp
+  AS $$
+  #variable_conflict use_column
+  BEGIN
+    IF NOT is_gallery_admin() THEN
+      RAISE EXCEPTION 'Only gallery admins can list claims' USING ERRCODE = 'insufficient_privilege';
+    END IF;
+    RETURN QUERY
+      SELECT c.id, c.artist_id, a.name, c.user_id, u.email::TEXT, c.created_at
+      FROM gallery_artist_claims c
+      JOIN gallery_artists a ON a.id = c.artist_id
+      JOIN auth.users u ON u.id = c.user_id
+      WHERE c.status = 'pending'
+      ORDER BY c.created_at;
+  END;
+  $$;
+
+  -- Both revokes are needed: Supabase grants anon EXECUTE directly (#231).
+  REVOKE EXECUTE ON FUNCTION approve_gallery_artist_claim(UUID) FROM public;
+  REVOKE EXECUTE ON FUNCTION approve_gallery_artist_claim(UUID) FROM anon;
+  GRANT EXECUTE ON FUNCTION approve_gallery_artist_claim(UUID) TO authenticated;
+  REVOKE EXECUTE ON FUNCTION reject_gallery_artist_claim(UUID) FROM public;
+  REVOKE EXECUTE ON FUNCTION reject_gallery_artist_claim(UUID) FROM anon;
+  GRANT EXECUTE ON FUNCTION reject_gallery_artist_claim(UUID) TO authenticated;
+  REVOKE EXECUTE ON FUNCTION list_gallery_artist_claims() FROM public;
+  REVOKE EXECUTE ON FUNCTION list_gallery_artist_claims() FROM anon;
+  GRANT EXECUTE ON FUNCTION list_gallery_artist_claims() TO authenticated;
+COMMIT;
+
+-- ============================================
 -- MIGRATION: Founders and the entitlement predicate
 -- ============================================
 -- Safe to deploy before the cutover: while app_config.payment_enforcement is
