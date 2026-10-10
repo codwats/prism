@@ -740,6 +740,7 @@ const EMAIL_RE = /\S+@\S+\.\S+/;
 
 // Suggested display name: last used, else the email's local part —
 // never the full email, since artist_name renders publicly on the site.
+// An Artist gets their page's name instead, which approval links on (#321).
 function defaultArtistName(user) {
   try {
     const stored = localStorage.getItem(ARTIST_NAME_KEY);
@@ -855,7 +856,7 @@ function renderUpload(root) {
       <wa-file-input id="upload-file" accept="image/png,image/jpeg,image/webp" hint="PNG, JPG, or WebP &middot; up to 10 MB &middot; high-res recommended for print">
         <span slot="label">Image <span style="color: var(--wa-color-danger-text);">*</span></span>
       </wa-file-input>
-      ${artworkFieldsHtml({ artistName: defaultArtistName(user) })}
+      ${artworkFieldsHtml({ artistName: artistsDb.find(a => a.userId === user.id)?.name || defaultArtistName(user) })}
       <div class="gallery-ack">
         <wa-checkbox id="up-ack">I confirm this upload follows the rules:</wa-checkbox>
         <span class="wa-caption-s" style="color: var(--wa-color-neutral-text-subtle);">MTG-related only &middot; your own work or permission held &middot; no NSFW &middot; AI art is labeled</span>

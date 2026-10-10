@@ -505,3 +505,67 @@ BEGIN
     'a requester must not clear their own rate-limit ledger';
 END $$;
 ROLLBACK;
+
+-- ============================================
+-- Auto-link: approval attaches an upload to its uploader's artist page
+-- ============================================
+BEGIN;
+
+INSERT INTO auth.users (id, email, email_confirmed_at) VALUES
+  ('32700000-0000-0000-0000-00000000000a', 'linked-artist@example.invalid', now()),
+  ('32700000-0000-0000-0000-00000000000b', 'claimer@example.invalid', now()),
+  ('32700000-0000-0000-0000-00000000000c', 'plain-uploader@example.invalid', now()),
+  ('32700000-0000-0000-0000-00000000000d', 'link-admin@example.invalid', now());
+INSERT INTO public.gallery_admins (user_id) VALUES ('32700000-0000-0000-0000-00000000000d');
+-- K is an Artist owned by A; L is an unclaimed Attribution B will claim.
+INSERT INTO public.gallery_artists (id, name, user_id) VALUES
+  ('32700000-0000-0000-0001-000000000001', 'Kay Brush', '32700000-0000-0000-0000-00000000000a'),
+  ('32700000-0000-0000-0001-000000000002', 'Lu Ink', NULL);
+INSERT INTO public.gallery_artworks (id, title, type, artist_name, uploader_id, image_path, status) VALUES
+  -- A's own work (credit matches, case/space-insensitive), blank credit, and someone else's work.
+  ('32700000-0000-0000-0002-000000000001', 'Own', 'proxy', ' kay brush ', '32700000-0000-0000-0000-00000000000a', 'a/1.png', 'pending'),
+  ('32700000-0000-0000-0002-000000000002', 'Blank', 'token', NULL, '32700000-0000-0000-0000-00000000000a', 'a/2.png', 'pending'),
+  ('32700000-0000-0000-0002-000000000003', 'Friend', 'proxy', 'Someone Else', '32700000-0000-0000-0000-00000000000a', 'a/3.png', 'pending'),
+  -- C owns no artist page.
+  ('32700000-0000-0000-0002-000000000004', 'Plain', 'proxy', 'Cee', '32700000-0000-0000-0000-00000000000c', 'c/1.png', 'pending'),
+  -- B uploaded before claiming L: one approved, one still pending, one credited elsewhere.
+  ('32700000-0000-0000-0002-000000000005', 'Early', 'proxy', 'Lu Ink', '32700000-0000-0000-0000-00000000000b', 'b/1.png', 'approved'),
+  ('32700000-0000-0000-0002-000000000006', 'Queued', 'alter', 'Lu Ink', '32700000-0000-0000-0000-00000000000b', 'b/2.png', 'pending'),
+  ('32700000-0000-0000-0002-000000000007', 'Theirs', 'proxy', 'Other Hand', '32700000-0000-0000-0000-00000000000b', 'b/3.png', 'approved');
+INSERT INTO public.gallery_artist_claims (id, artist_id, user_id) VALUES
+  ('32700000-0000-0000-0003-000000000001', '32700000-0000-0000-0001-000000000002', '32700000-0000-0000-0000-00000000000b');
+
+-- ---- Admin D approves uploads the way the admin view does ----
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', '32700000-0000-0000-0000-00000000000d', true);
+DO $$
+BEGIN
+  UPDATE public.gallery_artworks SET status = 'approved'
+    WHERE id IN ('32700000-0000-0000-0002-000000000001', '32700000-0000-0000-0002-000000000002',
+                 '32700000-0000-0000-0002-000000000003', '32700000-0000-0000-0002-000000000004');
+  ASSERT (SELECT artist_id FROM public.gallery_artworks WHERE id = '32700000-0000-0000-0002-000000000001')
+    = '32700000-0000-0000-0001-000000000001', 'own work must join the uploader''s artist page';
+  ASSERT (SELECT artist_id FROM public.gallery_artworks WHERE id = '32700000-0000-0000-0002-000000000002')
+    = '32700000-0000-0000-0001-000000000001', 'blank credit must join the uploader''s artist page';
+  ASSERT (SELECT artist_id FROM public.gallery_artworks WHERE id = '32700000-0000-0000-0002-000000000003') IS NULL,
+    'work credited to someone else must stay an Attribution';
+  ASSERT (SELECT artist_id FROM public.gallery_artworks WHERE id = '32700000-0000-0000-0002-000000000004') IS NULL,
+    'an uploader with no artist page links to nothing';
+
+  -- An admin clearing a link on an approved work is not undone by a later edit.
+  UPDATE public.gallery_artworks SET artist_id = NULL WHERE id = '32700000-0000-0000-0002-000000000002';
+  UPDATE public.gallery_artworks SET status = 'approved', highlighted = true WHERE id = '32700000-0000-0000-0002-000000000002';
+  ASSERT (SELECT artist_id FROM public.gallery_artworks WHERE id = '32700000-0000-0000-0002-000000000002') IS NULL,
+    'only the move to approved links; an admin''s unlink must stick';
+
+  -- Claim approval pulls in the claimant's earlier matching uploads, approved or pending.
+  PERFORM public.approve_gallery_artist_claim('32700000-0000-0000-0003-000000000001');
+  ASSERT (SELECT artist_id FROM public.gallery_artworks WHERE id = '32700000-0000-0000-0002-000000000005')
+    = '32700000-0000-0000-0001-000000000002', 'an approved upload made before the claim must join the page';
+  ASSERT (SELECT artist_id FROM public.gallery_artworks WHERE id = '32700000-0000-0000-0002-000000000006')
+    = '32700000-0000-0000-0001-000000000002', 'a pending upload made before the claim must join the page';
+  ASSERT (SELECT artist_id FROM public.gallery_artworks WHERE id = '32700000-0000-0000-0002-000000000007') IS NULL,
+    'a pre-claim upload credited to someone else must stay an Attribution';
+END $$;
+RESET ROLE;
+ROLLBACK;
