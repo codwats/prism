@@ -507,6 +507,104 @@ END $$;
 ROLLBACK;
 
 -- ============================================
+-- Review notification ledger (#333): service role only
+-- ============================================
+BEGIN;
+
+INSERT INTO auth.users (id, email, email_confirmed_at) VALUES
+  ('33300000-0000-0000-0000-00000000000a', 'notify-uploader@example.invalid', now()),
+  ('33300000-0000-0000-0000-00000000000d', 'notify-admin@example.invalid', now());
+INSERT INTO public.gallery_admins (user_id) VALUES ('33300000-0000-0000-0000-00000000000d');
+-- As the edge function writes it (postgres here stands in for the service role).
+INSERT INTO public.gallery_review_notices (kind, item_id) VALUES
+  ('upload', '33300000-0000-0000-0002-000000000001');
+
+DO $$
+BEGIN
+  ASSERT (SELECT relrowsecurity FROM pg_class WHERE oid = 'public.gallery_review_notices'::regclass),
+    'gallery_review_notices must have RLS enabled';
+  ASSERT (SELECT count(*) FROM pg_policies
+          WHERE schemaname = 'public' AND tablename = 'gallery_review_notices') = 0,
+    'gallery_review_notices must have zero policies';
+  BEGIN
+    INSERT INTO public.gallery_review_notices (kind, item_id) VALUES
+      ('upload', '33300000-0000-0000-0002-000000000001');
+    RAISE EXCEPTION 'the ledger must hold one row per item';
+  EXCEPTION WHEN unique_violation THEN NULL;
+  END;
+  BEGIN
+    INSERT INTO public.gallery_review_notices (kind, item_id) VALUES
+      ('like', '33300000-0000-0000-0002-000000000002');
+    RAISE EXCEPTION 'the ledger must refuse an unknown kind';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+END $$;
+
+-- ---- Neither the uploader nor an admin can read or write it ----
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', '33300000-0000-0000-0000-00000000000a', true);
+DO $$
+BEGIN
+  BEGIN
+    ASSERT (SELECT count(*) FROM public.gallery_review_notices) = 0, 'an uploader read the ledger';
+  EXCEPTION WHEN insufficient_privilege THEN NULL;
+  END;
+  BEGIN
+    INSERT INTO public.gallery_review_notices (kind, item_id) VALUES
+      ('claim', '33300000-0000-0000-0003-000000000001');
+    RAISE EXCEPTION 'an uploader wrote a ledger row';
+  EXCEPTION WHEN insufficient_privilege THEN NULL;
+  END;
+  BEGIN
+    DELETE FROM public.gallery_review_notices;
+  EXCEPTION WHEN insufficient_privilege THEN NULL;
+  END;
+END $$;
+
+SELECT set_config('request.jwt.claim.sub', '33300000-0000-0000-0000-00000000000d', true);
+DO $$
+BEGIN
+  BEGIN
+    ASSERT (SELECT count(*) FROM public.gallery_review_notices) = 0, 'an admin read the ledger';
+  EXCEPTION WHEN insufficient_privilege THEN NULL;
+  END;
+  BEGIN
+    INSERT INTO public.gallery_review_notices (kind, item_id) VALUES
+      ('claim', '33300000-0000-0000-0003-000000000002');
+    RAISE EXCEPTION 'an admin wrote a ledger row';
+  EXCEPTION WHEN insufficient_privilege THEN NULL;
+  END;
+END $$;
+RESET ROLE;
+
+-- ---- Nor an anonymous visitor ----
+SET LOCAL ROLE anon;
+SELECT set_config('request.jwt.claim.sub', '', true);
+DO $$
+BEGIN
+  BEGIN
+    ASSERT (SELECT count(*) FROM public.gallery_review_notices) = 0, 'anon read the ledger';
+  EXCEPTION WHEN insufficient_privilege THEN NULL;
+  END;
+  BEGIN
+    INSERT INTO public.gallery_review_notices (kind, item_id) VALUES
+      ('upload', '33300000-0000-0000-0002-000000000003');
+    RAISE EXCEPTION 'anon wrote a ledger row';
+  EXCEPTION WHEN insufficient_privilege THEN NULL;
+  END;
+END $$;
+RESET ROLE;
+
+-- The DELETE above must not have removed the row; nothing else was added.
+DO $$
+BEGIN
+  ASSERT (SELECT count(*) FROM public.gallery_review_notices
+          WHERE item_id::text LIKE '33300000-%') = 1,
+    'only the service role may change the notification ledger';
+END $$;
+ROLLBACK;
+
+-- ============================================
 -- Auto-link: approval attaches an upload to its uploader's artist page
 -- ============================================
 BEGIN;
