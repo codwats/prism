@@ -34,7 +34,7 @@ import { escapeHtml } from './core/utils.js';
 const DEMO_ARTISTS = [
   { id: 'reyes', name: 'M. Reyes', isPartner: true, bio: 'Illustrator specializing in artifact and enchantment treatments for Commander. Partnered with PRISM to share proxy and showcase art for personal use.', links: [{ label: 'mreyes.art', icon: 'globe', href: '#' }, { label: '@mreyes', icon: 'instagram', family: 'brands', href: '#' }] },
   { id: 'vela', name: 'Studio Vela', isPartner: true, bio: 'Two-person studio painting tokens and full-art lands with a storybook feel.', links: [{ label: 'studiovela.com', icon: 'globe', href: '#' }] },
-  { id: 'okafor', name: 'A. Okafor', isPartner: true, bio: 'Showcase treatments with bold linework and saturated color.', links: [{ label: '@aokafor', icon: 'instagram', family: 'brands', href: '#' }], commissionsOpen: true, commissionNote: 'Alters and sleeve art, about 2 weeks. Tell me the card and the mood.' },
+  { id: 'okafor', name: 'A. Okafor', isPartner: true, userId: 'demo-okafor', bio: 'Showcase treatments with bold linework and saturated color.', links: [{ label: '@aokafor', icon: 'instagram', family: 'brands', href: '#' }], commissionsOpen: true, commissionNote: 'Alters and sleeve art, about 2 weeks. Tell me the card and the mood.' },
   { id: 'kanae', name: 'kanae_art', isPartner: false, bio: 'Community uploader', links: [] },
   { id: 'deckbrewer', name: 'deckbrewer', isPartner: false, bio: 'Community uploader', links: [] },
   { id: 'lindg', name: 'lindg', isPartner: false, bio: 'Community uploader', links: [] },
@@ -512,6 +512,8 @@ function renderDetail(root, id) {
           ${artwork.type === 'alter' ? '' : user
             ? '<wa-button variant="brand" id="detail-download"><wa-icon slot="start" name="download"></wa-icon>Download</wa-button>'
             : '<wa-button variant="brand" id="detail-download-gated"><wa-icon slot="start" name="lock"></wa-icon>Sign in to download</wa-button>'}
+          ${artwork.type === 'alter' && artist?.userId && artist.commissionsOpen
+            ? `<wa-button variant="brand" href="gallery.html?artist=${encodeURIComponent(artist.id)}&art=${encodeURIComponent(artwork.id)}#commission"><wa-icon slot="start" name="paintbrush"></wa-icon>Commission this artist</wa-button>` : ''}
           ${artwork.highlighted && artwork.storeUrl ? `<wa-button appearance="outlined" href="${escapeHtml(safeUrl(artwork.storeUrl))}" target="_blank" rel="noopener"><wa-icon slot="start" name="cart-shopping"></wa-icon>Order custom sleeves <wa-icon slot="end" name="arrow-up-right-from-square" style="font-size: 0.7em;"></wa-icon></wa-button>` : ''}
           ${user && !usingDemo && (isAdmin || artwork.uploaderId === user.id) ? `<wa-button appearance="outlined" href="gallery.html?view=edit&art=${encodeURIComponent(artwork.id)}"><wa-icon slot="start" name="pen"></wa-icon>Edit</wa-button>` : ''}
         </div>
@@ -583,6 +585,8 @@ function renderArtist(root, id) {
   wireLikeButtons(root);
   renderClaimSlot(root.querySelector('#artist-claim'), artist);
   renderCommissionForm(root.querySelector('#commission'), artist, works);
+  // The section renders after the page loads, so the browser's own hash scroll misses it.
+  if (window.location.hash === '#commission') root.querySelector('#commission')?.scrollIntoView();
 }
 
 let turnstileReady = null;
