@@ -718,16 +718,30 @@ async function renderClaimSlot(slot, artist) {
       showToast('Demo data — deploy the gallery schema to enable claims', 'neutral', 'database');
       return;
     }
+    const claimId = crypto.randomUUID();
     const { error } = await getSupabase().from('gallery_artist_claims')
-      .insert({ artist_id: artist.id, user_id: me.id });
+      .insert({ id: claimId, artist_id: artist.id, user_id: me.id });
     // 23505: a pending claim already exists, which is the outcome wanted anyway
     if (error && error.code !== '23505') {
       showError('Could not send your claim — try again.');
       return;
     }
+    if (!error) notifyReviewers('claim', claimId);
     showSuccess('Claim sent — an admin will review it.');
     renderClaimSlot(slot, artist);
   });
+}
+
+// Tell the admins a new upload or claim awaits review (/api/gallery-notify).
+// Fire-and-forget: it never blocks or fails the UI; the server dedupes.
+function notifyReviewers(kind, id) {
+  getSupabase()?.auth.getSession()
+    .then(({ data: { session } = {} }) => fetch('/api/gallery-notify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token || ''}` },
+      body: JSON.stringify({ kind, id }),
+    }))
+    .catch(() => {});
 }
 
 // ============================================================
@@ -904,7 +918,9 @@ function renderUpload(root) {
       const { error: uploadErr } = await sb.storage.from('gallery-art').upload(path, selectedFile, { contentType: selectedFile.type });
       if (uploadErr) throw uploadErr;
 
+      const artworkId = crypto.randomUUID();
       const { error: insertErr } = await sb.from('gallery_artworks').insert({
+        id: artworkId,
         title: fields.title,
         type: fields.type,
         original_card_name: fields.cardName,
@@ -920,6 +936,7 @@ function renderUpload(root) {
         sb.storage.from('gallery-art').remove([path]); // best-effort cleanup
         throw insertErr;
       }
+      notifyReviewers('upload', artworkId);
       rememberArtistName(fields.artistName);
       renderPending(root);
     } catch (err) {

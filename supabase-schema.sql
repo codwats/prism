@@ -928,6 +928,25 @@ BEGIN;
 COMMIT;
 
 -- ============================================
+-- MIGRATION: Review notification ledger (#333)
+-- ============================================
+-- One row per upload or claim the admins were emailed about, written by the
+-- /api/gallery-notify edge function with the service role after Resend accepts.
+-- The primary key is the dedupe: at most one email per item.
+-- Tests: tests/gallery-artists.sql.
+BEGIN;
+  CREATE TABLE IF NOT EXISTS gallery_review_notices (
+    kind TEXT NOT NULL CHECK (kind IN ('upload', 'claim')),
+    item_id UUID NOT NULL,
+    sent_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    PRIMARY KEY (kind, item_id)
+  );
+
+  ALTER TABLE gallery_review_notices ENABLE ROW LEVEL SECURITY;
+  -- gallery_review_notices: RLS enabled, zero policies — service role only.
+COMMIT;
+
+-- ============================================
 -- MIGRATION: Link approved uploads to their uploader's artist page
 -- ============================================
 -- Uploads can't set artist_id (RLS), so approval attaches it: an upload joins
