@@ -1216,6 +1216,21 @@ async function renderEditArtist(root) {
 // direct UPDATE under the "Admins manage gallery artists" policy.
 // ============================================================
 
+const INVITE_OUTCOME = {
+  sent: 'Invite sent',
+  existing_account: 'They already have an account — they can sign in and claim',
+  failed: 'Invite failed — try Resend',
+};
+
+async function postGalleryArtist(body) {
+  const { data: { session } = {} } = await getSupabase().auth.getSession();
+  return fetch('/api/gallery-artist', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token || ''}` },
+    body: JSON.stringify(body),
+  });
+}
+
 async function renderAdminArtist(root, id) {
   const user = getCurrentUser();
   if (!user) {
@@ -1244,6 +1259,9 @@ async function renderAdminArtist(root, id) {
       </wa-textarea>
       <wa-input id="aa-avatar" label="Avatar image URL" placeholder="https://&hellip;/avatar.png" value="${escapeHtml(v.avatarUrl || '')}"></wa-input>
       <wa-switch id="aa-partner"${v.isPartner ? ' checked' : ''}>Partner artist</wa-switch>
+      ${artist ? '' : `<wa-input id="aa-email" type="email" label="Artist’s email (optional)">
+        <span slot="hint">Sends them an account invite that lands on their page. Private: never shown on any page.</span>
+      </wa-input>`}
       <div class="wa-cluster wa-gap-s">
         <wa-button type="submit" variant="brand" id="aa-submit"><wa-icon slot="start" name="floppy-disk"></wa-icon>${artist ? 'Save changes' : 'Add artist'}</wa-button>
         <wa-button type="button" appearance="plain" href="gallery.html?view=admin">Cancel</wa-button>
@@ -1258,7 +1276,9 @@ async function renderAdminArtist(root, id) {
     if (!name || name.length > 80) { showError('The name must be 1 to 80 characters.'); return; }
     if (!links) { showError('Each link must be a full web address starting with https://'); return; }
     if (avatar && !/^https:\/\//i.test(avatar)) { showError('The avatar must be a web address starting with https://'); return; }
-    const fields = { name, bio: fieldValue(root, '#aa-bio').trim(), links, avatarUrl: avatar, isPartner: !!root.querySelector('#aa-partner').checked };
+    const email = artist ? '' : fieldValue(root, '#aa-email').trim();
+    if (email && !EMAIL_RE.test(email)) { showError('That email doesn’t look right.'); return; }
+    const fields = { email: email || undefined, name, bio: fieldValue(root, '#aa-bio').trim(), links, avatarUrl: avatar, isPartner: !!root.querySelector('#aa-partner').checked };
 
     const submitBtn = root.querySelector('#aa-submit');
     submitBtn.setAttribute('loading', '');
@@ -1273,12 +1293,7 @@ async function renderAdminArtist(root, id) {
         }).eq('id', artist.id);
         if (error) { console.error('Artist edit failed:', error); errorText = 'Could not save the artist — try again.'; }
       } else {
-        const { data: { session } = {} } = await sb.auth.getSession();
-        const res = await fetch('/api/gallery-artist', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token || ''}` },
-          body: JSON.stringify(fields),
-        });
+        const res = await postGalleryArtist(fields);
         const body = await res.json().catch(() => ({}));
         if (res.ok) created = body;
         else errorText = body.error || 'Could not add the artist — try again.';
@@ -1303,6 +1318,7 @@ async function renderAdminArtist(root, id) {
     root.innerHTML = `
       ${breadcrumbHtml([{ label: 'Gallery', href: 'gallery.html' }, { label: 'Moderation queue', href: 'gallery.html?view=admin' }, { label: 'Artist added' }])}
       <h1 class="wa-heading-2xl">${escapeHtml(name)} is live</h1>
+      ${INVITE_OUTCOME[created.invite] ? `<p style="margin-top: var(--wa-space-2xs);">${INVITE_OUTCOME[created.invite]}</p>` : ''}
       <p style="color: var(--wa-color-neutral-text-subtle); margin-top: var(--wa-space-2xs);">Send them this link to their page:</p>
       <div class="wa-cluster wa-gap-xs wa-align-items-center" style="margin-top: var(--wa-space-s);">
         <wa-input readonly value="${escapeHtml(created.url)}" style="flex: 1; min-width: 16rem;" aria-label="Artist page link"></wa-input>
@@ -1437,13 +1453,16 @@ async function renderAdmin(root) {
     return;
   }
 
-  const [{ data, error }, claimsRes] = await Promise.all([
+  const [{ data, error }, claimsRes, invitedRes] = await Promise.all([
     sb.from('gallery_artworks')
       .select('*')
       .eq('status', 'pending')
       .order('created_at', { ascending: true }),
     sb.rpc('list_gallery_artist_claims'),
+    // Admin-readable under the contacts RLS; only which artists were invited is used.
+    sb.from('gallery_artist_contacts').select('artist_id').not('invited_email', 'is', null),
   ]);
+  const invitedIds = new Set((invitedRes.data || []).map(r => r.artist_id));
   if (error) {
     renderNotFound(root, 'Could not load the queue', 'Check your connection and reload.');
     return;
@@ -1479,7 +1498,10 @@ async function renderAdmin(root) {
                 ${a.isPartner ? '<span><wa-icon name="circle-check"></wa-icon> Partner</span>' : ''}
               </div>
             </div>
-            <wa-button size="s" appearance="outlined" href="gallery.html?view=admin-artist&id=${encodeURIComponent(a.id)}"><wa-icon slot="start" name="pen"></wa-icon>Edit</wa-button>
+            <div class="wa-cluster wa-gap-xs">
+              ${!a.userId && invitedIds.has(a.id) ? `<wa-button size="s" appearance="outlined" data-resend-invite="${escapeHtml(a.id)}"><wa-icon slot="start" name="paper-plane"></wa-icon>Resend invite</wa-button>` : ''}
+              <wa-button size="s" appearance="outlined" href="gallery.html?view=admin-artist&id=${encodeURIComponent(a.id)}"><wa-icon slot="start" name="pen"></wa-icon>Edit</wa-button>
+            </div>
           </div>`).join('')}
         </div>
       </wa-tab-panel>
@@ -1566,6 +1588,22 @@ async function renderAdmin(root) {
     </wa-tab-group>`;
 
   root.querySelector('#admin-tabs')?.addEventListener('wa-tab-show', e => { adminTab = e.detail.name; });
+
+  root.querySelectorAll('[data-resend-invite]').forEach(btn => btn.addEventListener('click', async () => {
+    btn.setAttribute('loading', '');
+    let body = {};
+    try {
+      const res = await postGalleryArtist({ artistId: btn.dataset.resendInvite, resend: true });
+      body = await res.json().catch(() => ({}));
+      if (!res.ok) body = { error: body.error || 'Could not resend the invite — try again.' };
+    } catch {
+      body = { error: 'Could not resend the invite — try again.' };
+    }
+    btn.removeAttribute('loading');
+    if (body.error) showError(body.error);
+    else if (body.invite === 'sent') showSuccess(INVITE_OUTCOME.sent);
+    else showError(INVITE_OUTCOME[body.invite] || 'Could not resend the invite — try again.');
+  }));
 
   const claimAction = (attr, rpc, done) => root.querySelectorAll(`[${attr}]`).forEach(btn => btn.addEventListener('click', async () => {
     btn.setAttribute('loading', '');

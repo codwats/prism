@@ -27,6 +27,11 @@ let lastPublishedSeq = 0;
 // continue in the background and repaint the nav if they succeed.
 const SDK_WAIT_MS = 3500;
 
+// Read at import, before the SDK exists: it consumes and clears the auth
+// redirect hash while it starts. A password reset (`type=recovery`) or an
+// account invite (`type=invite`, #332) both land on the set-new-password view.
+const LANDING_TYPE = (globalThis.window?.location?.hash || '').match(/type=(recovery|invite)/)?.[1] || null;
+
 // Subscribe to auth state changes
 export function onAuthChange(callback) {
   authListeners.push(callback);
@@ -150,17 +155,18 @@ function initAuth() {
       }, 0);
     });
 
+    // Supabase processes the recovery/invite token from the URL hash at client
+    // creation, which can finish before the listener above registers — use the
+    // hash captured at import so the set-password dialog opens either way,
+    // and before the sync so nothing ahead of it can stall it.
+    if (LANDING_TYPE && session?.user) {
+      wasLoggedOut = false;
+      openPasswordRecovery(LANDING_TYPE === 'invite');
+    }
+
     if (session?.user && await notifyAuthChange(session.user)) {
       // Sync on initial load only if this session survived the claim.
       await syncWithSupabase();
-    }
-
-    // Supabase processes the recovery token from the URL hash at client
-    // creation, which can finish before the listener above registers — check
-    // the URL directly so the set-password dialog opens either way.
-    if (window.location.hash.includes('type=recovery')) {
-      wasLoggedOut = false;
-      openPasswordRecovery();
     }
 
     return currentUser;
@@ -401,11 +407,17 @@ function showAuthView(viewName) {
   clearAuthMessages();
 }
 
-// Open the auth dialog on the set-new-password view (password-reset landing)
-function openPasswordRecovery() {
+// Open the auth dialog on the set-new-password view (password-reset or invite landing)
+function openPasswordRecovery(invited = false) {
   const dialog = document.getElementById('auth-dialog');
   if (!dialog) return;
   showAuthView('recovery');
+  const intro = document.getElementById('recovery-intro');
+  if (intro) {
+    intro.textContent = invited
+      ? 'You were invited to PRISM. Choose a password so you can sign in again later.'
+      : 'You followed a password reset link. Choose a new password to finish.';
+  }
   dialog.setAttribute('open', '');
 }
 
