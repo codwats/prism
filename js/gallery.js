@@ -51,12 +51,15 @@ const DEMO_ARTWORKS = [
   { id: 'a9', title: 'Mana Crypt', type: 'proxy', artistId: 'reyes', likes: 198, downloads: 701, isAI: false, highlighted: false, storeUrl: '', originalCard: { name: 'Mana Crypt', set: 'Eternal Masters', scryfallUrl: 'https://scryfall.com/search?q=%21%22Mana%20Crypt%22' }, description: 'The crypt rendered as a reliquary.', createdAt: '2026-05-20' },
   { id: 'a10', title: 'Smothering Tithe', type: 'showcase', artistId: 'reyes', likes: 143, downloads: 402, isAI: false, highlighted: false, storeUrl: '', originalCard: { name: 'Smothering Tithe', set: 'Ravnica Allegiance', scryfallUrl: 'https://scryfall.com/search?q=%21%22Smothering%20Tithe%22' }, description: 'Coins raining through cathedral light.', createdAt: '2026-05-28' },
   { id: 'a11', title: 'Swords to Plowshares', type: 'proxy', artistId: 'reyes', likes: 121, downloads: 350, isAI: false, highlighted: false, storeUrl: '', originalCard: { name: 'Swords to Plowshares', set: 'Alpha', scryfallUrl: 'https://scryfall.com/search?q=%21%22Swords%20to%20Plowshares%22' }, description: 'The classic answer, reforged.', createdAt: '2026-06-03' },
+  { id: 'a13', title: 'Sol Ring — Night Market', type: 'alter', artistId: 'okafor', likes: 176, downloads: 0, isAI: false, highlighted: false, storeUrl: '', originalCard: { name: 'Sol Ring', set: 'Commander 2021', scryfallUrl: 'https://scryfall.com/search?q=%21%22Sol%20Ring%22' }, description: 'Acrylic over a real Sol Ring, the art extended to the borders. One of one.', createdAt: '2026-07-04' },
   { id: 'a12', title: 'Elf Warrior Token', type: 'token', artistId: 'lindg', likes: 22, downloads: 61, isAI: false, highlighted: false, storeUrl: '', originalCard: null, description: 'A 1/1 elf warrior for the wide boards.', createdAt: '2026-07-01' },
 ];
 
-const TYPE_LABELS = { proxy: 'Proxy', token: 'Token', showcase: 'Showcase' };
-const TYPE_TAG_VARIANTS = { proxy: 'neutral', token: 'brand', showcase: 'warning' };
+const TYPE_LABELS = { proxy: 'Proxy', token: 'Token', showcase: 'Showcase', alter: 'Alter' };
+const TYPE_TAG_VARIANTS = { proxy: 'neutral', token: 'brand', showcase: 'warning', alter: 'success' };
 const LICENSE_HTML = 'Personal, non-commercial use only — credit the artist. <a href="terms.html">Full terms</a>';
+// An alter is a photograph of a real painted card, never a file to print (#322).
+const ALTER_LICENSE_HTML = 'Display only — not for reproduction. Commission the artist for your own.';
 
 // ============================================================
 // Data layer (Supabase)
@@ -285,8 +288,8 @@ function breadcrumbHtml(items) {
   </wa-breadcrumb>`;
 }
 
-function licenseHtml() {
-  return `<div class="gallery-license"><wa-icon name="scale-balanced" style="margin-top: 0.15em; flex: none;"></wa-icon><span>${LICENSE_HTML}</span></div>`;
+function licenseHtml(type) {
+  return `<div class="gallery-license"><wa-icon name="scale-balanced" style="margin-top: 0.15em; flex: none;"></wa-icon><span>${type === 'alter' ? ALTER_LICENSE_HTML : LICENSE_HTML}</span></div>`;
 }
 
 function loadingHtml() {
@@ -319,7 +322,9 @@ function wireLikeButtons(root) {
 // Grid view
 // ============================================================
 
-const filters = { type: 'all', artist: 'all', q: '', sort: 'liked' };
+// ?type=alter is Alter Alley's URL; it seeds the type filter once on load.
+const initialType = new URLSearchParams(window.location.search).get('type');
+const filters = { type: TYPE_LABELS[initialType] ? initialType : 'all', artist: 'all', q: '', sort: 'liked' };
 
 function sortArtworks(list) {
   const key = { liked: a => likeCount(a), new: a => Date.parse(a.createdAt) || 0, dl: a => a.downloads || 0 }[filters.sort];
@@ -340,6 +345,8 @@ function filteredArtworks() {
 
 function renderGrid(root) {
   const user = getCurrentUser();
+  const alley = filters.type === 'alter';
+  if (alley && filters.sort === 'dl') filters.sort = 'liked'; // alters are never downloaded
   const results = sortArtworks(filteredArtworks());
   const featured = results.filter(a => a.highlighted);
   const rest = results.filter(a => !a.highlighted);
@@ -383,8 +390,11 @@ function renderGrid(root) {
   root.innerHTML = `
     <div class="wa-split" style="align-items: flex-start; gap: var(--wa-space-m);">
       <div>
+        ${alley ? `
+        <h1 class="wa-heading-2xl">Alter Alley</h1>
+        <p style="color: var(--wa-color-neutral-text-subtle); max-width: 60ch; margin-top: var(--wa-space-2xs);">Real cards, painted over by hand. An alter is expensive, unique and expressive, so you own exactly one, and that one copy has to serve every deck that runs the card: a Pool copy by definition. One alter, every deck. Each piece is shown as a photograph, never a file to print. Commission the artist for your own.</p>` : `
         <h1 class="wa-heading-2xl">Gallery</h1>
-        <p style="color: var(--wa-color-neutral-text-subtle); max-width: 60ch; margin-top: var(--wa-space-2xs);">Partnered and community artwork for proxies, tokens, and showcase treatments. Personal, non-commercial use with credit to the artist.</p>
+        <p style="color: var(--wa-color-neutral-text-subtle); max-width: 60ch; margin-top: var(--wa-space-2xs);">Partnered and community artwork for proxies, tokens, and showcase treatments, plus hand-painted alters. Personal, non-commercial use with credit to the artist.</p>`}
       </div>
       <wa-button variant="brand" href="gallery.html?view=upload"><wa-icon slot="start" name="plus"></wa-icon>Upload artwork</wa-button>
     </div>
@@ -404,7 +414,7 @@ function renderGrid(root) {
       <div>
         <span class="gallery-tlabel">Type</span>
         <wa-button-group label="Filter by type">
-          ${['all', 'proxy', 'token', 'showcase'].map(t => `<wa-button size="s" data-type="${t}"${filters.type === t ? ' variant="brand"' : ' appearance="outlined"'}>${t === 'all' ? 'All' : TYPE_LABELS[t]}</wa-button>`).join('')}
+          ${['all', 'proxy', 'token', 'showcase', 'alter'].map(t => `<wa-button size="s" data-type="${t}"${filters.type === t ? ' variant="brand"' : ' appearance="outlined"'}>${t === 'all' ? 'All' : TYPE_LABELS[t]}</wa-button>`).join('')}
         </wa-button-group>
       </div>
       <wa-select id="gallery-artist" size="s" label="Artist" value="${escapeHtml(filters.artist)}" style="width: 12rem;">
@@ -416,7 +426,7 @@ function renderGrid(root) {
       <wa-select id="gallery-sort" size="s" label="Sort" value="${escapeHtml(filters.sort)}" style="width: 11rem;">
         <wa-option value="liked">Most liked</wa-option>
         <wa-option value="new">Newest</wa-option>
-        <wa-option value="dl">Most downloaded</wa-option>
+        ${alley ? '' : '<wa-option value="dl">Most downloaded</wa-option>'}
       </wa-select>
     </div>
 
@@ -470,6 +480,8 @@ function renderDetail(root, id) {
           ${artwork.isAI ? aiTagHtml() : ''}
         </div>
         <h1 class="wa-heading-xl">${escapeHtml(artwork.title)}</h1>
+        ${artwork.originalCard && artwork.type === 'alter'
+          ? `<p class="wa-heading-m" style="margin: 0;">Painted over ${escapeHtml(artwork.originalCard.name)}</p>` : ''}
         ${artwork.originalCard
           ? `<div class="gallery-orig"><wa-icon name="link" style="color: var(--wa-color-neutral-text-subtle);"></wa-icon><span>Original card: <strong>${escapeHtml(artwork.originalCard.name)}</strong>${artwork.originalCard.set ? ` &middot; ${escapeHtml(artwork.originalCard.set)}` : ''}</span><a href="${escapeHtml(safeUrl(artwork.originalCard.scryfallUrl || 'https://scryfall.com/search?q=' + encodeURIComponent('!"' + artwork.originalCard.name + '"')))}" target="_blank" rel="noopener" style="margin-left: auto; font-size: var(--wa-font-size-xs);">Scryfall <wa-icon name="arrow-up-right-from-square" style="font-size: 0.7em;"></wa-icon></a></div>`
           : `<div class="gallery-orig"><wa-icon name="circle-minus" style="color: var(--wa-color-neutral-text-subtle);"></wa-icon><span style="color: var(--wa-color-neutral-text-subtle);">No original card${artwork.type === 'token' ? ' (token)' : ''}</span></div>`}
@@ -491,14 +503,14 @@ function renderDetail(root, id) {
         </div>
         <div class="wa-cluster wa-gap-s wa-align-items-center">
           <wa-button appearance="outlined" id="detail-like"><wa-icon slot="start" name="heart" family="${liked ? 'solid' : 'regular'}"${liked ? ' style="color: var(--wa-color-brand-text);"' : ''}></wa-icon>Like &middot; ${likeCount(artwork)}</wa-button>
-          ${user
+          ${artwork.type === 'alter' ? '' : user
             ? '<wa-button variant="brand" id="detail-download"><wa-icon slot="start" name="download"></wa-icon>Download</wa-button>'
             : '<wa-button variant="brand" id="detail-download-gated"><wa-icon slot="start" name="lock"></wa-icon>Sign in to download</wa-button>'}
           ${artwork.highlighted && artwork.storeUrl ? `<wa-button appearance="outlined" href="${escapeHtml(safeUrl(artwork.storeUrl))}" target="_blank" rel="noopener"><wa-icon slot="start" name="cart-shopping"></wa-icon>Order custom sleeves <wa-icon slot="end" name="arrow-up-right-from-square" style="font-size: 0.7em;"></wa-icon></wa-button>` : ''}
           ${user && !usingDemo && (isAdmin || artwork.uploaderId === user.id) ? `<wa-button appearance="outlined" href="gallery.html?view=edit&art=${encodeURIComponent(artwork.id)}"><wa-icon slot="start" name="pen"></wa-icon>Edit</wa-button>` : ''}
         </div>
-        ${user ? '' : '<p class="wa-caption-s" style="color: var(--wa-color-neutral-text-subtle); margin: 0;">Downloads need an account, and signup is currently closed. Each download is one print-ready file (2.5&times;3.5&Prime; + bleed).</p>'}
-        ${licenseHtml()}
+        ${user || artwork.type === 'alter' ? '' : '<p class="wa-caption-s" style="color: var(--wa-color-neutral-text-subtle); margin: 0;">Downloads need an account, and signup is currently closed. Each download is one print-ready file (2.5&times;3.5&Prime; + bleed).</p>'}
+        ${licenseHtml(artwork.type)}
       </div>
     </div>
     ${more.length ? `
@@ -591,6 +603,8 @@ function artworkFieldsHtml(v = {}) {
         <wa-radio value="proxy">Proxy</wa-radio>
         <wa-radio value="token">Token</wa-radio>
         <wa-radio value="showcase">Showcase</wa-radio>
+        <wa-radio value="alter">Alter</wa-radio>
+        <span slot="hint">Alter: a photo of a real card you painted by hand. It is shown, never offered as a download.</span>
       </wa-radio-group>
       <div class="card-suggest">
         <wa-input id="up-card" label="Original card (optional)" placeholder="Start typing a card name" autocomplete="off" value="${escapeHtml(v.originalCard?.name || '')}">
@@ -1183,7 +1197,7 @@ function render() {
 // Init
 // ============================================================
 
-initLayout({ activePage: 'gallery' });
+initLayout({ activePage: initialType === 'alter' ? 'alter-alley' : 'gallery' });
 
 loadPublicData().then(async () => {
   await Promise.all([loadMyLikes(), loadAdminFlag()]); // no-ops unless auth already restored
