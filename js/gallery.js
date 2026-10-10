@@ -8,6 +8,7 @@
  *   gallery.html?view=upload     community upload form (signed-in)
  *   gallery.html?view=uploads    my uploads (status tracking)
  *   gallery.html?view=admin      moderation queue (gallery admins only)
+ *   gallery.html?view=edit-artist  the signed-in Artist's own profile + commission settings
  *
  * Backend: Supabase (see the GALLERY section of supabase-schema.sql).
  * Public reads go through plain PostgREST fetch with the anon key so
@@ -33,7 +34,7 @@ import { escapeHtml } from './core/utils.js';
 const DEMO_ARTISTS = [
   { id: 'reyes', name: 'M. Reyes', isPartner: true, bio: 'Illustrator specializing in artifact and enchantment treatments for Commander. Partnered with PRISM to share proxy and showcase art for personal use.', links: [{ label: 'mreyes.art', icon: 'globe', href: '#' }, { label: '@mreyes', icon: 'instagram', family: 'brands', href: '#' }] },
   { id: 'vela', name: 'Studio Vela', isPartner: true, bio: 'Two-person studio painting tokens and full-art lands with a storybook feel.', links: [{ label: 'studiovela.com', icon: 'globe', href: '#' }] },
-  { id: 'okafor', name: 'A. Okafor', isPartner: true, bio: 'Showcase treatments with bold linework and saturated color.', links: [{ label: '@aokafor', icon: 'instagram', family: 'brands', href: '#' }] },
+  { id: 'okafor', name: 'A. Okafor', isPartner: true, bio: 'Showcase treatments with bold linework and saturated color.', links: [{ label: '@aokafor', icon: 'instagram', family: 'brands', href: '#' }], commissionsOpen: true, commissionNote: 'Alters and sleeve art, about 2 weeks. Tell me the card and the mood.' },
   { id: 'kanae', name: 'kanae_art', isPartner: false, bio: 'Community uploader', links: [] },
   { id: 'deckbrewer', name: 'deckbrewer', isPartner: false, bio: 'Community uploader', links: [] },
   { id: 'lindg', name: 'lindg', isPartner: false, bio: 'Community uploader', links: [] },
@@ -118,6 +119,8 @@ function mapArtist(r) {
     links: Array.isArray(r.links) ? r.links : [],
     isPartner: r.is_partner,
     userId: r.user_id || null, // set = a claimed Artist; null = an Attribution
+    commissionsOpen: !!r.commissions_open,
+    commissionNote: r.commission_note || '',
   };
 }
 
@@ -554,9 +557,12 @@ function renderArtist(root, id) {
         <div class="wa-cluster wa-gap-s wa-align-items-center">
           <h1 class="wa-heading-xl">${escapeHtml(artist.name)}</h1>
           ${artist.isPartner ? '<wa-tag variant="brand"><wa-icon slot="start" name="handshake-angle"></wa-icon>PRISM Partner</wa-tag>' : ''}
+          ${artist.commissionsOpen ? '<wa-tag variant="success"><wa-icon slot="start" name="paintbrush"></wa-icon>Open for commissions</wa-tag>' : ''}
+          ${isOwnArtist(artist) ? '<wa-button size="s" appearance="outlined" href="gallery.html?view=edit-artist"><wa-icon slot="start" name="pen"></wa-icon>Edit profile</wa-button>' : ''}
         </div>
         <p style="color: var(--wa-color-neutral-text); margin: var(--wa-space-xs) 0 0; max-width: 64ch;">${escapeHtml(artist.bio)}</p>
         ${artist.links.length ? `<div class="wa-cluster wa-gap-m" style="margin-top: var(--wa-space-s); font-size: var(--wa-font-size-s);">${artist.links.map(l => `<a href="${escapeHtml(safeUrl(l.href))}" target="_blank" rel="noopener"><wa-icon name="${escapeHtml(l.icon || 'globe')}"${l.family ? ` family="${escapeHtml(l.family)}"` : ''}></wa-icon> ${escapeHtml(l.label)}</a>`).join('')}</div>` : ''}
+        ${artist.commissionsOpen && artist.commissionNote ? `<p class="wa-caption-m" style="margin: var(--wa-space-xs) 0 0; max-width: 64ch;"><wa-icon name="paintbrush"></wa-icon> ${escapeHtml(artist.commissionNote)}</p>` : ''}
         ${artist.userId ? '' : '<div id="artist-claim" class="wa-cluster wa-gap-s wa-align-items-center" style="margin-top: var(--wa-space-s);"></div>'}
         ${artist.isPartner ? `
         <div class="gallery-stats">
@@ -573,6 +579,11 @@ function renderArtist(root, id) {
 
   wireLikeButtons(root);
   renderClaimSlot(root.querySelector('#artist-claim'), artist);
+}
+
+function isOwnArtist(artist) {
+  const user = getCurrentUser();
+  return !!(user && artist.userId && artist.userId === user.id);
 }
 
 /** "This is me" on an unclaimed profile, or "Claim pending" once filed. */
@@ -990,6 +1001,110 @@ async function renderEditArtwork(root, id) {
 }
 
 // ============================================================
+// Artist profile edit view (#324)
+// ============================================================
+
+/** One link per line. A line whose URL is unchanged keeps its stored label and icon. */
+function linksToText(links) {
+  return links.map(l => l.href).join('\n');
+}
+
+function textToLinks(text, oldLinks) {
+  const links = [];
+  for (const line of text.split('\n').map(l => l.trim()).filter(Boolean)) {
+    let url;
+    try { url = new URL(line); } catch { return null; }
+    if (url.protocol !== 'http:' && url.protocol !== 'https:') return null;
+    links.push(oldLinks.find(l => l.href === line) || { label: url.hostname.replace(/^www\./, ''), icon: 'globe', href: line });
+  }
+  return links;
+}
+
+async function renderEditArtist(root) {
+  const user = getCurrentUser();
+  if (!user) {
+    if (hasStoredSession()) { root.innerHTML = loadingHtml(); return; } // auth still restoring
+    renderNotFound(root, 'Sign in to edit your profile', 'Your artist profile is linked to your account.');
+    return;
+  }
+  if (usingDemo) {
+    renderNotFound(root, 'Editing unavailable', 'Demo data — deploy the gallery schema to enable editing.');
+    return;
+  }
+  const artist = artistsDb.find(a => a.userId === user.id);
+  const sb = getSupabase();
+  if (!artist || !sb) {
+    renderNotFound(root, 'No artist profile', 'Claim your profile with “This is me” on your artist page first.');
+    return;
+  }
+  root.innerHTML = loadingHtml();
+  // RLS: only the owning Artist (and admins) can read this row.
+  const { data: contact } = await sb.from('gallery_artist_contacts')
+    .select('commission_email').eq('artist_id', artist.id).maybeSingle();
+  if (!root.isConnected) return;
+  const backHref = `gallery.html?artist=${encodeURIComponent(artist.id)}`;
+
+  root.innerHTML = `
+    ${breadcrumbHtml([{ label: 'Gallery', href: 'gallery.html' }, { label: artist.name, href: backHref }, { label: 'Edit profile' }])}
+    <h1 class="wa-heading-2xl">Edit profile</h1>
+    <p style="color: var(--wa-color-neutral-text-subtle); margin-top: var(--wa-space-2xs);">Changes apply right away.</p>
+    <form class="gallery-form" id="artist-form" style="margin-top: var(--wa-space-l);">
+      <wa-textarea id="ar-bio" label="Bio" rows="4" value="${escapeHtml(artist.bio)}"></wa-textarea>
+      <wa-textarea id="ar-links" label="Links" rows="3" placeholder="https://your-site.example" value="${escapeHtml(linksToText(artist.links))}">
+        <span slot="hint">One web address per line: your site, shop or socials.</span>
+      </wa-textarea>
+      <wa-input id="ar-avatar" label="Avatar image URL" placeholder="https://&hellip;/me.png" value="${escapeHtml(artist.avatarUrl || '')}"></wa-input>
+      <wa-divider></wa-divider>
+      <wa-switch id="ar-open"${artist.commissionsOpen ? ' checked' : ''}>Open for commissions</wa-switch>
+      <wa-textarea id="ar-note" label="Commissions note" rows="2" placeholder="e.g. Sleeve art, ~2 weeks, DM for rates" value="${escapeHtml(artist.commissionNote)}">
+        <span slot="hint">Shown publicly on your artist page.</span>
+      </wa-textarea>
+      <wa-input id="ar-email" type="email" label="Commission email" value="${escapeHtml(contact?.commission_email || '')}">
+        <span slot="hint">Private. Requests are relayed here and it never appears on any page.</span>
+      </wa-input>
+      <div class="wa-cluster wa-gap-s">
+        <wa-button type="submit" variant="brand" id="ar-submit"><wa-icon slot="start" name="floppy-disk"></wa-icon>Save changes</wa-button>
+        <wa-button type="button" appearance="plain" href="${backHref}">Cancel</wa-button>
+      </div>
+    </form>`;
+
+  root.querySelector('#artist-form').addEventListener('submit', async e => {
+    e.preventDefault();
+    const links = textToLinks(fieldValue(root, '#ar-links'), artist.links);
+    const avatar = fieldValue(root, '#ar-avatar').trim();
+    const email = fieldValue(root, '#ar-email').trim();
+    const open = !!root.querySelector('#ar-open').checked;
+    if (!links) { showError('Each link must be a full web address starting with https://'); return; }
+    if (avatar && safeUrl(avatar) === '#') { showError('The avatar must be a web address starting with https://'); return; }
+    if (email && !EMAIL_RE.test(email)) { showError('That commission email doesn’t look right.'); return; }
+    if (open && !email) { showError('Add a commission email to open commissions.'); return; }
+
+    const submitBtn = root.querySelector('#ar-submit');
+    submitBtn.setAttribute('loading', '');
+    submitBtn.setAttribute('disabled', '');
+    const { error } = await sb.rpc('update_own_gallery_artist', {
+      p_bio: fieldValue(root, '#ar-bio').trim(),
+      p_links: links,
+      p_avatar_url: avatar,
+      p_commissions_open: open,
+      p_commission_note: fieldValue(root, '#ar-note').trim(),
+      p_commission_email: email,
+    });
+    if (error) {
+      console.error('Artist profile save failed:', error);
+      showError('Could not save your profile — try again.');
+      submitBtn.removeAttribute('loading');
+      submitBtn.removeAttribute('disabled');
+      return;
+    }
+    showSuccess('Profile saved');
+    await loadPublicData();
+    history.pushState({}, '', backHref);
+    render();
+  });
+}
+
+// ============================================================
 // My uploads view
 // ============================================================
 
@@ -1291,6 +1406,7 @@ function render() {
   const view = params.get('view');
 
   if (view === 'edit' && art) renderEditArtwork(root, art);
+  else if (view === 'edit-artist') renderEditArtist(root);
   else if (art) renderDetail(root, art);
   else if (artist) renderArtist(root, artist);
   else if (view === 'upload') renderUpload(root);

@@ -816,6 +816,69 @@ BEGIN;
 COMMIT;
 
 -- ============================================
+-- MIGRATION: Artist profile and commission settings (#324)
+-- ============================================
+-- The owning Artist edits bio/links/avatar and commission settings through an
+-- RPC, not an owner-UPDATE policy: WITH CHECK can't stop a write to is_partner
+-- or user_id. Edits go live without review. The commission email stays in
+-- gallery_artist_contacts, never on the public row. Tests: tests/gallery-artists.sql.
+BEGIN;
+  ALTER TABLE gallery_artists ADD COLUMN IF NOT EXISTS commissions_open BOOLEAN NOT NULL DEFAULT false;
+  ALTER TABLE gallery_artists ADD COLUMN IF NOT EXISTS commission_note TEXT DEFAULT '';
+
+  -- Errors: P0002 caller owns no artist row, 23514 bad email or open without one.
+  -- A blank p_commission_email keeps the stored address.
+  CREATE OR REPLACE FUNCTION update_own_gallery_artist(
+    p_bio TEXT,
+    p_links JSONB,
+    p_avatar_url TEXT,
+    p_commissions_open BOOLEAN,
+    p_commission_note TEXT,
+    p_commission_email TEXT
+  )
+    RETURNS void
+    LANGUAGE plpgsql
+    SECURITY DEFINER
+    SET search_path = public, pg_temp
+  AS $$
+  DECLARE
+    v_artist_id UUID;
+    v_email TEXT := nullif(btrim(coalesce(p_commission_email, '')), '');
+  BEGIN
+    SELECT id INTO v_artist_id FROM gallery_artists WHERE user_id = auth.uid() LIMIT 1;
+    IF v_artist_id IS NULL THEN
+      RAISE EXCEPTION 'You do not own an artist profile' USING ERRCODE = 'no_data_found';
+    END IF;
+
+    IF v_email IS NOT NULL AND v_email !~ '^[^@[:space:]]+@[^@[:space:]]+\.[^@[:space:]]+$' THEN
+      RAISE EXCEPTION 'Commission email is not a valid address' USING ERRCODE = 'check_violation';
+    END IF;
+    IF coalesce(p_commissions_open, false) AND v_email IS NULL
+       AND NOT EXISTS (SELECT 1 FROM gallery_artist_contacts WHERE artist_id = v_artist_id) THEN
+      RAISE EXCEPTION 'Commissions need an email to open' USING ERRCODE = 'check_violation';
+    END IF;
+
+    UPDATE gallery_artists SET
+      bio = coalesce(p_bio, ''),
+      links = coalesce(p_links, '[]'::jsonb),
+      avatar_url = nullif(btrim(coalesce(p_avatar_url, '')), ''),
+      commissions_open = coalesce(p_commissions_open, false),
+      commission_note = coalesce(p_commission_note, '')
+    WHERE id = v_artist_id;
+
+    IF v_email IS NOT NULL THEN
+      INSERT INTO gallery_artist_contacts (artist_id, commission_email) VALUES (v_artist_id, v_email)
+      ON CONFLICT (artist_id) DO UPDATE SET commission_email = EXCLUDED.commission_email;
+    END IF;
+  END;
+  $$;
+
+  REVOKE EXECUTE ON FUNCTION update_own_gallery_artist(TEXT, JSONB, TEXT, BOOLEAN, TEXT, TEXT) FROM public;
+  REVOKE EXECUTE ON FUNCTION update_own_gallery_artist(TEXT, JSONB, TEXT, BOOLEAN, TEXT, TEXT) FROM anon;
+  GRANT EXECUTE ON FUNCTION update_own_gallery_artist(TEXT, JSONB, TEXT, BOOLEAN, TEXT, TEXT) TO authenticated;
+COMMIT;
+
+-- ============================================
 -- MIGRATION: Founders and the entitlement predicate
 -- ============================================
 -- Safe to deploy before the cutover: while app_config.payment_enforcement is

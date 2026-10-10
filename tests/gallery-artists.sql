@@ -233,3 +233,136 @@ BEGIN
 END $$;
 RESET ROLE;
 ROLLBACK;
+
+-- ============================================
+-- Artist profile (#324): update_own_gallery_artist and commission settings
+-- ============================================
+BEGIN;
+
+INSERT INTO auth.users (id, email, email_confirmed_at) VALUES
+  ('32400000-0000-0000-0000-00000000000a', 'artist-a@example.invalid', now()),
+  ('32400000-0000-0000-0000-00000000000b', 'artist-b@example.invalid', now()),
+  ('32400000-0000-0000-0000-00000000000d', 'admin-324@example.invalid', now()),
+  ('32400000-0000-0000-0000-00000000000e', 'visitor-324@example.invalid', now());
+INSERT INTO public.gallery_admins (user_id) VALUES ('32400000-0000-0000-0000-00000000000d');
+-- P is Artist A's profile (no contacts row yet); Q is Artist B's.
+INSERT INTO public.gallery_artists (id, name, user_id) VALUES
+  ('32400000-0000-0000-0001-000000000001', 'Artist P', '32400000-0000-0000-0000-00000000000a'),
+  ('32400000-0000-0000-0001-000000000002', 'Artist Q', '32400000-0000-0000-0000-00000000000b');
+INSERT INTO public.gallery_artist_contacts (artist_id, commission_email) VALUES
+  ('32400000-0000-0000-0001-000000000002', 'q-business@example.invalid');
+
+DO $$
+DECLARE fn TEXT := 'public.update_own_gallery_artist(text, jsonb, text, boolean, text, text)';
+BEGIN
+  ASSERT has_function_privilege('authenticated', fn, 'EXECUTE'), 'update_own_gallery_artist must be callable by authenticated';
+  ASSERT NOT has_function_privilege('anon', fn, 'EXECUTE'), 'update_own_gallery_artist must not be callable by anon';
+  ASSERT (SELECT commissions_open FROM public.gallery_artists WHERE id = '32400000-0000-0000-0001-000000000001') = false,
+    'commissions_open must default to false';
+  ASSERT (SELECT commission_note FROM public.gallery_artists WHERE id = '32400000-0000-0000-0001-000000000001') = '',
+    'commission_note must default to empty';
+END $$;
+
+-- ---- Artist A ----
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', '32400000-0000-0000-0000-00000000000a', true);
+DO $$
+BEGIN
+  -- Open without an email (and no contacts row) is refused.
+  BEGIN
+    PERFORM public.update_own_gallery_artist('bio', '[]'::jsonb, NULL, true, 'note', '');
+    RAISE EXCEPTION 'opened commissions without an email';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+  BEGIN
+    PERFORM public.update_own_gallery_artist('bio', '[]'::jsonb, NULL, false, '', 'not-an-email');
+    RAISE EXCEPTION 'accepted a malformed commission email';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+
+  PERFORM public.update_own_gallery_artist(
+    'Painter of alters', '[{"label":"Site","icon":"globe","href":"https://p.example"}]'::jsonb,
+    'https://p.example/me.png', true, 'Sleeve art, ~2 weeks', 'p-studio@example.invalid');
+
+  ASSERT (SELECT bio FROM public.gallery_artists WHERE id = '32400000-0000-0000-0001-000000000001') = 'Painter of alters';
+  ASSERT (SELECT links->0->>'href' FROM public.gallery_artists WHERE id = '32400000-0000-0000-0001-000000000001') = 'https://p.example';
+  ASSERT (SELECT avatar_url FROM public.gallery_artists WHERE id = '32400000-0000-0000-0001-000000000001') = 'https://p.example/me.png';
+  ASSERT (SELECT commissions_open FROM public.gallery_artists WHERE id = '32400000-0000-0000-0001-000000000001') = true;
+  ASSERT (SELECT commission_note FROM public.gallery_artists WHERE id = '32400000-0000-0000-0001-000000000001') = 'Sleeve art, ~2 weeks';
+  ASSERT (SELECT commission_email FROM public.gallery_artist_contacts
+          WHERE artist_id = '32400000-0000-0000-0001-000000000001') = 'p-studio@example.invalid',
+    'the owner must set their commission email';
+  ASSERT (SELECT is_partner FROM public.gallery_artists WHERE id = '32400000-0000-0000-0001-000000000001') = false;
+  ASSERT (SELECT user_id FROM public.gallery_artists WHERE id = '32400000-0000-0000-0001-000000000001')
+    = '32400000-0000-0000-0000-00000000000a';
+
+  -- A blank email keeps the stored one, so closing later doesn't need it retyped.
+  PERFORM public.update_own_gallery_artist('Painter of alters', '[]'::jsonb, NULL, true, '', '');
+  ASSERT (SELECT commission_email FROM public.gallery_artist_contacts
+          WHERE artist_id = '32400000-0000-0000-0001-000000000001') = 'p-studio@example.invalid',
+    'a blank email must keep the stored one';
+
+  -- Direct writes stay closed: no owner UPDATE policy, so is_partner/user_id can't move.
+  UPDATE public.gallery_artists SET is_partner = true, user_id = '32400000-0000-0000-0000-00000000000b'
+    WHERE id = '32400000-0000-0000-0001-000000000001';
+  ASSERT (SELECT is_partner FROM public.gallery_artists WHERE id = '32400000-0000-0000-0001-000000000001') = false,
+    'an Artist must not give themselves the Partner badge';
+  ASSERT (SELECT user_id FROM public.gallery_artists WHERE id = '32400000-0000-0000-0001-000000000001')
+    = '32400000-0000-0000-0000-00000000000a', 'an Artist must not move their profile';
+
+  -- Another Artist's row and contacts are untouched and unreadable.
+  UPDATE public.gallery_artists SET bio = 'hijacked' WHERE id = '32400000-0000-0000-0001-000000000002';
+  ASSERT (SELECT bio FROM public.gallery_artists WHERE id = '32400000-0000-0000-0001-000000000002') = '',
+    'A must not edit B''s profile';
+  ASSERT (SELECT count(*) FROM public.gallery_artist_contacts
+          WHERE artist_id = '32400000-0000-0000-0001-000000000002') = 0, 'A must not read B''s contacts';
+  ASSERT (SELECT commission_email FROM public.gallery_artist_contacts
+          WHERE artist_id = '32400000-0000-0000-0001-000000000001') = 'p-studio@example.invalid',
+    'A reads their own contacts';
+END $$;
+
+-- ---- B is untouched by A's edits ----
+SELECT set_config('request.jwt.claim.sub', '32400000-0000-0000-0000-00000000000b', true);
+DO $$
+BEGIN
+  ASSERT (SELECT commission_email FROM public.gallery_artist_contacts) = 'q-business@example.invalid',
+    'B sees only their own contacts, unchanged';
+END $$;
+
+-- ---- A signed-in user who is not an Artist ----
+SELECT set_config('request.jwt.claim.sub', '32400000-0000-0000-0000-00000000000e', true);
+DO $$
+BEGIN
+  BEGIN
+    PERFORM public.update_own_gallery_artist('x', '[]'::jsonb, NULL, false, '', '');
+    RAISE EXCEPTION 'a user with no artist row updated a profile';
+  EXCEPTION WHEN no_data_found THEN NULL;
+  END;
+  ASSERT (SELECT count(*) FROM public.gallery_artist_contacts) = 0, 'a non-Artist reads no contacts';
+END $$;
+RESET ROLE;
+
+-- ---- Admins still edit any artist through the existing policy ----
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', '32400000-0000-0000-0000-00000000000d', true);
+DO $$
+BEGIN
+  UPDATE public.gallery_artists SET bio = 'fixed by admin', is_partner = true
+    WHERE id = '32400000-0000-0000-0001-000000000002';
+  ASSERT (SELECT bio FROM public.gallery_artists WHERE id = '32400000-0000-0000-0001-000000000002') = 'fixed by admin';
+  ASSERT (SELECT is_partner FROM public.gallery_artists WHERE id = '32400000-0000-0000-0001-000000000002') = true;
+END $$;
+RESET ROLE;
+
+-- ---- Anonymous visitor: contacts stay private ----
+SET LOCAL ROLE anon;
+SELECT set_config('request.jwt.claim.sub', '', true);
+DO $$
+BEGIN
+  BEGIN
+    ASSERT (SELECT count(*) FROM public.gallery_artist_contacts) = 0, 'anon read contacts';
+  EXCEPTION WHEN insufficient_privilege THEN NULL;
+  END;
+END $$;
+RESET ROLE;
+ROLLBACK;
