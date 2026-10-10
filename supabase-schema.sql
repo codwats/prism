@@ -724,9 +724,11 @@ BEGIN;
       OR artist_id IN (SELECT id FROM gallery_artists WHERE user_id = auth.uid())
     );
 
-  -- Errors: 42501 not an admin, P0002 claim not pending,
+  -- The approval itself, shared by the admin RPC and automatic approval (#331).
+  -- p_reviewer is the approving admin, or NULL for an automatic approval.
+  -- Errors: P0002 claim not pending,
   -- 23505 artist already claimed or claimant already owns an artist.
-  CREATE OR REPLACE FUNCTION approve_gallery_artist_claim(p_claim_id UUID)
+  CREATE OR REPLACE FUNCTION approve_gallery_artist_claim_core(p_claim_id UUID, p_reviewer UUID)
     RETURNS void
     LANGUAGE plpgsql
     SECURITY DEFINER
@@ -735,10 +737,6 @@ BEGIN;
   DECLARE
     v_claim gallery_artist_claims;
   BEGIN
-    IF NOT is_gallery_admin() THEN
-      RAISE EXCEPTION 'Only gallery admins can approve claims' USING ERRCODE = 'insufficient_privilege';
-    END IF;
-
     SELECT * INTO v_claim FROM gallery_artist_claims
       WHERE id = p_claim_id AND status = 'pending' FOR UPDATE;
     IF NOT FOUND THEN
@@ -755,9 +753,9 @@ BEGIN;
       RAISE EXCEPTION 'Artist is already claimed' USING ERRCODE = 'unique_violation';
     END IF;
 
-    UPDATE gallery_artist_claims SET status = 'approved', reviewed_at = now(), reviewed_by = auth.uid()
+    UPDATE gallery_artist_claims SET status = 'approved', reviewed_at = now(), reviewed_by = p_reviewer
       WHERE id = p_claim_id;
-    UPDATE gallery_artist_claims SET status = 'rejected', reviewed_at = now(), reviewed_by = auth.uid()
+    UPDATE gallery_artist_claims SET status = 'rejected', reviewed_at = now(), reviewed_by = p_reviewer
       WHERE artist_id = v_claim.artist_id AND status = 'pending';
 
     INSERT INTO gallery_artist_contacts (artist_id, commission_email)
@@ -770,6 +768,21 @@ BEGIN;
       FROM gallery_artists a
       WHERE a.id = v_claim.artist_id AND w.uploader_id = v_claim.user_id
         AND w.artist_id IS NULL AND gallery_credit_matches(w.artist_name, a.name);
+  END;
+  $$;
+
+  -- Errors: 42501 not an admin, then the core's P0002 / 23505.
+  CREATE OR REPLACE FUNCTION approve_gallery_artist_claim(p_claim_id UUID)
+    RETURNS void
+    LANGUAGE plpgsql
+    SECURITY DEFINER
+    SET search_path = public, pg_temp
+  AS $$
+  BEGIN
+    IF NOT is_gallery_admin() THEN
+      RAISE EXCEPTION 'Only gallery admins can approve claims' USING ERRCODE = 'insufficient_privilege';
+    END IF;
+    PERFORM approve_gallery_artist_claim_core(p_claim_id, auth.uid());
   END;
   $$;
 
@@ -819,6 +832,10 @@ BEGIN;
   $$;
 
   -- Both revokes are needed: Supabase grants anon EXECUTE directly (#231).
+  -- Internal only: callable by the SECURITY DEFINER RPC and trigger, never a client.
+  REVOKE EXECUTE ON FUNCTION approve_gallery_artist_claim_core(UUID, UUID) FROM public;
+  REVOKE EXECUTE ON FUNCTION approve_gallery_artist_claim_core(UUID, UUID) FROM anon;
+  REVOKE EXECUTE ON FUNCTION approve_gallery_artist_claim_core(UUID, UUID) FROM authenticated;
   REVOKE EXECUTE ON FUNCTION approve_gallery_artist_claim(UUID) FROM public;
   REVOKE EXECUTE ON FUNCTION approve_gallery_artist_claim(UUID) FROM anon;
   GRANT EXECUTE ON FUNCTION approve_gallery_artist_claim(UUID) TO authenticated;
@@ -965,6 +982,50 @@ BEGIN;
   CREATE TRIGGER gallery_artworks_link_on_approve
     BEFORE UPDATE OF status ON gallery_artworks
     FOR EACH ROW EXECUTE FUNCTION gallery_link_approved_artwork();
+COMMIT;
+
+-- ============================================
+-- MIGRATION: Automatic claim approval for invited artists (#331)
+-- ============================================
+-- An artist page created with an invited email is owned the moment that
+-- account files "This is me", if its email matches and is confirmed. Every
+-- other claim waits for an admin. Tests: tests/gallery-artists.sql.
+BEGIN;
+  -- Private like commission_email: the table's RLS lets only the owning
+  -- Artist and admins read it.
+  ALTER TABLE gallery_artist_contacts ADD COLUMN IF NOT EXISTS invited_email TEXT;
+
+  CREATE OR REPLACE FUNCTION gallery_auto_approve_invited_claim()
+    RETURNS trigger
+    LANGUAGE plpgsql
+    SECURITY DEFINER
+    SET search_path = public, pg_temp
+  AS $$
+  BEGIN
+    IF NEW.status = 'pending' AND EXISTS (
+      SELECT 1 FROM gallery_artist_contacts c, auth.users u
+        WHERE c.artist_id = NEW.artist_id AND u.id = NEW.user_id
+          AND u.email_confirmed_at IS NOT NULL
+          AND lower(btrim(c.invited_email)) = lower(btrim(u.email))
+    ) THEN
+      BEGIN
+        PERFORM approve_gallery_artist_claim_core(NEW.id, NULL);
+      EXCEPTION WHEN unique_violation THEN
+        NULL; -- claimant already owns an artist: the claim waits for an admin
+      END;
+    END IF;
+    RETURN NULL;
+  END;
+  $$;
+
+  REVOKE EXECUTE ON FUNCTION gallery_auto_approve_invited_claim() FROM public;
+  REVOKE EXECUTE ON FUNCTION gallery_auto_approve_invited_claim() FROM anon;
+  REVOKE EXECUTE ON FUNCTION gallery_auto_approve_invited_claim() FROM authenticated;
+
+  DROP TRIGGER IF EXISTS gallery_artist_claims_auto_approve ON gallery_artist_claims;
+  CREATE TRIGGER gallery_artist_claims_auto_approve
+    AFTER INSERT ON gallery_artist_claims
+    FOR EACH ROW EXECUTE FUNCTION gallery_auto_approve_invited_claim();
 COMMIT;
 
 -- ============================================

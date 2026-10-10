@@ -725,6 +725,15 @@ async function renderClaimSlot(slot, artist) {
       showError('Could not send your claim — try again.');
       return;
     }
+    // An invited artist's claim is approved on insert (#331): re-read it.
+    const { data: approved } = await getSupabase().from('gallery_artist_claims')
+      .select('id').eq('artist_id', artist.id).eq('user_id', me.id).eq('status', 'approved').limit(1);
+    if (approved?.length) {
+      showSuccess('This page is yours — you can edit it and open commissions.');
+      await loadPublicData(); // the artist row now carries user_id, so Edit profile appears
+      render();
+      return;
+    }
     showSuccess('Claim sent — an admin will review it.');
     renderClaimSlot(slot, artist);
   });
