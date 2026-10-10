@@ -42,9 +42,10 @@ INSERT INTO auth.users (id, email, email_confirmed_at) VALUES
   ('32300000-0000-0000-0000-00000000000c', 'owner@example.invalid', now()),
   ('32300000-0000-0000-0000-00000000000d', 'admin@example.invalid', now());
 INSERT INTO public.gallery_admins (user_id) VALUES ('32300000-0000-0000-0000-00000000000d');
--- X is an unclaimed Attribution; Y is already an Artist owned by C.
+-- X and Z are unclaimed Attributions; Y is already an Artist owned by C.
 INSERT INTO public.gallery_artists (id, name, user_id) VALUES
   ('32300000-0000-0000-0001-000000000001', 'Unclaimed X', NULL),
+  ('32300000-0000-0000-0001-000000000003', 'Unclaimed Z', NULL),
   ('32300000-0000-0000-0001-000000000002', 'Claimed Y', '32300000-0000-0000-0000-00000000000c');
 INSERT INTO public.gallery_artist_contacts (artist_id, commission_email) VALUES
   ('32300000-0000-0000-0001-000000000002', 'owner-business@example.invalid');
@@ -160,7 +161,9 @@ RESET ROLE;
 -- A claim filed on Y before C's link was set by hand: approving it must fail.
 INSERT INTO public.gallery_artist_claims (id, artist_id, user_id) VALUES
   ('32300000-0000-0000-0002-000000000001', '32300000-0000-0000-0001-000000000002', '32300000-0000-0000-0000-00000000000b'),
-  ('32300000-0000-0000-0002-000000000002', '32300000-0000-0000-0001-000000000002', '32300000-0000-0000-0000-00000000000a');
+  ('32300000-0000-0000-0002-000000000002', '32300000-0000-0000-0001-000000000002', '32300000-0000-0000-0000-00000000000a'),
+-- C already owns Y, so their claim on Z must not be approved.
+  ('32300000-0000-0000-0002-000000000003', '32300000-0000-0000-0001-000000000003', '32300000-0000-0000-0000-00000000000c');
 
 -- ---- Admin D ----
 SET LOCAL ROLE authenticated;
@@ -170,7 +173,7 @@ DECLARE
   a_claim UUID;
   b_claim UUID;
 BEGIN
-  ASSERT (SELECT count(*) FROM public.list_gallery_artist_claims()) = 4, 'admin lists every pending claim';
+  ASSERT (SELECT count(*) FROM public.list_gallery_artist_claims()) = 5, 'admin lists every pending claim';
   ASSERT (SELECT claimant_email FROM public.list_gallery_artist_claims()
           WHERE claimant_id = '32300000-0000-0000-0000-00000000000a'
             AND artist_id = '32300000-0000-0000-0001-000000000001') = 'claimant@example.invalid',
@@ -213,6 +216,16 @@ BEGIN
   ASSERT (SELECT user_id FROM public.gallery_artists WHERE id = '32300000-0000-0000-0001-000000000002')
     = '32300000-0000-0000-0000-00000000000c', 'a failed approve must leave the owner in place';
 
+  BEGIN
+    PERFORM public.approve_gallery_artist_claim('32300000-0000-0000-0002-000000000003');
+    RAISE EXCEPTION 'approved a claim for an account that already owns an artist';
+  EXCEPTION WHEN unique_violation THEN NULL;
+  END;
+  ASSERT (SELECT user_id FROM public.gallery_artists WHERE id = '32300000-0000-0000-0001-000000000003') IS NULL,
+    'a refused approve must leave the artist unclaimed';
+  ASSERT (SELECT status FROM public.gallery_artist_claims
+          WHERE id = '32300000-0000-0000-0002-000000000003') = 'pending', 'a refused approve must leave the claim pending';
+
   PERFORM public.reject_gallery_artist_claim('32300000-0000-0000-0002-000000000002');
   ASSERT (SELECT status FROM public.gallery_artist_claims
           WHERE id = '32300000-0000-0000-0002-000000000002') = 'rejected', 'reject must reject';
@@ -232,6 +245,17 @@ BEGIN
   ASSERT (SELECT count(*) FROM public.gallery_artist_contacts) = 0, 'B must not read contacts';
 END $$;
 RESET ROLE;
+
+-- The index backs the RPC: no path may give one account a second artist.
+DO $$
+BEGIN
+  BEGIN
+    UPDATE public.gallery_artists SET user_id = '32300000-0000-0000-0000-00000000000c'
+      WHERE id = '32300000-0000-0000-0001-000000000003';
+    RAISE EXCEPTION 'one account was linked to two artists';
+  EXCEPTION WHEN unique_violation THEN NULL;
+  END;
+END $$;
 ROLLBACK;
 
 -- ============================================
@@ -279,6 +303,40 @@ BEGIN
     RAISE EXCEPTION 'accepted a malformed commission email';
   EXCEPTION WHEN check_violation THEN NULL;
   END;
+
+  BEGIN
+    PERFORM public.update_own_gallery_artist('bio', '[]'::jsonb, 'http://p.example/me.png', false, '', '');
+    RAISE EXCEPTION 'accepted a non-https avatar';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+  BEGIN
+    PERFORM public.update_own_gallery_artist('bio', '[]'::jsonb, 'javascript:alert(1)', false, '', '');
+    RAISE EXCEPTION 'accepted a javascript: avatar';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+  BEGIN
+    PERFORM public.update_own_gallery_artist('bio',
+      '[{"label":"Ok","href":"https://ok.example"},{"label":"Bad","href":"javascript:alert(1)"}]'::jsonb, NULL, false, '', '');
+    RAISE EXCEPTION 'accepted a javascript: link';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+  BEGIN
+    PERFORM public.update_own_gallery_artist('bio', '[{"label":"Plain","href":"http://p.example"}]'::jsonb, NULL, false, '', '');
+    RAISE EXCEPTION 'accepted a non-https link';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+  BEGIN
+    PERFORM public.update_own_gallery_artist('bio', '[{"label":"No href"}]'::jsonb, NULL, false, '', '');
+    RAISE EXCEPTION 'accepted a link with no href';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+  BEGIN
+    PERFORM public.update_own_gallery_artist('bio', '{"href":"https://p.example"}'::jsonb, NULL, false, '', '');
+    RAISE EXCEPTION 'accepted links that are not an array';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+  ASSERT (SELECT bio FROM public.gallery_artists WHERE id = '32400000-0000-0000-0001-000000000001') = '',
+    'a refused update must change nothing';
 
   PERFORM public.update_own_gallery_artist(
     'Painter of alters', '[{"label":"Site","icon":"globe","href":"https://p.example"}]'::jsonb,

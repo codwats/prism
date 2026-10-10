@@ -681,6 +681,10 @@ BEGIN;
     reviewed_by UUID REFERENCES auth.users(id)
   );
 
+  -- One account owns at most one Artist.
+  CREATE UNIQUE INDEX IF NOT EXISTS gallery_artists_one_per_user
+    ON gallery_artists (user_id) WHERE user_id IS NOT NULL;
+
   -- One pending claim per user per artist; a rejected maker may file again.
   CREATE UNIQUE INDEX IF NOT EXISTS gallery_artist_claims_one_pending
     ON gallery_artist_claims (user_id, artist_id) WHERE status = 'pending';
@@ -720,7 +724,8 @@ BEGIN;
       OR artist_id IN (SELECT id FROM gallery_artists WHERE user_id = auth.uid())
     );
 
-  -- Errors: 42501 not an admin, P0002 claim not pending, 23505 artist already claimed.
+  -- Errors: 42501 not an admin, P0002 claim not pending,
+  -- 23505 artist already claimed or claimant already owns an artist.
   CREATE OR REPLACE FUNCTION approve_gallery_artist_claim(p_claim_id UUID)
     RETURNS void
     LANGUAGE plpgsql
@@ -738,6 +743,10 @@ BEGIN;
       WHERE id = p_claim_id AND status = 'pending' FOR UPDATE;
     IF NOT FOUND THEN
       RAISE EXCEPTION 'Claim is not pending' USING ERRCODE = 'no_data_found';
+    END IF;
+
+    IF EXISTS (SELECT 1 FROM gallery_artists WHERE user_id = v_claim.user_id) THEN
+      RAISE EXCEPTION 'Claimant already owns an artist' USING ERRCODE = 'unique_violation';
     END IF;
 
     UPDATE gallery_artists SET user_id = v_claim.user_id
@@ -826,7 +835,8 @@ BEGIN;
   ALTER TABLE gallery_artists ADD COLUMN IF NOT EXISTS commissions_open BOOLEAN NOT NULL DEFAULT false;
   ALTER TABLE gallery_artists ADD COLUMN IF NOT EXISTS commission_note TEXT DEFAULT '';
 
-  -- Errors: P0002 caller owns no artist row, 23514 bad email or open without one.
+  -- Errors: P0002 caller owns no artist row, 23514 bad email, open without one,
+  -- or an avatar/link href that isn't https://.
   -- A blank p_commission_email keeps the stored address.
   CREATE OR REPLACE FUNCTION update_own_gallery_artist(
     p_bio TEXT,
@@ -852,6 +862,15 @@ BEGIN;
 
     IF v_email IS NOT NULL AND v_email !~ '^[^@[:space:]]+@[^@[:space:]]+\.[^@[:space:]]+$' THEN
       RAISE EXCEPTION 'Commission email is not a valid address' USING ERRCODE = 'check_violation';
+    END IF;
+    IF nullif(btrim(coalesce(p_avatar_url, '')), '') !~* '^https://' THEN
+      RAISE EXCEPTION 'Avatar must be an https:// address' USING ERRCODE = 'check_violation';
+    END IF;
+    -- CASE, not OR: jsonb_array_elements raises on a non-array, and OR has no evaluation order.
+    IF CASE WHEN jsonb_typeof(coalesce(p_links, '[]'::jsonb)) <> 'array' THEN true
+            ELSE EXISTS (SELECT 1 FROM jsonb_array_elements(coalesce(p_links, '[]'::jsonb)) l
+                         WHERE coalesce(l->>'href', '') !~* '^https://') END THEN
+      RAISE EXCEPTION 'Every link must be an https:// address' USING ERRCODE = 'check_violation';
     END IF;
     IF coalesce(p_commissions_open, false) AND v_email IS NULL
        AND NOT EXISTS (SELECT 1 FROM gallery_artist_contacts WHERE artist_id = v_artist_id) THEN

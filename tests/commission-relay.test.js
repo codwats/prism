@@ -60,6 +60,9 @@ async function send(t, body, w = world(), { method = 'POST', token = 'user-token
     method, headers, body: method === 'POST' ? JSON.stringify(body) : undefined
   }));
   const text = await response.text();
+  // Every path, success or error: neither address may reach the browser.
+  assert.ok(!text.includes(ARTIST_EMAIL), 'artist address leaked');
+  assert.ok(!text.includes(REQUESTER_EMAIL), 'requester address leaked');
   const called = prefix => requests.filter(r => r.url.startsWith(prefix));
   return {
     status: response.status, text, json: text ? JSON.parse(text) : null, requests,
@@ -71,10 +74,6 @@ async function send(t, body, w = world(), { method = 'POST', token = 'user-token
 const originalDeno = globalThis.Deno;
 const valid = (extra = {}) => ({ artistId: ARTIST, message: MESSAGE, turnstileToken: 'ts-token', ...extra });
 
-function assertNoAddress(res) {
-  assert.ok(!res.text.includes(ARTIST_EMAIL), 'artist address leaked');
-  assert.ok(!res.text.includes(REQUESTER_EMAIL), 'requester address leaked');
-}
 
 endpointTest('a valid request is relayed once with reply_to the requester and a ledger row', async t => {
   const res = await send(t, valid());
@@ -90,7 +89,6 @@ endpointTest('a valid request is relayed once with reply_to the requester and a 
   assert.equal(res.resend[0].options.headers.Authorization, 'Bearer test-resend-key');
   assert.equal(res.ledgerWrites.length, 1);
   assert.deepEqual(JSON.parse(res.ledgerWrites[0].options.body), { user_id: USER, artist_id: ARTIST, artwork_id: null });
-  assertNoAddress(res);
 });
 
 endpointTest('an artwork reference adds its database title, thumbnail and gallery link', async t => {
@@ -170,7 +168,6 @@ endpointTest('closed commissions or no contacts row is a 409', async t => {
     const res = await send(t, valid(), w);
     assert.equal(res.status, 409);
     assert.equal(res.resend.length, 0);
-    assertNoAddress(res);
     t.mock.restoreAll();
   }
 });
@@ -209,7 +206,6 @@ endpointTest('a Resend failure is a 502 and writes no ledger row', async t => {
   const res = await send(t, valid(), world({ resendOk: false }));
   assert.equal(res.status, 502);
   assert.equal(res.ledgerWrites.length, 0);
-  assertNoAddress(res);
 });
 
 endpointTest('missing env is a 503 that names the variables in the log only', async t => {

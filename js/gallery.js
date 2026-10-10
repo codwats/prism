@@ -267,7 +267,7 @@ function artPlaceholderHtml(artwork, cls = 'gallery-art') {
 function avatarHtml(artist, sizeRem, extraStyle = '') {
   const style = `width: ${sizeRem}rem; height: ${sizeRem}rem;${extraStyle}`;
   return artist?.avatarUrl
-    ? `<div class="gallery-avatar" style="${style} overflow: hidden;"><img src="${escapeHtml(artist.avatarUrl)}" alt="" style="width: 100%; height: 100%; object-fit: cover;" /></div>`
+    ? `<div class="gallery-avatar" style="${style} overflow: hidden;"><img src="${escapeHtml(safeUrl(artist.avatarUrl))}" alt="" style="width: 100%; height: 100%; object-fit: cover;" /></div>`
     : `<div class="gallery-avatar" style="${style}"><wa-icon name="user"></wa-icon></div>`;
 }
 
@@ -420,7 +420,7 @@ function renderGrid(root) {
       <div>
         <span class="gallery-tlabel">Type</span>
         <wa-button-group label="Filter by type">
-          ${['all', 'proxy', 'token', 'showcase', 'alter'].map(t => `<wa-button size="s" data-type="${t}"${filters.type === t ? ' variant="brand"' : ' appearance="outlined"'}>${t === 'all' ? 'All' : TYPE_LABELS[t]}</wa-button>`).join('')}
+          ${['all', ...Object.keys(TYPE_LABELS)].map(t => `<wa-button size="s" data-type="${t}"${filters.type === t ? ' variant="brand"' : ' appearance="outlined"'}>${t === 'all' ? 'All' : TYPE_LABELS[t]}</wa-button>`).join('')}
         </wa-button-group>
       </div>
       <wa-select id="gallery-artist" size="s" label="Artist" value="${escapeHtml(filters.artist)}" style="width: 12rem;">
@@ -652,7 +652,7 @@ function renderCommissionForm(section, artist, works) {
     }
     const artwork = fieldValue(section, '#cm-artwork');
     const button = section.querySelector('#cm-send');
-    button.loading = true;
+    button.setAttribute('loading', '');
     try {
       const { data: { session } = {} } = await getSupabase()?.auth.getSession() || { data: {} };
       const res = await fetch('/api/commission', {
@@ -668,7 +668,7 @@ function renderCommissionForm(section, artist, works) {
     } catch {
       showError('Your request couldn’t be sent. Try again later.');
     } finally {
-      button.loading = false;
+      button.removeAttribute('loading');
     }
     // A Turnstile token is single-use; get a fresh one for the retry.
     token = '';
@@ -1109,7 +1109,7 @@ function textToLinks(text, oldLinks) {
   for (const line of text.split('\n').map(l => l.trim()).filter(Boolean)) {
     let url;
     try { url = new URL(line); } catch { return null; }
-    if (url.protocol !== 'http:' && url.protocol !== 'https:') return null;
+    if (url.protocol !== 'https:') return null; // the RPC refuses anything else
     links.push(oldLinks.find(l => l.href === line) || { label: url.hostname.replace(/^www\./, ''), icon: 'globe', href: line });
   }
   return links;
@@ -1170,7 +1170,7 @@ async function renderEditArtist(root) {
     const email = fieldValue(root, '#ar-email').trim();
     const open = !!root.querySelector('#ar-open').checked;
     if (!links) { showError('Each link must be a full web address starting with https://'); return; }
-    if (avatar && safeUrl(avatar) === '#') { showError('The avatar must be a web address starting with https://'); return; }
+    if (avatar && !/^https:\/\//i.test(avatar)) { showError('The avatar must be a web address starting with https://'); return; }
     if (email && !EMAIL_RE.test(email)) { showError('That commission email doesn’t look right.'); return; }
     if (open && !email) { showError('Add a commission email to open commissions.'); return; }
 
@@ -1367,8 +1367,8 @@ async function renderAdmin(root) {
                 </div>
               </div>
               <div class="wa-cluster wa-gap-xs">
-                <wa-button size="s" variant="success" data-claim-approve="${c.claim_id}"><wa-icon slot="start" name="check"></wa-icon>Approve</wa-button>
-                <wa-button size="s" variant="danger" appearance="outlined" data-claim-reject="${c.claim_id}"><wa-icon slot="start" name="xmark"></wa-icon>Reject</wa-button>
+                <wa-button size="s" variant="success" data-claim-approve="${escapeHtml(c.claim_id)}"><wa-icon slot="start" name="check"></wa-icon>Approve</wa-button>
+                <wa-button size="s" variant="danger" appearance="outlined" data-claim-reject="${escapeHtml(c.claim_id)}"><wa-icon slot="start" name="xmark"></wa-icon>Reject</wa-button>
               </div>
             </div>
           </div>`).join('')}
@@ -1432,10 +1432,10 @@ async function renderAdmin(root) {
   root.querySelector('#admin-tabs')?.addEventListener('wa-tab-show', e => { adminTab = e.detail.name; });
 
   const claimAction = (attr, rpc, done) => root.querySelectorAll(`[${attr}]`).forEach(btn => btn.addEventListener('click', async () => {
-    btn.loading = true;
+    btn.setAttribute('loading', '');
     const { error: err } = await sb.rpc(rpc, { p_claim_id: btn.getAttribute(attr) });
-    btn.loading = false;
-    if (err) showError(err.code === '23505' ? 'That profile is already claimed.' : 'Could not update the claim — try again.');
+    btn.removeAttribute('loading');
+    if (err) showError(err.code === '23505' ? 'That profile is already claimed, or the claimant already owns one.' : 'Could not update the claim — try again.');
     else done();
     await loadPublicData(); // an approved claim changes the public artist row
     render();
