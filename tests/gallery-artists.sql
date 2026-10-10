@@ -746,3 +746,73 @@ BEGIN
 END $$;
 RESET ROLE;
 ROLLBACK;
+
+-- ============================================
+-- Admin Artists tab (#330): admins edit any artist page; non-admins can't
+-- ============================================
+BEGIN;
+
+INSERT INTO auth.users (id, email, email_confirmed_at) VALUES
+  ('33000000-0000-0000-0000-00000000000a', 'tab-admin@example.invalid', now()),
+  ('33000000-0000-0000-0000-00000000000b', 'tab-owner@example.invalid', now()),
+  ('33000000-0000-0000-0000-00000000000c', 'tab-stranger@example.invalid', now());
+INSERT INTO public.gallery_admins (user_id) VALUES ('33000000-0000-0000-0000-00000000000a');
+-- M is an Artist owned by B; N is an unclaimed Attribution.
+INSERT INTO public.gallery_artists (id, name, user_id) VALUES
+  ('33000000-0000-0000-0001-000000000001', 'Mo Owned', '33000000-0000-0000-0000-00000000000b'),
+  ('33000000-0000-0000-0001-000000000002', 'Nu Unclaimed', NULL);
+
+-- ---- Stranger C and owner B: a direct UPDATE changes nothing ----
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', '33000000-0000-0000-0000-00000000000c', true);
+DO $$
+BEGIN
+  UPDATE public.gallery_artists SET name = 'Hijacked', is_partner = true
+    WHERE id IN ('33000000-0000-0000-0001-000000000001', '33000000-0000-0000-0001-000000000002');
+  ASSERT NOT FOUND, 'a non-admin updated an artist page';
+END $$;
+SELECT set_config('request.jwt.claim.sub', '33000000-0000-0000-0000-00000000000b', true);
+DO $$
+BEGIN
+  UPDATE public.gallery_artists SET is_partner = true WHERE id = '33000000-0000-0000-0001-000000000001';
+  ASSERT NOT FOUND, 'an Artist set their own partner flag by direct UPDATE';
+END $$;
+RESET ROLE;
+
+-- ---- Anonymous visitor ----
+SET LOCAL ROLE anon;
+SELECT set_config('request.jwt.claim.sub', '', true);
+DO $$
+BEGIN
+  BEGIN
+    UPDATE public.gallery_artists SET name = 'Hijacked' WHERE id = '33000000-0000-0000-0001-000000000002';
+    ASSERT NOT FOUND, 'anon updated an artist page';
+  EXCEPTION WHEN insufficient_privilege THEN NULL;
+  END;
+END $$;
+RESET ROLE;
+
+-- ---- Admin A edits both, claimed and unclaimed, the way the Artists tab does ----
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', '33000000-0000-0000-0000-00000000000a', true);
+DO $$
+BEGIN
+  UPDATE public.gallery_artists SET name = 'Mo Renamed', bio = 'Fixed.', is_partner = true,
+    avatar_url = 'https://img.example/m.png',
+    links = '[{"label":"mo.example","icon":"globe","href":"https://mo.example"}]'::jsonb
+    WHERE id = '33000000-0000-0000-0001-000000000001';
+  ASSERT FOUND, 'an admin must be able to edit a claimed artist';
+  UPDATE public.gallery_artists SET name = 'Nu Renamed' WHERE id = '33000000-0000-0000-0001-000000000002';
+  ASSERT FOUND, 'an admin must be able to edit an unclaimed artist';
+END $$;
+RESET ROLE;
+
+DO $$
+BEGIN
+  ASSERT (SELECT name FROM public.gallery_artists WHERE id = '33000000-0000-0000-0001-000000000001') = 'Mo Renamed';
+  ASSERT (SELECT is_partner FROM public.gallery_artists WHERE id = '33000000-0000-0000-0001-000000000001');
+  ASSERT (SELECT user_id FROM public.gallery_artists WHERE id = '33000000-0000-0000-0001-000000000001')
+    = '33000000-0000-0000-0000-00000000000b', 'an admin edit must keep the owner';
+  ASSERT (SELECT name FROM public.gallery_artists WHERE id = '33000000-0000-0000-0001-000000000002') = 'Nu Renamed';
+END $$;
+ROLLBACK;
