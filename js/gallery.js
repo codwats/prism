@@ -61,8 +61,8 @@ const TYPE_TAG_VARIANTS = { proxy: 'neutral', token: 'brand', showcase: 'warning
 const LICENSE_HTML = 'Personal, non-commercial use only — credit the artist. <a href="terms.html">Full terms</a>';
 // An alter is a photograph of a real painted card, never a file to print (#322).
 const ALTER_LICENSE_HTML = 'Display only — not for reproduction. Commission the artist for your own.';
-// shortcut: Cloudflare's always-pass test key, replace it with the production site key from scripts/setup-commission-relay.sh.
-const TURNSTILE_SITE_KEY = '1x00000000000000000000AA';
+// Public Turnstile site key (prismmtg.com + localhost); its secret is TURNSTILE_SECRET_KEY in Netlify.
+const TURNSTILE_SITE_KEY = '0x4AAAAAAFSxouNPhJdr5HGl';
 
 // ============================================================
 // Data layer (Supabase)
