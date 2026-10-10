@@ -764,6 +764,12 @@ BEGIN;
       SELECT v_claim.artist_id, u.email FROM auth.users u
       WHERE u.id = v_claim.user_id AND u.email IS NOT NULL
     ON CONFLICT (artist_id) DO UPDATE SET commission_email = EXCLUDED.commission_email;
+
+    -- Works the claimant uploaded before the claim join the page (#321 follow-up).
+    UPDATE gallery_artworks w SET artist_id = a.id
+      FROM gallery_artists a
+      WHERE a.id = v_claim.artist_id AND w.uploader_id = v_claim.user_id
+        AND w.artist_id IS NULL AND gallery_credit_matches(w.artist_name, a.name);
   END;
   $$;
 
@@ -919,6 +925,46 @@ BEGIN;
 
   ALTER TABLE gallery_commission_sends ENABLE ROW LEVEL SECURITY;
   -- gallery_commission_sends: RLS enabled, zero policies — service role only.
+COMMIT;
+
+-- ============================================
+-- MIGRATION: Link approved uploads to their uploader's artist page
+-- ============================================
+-- Uploads can't set artist_id (RLS), so approval attaches it: an upload joins
+-- the artist page its uploader owns when the credit on it is blank or that
+-- artist's name. Work credited to someone else stays an Attribution.
+-- approve_gallery_artist_claim applies the same rule to earlier uploads.
+-- Tests: tests/gallery-artists.sql.
+BEGIN;
+  CREATE OR REPLACE FUNCTION gallery_credit_matches(p_credit TEXT, p_artist_name TEXT)
+    RETURNS boolean
+    LANGUAGE sql
+    IMMUTABLE
+    SET search_path = public, pg_temp
+  AS $$
+    SELECT nullif(btrim(coalesce(p_credit, '')), '') IS NULL
+        OR lower(btrim(p_credit)) = lower(btrim(p_artist_name));
+  $$;
+
+  CREATE OR REPLACE FUNCTION gallery_link_approved_artwork()
+    RETURNS trigger
+    LANGUAGE plpgsql
+    SET search_path = public, pg_temp
+  AS $$
+  BEGIN
+    IF NEW.status = 'approved' AND OLD.status IS DISTINCT FROM 'approved'
+       AND NEW.artist_id IS NULL AND NEW.uploader_id IS NOT NULL THEN
+      SELECT a.id INTO NEW.artist_id FROM gallery_artists a
+        WHERE a.user_id = NEW.uploader_id AND gallery_credit_matches(NEW.artist_name, a.name);
+    END IF;
+    RETURN NEW;
+  END;
+  $$;
+
+  DROP TRIGGER IF EXISTS gallery_artworks_link_on_approve ON gallery_artworks;
+  CREATE TRIGGER gallery_artworks_link_on_approve
+    BEFORE UPDATE OF status ON gallery_artworks
+    FOR EACH ROW EXECUTE FUNCTION gallery_link_approved_artwork();
 COMMIT;
 
 -- ============================================
