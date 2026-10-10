@@ -418,7 +418,7 @@ CREATE TABLE IF NOT EXISTS gallery_artists (
 CREATE TABLE IF NOT EXISTS gallery_artworks (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   title TEXT NOT NULL,
-  type TEXT NOT NULL CHECK (type IN ('proxy', 'token', 'showcase')),
+  type TEXT NOT NULL CHECK (type IN ('proxy', 'token', 'showcase', 'alter')),
   original_card_name TEXT,
   original_card_set TEXT,
   scryfall_url TEXT,
@@ -438,6 +438,12 @@ CREATE TABLE IF NOT EXISTS gallery_artworks (
   reviewed_at TIMESTAMPTZ,
   reviewed_by UUID REFERENCES auth.users(id)
 );
+
+-- Alter Alley (#322): 'alter' joins the types. Idempotent: the inline CHECK
+-- above is Postgres-named gallery_artworks_type_check on older deployments too.
+ALTER TABLE gallery_artworks DROP CONSTRAINT IF EXISTS gallery_artworks_type_check;
+ALTER TABLE gallery_artworks ADD CONSTRAINT gallery_artworks_type_check
+  CHECK (type IN ('proxy', 'token', 'showcase', 'alter'));
 
 CREATE INDEX IF NOT EXISTS idx_gallery_artworks_status_likes ON gallery_artworks(status, likes_count DESC);
 CREATE INDEX IF NOT EXISTS idx_gallery_artworks_uploader ON gallery_artworks(uploader_id);
