@@ -9,6 +9,7 @@
  *   gallery.html?view=uploads    my uploads (status tracking)
  *   gallery.html?view=admin      moderation queue (gallery admins only)
  *   gallery.html?view=edit-artist  the signed-in Artist's own profile + commission settings
+ *   gallery.html?view=admin-artist[&id=]  admin: add an artist page, or edit any one
  *
  * Backend: Supabase (see the GALLERY section of supabase-schema.sql).
  * Public reads go through plain PostgREST fetch with the anon key so
@@ -26,6 +27,7 @@ import { getSupabase, hasStoredSession, SUPABASE_URL, SUPABASE_ANON_KEY } from '
 import { showSuccess, showError, showToast } from './core/notifications.js';
 import { wireCardAutocomplete as wireCardAutocompleteInput } from './modules/card-autocomplete.js';
 import { escapeHtml } from './core/utils.js';
+import { linkIcon } from './modules/gallery-links.js';
 
 // ============================================================
 // Demo fallback data (used only when the gallery schema isn't deployed)
@@ -718,16 +720,39 @@ async function renderClaimSlot(slot, artist) {
       showToast('Demo data — deploy the gallery schema to enable claims', 'neutral', 'database');
       return;
     }
+    const claimId = crypto.randomUUID();
     const { error } = await getSupabase().from('gallery_artist_claims')
-      .insert({ artist_id: artist.id, user_id: me.id });
+      .insert({ id: claimId, artist_id: artist.id, user_id: me.id });
     // 23505: a pending claim already exists, which is the outcome wanted anyway
     if (error && error.code !== '23505') {
       showError('Could not send your claim — try again.');
       return;
     }
+    // An invited artist's claim is approved on insert (#331): re-read it.
+    const { data: approved } = await getSupabase().from('gallery_artist_claims')
+      .select('id').eq('artist_id', artist.id).eq('user_id', me.id).eq('status', 'approved').limit(1);
+    if (approved?.length) {
+      showSuccess('This page is yours — you can edit it and open commissions.');
+      await loadPublicData(); // the artist row now carries user_id, so Edit profile appears
+      render();
+      return;
+    }
+    if (!error) notifyReviewers('claim', claimId);
     showSuccess('Claim sent — an admin will review it.');
     renderClaimSlot(slot, artist);
   });
+}
+
+// Tell the admins a new upload or claim awaits review (/api/gallery-notify).
+// Fire-and-forget: it never blocks or fails the UI; the server dedupes.
+function notifyReviewers(kind, id) {
+  getSupabase()?.auth.getSession()
+    .then(({ data: { session } = {} }) => fetch('/api/gallery-notify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token || ''}` },
+      body: JSON.stringify({ kind, id }),
+    }))
+    .catch(() => {});
 }
 
 // ============================================================
@@ -904,7 +929,9 @@ function renderUpload(root) {
       const { error: uploadErr } = await sb.storage.from('gallery-art').upload(path, selectedFile, { contentType: selectedFile.type });
       if (uploadErr) throw uploadErr;
 
+      const artworkId = crypto.randomUUID();
       const { error: insertErr } = await sb.from('gallery_artworks').insert({
+        id: artworkId,
         title: fields.title,
         type: fields.type,
         original_card_name: fields.cardName,
@@ -920,6 +947,7 @@ function renderUpload(root) {
         sb.storage.from('gallery-art').remove([path]); // best-effort cleanup
         throw insertErr;
       }
+      notifyReviewers('upload', artworkId);
       rememberArtistName(fields.artistName);
       renderPending(root);
     } catch (err) {
@@ -1111,7 +1139,7 @@ function textToLinks(text, oldLinks) {
     let url;
     try { url = new URL(line); } catch { return null; }
     if (url.protocol !== 'https:') return null; // the RPC refuses anything else
-    links.push(oldLinks.find(l => l.href === line) || { label: url.hostname.replace(/^www\./, ''), icon: 'globe', href: line });
+    links.push(oldLinks.find(l => l.href === line) || { label: url.hostname.replace(/^www\./, ''), ...linkIcon(line), href: line });
   }
   return links;
 }
@@ -1197,6 +1225,127 @@ async function renderEditArtist(root) {
     await loadPublicData();
     history.pushState({}, '', backHref);
     render();
+  });
+}
+
+// ============================================================
+// Admin artist form (#330): Add artist via /api/gallery-artist; Edit by
+// direct UPDATE under the "Admins manage gallery artists" policy.
+// ============================================================
+
+const INVITE_OUTCOME = {
+  sent: 'Invite sent',
+  existing_account: 'They already have an account — they can sign in and claim',
+  failed: 'Invite failed — try Resend',
+  email_not_saved: 'The email couldn’t be saved, so no invite went out. Add it to the artist’s gallery_artist_contacts row (invited_email) in the SQL editor, then use Resend invite.',
+};
+
+async function postGalleryArtist(body) {
+  const { data: { session } = {} } = await getSupabase().auth.getSession();
+  return fetch('/api/gallery-artist', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token || ''}` },
+    body: JSON.stringify(body),
+  });
+}
+
+async function renderAdminArtist(root, id) {
+  const user = getCurrentUser();
+  if (!user) {
+    if (hasStoredSession()) { root.innerHTML = loadingHtml(); return; } // auth still restoring
+    renderNotFound(root, 'Not authorized', 'Artist pages are managed by gallery admins. Sign in first.');
+    return;
+  }
+  if (!isAdmin || usingDemo) {
+    renderNotFound(root, 'Not authorized', 'Artist pages are managed by gallery admins.');
+    return;
+  }
+  const artist = id ? artistsDb.find(a => a.id === id) : null;
+  if (id && !artist) { renderNotFound(root, 'Artist not found', 'It may have been removed.'); return; }
+  const v = artist || { name: '', bio: '', links: [], avatarUrl: '', isPartner: false };
+  const title = artist ? `Edit ${artist.name}` : 'Add artist';
+
+  root.innerHTML = `
+    ${breadcrumbHtml([{ label: 'Gallery', href: 'gallery.html' }, { label: 'Moderation queue', href: 'gallery.html?view=admin' }, { label: title }])}
+    <h1 class="wa-heading-2xl">${escapeHtml(title)}</h1>
+    <p style="color: var(--wa-color-neutral-text-subtle); margin-top: var(--wa-space-2xs);">${artist ? 'Changes go live right away.' : 'Creates a public artist page. The page link is shown after saving.'}</p>
+    <form class="gallery-form" id="admin-artist-form" style="margin-top: var(--wa-space-l);">
+      <wa-input id="aa-name" label="Display name" required maxlength="80" value="${escapeHtml(v.name)}"></wa-input>
+      <wa-textarea id="aa-bio" label="Bio" rows="4" value="${escapeHtml(v.bio)}"></wa-textarea>
+      <wa-textarea id="aa-links" label="Links" rows="3" placeholder="https://their-site.example" value="${escapeHtml(linksToText(v.links))}">
+        <span slot="hint">One web address per line: site, shop or socials.</span>
+      </wa-textarea>
+      <wa-input id="aa-avatar" label="Avatar image URL" placeholder="https://&hellip;/avatar.png" value="${escapeHtml(v.avatarUrl || '')}"></wa-input>
+      <wa-switch id="aa-partner"${v.isPartner ? ' checked' : ''}>Partner artist</wa-switch>
+      ${artist ? '' : `<wa-input id="aa-email" type="email" label="Artist’s email (optional)">
+        <span slot="hint">Sends them an account invite that lands on their page. Private: never shown on any page.</span>
+      </wa-input>`}
+      <div class="wa-cluster wa-gap-s">
+        <wa-button type="submit" variant="brand" id="aa-submit"><wa-icon slot="start" name="floppy-disk"></wa-icon>${artist ? 'Save changes' : 'Add artist'}</wa-button>
+        <wa-button type="button" appearance="plain" href="gallery.html?view=admin">Cancel</wa-button>
+      </div>
+    </form>`;
+
+  root.querySelector('#admin-artist-form').addEventListener('submit', async e => {
+    e.preventDefault();
+    const name = fieldValue(root, '#aa-name').trim();
+    const links = textToLinks(fieldValue(root, '#aa-links'), v.links);
+    const avatar = fieldValue(root, '#aa-avatar').trim();
+    if (!name || name.length > 80) { showError('The name must be 1 to 80 characters.'); return; }
+    if (!links) { showError('Each link must be a full web address starting with https://'); return; }
+    if (avatar && !/^https:\/\//i.test(avatar)) { showError('The avatar must be a web address starting with https://'); return; }
+    const email = artist ? '' : fieldValue(root, '#aa-email').trim();
+    if (email && !EMAIL_RE.test(email)) { showError('That email doesn’t look right.'); return; }
+    const fields = { email: email || undefined, name, bio: fieldValue(root, '#aa-bio').trim(), links, avatarUrl: avatar, isPartner: !!root.querySelector('#aa-partner').checked };
+
+    const submitBtn = root.querySelector('#aa-submit');
+    submitBtn.setAttribute('loading', '');
+    submitBtn.setAttribute('disabled', '');
+    const sb = getSupabase();
+    let created = null;
+    let errorText = null;
+    try {
+      if (artist) {
+        const { error } = await sb.from('gallery_artists').update({
+          name: fields.name, bio: fields.bio, links: fields.links, avatar_url: fields.avatarUrl || null, is_partner: fields.isPartner,
+        }).eq('id', artist.id);
+        if (error) { console.error('Artist edit failed:', error); errorText = 'Could not save the artist — try again.'; }
+      } else {
+        const res = await postGalleryArtist(fields);
+        const body = await res.json().catch(() => ({}));
+        if (res.ok) created = body;
+        else errorText = body.error || 'Could not add the artist — try again.';
+      }
+    } catch {
+      errorText = 'Could not save the artist — try again.';
+    }
+    if (errorText) {
+      showError(errorText);
+      submitBtn.removeAttribute('loading');
+      submitBtn.removeAttribute('disabled');
+      return;
+    }
+    await loadPublicData();
+    if (!created) {
+      showSuccess('Artist saved');
+      adminTab = 'artists';
+      history.pushState({}, '', 'gallery.html?view=admin');
+      render();
+      return;
+    }
+    root.innerHTML = `
+      ${breadcrumbHtml([{ label: 'Gallery', href: 'gallery.html' }, { label: 'Moderation queue', href: 'gallery.html?view=admin' }, { label: 'Artist added' }])}
+      <h1 class="wa-heading-2xl">${escapeHtml(name)} is live</h1>
+      ${INVITE_OUTCOME[created.invite] ? `<p style="margin-top: var(--wa-space-2xs);">${INVITE_OUTCOME[created.invite]}</p>` : ''}
+      <p style="color: var(--wa-color-neutral-text-subtle); margin-top: var(--wa-space-2xs);">Send them this link to their page:</p>
+      <div class="wa-cluster wa-gap-xs wa-align-items-center" style="margin-top: var(--wa-space-s);">
+        <wa-input readonly value="${escapeHtml(created.url)}" style="flex: 1; min-width: 16rem;" aria-label="Artist page link"></wa-input>
+        <wa-copy-button value="${escapeHtml(created.url)}"></wa-copy-button>
+      </div>
+      <div class="wa-cluster wa-gap-s" style="margin-top: var(--wa-space-l);">
+        <wa-button variant="brand" href="gallery.html?artist=${encodeURIComponent(created.artistId)}">View page</wa-button>
+        <wa-button appearance="outlined" href="gallery.html?view=admin-artist">Add another</wa-button>
+      </div>`;
   });
 }
 
@@ -1322,13 +1471,16 @@ async function renderAdmin(root) {
     return;
   }
 
-  const [{ data, error }, claimsRes] = await Promise.all([
+  const [{ data, error }, claimsRes, invitedRes] = await Promise.all([
     sb.from('gallery_artworks')
       .select('*')
       .eq('status', 'pending')
       .order('created_at', { ascending: true }),
     sb.rpc('list_gallery_artist_claims'),
+    // Admin-readable under the contacts RLS; only which artists were invited is used.
+    sb.from('gallery_artist_contacts').select('artist_id').not('invited_email', 'is', null),
   ]);
+  const invitedIds = new Set((invitedRes.data || []).map(r => r.artist_id));
   if (error) {
     renderNotFound(root, 'Could not load the queue', 'Check your connection and reload.');
     return;
@@ -1348,6 +1500,29 @@ async function renderAdmin(root) {
     <wa-tab-group id="admin-tabs" active="${adminTab}" style="margin-top: var(--wa-space-m);">
       <wa-tab panel="uploads">Uploads &middot; ${pending.length}</wa-tab>
       <wa-tab panel="claims">Claims &middot; ${claims.length}</wa-tab>
+      <wa-tab panel="artists">Artists &middot; ${artistsDb.length}</wa-tab>
+      <wa-tab-panel name="artists">
+        <div class="wa-split" style="margin-bottom: var(--wa-space-m);">
+          <span class="wa-caption-m" style="color: var(--wa-color-neutral-text-subtle);">Every artist page, claimed or not.</span>
+          <wa-button size="s" variant="brand" href="gallery.html?view=admin-artist"><wa-icon slot="start" name="plus"></wa-icon>Add artist</wa-button>
+        </div>
+        <div class="wa-stack wa-gap-s">
+          ${[...artistsDb].sort((a, b) => a.name.localeCompare(b.name)).map(a => `
+          <div class="gallery-row">
+            <div class="gallery-rowmeta">
+              <strong><a href="gallery.html?artist=${encodeURIComponent(a.id)}">${escapeHtml(a.name)}</a></strong>
+              <div class="gallery-rowsub">
+                <span><wa-icon name="${a.userId ? 'user-check' : 'user'}"></wa-icon> ${a.userId ? 'Claimed' : 'Unclaimed'}</span>
+                ${a.isPartner ? '<span><wa-icon name="circle-check"></wa-icon> Partner</span>' : ''}
+              </div>
+            </div>
+            <div class="wa-cluster wa-gap-xs">
+              ${!a.userId && invitedIds.has(a.id) ? `<wa-button size="s" appearance="outlined" data-resend-invite="${escapeHtml(a.id)}"><wa-icon slot="start" name="paper-plane"></wa-icon>Resend invite</wa-button>` : ''}
+              <wa-button size="s" appearance="outlined" href="gallery.html?view=admin-artist&id=${encodeURIComponent(a.id)}"><wa-icon slot="start" name="pen"></wa-icon>Edit</wa-button>
+            </div>
+          </div>`).join('')}
+        </div>
+      </wa-tab-panel>
       <wa-tab-panel name="claims">${claimsRes.error
         ? '<p style="color: var(--wa-color-neutral-text-subtle);">Could not load claims. Check that the schema is deployed, then reload.</p>'
         : claims.length === 0 ? `
@@ -1432,6 +1607,22 @@ async function renderAdmin(root) {
 
   root.querySelector('#admin-tabs')?.addEventListener('wa-tab-show', e => { adminTab = e.detail.name; });
 
+  root.querySelectorAll('[data-resend-invite]').forEach(btn => btn.addEventListener('click', async () => {
+    btn.setAttribute('loading', '');
+    let body = {};
+    try {
+      const res = await postGalleryArtist({ artistId: btn.dataset.resendInvite, resend: true });
+      body = await res.json().catch(() => ({}));
+      if (!res.ok) body = { error: body.error || 'Could not resend the invite — try again.' };
+    } catch {
+      body = { error: 'Could not resend the invite — try again.' };
+    }
+    btn.removeAttribute('loading');
+    if (body.error) showError(body.error);
+    else if (body.invite === 'sent') showSuccess(INVITE_OUTCOME.sent);
+    else showError(INVITE_OUTCOME[body.invite] || 'Could not resend the invite — try again.');
+  }));
+
   const claimAction = (attr, rpc, done) => root.querySelectorAll(`[${attr}]`).forEach(btn => btn.addEventListener('click', async () => {
     btn.setAttribute('loading', '');
     const { error: err } = await sb.rpc(rpc, { p_claim_id: btn.getAttribute(attr) });
@@ -1503,6 +1694,7 @@ function render() {
 
   if (view === 'edit' && art) renderEditArtwork(root, art);
   else if (view === 'edit-artist') renderEditArtist(root);
+  else if (view === 'admin-artist') renderAdminArtist(root, params.get('id'));
   else if (artist) renderArtist(root, artist); // ?artist=&art= is the Commission link from an alter
   else if (art) renderDetail(root, art);
   else if (view === 'upload') renderUpload(root);

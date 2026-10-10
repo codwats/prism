@@ -607,9 +607,9 @@ function injectAuthDialog() {
         </wa-button>
       </div>
 
-      <!-- Set New Password View (opened by the PASSWORD_RECOVERY auth event) -->
+      <!-- Set New Password View (password reset or account invite landing) -->
       <div id="auth-recovery-view" class="wa-stack wa-gap-m" style="display: none;">
-        <p class="wa-body-m" style="color: var(--wa-color-neutral-text-subtle);">You followed a password reset link. Choose a new password to finish.</p>
+        <p id="recovery-intro" class="wa-body-m" style="color: var(--wa-color-neutral-text-subtle);">You followed a password reset link. Choose a new password to finish.</p>
         <form id="recovery-form" class="wa-stack wa-gap-m">
           <div class="auth-field wa-stack wa-gap-2xs">
             <label for="recovery-password">New password</label>
