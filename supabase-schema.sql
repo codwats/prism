@@ -867,9 +867,10 @@ BEGIN;
       RAISE EXCEPTION 'Avatar must be an https:// address' USING ERRCODE = 'check_violation';
     END IF;
     -- CASE, not OR: jsonb_array_elements raises on a non-array, and OR has no evaluation order.
-    IF CASE WHEN jsonb_typeof(coalesce(p_links, '[]'::jsonb)) <> 'array' THEN true
-            ELSE EXISTS (SELECT 1 FROM jsonb_array_elements(coalesce(p_links, '[]'::jsonb)) l
-                         WHERE coalesce(l->>'href', '') !~* '^https://') END THEN
+    -- Parenthesised: PL/pgSQL ends an IF condition at the first bare THEN.
+    IF (CASE WHEN jsonb_typeof(coalesce(p_links, '[]'::jsonb)) <> 'array' THEN true
+             ELSE EXISTS (SELECT 1 FROM jsonb_array_elements(coalesce(p_links, '[]'::jsonb)) l
+                          WHERE coalesce(l->>'href', '') !~* '^https://') END) THEN
       RAISE EXCEPTION 'Every link must be an https:// address' USING ERRCODE = 'check_violation';
     END IF;
     IF coalesce(p_commissions_open, false) AND v_email IS NULL
