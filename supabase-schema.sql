@@ -1048,6 +1048,48 @@ BEGIN;
 COMMIT;
 
 -- ============================================
+-- MIGRATION: Invited artists own their page on accepting the invite (#338)
+-- ============================================
+-- Accepting a Supabase invite confirms the account's email (as does any first
+-- confirmation, e.g. a signup at an invited address). This trigger then
+-- files a claim on each unclaimed page invited at that email, and the #331
+-- trigger above approves it through the approval core. Tests: tests/gallery-artists.sql.
+BEGIN;
+  CREATE OR REPLACE FUNCTION gallery_claim_invited_artist_on_confirm()
+    RETURNS trigger
+    LANGUAGE plpgsql
+    SECURITY DEFINER
+    SET search_path = public, pg_temp
+  AS $$
+  BEGIN
+    INSERT INTO gallery_artist_claims (artist_id, user_id)
+      SELECT a.id, NEW.id FROM gallery_artists a
+        JOIN gallery_artist_contacts c ON c.artist_id = a.id
+        WHERE a.user_id IS NULL
+          AND lower(btrim(c.invited_email)) = lower(btrim(NEW.email))
+    ON CONFLICT DO NOTHING;
+    RETURN NULL;
+  EXCEPTION WHEN OTHERS THEN
+    -- Never fail the confirmation: the artist can still use "Claim this profile".
+    RAISE WARNING 'invited artist claim failed for %: %', NEW.id, SQLERRM;
+    RETURN NULL;
+  END;
+  $$;
+
+  REVOKE EXECUTE ON FUNCTION gallery_claim_invited_artist_on_confirm() FROM public;
+  REVOKE EXECUTE ON FUNCTION gallery_claim_invited_artist_on_confirm() FROM anon;
+  REVOKE EXECUTE ON FUNCTION gallery_claim_invited_artist_on_confirm() FROM authenticated;
+
+  DROP TRIGGER IF EXISTS gallery_claim_invited_artist_on_confirm ON auth.users;
+  CREATE TRIGGER gallery_claim_invited_artist_on_confirm
+    -- No column list: the WHEN clause alone gates it, however GoTrue words its UPDATE.
+    AFTER UPDATE ON auth.users
+    FOR EACH ROW
+    WHEN (OLD.email_confirmed_at IS NULL AND NEW.email_confirmed_at IS NOT NULL)
+    EXECUTE FUNCTION gallery_claim_invited_artist_on_confirm();
+COMMIT;
+
+-- ============================================
 -- MIGRATION: Founders and the entitlement predicate
 -- ============================================
 -- Safe to deploy before the cutover: while app_config.payment_enforcement is

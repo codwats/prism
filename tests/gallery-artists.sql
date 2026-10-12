@@ -846,6 +846,122 @@ RESET ROLE;
 ROLLBACK;
 
 -- ============================================
+-- Invited artists own their page on accepting the invite (#338)
+-- ============================================
+-- Accepting a Supabase invite sets email_confirmed_at; the auth.users trigger
+-- files the claim and #331's trigger approves it. Accounts start unconfirmed,
+-- as an invite creates them.
+BEGIN;
+
+INSERT INTO auth.users (id, email, email_confirmed_at) VALUES
+  ('33800000-0000-0000-0000-00000000000a', 'Invitee-338@Example.invalid', NULL), -- matches P1
+  ('33800000-0000-0000-0000-00000000000b', 'rival-338@example.invalid', now()),  -- rival on P1
+  ('33800000-0000-0000-0000-00000000000c', 'owner-338@example.invalid', NULL),   -- owns P3, matches P2
+  ('33800000-0000-0000-0000-00000000000e', 'stranger-338@example.invalid', NULL),-- no invite
+  ('33800000-0000-0000-0000-00000000000f', 'late-338@example.invalid', NULL),    -- matches P4, already claimed
+  ('33800000-0000-0000-0000-000000000010', 'holder-338@example.invalid', now()); -- owns P4
+INSERT INTO public.gallery_artists (id, name, user_id) VALUES
+  ('33800000-0000-0000-0001-000000000001', 'Ivy Invite', NULL),
+  ('33800000-0000-0000-0001-000000000002', 'Second Invite', NULL),
+  ('33800000-0000-0000-0001-000000000003', 'Owned Already', '33800000-0000-0000-0000-00000000000c'),
+  ('33800000-0000-0000-0001-000000000004', 'Taken Page', '33800000-0000-0000-0000-000000000010');
+INSERT INTO public.gallery_artist_contacts (artist_id, commission_email, invited_email) VALUES
+  ('33800000-0000-0000-0001-000000000001', 'invitee-338@example.invalid', ' invitee-338@EXAMPLE.invalid '),
+  ('33800000-0000-0000-0001-000000000002', 'owner-338@example.invalid', 'owner-338@example.invalid'),
+  ('33800000-0000-0000-0001-000000000004', 'holder-338@example.invalid', 'late-338@example.invalid');
+INSERT INTO public.gallery_artworks (id, title, type, artist_name, uploader_id, image_path, status) VALUES
+  ('33800000-0000-0000-0002-000000000001', 'Early', 'proxy', 'Ivy Invite', '33800000-0000-0000-0000-00000000000a', 'a/1.png', 'approved'),
+  ('33800000-0000-0000-0002-000000000002', 'Theirs', 'proxy', 'Other Hand', '33800000-0000-0000-0000-00000000000a', 'a/2.png', 'approved');
+-- A rival's pending claim on P1, filed before the invite is accepted.
+INSERT INTO public.gallery_artist_claims (artist_id, user_id) VALUES
+  ('33800000-0000-0000-0001-000000000001', '33800000-0000-0000-0000-00000000000b');
+
+DO $$
+BEGIN
+  ASSERT NOT has_function_privilege('authenticated',
+    'public.gallery_claim_invited_artist_on_confirm()', 'EXECUTE'),
+    'the confirmation trigger function must not be callable by authenticated';
+  ASSERT NOT has_function_privilege('anon',
+    'public.gallery_claim_invited_artist_on_confirm()', 'EXECUTE'),
+    'the confirmation trigger function must not be callable by anon';
+
+  -- An update that isn't a confirmation files nothing.
+  UPDATE auth.users SET email = email WHERE id = '33800000-0000-0000-0000-00000000000a';
+  ASSERT NOT EXISTS (SELECT 1 FROM public.gallery_artist_claims
+                     WHERE user_id = '33800000-0000-0000-0000-00000000000a'),
+    'only a confirmation may file a claim';
+
+  -- Each confirmation succeeds, as GoTrue makes it on accepting an invite.
+  UPDATE auth.users SET email_confirmed_at = now() WHERE id IN (
+    '33800000-0000-0000-0000-00000000000a', '33800000-0000-0000-0000-00000000000c',
+    '33800000-0000-0000-0000-00000000000e', '33800000-0000-0000-0000-00000000000f');
+  ASSERT (SELECT count(*) FROM auth.users WHERE email_confirmed_at IS NOT NULL
+            AND id::text LIKE '33800000-%') = 6, 'every confirmation must succeed';
+
+  -- The invitee owns P1, through the #331 approval core.
+  ASSERT (SELECT user_id FROM public.gallery_artists WHERE id = '33800000-0000-0000-0001-000000000001')
+    = '33800000-0000-0000-0000-00000000000a', 'confirming must make the invitee the Artist';
+  ASSERT (SELECT status FROM public.gallery_artist_claims
+          WHERE user_id = '33800000-0000-0000-0000-00000000000a') = 'approved',
+    'the filed claim must be approved, so nothing waits for review';
+  ASSERT (SELECT reviewed_by FROM public.gallery_artist_claims
+          WHERE user_id = '33800000-0000-0000-0000-00000000000a') IS NULL,
+    'an automatic approval has no reviewer';
+  ASSERT (SELECT status FROM public.gallery_artist_claims
+          WHERE user_id = '33800000-0000-0000-0000-00000000000b') = 'rejected',
+    'the rival claim must be rejected';
+  ASSERT (SELECT artist_id FROM public.gallery_artworks WHERE id = '33800000-0000-0000-0002-000000000001')
+    = '33800000-0000-0000-0001-000000000001', 'matching uploads must join the page';
+  ASSERT (SELECT artist_id FROM public.gallery_artworks WHERE id = '33800000-0000-0000-0002-000000000002') IS NULL,
+    'work credited to someone else must stay an Attribution';
+  ASSERT (SELECT commission_email FROM public.gallery_artist_contacts
+          WHERE artist_id = '33800000-0000-0000-0001-000000000001') = 'Invitee-338@Example.invalid',
+    'approval must seed the commission email from the account';
+
+  -- An account that already owns an artist: the claim waits, the page stays unclaimed.
+  ASSERT (SELECT status FROM public.gallery_artist_claims
+          WHERE user_id = '33800000-0000-0000-0000-00000000000c') = 'pending',
+    'a claimant who already owns an artist must wait for an admin';
+  ASSERT (SELECT user_id FROM public.gallery_artists WHERE id = '33800000-0000-0000-0001-000000000002') IS NULL,
+    'the second page must stay unclaimed';
+
+  -- No invited email: nothing changes.
+  ASSERT NOT EXISTS (SELECT 1 FROM public.gallery_artist_claims
+                     WHERE user_id = '33800000-0000-0000-0000-00000000000e'),
+    'an uninvited confirmation must file no claim';
+
+  -- An already-claimed page is left alone.
+  ASSERT NOT EXISTS (SELECT 1 FROM public.gallery_artist_claims
+                     WHERE user_id = '33800000-0000-0000-0000-00000000000f'),
+    'a claimed page must not get a claim';
+  ASSERT (SELECT user_id FROM public.gallery_artists WHERE id = '33800000-0000-0000-0001-000000000004')
+    = '33800000-0000-0000-0000-000000000010', 'a claimed page keeps its owner';
+END $$;
+
+-- ---- A failing claim never fails the confirmation ----
+INSERT INTO auth.users (id, email, email_confirmed_at) VALUES
+  ('33800000-0000-0000-0000-000000000011', 'broken-338@example.invalid', NULL);
+INSERT INTO public.gallery_artists (id, name, user_id) VALUES
+  ('33800000-0000-0000-0001-000000000005', 'Broken Invite', NULL);
+INSERT INTO public.gallery_artist_contacts (artist_id, commission_email, invited_email) VALUES
+  ('33800000-0000-0000-0001-000000000005', 'broken-338@example.invalid', 'broken-338@example.invalid');
+-- Rolled back with the fixtures: every new claim row now violates a check.
+ALTER TABLE public.gallery_artist_claims ADD CONSTRAINT t338_refuse_claims CHECK (false) NOT VALID;
+DO $$
+BEGIN
+  UPDATE auth.users SET email_confirmed_at = now() WHERE id = '33800000-0000-0000-0000-000000000011';
+  ASSERT (SELECT email_confirmed_at FROM auth.users WHERE id = '33800000-0000-0000-0000-000000000011') IS NOT NULL,
+    'a failing claim must not fail the confirmation';
+  ASSERT NOT EXISTS (SELECT 1 FROM public.gallery_artist_claims
+                     WHERE user_id = '33800000-0000-0000-0000-000000000011'),
+    'the failed claim must leave nothing behind';
+  ASSERT (SELECT user_id FROM public.gallery_artists WHERE id = '33800000-0000-0000-0001-000000000005') IS NULL,
+    'the page must stay unclaimed';
+END $$;
+
+ROLLBACK;
+
+-- ============================================
 -- Admin Artists tab (#330): admins edit any artist page; non-admins can't
 -- ============================================
 BEGIN;
