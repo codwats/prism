@@ -1050,7 +1050,8 @@ COMMIT;
 -- ============================================
 -- MIGRATION: Invited artists own their page on accepting the invite (#338)
 -- ============================================
--- Accepting a Supabase invite confirms the account's email. This trigger then
+-- Accepting a Supabase invite confirms the account's email (as does any first
+-- confirmation, e.g. a signup at an invited address). This trigger then
 -- files a claim on each unclaimed page invited at that email, and the #331
 -- trigger above approves it through the approval core. Tests: tests/gallery-artists.sql.
 BEGIN;
@@ -1081,7 +1082,8 @@ BEGIN;
 
   DROP TRIGGER IF EXISTS gallery_claim_invited_artist_on_confirm ON auth.users;
   CREATE TRIGGER gallery_claim_invited_artist_on_confirm
-    AFTER UPDATE OF email_confirmed_at ON auth.users
+    -- No column list: the WHEN clause alone gates it, however GoTrue words its UPDATE.
+    AFTER UPDATE ON auth.users
     FOR EACH ROW
     WHEN (OLD.email_confirmed_at IS NULL AND NEW.email_confirmed_at IS NOT NULL)
     EXECUTE FUNCTION gallery_claim_invited_artist_on_confirm();

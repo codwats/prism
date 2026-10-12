@@ -938,6 +938,27 @@ BEGIN
     = '33800000-0000-0000-0000-000000000010', 'a claimed page keeps its owner';
 END $$;
 
+-- ---- A failing claim never fails the confirmation ----
+INSERT INTO auth.users (id, email, email_confirmed_at) VALUES
+  ('33800000-0000-0000-0000-000000000011', 'broken-338@example.invalid', NULL);
+INSERT INTO public.gallery_artists (id, name, user_id) VALUES
+  ('33800000-0000-0000-0001-000000000005', 'Broken Invite', NULL);
+INSERT INTO public.gallery_artist_contacts (artist_id, commission_email, invited_email) VALUES
+  ('33800000-0000-0000-0001-000000000005', 'broken-338@example.invalid', 'broken-338@example.invalid');
+-- Rolled back with the fixtures: every new claim row now violates a check.
+ALTER TABLE public.gallery_artist_claims ADD CONSTRAINT t338_refuse_claims CHECK (false) NOT VALID;
+DO $$
+BEGIN
+  UPDATE auth.users SET email_confirmed_at = now() WHERE id = '33800000-0000-0000-0000-000000000011';
+  ASSERT (SELECT email_confirmed_at FROM auth.users WHERE id = '33800000-0000-0000-0000-000000000011') IS NOT NULL,
+    'a failing claim must not fail the confirmation';
+  ASSERT NOT EXISTS (SELECT 1 FROM public.gallery_artist_claims
+                     WHERE user_id = '33800000-0000-0000-0000-000000000011'),
+    'the failed claim must leave nothing behind';
+  ASSERT (SELECT user_id FROM public.gallery_artists WHERE id = '33800000-0000-0000-0001-000000000005') IS NULL,
+    'the page must stay unclaimed';
+END $$;
+
 ROLLBACK;
 
 -- ============================================
