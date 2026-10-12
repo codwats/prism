@@ -507,6 +507,104 @@ END $$;
 ROLLBACK;
 
 -- ============================================
+-- Review notification ledger (#333): service role only
+-- ============================================
+BEGIN;
+
+INSERT INTO auth.users (id, email, email_confirmed_at) VALUES
+  ('33300000-0000-0000-0000-00000000000a', 'notify-uploader@example.invalid', now()),
+  ('33300000-0000-0000-0000-00000000000d', 'notify-admin@example.invalid', now());
+INSERT INTO public.gallery_admins (user_id) VALUES ('33300000-0000-0000-0000-00000000000d');
+-- As the edge function writes it (postgres here stands in for the service role).
+INSERT INTO public.gallery_review_notices (kind, item_id) VALUES
+  ('upload', '33300000-0000-0000-0002-000000000001');
+
+DO $$
+BEGIN
+  ASSERT (SELECT relrowsecurity FROM pg_class WHERE oid = 'public.gallery_review_notices'::regclass),
+    'gallery_review_notices must have RLS enabled';
+  ASSERT (SELECT count(*) FROM pg_policies
+          WHERE schemaname = 'public' AND tablename = 'gallery_review_notices') = 0,
+    'gallery_review_notices must have zero policies';
+  BEGIN
+    INSERT INTO public.gallery_review_notices (kind, item_id) VALUES
+      ('upload', '33300000-0000-0000-0002-000000000001');
+    RAISE EXCEPTION 'the ledger must hold one row per item';
+  EXCEPTION WHEN unique_violation THEN NULL;
+  END;
+  BEGIN
+    INSERT INTO public.gallery_review_notices (kind, item_id) VALUES
+      ('like', '33300000-0000-0000-0002-000000000002');
+    RAISE EXCEPTION 'the ledger must refuse an unknown kind';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+END $$;
+
+-- ---- Neither the uploader nor an admin can read or write it ----
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', '33300000-0000-0000-0000-00000000000a', true);
+DO $$
+BEGIN
+  BEGIN
+    ASSERT (SELECT count(*) FROM public.gallery_review_notices) = 0, 'an uploader read the ledger';
+  EXCEPTION WHEN insufficient_privilege THEN NULL;
+  END;
+  BEGIN
+    INSERT INTO public.gallery_review_notices (kind, item_id) VALUES
+      ('claim', '33300000-0000-0000-0003-000000000001');
+    RAISE EXCEPTION 'an uploader wrote a ledger row';
+  EXCEPTION WHEN insufficient_privilege THEN NULL;
+  END;
+  BEGIN
+    DELETE FROM public.gallery_review_notices;
+  EXCEPTION WHEN insufficient_privilege THEN NULL;
+  END;
+END $$;
+
+SELECT set_config('request.jwt.claim.sub', '33300000-0000-0000-0000-00000000000d', true);
+DO $$
+BEGIN
+  BEGIN
+    ASSERT (SELECT count(*) FROM public.gallery_review_notices) = 0, 'an admin read the ledger';
+  EXCEPTION WHEN insufficient_privilege THEN NULL;
+  END;
+  BEGIN
+    INSERT INTO public.gallery_review_notices (kind, item_id) VALUES
+      ('claim', '33300000-0000-0000-0003-000000000002');
+    RAISE EXCEPTION 'an admin wrote a ledger row';
+  EXCEPTION WHEN insufficient_privilege THEN NULL;
+  END;
+END $$;
+RESET ROLE;
+
+-- ---- Nor an anonymous visitor ----
+SET LOCAL ROLE anon;
+SELECT set_config('request.jwt.claim.sub', '', true);
+DO $$
+BEGIN
+  BEGIN
+    ASSERT (SELECT count(*) FROM public.gallery_review_notices) = 0, 'anon read the ledger';
+  EXCEPTION WHEN insufficient_privilege THEN NULL;
+  END;
+  BEGIN
+    INSERT INTO public.gallery_review_notices (kind, item_id) VALUES
+      ('upload', '33300000-0000-0000-0002-000000000003');
+    RAISE EXCEPTION 'anon wrote a ledger row';
+  EXCEPTION WHEN insufficient_privilege THEN NULL;
+  END;
+END $$;
+RESET ROLE;
+
+-- The DELETE above must not have removed the row; nothing else was added.
+DO $$
+BEGIN
+  ASSERT (SELECT count(*) FROM public.gallery_review_notices
+          WHERE item_id::text LIKE '33300000-%') = 1,
+    'only the service role may change the notification ledger';
+END $$;
+ROLLBACK;
+
+-- ============================================
 -- Auto-link: approval attaches an upload to its uploader's artist page
 -- ============================================
 BEGIN;
@@ -568,4 +666,251 @@ BEGIN
     'a pre-claim upload credited to someone else must stay an Attribution';
 END $$;
 RESET ROLE;
+ROLLBACK;
+
+-- ============================================
+-- Automatic claim approval for invited artists (#331)
+-- ============================================
+BEGIN;
+
+INSERT INTO auth.users (id, email, email_confirmed_at) VALUES
+  ('33100000-0000-0000-0000-00000000000a', 'Invited@Example.invalid', now()),     -- matches P1
+  ('33100000-0000-0000-0000-00000000000b', 'rival-331@example.invalid', now()),   -- rival on P1
+  ('33100000-0000-0000-0000-00000000000c', 'unconfirmed@example.invalid', NULL),  -- matches P2, unconfirmed
+  ('33100000-0000-0000-0000-00000000000e', 'mismatch@example.invalid', now()),    -- claims P3
+  ('33100000-0000-0000-0000-00000000000f', 'no-invite@example.invalid', now()),   -- claims P4
+  ('33100000-0000-0000-0000-000000000010', 'owner-331@example.invalid', now()),   -- owns P7, matches P6
+  ('33100000-0000-0000-0000-000000000011', 'visitor-331@example.invalid', now()),
+  ('33100000-0000-0000-0000-00000000000d', 'admin-331@example.invalid', now());
+INSERT INTO public.gallery_admins (user_id) VALUES ('33100000-0000-0000-0000-00000000000d');
+INSERT INTO public.gallery_artists (id, name, user_id) VALUES
+  ('33100000-0000-0000-0001-000000000001', 'Pia Paint', NULL),
+  ('33100000-0000-0000-0001-000000000002', 'Una Confirmed', NULL),
+  ('33100000-0000-0000-0001-000000000003', 'Mia Match', NULL),
+  ('33100000-0000-0000-0001-000000000004', 'Nob Invite', NULL),
+  ('33100000-0000-0000-0001-000000000006', 'Second Page', NULL),
+  ('33100000-0000-0000-0001-000000000007', 'First Page', '33100000-0000-0000-0000-000000000010');
+-- Invited emails as an admin would type them: spacing and case differ from the account.
+INSERT INTO public.gallery_artist_contacts (artist_id, commission_email, invited_email) VALUES
+  ('33100000-0000-0000-0001-000000000001', 'invited@example.invalid', ' invited@EXAMPLE.invalid '),
+  ('33100000-0000-0000-0001-000000000002', 'unconfirmed@example.invalid', 'unconfirmed@example.invalid'),
+  ('33100000-0000-0000-0001-000000000003', 'someone-else@example.invalid', 'someone-else@example.invalid'),
+  ('33100000-0000-0000-0001-000000000006', 'owner-331@example.invalid', 'owner-331@example.invalid');
+-- The invited artist uploaded before claiming: matching credit joins, someone else's work doesn't.
+INSERT INTO public.gallery_artworks (id, title, type, artist_name, uploader_id, image_path, status) VALUES
+  ('33100000-0000-0000-0002-000000000001', 'Early', 'proxy', 'Pia Paint', '33100000-0000-0000-0000-00000000000a', 'a/1.png', 'approved'),
+  ('33100000-0000-0000-0002-000000000002', 'Theirs', 'proxy', 'Other Hand', '33100000-0000-0000-0000-00000000000a', 'a/2.png', 'pending');
+
+DO $$
+BEGIN
+  ASSERT NOT has_function_privilege('authenticated',
+    'public.approve_gallery_artist_claim_core(uuid, uuid)', 'EXECUTE'),
+    'the approval core must not be callable by authenticated';
+  ASSERT NOT has_function_privilege('anon',
+    'public.approve_gallery_artist_claim_core(uuid, uuid)', 'EXECUTE'),
+    'the approval core must not be callable by anon';
+END $$;
+
+SET LOCAL ROLE authenticated;
+
+-- ---- A rival files on P1 first: their email doesn't match, so it waits ----
+SELECT set_config('request.jwt.claim.sub', '33100000-0000-0000-0000-00000000000b', true);
+INSERT INTO public.gallery_artist_claims (artist_id, user_id) VALUES
+  ('33100000-0000-0000-0001-000000000001', '33100000-0000-0000-0000-00000000000b');
+
+-- ---- The invited artist claims P1 and owns it at once ----
+SELECT set_config('request.jwt.claim.sub', '33100000-0000-0000-0000-00000000000a', true);
+DO $$
+BEGIN
+  INSERT INTO public.gallery_artist_claims (artist_id, user_id) VALUES
+    ('33100000-0000-0000-0001-000000000001', '33100000-0000-0000-0000-00000000000a');
+  ASSERT (SELECT status FROM public.gallery_artist_claims
+          WHERE artist_id = '33100000-0000-0000-0001-000000000001') = 'approved',
+    'a matching, confirmed claimant must be approved on insert (and can re-read it)';
+  ASSERT (SELECT invited_email FROM public.gallery_artist_contacts
+          WHERE artist_id = '33100000-0000-0000-0001-000000000001') IS NOT NULL,
+    'the new Artist reads their own contacts row';
+END $$;
+
+-- ---- Unconfirmed, mismatched, and uninvited claims all wait ----
+SELECT set_config('request.jwt.claim.sub', '33100000-0000-0000-0000-00000000000c', true);
+INSERT INTO public.gallery_artist_claims (artist_id, user_id) VALUES
+  ('33100000-0000-0000-0001-000000000002', '33100000-0000-0000-0000-00000000000c');
+SELECT set_config('request.jwt.claim.sub', '33100000-0000-0000-0000-00000000000e', true);
+INSERT INTO public.gallery_artist_claims (artist_id, user_id) VALUES
+  ('33100000-0000-0000-0001-000000000003', '33100000-0000-0000-0000-00000000000e');
+SELECT set_config('request.jwt.claim.sub', '33100000-0000-0000-0000-00000000000f', true);
+INSERT INTO public.gallery_artist_claims (artist_id, user_id) VALUES
+  ('33100000-0000-0000-0001-000000000004', '33100000-0000-0000-0000-00000000000f');
+
+-- ---- An account that already owns an artist: the insert succeeds, the claim waits ----
+SELECT set_config('request.jwt.claim.sub', '33100000-0000-0000-0000-000000000010', true);
+INSERT INTO public.gallery_artist_claims (artist_id, user_id) VALUES
+  ('33100000-0000-0000-0001-000000000006', '33100000-0000-0000-0000-000000000010');
+
+-- ---- Another user never reads an invited email ----
+SELECT set_config('request.jwt.claim.sub', '33100000-0000-0000-0000-000000000011', true);
+DO $$
+BEGIN
+  ASSERT (SELECT count(*) FROM public.gallery_artist_contacts WHERE invited_email IS NOT NULL) = 0,
+    'another user must not read invited emails';
+  BEGIN
+    PERFORM public.approve_gallery_artist_claim_core(
+      (SELECT id FROM public.gallery_artist_claims LIMIT 1), NULL);
+    RAISE EXCEPTION 'authenticated ran the approval core';
+  EXCEPTION WHEN insufficient_privilege THEN NULL;
+  END;
+  BEGIN
+    PERFORM public.approve_gallery_artist_claim(gen_random_uuid());
+    RAISE EXCEPTION 'non-admin reached the approval core through the RPC';
+  EXCEPTION WHEN insufficient_privilege THEN NULL;
+  END;
+END $$;
+RESET ROLE;
+
+SET LOCAL ROLE anon;
+SELECT set_config('request.jwt.claim.sub', '', true);
+DO $$
+BEGIN
+  BEGIN
+    ASSERT (SELECT count(*) FROM public.gallery_artist_contacts WHERE invited_email IS NOT NULL) = 0,
+      'anon read invited emails';
+  EXCEPTION WHEN insufficient_privilege THEN NULL;
+  END;
+  BEGIN
+    PERFORM public.approve_gallery_artist_claim_core(gen_random_uuid(), NULL);
+    RAISE EXCEPTION 'anon ran the approval core';
+  EXCEPTION WHEN insufficient_privilege THEN NULL;
+  END;
+END $$;
+RESET ROLE;
+
+-- ---- Outcomes, read as the table owner ----
+DO $$
+BEGIN
+  ASSERT (SELECT user_id FROM public.gallery_artists WHERE id = '33100000-0000-0000-0001-000000000001')
+    = '33100000-0000-0000-0000-00000000000a', 'auto-approval must link the artist';
+  ASSERT (SELECT reviewed_by FROM public.gallery_artist_claims
+          WHERE artist_id = '33100000-0000-0000-0001-000000000001'
+            AND user_id = '33100000-0000-0000-0000-00000000000a') IS NULL,
+    'an automatic approval has no reviewer';
+  ASSERT (SELECT status FROM public.gallery_artist_claims
+          WHERE artist_id = '33100000-0000-0000-0001-000000000001'
+            AND user_id = '33100000-0000-0000-0000-00000000000b') = 'rejected',
+    'auto-approval must reject rival pending claims';
+  ASSERT (SELECT artist_id FROM public.gallery_artworks WHERE id = '33100000-0000-0000-0002-000000000001')
+    = '33100000-0000-0000-0001-000000000001', 'auto-approval must backfill matching uploads';
+  ASSERT (SELECT artist_id FROM public.gallery_artworks WHERE id = '33100000-0000-0000-0002-000000000002') IS NULL,
+    'work credited to someone else must stay an Attribution';
+
+  ASSERT (SELECT status FROM public.gallery_artist_claims
+          WHERE user_id = '33100000-0000-0000-0000-00000000000c') = 'pending', 'an unconfirmed account must wait';
+  ASSERT (SELECT status FROM public.gallery_artist_claims
+          WHERE user_id = '33100000-0000-0000-0000-00000000000e') = 'pending', 'a mismatched email must wait';
+  ASSERT (SELECT status FROM public.gallery_artist_claims
+          WHERE user_id = '33100000-0000-0000-0000-00000000000f') = 'pending', 'no invited email must wait';
+  ASSERT (SELECT status FROM public.gallery_artist_claims
+          WHERE user_id = '33100000-0000-0000-0000-000000000010') = 'pending',
+    'a claimant who already owns an artist must wait';
+  ASSERT (SELECT user_id FROM public.gallery_artists WHERE id = '33100000-0000-0000-0001-000000000006') IS NULL,
+    'a conflicting auto-approval must leave the artist unclaimed';
+END $$;
+
+-- ---- The admin RPC keeps its error codes ----
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', '33100000-0000-0000-0000-00000000000d', true);
+DO $$
+BEGIN
+  BEGIN
+    PERFORM public.approve_gallery_artist_claim(
+      (SELECT id FROM public.gallery_artist_claims WHERE user_id = '33100000-0000-0000-0000-000000000010'));
+    RAISE EXCEPTION 'approved a claim for an account that already owns an artist';
+  EXCEPTION WHEN unique_violation THEN NULL;
+  END;
+  BEGIN
+    PERFORM public.approve_gallery_artist_claim(
+      (SELECT id FROM public.gallery_artist_claims WHERE user_id = '33100000-0000-0000-0000-00000000000a'));
+    RAISE EXCEPTION 'approved an already-approved claim';
+  EXCEPTION WHEN no_data_found THEN NULL;
+  END;
+
+  PERFORM public.approve_gallery_artist_claim(
+    (SELECT id FROM public.gallery_artist_claims WHERE user_id = '33100000-0000-0000-0000-00000000000e'));
+  ASSERT (SELECT user_id FROM public.gallery_artists WHERE id = '33100000-0000-0000-0001-000000000003')
+    = '33100000-0000-0000-0000-00000000000e', 'an admin still approves a waiting claim';
+  ASSERT (SELECT reviewed_by FROM public.gallery_artist_claims
+          WHERE user_id = '33100000-0000-0000-0000-00000000000e') = '33100000-0000-0000-0000-00000000000d',
+    'an admin approval records the admin as reviewer';
+END $$;
+RESET ROLE;
+ROLLBACK;
+
+-- ============================================
+-- Admin Artists tab (#330): admins edit any artist page; non-admins can't
+-- ============================================
+BEGIN;
+
+INSERT INTO auth.users (id, email, email_confirmed_at) VALUES
+  ('33000000-0000-0000-0000-00000000000a', 'tab-admin@example.invalid', now()),
+  ('33000000-0000-0000-0000-00000000000b', 'tab-owner@example.invalid', now()),
+  ('33000000-0000-0000-0000-00000000000c', 'tab-stranger@example.invalid', now());
+INSERT INTO public.gallery_admins (user_id) VALUES ('33000000-0000-0000-0000-00000000000a');
+-- M is an Artist owned by B; N is an unclaimed Attribution.
+INSERT INTO public.gallery_artists (id, name, user_id) VALUES
+  ('33000000-0000-0000-0001-000000000001', 'Mo Owned', '33000000-0000-0000-0000-00000000000b'),
+  ('33000000-0000-0000-0001-000000000002', 'Nu Unclaimed', NULL);
+
+-- ---- Stranger C and owner B: a direct UPDATE changes nothing ----
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', '33000000-0000-0000-0000-00000000000c', true);
+DO $$
+BEGIN
+  UPDATE public.gallery_artists SET name = 'Hijacked', is_partner = true
+    WHERE id IN ('33000000-0000-0000-0001-000000000001', '33000000-0000-0000-0001-000000000002');
+  ASSERT NOT FOUND, 'a non-admin updated an artist page';
+END $$;
+SELECT set_config('request.jwt.claim.sub', '33000000-0000-0000-0000-00000000000b', true);
+DO $$
+BEGIN
+  UPDATE public.gallery_artists SET is_partner = true WHERE id = '33000000-0000-0000-0001-000000000001';
+  ASSERT NOT FOUND, 'an Artist set their own partner flag by direct UPDATE';
+END $$;
+RESET ROLE;
+
+-- ---- Anonymous visitor ----
+SET LOCAL ROLE anon;
+SELECT set_config('request.jwt.claim.sub', '', true);
+DO $$
+BEGIN
+  BEGIN
+    UPDATE public.gallery_artists SET name = 'Hijacked' WHERE id = '33000000-0000-0000-0001-000000000002';
+    ASSERT NOT FOUND, 'anon updated an artist page';
+  EXCEPTION WHEN insufficient_privilege THEN NULL;
+  END;
+END $$;
+RESET ROLE;
+
+-- ---- Admin A edits both, claimed and unclaimed, the way the Artists tab does ----
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', '33000000-0000-0000-0000-00000000000a', true);
+DO $$
+BEGIN
+  UPDATE public.gallery_artists SET name = 'Mo Renamed', bio = 'Fixed.', is_partner = true,
+    avatar_url = 'https://img.example/m.png',
+    links = '[{"label":"mo.example","icon":"globe","href":"https://mo.example"}]'::jsonb
+    WHERE id = '33000000-0000-0000-0001-000000000001';
+  ASSERT FOUND, 'an admin must be able to edit a claimed artist';
+  UPDATE public.gallery_artists SET name = 'Nu Renamed' WHERE id = '33000000-0000-0000-0001-000000000002';
+  ASSERT FOUND, 'an admin must be able to edit an unclaimed artist';
+END $$;
+RESET ROLE;
+
+DO $$
+BEGIN
+  ASSERT (SELECT name FROM public.gallery_artists WHERE id = '33000000-0000-0000-0001-000000000001') = 'Mo Renamed';
+  ASSERT (SELECT is_partner FROM public.gallery_artists WHERE id = '33000000-0000-0000-0001-000000000001');
+  ASSERT (SELECT user_id FROM public.gallery_artists WHERE id = '33000000-0000-0000-0001-000000000001')
+    = '33000000-0000-0000-0000-00000000000b', 'an admin edit must keep the owner';
+  ASSERT (SELECT name FROM public.gallery_artists WHERE id = '33000000-0000-0000-0001-000000000002') = 'Nu Renamed';
+END $$;
 ROLLBACK;

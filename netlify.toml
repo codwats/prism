@@ -34,6 +34,14 @@
   path = "/api/commission"
   function = "commission-edge"
 
+[[edge_functions]]
+  path = "/api/gallery-artist"
+  function = "gallery-artist-edge"
+
+[[edge_functions]]
+  path = "/api/gallery-notify"
+  function = "gallery-notify-edge"
+
 # Headers for the functions
 [[headers]]
   for = "/.netlify/functions/*"
