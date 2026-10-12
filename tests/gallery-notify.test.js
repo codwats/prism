@@ -190,6 +190,14 @@ endpointTest('a Resend failure is a 502 and deletes the ledger row it claimed', 
   assert.equal(q.get('item_id'), `eq.${ARTWORK}`);
 });
 
+endpointTest('a failed admin lookup sends nothing and leaves the ledger unclaimed', async t => {
+  t.mock.method(console, 'error', () => {});
+  const res = await send(t, { kind: 'upload', id: ARTWORK }, world({ admins: [...ADMINS, 'a3333333-3333-4333-8333-333333333333'] }));
+  assert.equal(res.status, 500);
+  assert.equal(res.resend.length, 0);
+  assert.equal(res.ledgerWrites.length, 0);
+});
+
 endpointTest('the subject is fixed by kind, so request fields cannot inject into it', async t => {
   const res = await send(t, { kind: 'upload', id: ARTWORK, subject: 'FREE MONEY', title: 'Injected' },
     world({ artwork: { ...world().artwork, title: 'Evil\r\nBcc: victim@example.invalid' } }));

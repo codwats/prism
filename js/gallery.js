@@ -1480,6 +1480,7 @@ async function renderAdmin(root) {
     // Admin-readable under the contacts RLS; only which artists were invited is used.
     sb.from('gallery_artist_contacts').select('artist_id').not('invited_email', 'is', null),
   ]);
+  if (invitedRes.error) showError('Could not load invite status, so Resend invite is hidden. Reload to try again.');
   const invitedIds = new Set((invitedRes.data || []).map(r => r.artist_id));
   if (error) {
     renderNotFound(root, 'Could not load the queue', 'Check your connection and reload.');

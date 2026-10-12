@@ -87,9 +87,11 @@ export default async function handler(request: Request): Promise<Response> {
     if (!item) return done();
 
     const admins: { user_id: string }[] = await rest('gallery_admins?select=user_id');
+    // A failed lookup fails the whole notice before the ledger is claimed, never a partial send.
     const emails = (await Promise.all(admins.map(async ({ user_id }) => {
       const res = await fetch(`${supabaseUrl}/auth/v1/admin/users/${user_id}`, { headers: service });
-      return res.ok ? (await res.json())?.email : null;
+      if (!res.ok) throw new Error(`Supabase admin user lookup failed: ${res.status}`);
+      return (await res.json())?.email;
     }))).filter(Boolean);
     if (emails.length === 0) return done();
 
