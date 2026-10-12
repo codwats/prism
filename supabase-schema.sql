@@ -666,7 +666,7 @@ CREATE POLICY "Users or admins delete gallery art"
 -- ============================================
 -- MIGRATION: Artist claims and private contacts (#323)
 -- ============================================
--- A signed-in maker claims an Attribution ("This is me"); an admin approves,
+-- A signed-in maker claims an Attribution ("Claim this profile"); an admin approves,
 -- which sets gallery_artists.user_id on the same row, so URL and credit are
 -- unchanged. The commission email lives in its own table because
 -- gallery_artists is publicly readable. Tests: tests/gallery-artists.sql.
@@ -1007,7 +1007,7 @@ COMMIT;
 -- MIGRATION: Automatic claim approval for invited artists (#331)
 -- ============================================
 -- An artist page created with an invited email is owned the moment that
--- account files "This is me", if its email matches and is confirmed. Every
+-- account files "Claim this profile", if its email matches and is confirmed. Every
 -- other claim waits for an admin. Tests: tests/gallery-artists.sql.
 BEGIN;
   -- Private like commission_email: the table's RLS lets only the owning

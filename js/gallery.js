@@ -683,7 +683,7 @@ function isOwnArtist(artist) {
   return !!(user && artist.userId && artist.userId === user.id);
 }
 
-/** "This is me" on an unclaimed profile, or "Claim pending" once filed. */
+/** "Claim this profile" on an unclaimed profile, or "Claim pending" once filed. */
 async function renderClaimSlot(slot, artist) {
   if (!slot) return; // claimed profile: nothing to show
   const user = getCurrentUser();
@@ -707,7 +707,7 @@ async function renderClaimSlot(slot, artist) {
   }
   const rejected = claims[0]?.status === 'rejected';
   slot.innerHTML = `
-    <wa-button size="s" appearance="outlined" id="btn-claim-artist"><wa-icon slot="start" name="user-check"></wa-icon>This is me</wa-button>
+    <wa-button size="s" appearance="outlined" id="btn-claim-artist"><wa-icon slot="start" name="user-check"></wa-icon>Claim this profile</wa-button>
     ${rejected ? '<span class="wa-caption-s" style="color: var(--wa-color-neutral-text-subtle);">Your last claim on this profile was rejected. If that was a mistake, contact PRISM.</span>' : ''}`;
   slot.querySelector('#btn-claim-artist').addEventListener('click', async () => {
     const me = getCurrentUser();
@@ -1158,7 +1158,7 @@ async function renderEditArtist(root) {
   const artist = artistsDb.find(a => a.userId === user.id);
   const sb = getSupabase();
   if (!artist || !sb) {
-    renderNotFound(root, 'No artist profile', 'Claim your profile with “This is me” on your artist page first.');
+    renderNotFound(root, 'No artist profile', 'Claim your profile with “Claim this profile” on your artist page first.');
     return;
   }
   root.innerHTML = loadingHtml();
@@ -1530,7 +1530,7 @@ async function renderAdmin(root) {
         <div class="gallery-empty">
           <div class="ic"><wa-icon name="user-check"></wa-icon></div>
           <h3 class="wa-heading-s">No pending claims</h3>
-          <p class="wa-caption-m" style="color: var(--wa-color-neutral-text-subtle);">When a maker clicks &ldquo;This is me&rdquo; on their profile, the claim lands here.</p>
+          <p class="wa-caption-m" style="color: var(--wa-color-neutral-text-subtle);">When a maker clicks &ldquo;Claim this profile&rdquo; on their profile, the claim lands here.</p>
         </div>` : `
         <div class="wa-stack wa-gap-m">
           ${claims.map(c => `
@@ -1708,7 +1708,7 @@ function render() {
 // Init
 // ============================================================
 
-initLayout({ activePage: initialType === 'alter' ? 'alter-alley' : 'gallery' });
+initLayout({ activePage: 'gallery' });
 
 loadPublicData().then(async () => {
   await Promise.all([loadMyLikes(), loadAdminFlag()]); // no-ops unless auth already restored
