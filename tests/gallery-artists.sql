@@ -32,7 +32,7 @@ RESET ROLE;
 ROLLBACK;
 
 -- ============================================
--- Artist claims (#323): "This is me", approve/reject, private contacts
+-- Artist claims (#323): "Claim this profile", approve/reject, private contacts
 -- ============================================
 BEGIN;
 

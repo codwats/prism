@@ -30,7 +30,9 @@ const SDK_WAIT_MS = 3500;
 // Read at import, before the SDK exists: it consumes and clears the auth
 // redirect hash while it starts. A password reset (`type=recovery`) or an
 // account invite (`type=invite`, #332) both land on the set-new-password view.
-const LANDING_TYPE = (globalThis.window?.location?.hash || '').match(/type=(recovery|invite)/)?.[1] || null;
+const LANDING_HASH = globalThis.window?.location?.hash || '';
+const LANDING_TYPE = LANDING_HASH.match(/type=(recovery|invite)/)?.[1] || null;
+const LANDING_TOKEN = LANDING_HASH.match(/access_token=([^&]+)/)?.[1] || null;
 
 // Subscribe to auth state changes
 export function onAuthChange(callback) {
@@ -158,8 +160,10 @@ function initAuth() {
     // Supabase processes the recovery/invite token from the URL hash at client
     // creation, which can finish before the listener above registers — use the
     // hash captured at import so the set-password dialog opens either way,
-    // and before the sync so nothing ahead of it can stall it.
-    if (LANDING_TYPE && session?.user) {
+    // and before the sync so nothing ahead of it can stall it. Only when the
+    // session came from that link: a dead link clicked while someone else is
+    // signed in must not ask them for a new password.
+    if (LANDING_TYPE && LANDING_TOKEN && session?.access_token === LANDING_TOKEN) {
       wasLoggedOut = false;
       openPasswordRecovery(LANDING_TYPE === 'invite');
     }
