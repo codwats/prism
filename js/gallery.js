@@ -518,6 +518,7 @@ function renderDetail(root, id) {
             ? `<wa-button variant="brand" href="gallery.html?artist=${encodeURIComponent(artist.id)}&art=${encodeURIComponent(artwork.id)}#commission"><wa-icon slot="start" name="paintbrush"></wa-icon>Commission this artist</wa-button>` : ''}
           ${artwork.highlighted && artwork.storeUrl ? `<wa-button appearance="outlined" href="${escapeHtml(safeUrl(artwork.storeUrl))}" target="_blank" rel="noopener"><wa-icon slot="start" name="cart-shopping"></wa-icon>Order custom sleeves <wa-icon slot="end" name="arrow-up-right-from-square" style="font-size: 0.7em;"></wa-icon></wa-button>` : ''}
           ${user && !usingDemo && (isAdmin || artwork.uploaderId === user.id) ? `<wa-button appearance="outlined" href="gallery.html?view=edit&art=${encodeURIComponent(artwork.id)}"><wa-icon slot="start" name="pen"></wa-icon>Edit</wa-button>` : ''}
+          ${user && !usingDemo && isAdmin ? '<wa-button variant="danger" appearance="outlined" id="detail-delete"><wa-icon slot="start" name="trash"></wa-icon>Delete</wa-button>' : ''}
         </div>
         ${user || artwork.type === 'alter' ? '' : '<p class="wa-caption-s" style="color: var(--wa-color-neutral-text-subtle); margin: 0;">Downloads need an account, and signup is currently closed. Each download is one print-ready file (2.5&times;3.5&Prime; + bleed).</p>'}
         ${licenseHtml(artwork.type)}
@@ -539,6 +540,12 @@ function renderDetail(root, id) {
     window.open(artwork.imageUrl, '_blank', 'noopener');
   });
   root.querySelector('#detail-download-gated')?.addEventListener('click', promptSignIn);
+  root.querySelector('#detail-delete')?.addEventListener('click', async () => {
+    if (!await confirmDeleteArtwork(artwork)) return;
+    await loadPublicData(); // drops it from the grid and the artist page
+    history.pushState({}, '', 'gallery.html');
+    render();
+  });
 }
 
 // ============================================================
@@ -1052,10 +1059,18 @@ async function renderEditArtwork(root, id) {
       <div class="wa-cluster wa-gap-s">
         <wa-button type="submit" variant="brand" id="edit-submit"><wa-icon slot="start" name="floppy-disk"></wa-icon>Save changes</wa-button>
         <wa-button type="button" appearance="plain" href="${backHref}">Cancel</wa-button>
+        ${isAdmin ? '<wa-button type="button" variant="danger" appearance="outlined" id="edit-delete" style="margin-left: auto;"><wa-icon slot="start" name="trash"></wa-icon>Delete</wa-button>' : ''}
       </div>
     </form>`;
 
   wireCardAutocomplete(root);
+
+  root.querySelector('#edit-delete')?.addEventListener('click', async () => {
+    if (!await confirmDeleteArtwork(artwork)) return;
+    await loadPublicData();
+    history.pushState({}, '', artwork.status === 'pending' ? 'gallery.html?view=admin' : 'gallery.html');
+    render();
+  });
 
   root.querySelector('#edit-form').addEventListener('submit', async e => {
     e.preventDefault();
@@ -1583,6 +1598,7 @@ async function renderAdmin(root) {
               <wa-button size="s" appearance="outlined" href="gallery.html?view=edit&art=${encodeURIComponent(u.id)}"><wa-icon slot="start" name="pen"></wa-icon>Edit</wa-button>
               <wa-button size="s" variant="success" data-approve="${u.id}"><wa-icon slot="start" name="check"></wa-icon>Approve</wa-button>
               <wa-button size="s" variant="danger" appearance="outlined" data-reject="${u.id}"><wa-icon slot="start" name="xmark"></wa-icon>Reject&hellip;</wa-button>
+              <wa-button size="s" variant="danger" appearance="plain" data-delete-art="${u.id}" aria-label="Delete upload"><wa-icon name="trash"></wa-icon></wa-button>
             </div>
           </div>
           <wa-divider style="margin: 0;"></wa-divider>
@@ -1651,6 +1667,10 @@ async function renderAdmin(root) {
     await loadPublicData(); // approved art is public now
     render();
   }));
+  root.querySelectorAll('[data-delete-art]').forEach(btn => btn.addEventListener('click', async () => {
+    const u = pending.find(x => x.id === btn.dataset.deleteArt);
+    if (u && await confirmDeleteArtwork(u)) render();
+  }));
   root.querySelectorAll('[data-reject]').forEach(btn => btn.addEventListener('click', () => {
     root.querySelector(`[data-reject-row="${btn.dataset.reject}"]`)?.classList.toggle('open');
   }));
@@ -1668,6 +1688,48 @@ async function renderAdmin(root) {
     showToast('Rejected', 'danger', 'circle-xmark');
     render();
   }));
+}
+
+/**
+ * Admin delete of any artwork, any status (#344): confirm in a wa-dialog, delete
+ * the row (likes cascade), then a best-effort image remove. Resolves true once deleted.
+ */
+function confirmDeleteArtwork(artwork) {
+  return new Promise(resolve => {
+    let deleted = false;
+    const dialog = document.createElement('wa-dialog');
+    dialog.setAttribute('label', 'Delete artwork?');
+    dialog.innerHTML = `
+      <p style="margin: 0;"><strong>${escapeHtml(artwork.title)}</strong> and its image will be deleted for everyone. This can&rsquo;t be undone.</p>
+      <wa-button slot="footer" appearance="plain" data-dialog="close">Cancel</wa-button>
+      <wa-button slot="footer" variant="danger" data-delete-confirm><wa-icon slot="start" name="trash"></wa-icon>Delete</wa-button>`;
+    dialog.addEventListener('wa-after-hide', e => {
+      if (e.target !== dialog) return;
+      dialog.remove();
+      resolve(deleted);
+    });
+    const btn = dialog.querySelector('[data-delete-confirm]');
+    btn.addEventListener('click', async () => {
+      btn.setAttribute('loading', '');
+      const sb = getSupabase();
+      // .select() so a delete RLS filtered to zero rows reads as a failure, not a silent success.
+      const { data, error } = sb
+        ? await sb.from('gallery_artworks').delete().eq('id', artwork.id).select('id')
+        : { error: new Error('Not connected') };
+      btn.removeAttribute('loading');
+      if (error || !data?.length) {
+        console.error('Gallery delete failed:', error);
+        showError('Could not delete the artwork — try again.');
+        return;
+      }
+      if (artwork.imagePath) sb.storage.from('gallery-art').remove([artwork.imagePath]); // best-effort
+      deleted = true;
+      showToast('Artwork deleted', 'danger', 'trash');
+      dialog.removeAttribute('open');
+    });
+    document.body.appendChild(dialog);
+    dialog.setAttribute('open', '');
+  });
 }
 
 // ============================================================
