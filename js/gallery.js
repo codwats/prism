@@ -359,8 +359,12 @@ function filteredArtworks() {
 function renderGrid(root) {
   const user = getCurrentUser();
   const alley = filters.type === 'alter';
-  // Most downloaded leaves out what can't be downloaded (display-only Alters).
-  const results = sortArtworks(filteredArtworks().filter(a => filters.sort !== 'dl' || isDownloadable(a)));
+  // Most downloaded leaves out display-only Alters, and isn't offered when
+  // nothing in view can be downloaded (Alter Alley with every Alter off).
+  const filtered = filteredArtworks();
+  const canSortDl = filtered.some(isDownloadable);
+  if (!canSortDl && filters.sort === 'dl') filters.sort = 'liked';
+  const results = sortArtworks(filtered.filter(a => filters.sort !== 'dl' || isDownloadable(a)));
   const featured = results.filter(a => a.highlighted);
   const rest = results.filter(a => !a.highlighted);
   const hasFilter = filters.type !== 'all' || filters.artist !== 'all' || filters.q.trim() !== '';
@@ -439,7 +443,7 @@ function renderGrid(root) {
       <wa-select id="gallery-sort" size="s" label="Sort" value="${escapeHtml(filters.sort)}" style="width: 11rem;">
         <wa-option value="liked">Most liked</wa-option>
         <wa-option value="new">Newest</wa-option>
-        <wa-option value="dl">Most downloaded</wa-option>
+        ${canSortDl ? '<wa-option value="dl">Most downloaded</wa-option>' : ''}
       </wa-select>
     </div>
 

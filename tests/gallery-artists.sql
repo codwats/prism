@@ -1250,8 +1250,10 @@ BEGIN
     'an Alter must default to downloads off';
   ASSERT has_function_privilege('authenticated',
     'public.update_own_gallery_artwork(uuid, text, text, text, text, text, boolean, text, boolean)', 'EXECUTE');
-  ASSERT NOT EXISTS (SELECT 1 FROM pg_proc WHERE proname = 'update_own_gallery_artwork' AND pronargs = 8),
-    'the old 8-argument signature must be gone';
+  -- Kept until the #342 client is live, so a schema-first rollout doesn't break owner edits.
+  ASSERT has_function_privilege('authenticated',
+    'public.update_own_gallery_artwork(uuid, text, text, text, text, text, boolean, text)', 'EXECUTE'),
+    'the 8-argument signature must still work for the old client';
 END $$;
 
 -- ---- Downloads off: the counter refuses it ----
@@ -1304,6 +1306,21 @@ BEGIN
     'an owner edit must stay live';
   ASSERT (SELECT downloads_count FROM public.gallery_artworks WHERE id = '34200000-0000-0000-0002-000000000001') = 1,
     'a download-enabled Alter must count downloads';
+END $$;
+
+-- ---- The old 8-argument edit (pre-#342 client) leaves the flag alone ----
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', '34200000-0000-0000-0000-00000000000a', true);
+DO $$
+BEGIN
+  ASSERT (SELECT public.update_own_gallery_artwork('34200000-0000-0000-0002-000000000001',
+    'Painted again', 'alter', NULL, NULL, '', false, 'Alterist'));
+END $$;
+RESET ROLE;
+DO $$
+BEGIN
+  ASSERT (SELECT downloads_enabled FROM public.gallery_artworks WHERE id = '34200000-0000-0000-0002-000000000001'),
+    'an old-client edit must not reset downloads';
 END $$;
 
 -- ---- An admin can turn it back off ----

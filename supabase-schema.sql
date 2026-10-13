@@ -509,9 +509,41 @@ GRANT EXECUTE ON FUNCTION increment_gallery_download(UUID) TO authenticated;
 -- status, highlighted, store_url, artist_id, counters, reviewed_* and
 -- image_path stay admin-only. Returns true when a row was updated, NULL
 -- when the caller doesn't own the artwork (or it doesn't exist).
--- #342 added p_downloads_enabled; drop the old signature so PostgREST never
--- sees two overloads.
-DROP FUNCTION IF EXISTS update_own_gallery_artwork(UUID, TEXT, TEXT, TEXT, TEXT, TEXT, BOOLEAN, TEXT);
+--
+-- #342 added p_downloads_enabled as a 9-argument overload. PostgREST matches
+-- an RPC by its argument names, and neither overload has defaults, so the
+-- two never collide. The 8-argument original stays so the live client keeps
+-- working between this schema run and the deploy (it leaves the flag alone).
+-- shortcut: two copies of the edit; drop the 8-argument one once the #342
+-- client is live: DROP FUNCTION update_own_gallery_artwork(UUID, TEXT, TEXT, TEXT, TEXT, TEXT, BOOLEAN, TEXT);
+CREATE OR REPLACE FUNCTION update_own_gallery_artwork(
+  p_id UUID,
+  p_title TEXT,
+  p_type TEXT,
+  p_original_card_name TEXT,
+  p_scryfall_url TEXT,
+  p_description TEXT,
+  p_is_ai BOOLEAN,
+  p_artist_name TEXT
+)
+RETURNS BOOLEAN
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  UPDATE gallery_artworks SET
+    title = p_title,
+    type = p_type,
+    original_card_name = p_original_card_name,
+    scryfall_url = p_scryfall_url,
+    description = p_description,
+    is_ai = p_is_ai,
+    artist_name = p_artist_name
+  WHERE id = p_id AND uploader_id = auth.uid()
+  RETURNING true;
+$$;
+
+GRANT EXECUTE ON FUNCTION update_own_gallery_artwork(UUID, TEXT, TEXT, TEXT, TEXT, TEXT, BOOLEAN, TEXT) TO authenticated;
 
 CREATE OR REPLACE FUNCTION update_own_gallery_artwork(
   p_id UUID,
