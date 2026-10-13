@@ -673,6 +673,22 @@ ROLLBACK;
 -- ============================================
 BEGIN;
 
+INSERT INTO public.gallery_artists (id, name, user_id) VALUES
+  ('33100000-0000-0000-0001-000000000001', 'Pia Paint', NULL),
+  ('33100000-0000-0000-0001-000000000002', 'Una Confirmed', NULL),
+  ('33100000-0000-0000-0001-000000000003', 'Mia Match', NULL),
+  ('33100000-0000-0000-0001-000000000004', 'Nob Invite', NULL),
+  ('33100000-0000-0000-0001-000000000006', 'Second Page', NULL),
+  ('33100000-0000-0000-0001-000000000007', 'First Page', NULL); -- owned below, once its account exists
+-- Invited emails as an admin would type them: spacing and case differ from the account.
+INSERT INTO public.gallery_artist_contacts (artist_id, commission_email, invited_email) VALUES
+  ('33100000-0000-0000-0001-000000000001', 'invited@example.invalid', ' invited@EXAMPLE.invalid '),
+  ('33100000-0000-0000-0001-000000000002', 'unconfirmed@example.invalid', 'unconfirmed@example.invalid'),
+  ('33100000-0000-0000-0001-000000000003', 'someone-else@example.invalid', 'someone-else@example.invalid'),
+  ('33100000-0000-0000-0001-000000000006', 'owner-331@example.invalid', 'owner-331@example.invalid');
+-- The accounts arrive after their invites. Saving an invited email for an
+-- account that is already confirmed claims the page at once (#340), so creating
+-- them first would skip the claim-on-click path this section tests.
 INSERT INTO auth.users (id, email, email_confirmed_at) VALUES
   ('33100000-0000-0000-0000-00000000000a', 'Invited@Example.invalid', now()),     -- matches P1
   ('33100000-0000-0000-0000-00000000000b', 'rival-331@example.invalid', now()),   -- rival on P1
@@ -683,19 +699,8 @@ INSERT INTO auth.users (id, email, email_confirmed_at) VALUES
   ('33100000-0000-0000-0000-000000000011', 'visitor-331@example.invalid', now()),
   ('33100000-0000-0000-0000-00000000000d', 'admin-331@example.invalid', now());
 INSERT INTO public.gallery_admins (user_id) VALUES ('33100000-0000-0000-0000-00000000000d');
-INSERT INTO public.gallery_artists (id, name, user_id) VALUES
-  ('33100000-0000-0000-0001-000000000001', 'Pia Paint', NULL),
-  ('33100000-0000-0000-0001-000000000002', 'Una Confirmed', NULL),
-  ('33100000-0000-0000-0001-000000000003', 'Mia Match', NULL),
-  ('33100000-0000-0000-0001-000000000004', 'Nob Invite', NULL),
-  ('33100000-0000-0000-0001-000000000006', 'Second Page', NULL),
-  ('33100000-0000-0000-0001-000000000007', 'First Page', '33100000-0000-0000-0000-000000000010');
--- Invited emails as an admin would type them: spacing and case differ from the account.
-INSERT INTO public.gallery_artist_contacts (artist_id, commission_email, invited_email) VALUES
-  ('33100000-0000-0000-0001-000000000001', 'invited@example.invalid', ' invited@EXAMPLE.invalid '),
-  ('33100000-0000-0000-0001-000000000002', 'unconfirmed@example.invalid', 'unconfirmed@example.invalid'),
-  ('33100000-0000-0000-0001-000000000003', 'someone-else@example.invalid', 'someone-else@example.invalid'),
-  ('33100000-0000-0000-0001-000000000006', 'owner-331@example.invalid', 'owner-331@example.invalid');
+UPDATE public.gallery_artists SET user_id = '33100000-0000-0000-0000-000000000010'
+  WHERE id = '33100000-0000-0000-0001-000000000007';
 -- The invited artist uploaded before claiming: matching credit joins, someone else's work doesn't.
 INSERT INTO public.gallery_artworks (id, title, type, artist_name, uploader_id, image_path, status) VALUES
   ('33100000-0000-0000-0002-000000000001', 'Early', 'proxy', 'Pia Paint', '33100000-0000-0000-0000-00000000000a', 'a/1.png', 'approved'),
