@@ -36,9 +36,9 @@ async function send(t, body, w = world(), { method = 'POST', token = 'admin-toke
       if (options.method === 'POST') return new Response(null, { status: w.contactsOk ? 201 : 500 });
       return Response.json(w.stored.invitedEmail === undefined ? [] : [{ invited_email: w.stored.invitedEmail }]);
     }
-    if (url.startsWith('https://db.example/rest/v1/gallery_artist_claims')) {
+    if (url === 'https://db.example/rest/v1/rpc/gallery_invited_claim_outcome') {
       if (w.claimsFail) return new Response('{}', { status: 500 });
-      return Response.json(w.stored.pendingClaims || []);
+      return Response.json(w.claimOutcome ?? null);
     }
     if (url.startsWith('https://db.example/rest/v1/gallery_artists') && (options.method || 'GET') === 'GET') {
       return Response.json(w.stored.artist ? [w.stored.artist] : []);
@@ -137,12 +137,14 @@ endpointTest('with an email: artist, then contacts, then the claim check, then t
   assert.equal(res.status, 200);
   assert.deepEqual(res.json, { artistId: NEW_ARTIST, url: `https://prismmtg.com/gallery.html?artist=${NEW_ARTIST}`, invite: 'sent' });
   const order = res.requests.map(r => r.url).filter(u => !u.includes('/auth/v1/user') && !u.includes('is_gallery_admin'));
-  assert.equal(order.length, 5);
+  assert.equal(order.length, 4);
   assert.ok(order[0].startsWith('https://db.example/rest/v1/gallery_artists?'));
   assert.ok(order[1].startsWith('https://db.example/rest/v1/gallery_artist_contacts'));
-  assert.ok(order[2].startsWith('https://db.example/rest/v1/gallery_artists?id=eq.'));
-  assert.ok(order[3].startsWith('https://db.example/rest/v1/gallery_artist_claims?'));
-  assert.ok(order[4].startsWith('https://db.example/auth/v1/invite'));
+  assert.equal(order[2], 'https://db.example/rest/v1/rpc/gallery_invited_claim_outcome');
+  assert.ok(order[3].startsWith('https://db.example/auth/v1/invite'));
+  const check = res.requests[res.requests.length - 2];
+  assert.equal(check.options.headers.Authorization, 'Bearer test-service-key');
+  assert.deepEqual(JSON.parse(check.options.body), { p_artist_id: NEW_ARTIST });
   const contacts = res.requests.find(r => r.url.startsWith('https://db.example/rest/v1/gallery_artist_contacts'));
   assert.equal(contacts.options.headers.Authorization, 'Bearer test-service-key');
   assert.deepEqual(JSON.parse(contacts.options.body), { artist_id: NEW_ARTIST, invited_email: EMAIL, commission_email: EMAIL });
@@ -156,7 +158,7 @@ endpointTest('with an email: artist, then contacts, then the claim check, then t
 });
 
 endpointTest("an existing confirmed account at the email now owns the page: 'linked', no invite (#340)", async t => {
-  const res = await send(t, { name: 'Kay', email: EMAIL }, world({ stored: { artist: { id: NEW_ARTIST, user_id: ADMIN } } }));
+  const res = await send(t, { name: 'Kay', email: EMAIL }, world({ claimOutcome: 'linked' }));
   assert.equal(res.status, 200);
   assert.equal(res.json.invite, 'linked');
   assert.equal(res.invites.length, 0);
@@ -164,19 +166,24 @@ endpointTest("an existing confirmed account at the email now owns the page: 'lin
 });
 
 endpointTest("an existing account that already owns a page leaves a pending claim: 'owns_another', no invite (#340)", async t => {
-  const res = await send(t, { name: 'Kay', email: EMAIL }, world({ stored: { artist: { id: NEW_ARTIST, user_id: null }, pendingClaims: [{ id: 'c1' }] } }));
+  const res = await send(t, { name: 'Kay', email: EMAIL }, world({ claimOutcome: 'owns_another' }));
   assert.equal(res.status, 200);
   assert.equal(res.json.invite, 'owns_another');
   assert.equal(res.json.artistId, NEW_ARTIST);
   assert.equal(res.invites.length, 0);
 });
 
-endpointTest('a failed claim check still sends the invite and keeps the page', async t => {
+endpointTest("a failed claim check is 'failed': no blind invite, page kept, on create and on resend", async t => {
   t.mock.method(console, 'error', () => {});
-  const res = await send(t, { name: 'Kay', email: EMAIL }, world({ claimsFail: true }));
-  assert.equal(res.status, 200);
-  assert.equal(res.json.invite, 'sent');
-  assert.equal(res.invites.length, 1);
+  for (const body of [{ name: 'Kay', email: EMAIL }, { artistId: NEW_ARTIST, resend: true }]) {
+    const res = await send(t, body, world({ claimsFail: true }));
+    assert.equal(res.status, 200);
+    assert.equal(res.json.invite, 'failed');
+    assert.equal(res.json.artistId, NEW_ARTIST);
+    assert.equal(res.invites.length, 0);
+    t.mock.restoreAll();
+    t.mock.method(console, 'error', () => {});
+  }
 });
 
 endpointTest('the invite redirects to SITE_URL when it is set', async t => {
@@ -247,7 +254,7 @@ endpointTest('resend re-sends to the stored invited email', async t => {
 });
 
 endpointTest("resend for a page whose claim waits on an account that owns another is 'owns_another', no invite", async t => {
-  const res = await send(t, { artistId: NEW_ARTIST, resend: true }, world({ stored: { artist: { id: NEW_ARTIST, user_id: null }, invitedEmail: EMAIL, pendingClaims: [{ id: 'c1' }] } }));
+  const res = await send(t, { artistId: NEW_ARTIST, resend: true }, world({ claimOutcome: 'owns_another' }));
   assert.equal(res.status, 200);
   assert.equal(res.json.invite, 'owns_another');
   assert.equal(res.invites.length, 0);

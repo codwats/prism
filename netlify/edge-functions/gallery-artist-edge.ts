@@ -61,7 +61,7 @@ function isHttps(value: unknown): value is string {
 type Link = { label: string; icon: string; family?: string; href: string };
 type ArtistInput = { name: string; bio: string; links: Link[]; avatarUrl: string | null; isPartner: boolean; email: string | null };
 type Invite = 'sent' | 'existing_account' | 'failed';
-type Linked = 'linked' | 'owns_another';
+type ClaimOutcome = 'linked' | 'owns_another';
 
 /** The validated, normalized create body, or a reason it was refused. */
 function parseArtist(raw: unknown): ArtistInput | string {
@@ -108,14 +108,33 @@ async function sendInvite(supabaseUrl: string, serviceKey: string, email: string
   return 'failed';
 }
 
-/** 'linked' / 'owns_another' when the contacts trigger claimed the page for an existing account (#340), else null. */
-async function existingAccountOutcome(supabaseUrl: string, headers: Record<string, string>, artistId: string): Promise<Linked | null> {
-  const artistRes = await fetch(`${supabaseUrl}/rest/v1/gallery_artists?id=eq.${artistId}&select=user_id`, { headers });
-  if (!artistRes.ok) throw new Error(`gallery_artists read failed: ${artistRes.status}`);
-  if ((await artistRes.json())[0]?.user_id) return 'linked';
-  const claimRes = await fetch(`${supabaseUrl}/rest/v1/gallery_artist_claims?artist_id=eq.${artistId}&status=eq.pending&select=id&limit=1`, { headers });
-  if (!claimRes.ok) throw new Error(`gallery_artist_claims read failed: ${claimRes.status}`);
-  return (await claimRes.json()).length > 0 ? 'owns_another' : null;
+/**
+ * 'linked' / 'owns_another' when the contacts trigger claimed the page for an
+ * existing account (#340), else null. Asked of the database, which can match
+ * the pending claim to the invited email; a stranger's claim doesn't count.
+ */
+async function claimOutcome(supabaseUrl: string, headers: Record<string, string>, artistId: string): Promise<ClaimOutcome | null> {
+  const res = await fetch(`${supabaseUrl}/rest/v1/rpc/gallery_invited_claim_outcome`, {
+    method: 'POST', headers, body: JSON.stringify({ p_artist_id: artistId }),
+  });
+  if (!res.ok) throw new Error(`gallery_invited_claim_outcome failed: ${res.status}`);
+  return (await res.json()) ?? null;
+}
+
+/**
+ * The invite outcome after the claim check: the check's answer, else an invite.
+ * A failed check sends nothing and reads 'failed': inviting blind could tell
+ * the admin a linked account "isn't confirmed yet". Resend retries both.
+ */
+async function inviteUnlessClaimed(supabaseUrl: string, serviceKey: string, headers: Record<string, string>, artistId: string, email: string, redirectTo: string): Promise<Invite | ClaimOutcome> {
+  let outcome: ClaimOutcome | null;
+  try {
+    outcome = await claimOutcome(supabaseUrl, headers, artistId);
+  } catch (err) {
+    console.error('Gallery artist: claim check failed:', (err as Error).message);
+    return 'failed';
+  }
+  return outcome ?? await sendInvite(supabaseUrl, serviceKey, email, redirectTo);
 }
 
 export default async function handler(request: Request): Promise<Response> {
@@ -165,8 +184,7 @@ export default async function handler(request: Request): Promise<Response> {
       if (!contactRes.ok) throw new Error(`gallery_artist_contacts read failed: ${contactRes.status}`);
       const [contact] = await contactRes.json();
       if (!contact?.invited_email) return jsonResponse(request, 409, { error: 'This artist was never invited' });
-      const invite = await existingAccountOutcome(supabaseUrl, serviceHeaders, artistId)
-        ?? await sendInvite(supabaseUrl, serviceKey, contact.invited_email, pageUrl(artistId));
+      const invite = await inviteUnlessClaimed(supabaseUrl, serviceKey, serviceHeaders, artistId, contact.invited_email, pageUrl(artistId));
       return jsonResponse(request, 200, { artistId, url: pageUrl(artistId), invite });
     }
 
@@ -183,7 +201,7 @@ export default async function handler(request: Request): Promise<Response> {
     if (!insertRes.ok) throw new Error(`gallery_artists insert failed: ${insertRes.status}`);
     const [{ id: artistId }] = await insertRes.json();
 
-    let invite: Invite | Linked | 'email_not_saved' | 'none' = 'none';
+    let invite: Invite | ClaimOutcome | 'email_not_saved' | 'none' = 'none';
     if (artist.email) {
       const contactRes = await fetch(`${supabaseUrl}/rest/v1/gallery_artist_contacts`, {
         method: 'POST',
@@ -195,10 +213,7 @@ export default async function handler(request: Request): Promise<Response> {
         console.error(`Gallery artist: contacts insert failed: ${contactRes.status}`);
         invite = 'email_not_saved';
       } else {
-        // A failed read only costs the shortcut: the invite still goes out.
-        const linked = await existingAccountOutcome(supabaseUrl, serviceHeaders, artistId)
-          .catch((err) => { console.error('Gallery artist: claim check failed:', (err as Error).message); return null; });
-        invite = linked ?? await sendInvite(supabaseUrl, serviceKey, artist.email, pageUrl(artistId));
+        invite = await inviteUnlessClaimed(supabaseUrl, serviceKey, serviceHeaders, artistId, artist.email, pageUrl(artistId));
       }
     }
     return jsonResponse(request, 200, { artistId, url: pageUrl(artistId), invite });

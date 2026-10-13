@@ -1084,6 +1084,26 @@ BEGIN
     = '34000000-0000-0000-0000-00000000000b', 'an UPDATE of invited_email must link a confirmed account';
 END $$;
 
+-- ---- What the edge function reports: only the invitee's claim counts ----
+INSERT INTO auth.users (id, email, email_confirmed_at) VALUES
+  ('34000000-0000-0000-0000-00000000000e', 'stranger-340@example.invalid', now());
+INSERT INTO public.gallery_artists (id, name, user_id) VALUES
+  ('34000000-0000-0000-0001-000000000006', 'Not Yet Here', NULL);
+INSERT INTO public.gallery_artist_contacts (artist_id, commission_email, invited_email) VALUES
+  ('34000000-0000-0000-0001-000000000006', 'nobody-340@example.invalid', 'nobody-340@example.invalid');
+INSERT INTO public.gallery_artist_claims (artist_id, user_id) VALUES
+  ('34000000-0000-0000-0001-000000000006', '34000000-0000-0000-0000-00000000000e');
+DO $$
+BEGIN
+  ASSERT NOT has_function_privilege('authenticated', 'public.gallery_invited_claim_outcome(uuid)', 'EXECUTE');
+  ASSERT NOT has_function_privilege('anon', 'public.gallery_invited_claim_outcome(uuid)', 'EXECUTE');
+  ASSERT has_function_privilege('service_role', 'public.gallery_invited_claim_outcome(uuid)', 'EXECUTE');
+  ASSERT public.gallery_invited_claim_outcome('34000000-0000-0000-0001-000000000001') = 'linked';
+  ASSERT public.gallery_invited_claim_outcome('34000000-0000-0000-0001-000000000004') = 'owns_another';
+  ASSERT public.gallery_invited_claim_outcome('34000000-0000-0000-0001-000000000006') IS NULL,
+    'a stranger''s pending claim must not read as the invitee owning another page';
+END $$;
+
 -- ---- A failing claim never fails saving the page ----
 INSERT INTO auth.users (id, email, email_confirmed_at) VALUES
   ('34000000-0000-0000-0000-00000000000d', 'broken-340@example.invalid', now());

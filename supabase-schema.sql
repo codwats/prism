@@ -1129,6 +1129,35 @@ BEGIN;
     FOR EACH ROW
     WHEN (NEW.invited_email IS NOT NULL)
     EXECUTE FUNCTION gallery_claim_invited_artist_on_save();
+
+  -- What the Add artist edge function tells the admin: 'linked' once the page
+  -- is claimed, 'owns_another' when the invited account's own claim waits
+  -- (it already owns a page), else NULL. Only the invitee's claim counts: a
+  -- stranger's pending claim on the page says nothing about the invite.
+  CREATE OR REPLACE FUNCTION gallery_invited_claim_outcome(p_artist_id UUID)
+    RETURNS text
+    LANGUAGE sql
+    STABLE
+    SECURITY DEFINER
+    SET search_path = public, pg_temp
+  AS $$
+    SELECT CASE
+      WHEN a.user_id IS NOT NULL THEN 'linked'
+      WHEN EXISTS (
+        SELECT 1 FROM gallery_artist_claims cl JOIN auth.users u ON u.id = cl.user_id
+          WHERE cl.artist_id = a.id AND cl.status = 'pending'
+            AND lower(btrim(u.email)) = lower(btrim(c.invited_email))
+      ) THEN 'owns_another'
+    END
+    FROM gallery_artists a LEFT JOIN gallery_artist_contacts c ON c.artist_id = a.id
+    WHERE a.id = p_artist_id;
+  $$;
+
+  -- Service role only (the edge function); it reads auth.users.
+  REVOKE EXECUTE ON FUNCTION gallery_invited_claim_outcome(UUID) FROM public;
+  REVOKE EXECUTE ON FUNCTION gallery_invited_claim_outcome(UUID) FROM anon;
+  REVOKE EXECUTE ON FUNCTION gallery_invited_claim_outcome(UUID) FROM authenticated;
+  GRANT EXECUTE ON FUNCTION gallery_invited_claim_outcome(UUID) TO service_role;
 COMMIT;
 
 -- ============================================
