@@ -1084,6 +1084,44 @@ BEGIN
     = '34000000-0000-0000-0000-00000000000b', 'an UPDATE of invited_email must link a confirmed account';
 END $$;
 
+-- ---- A claim already filed by hand is approved when its email is invited ----
+INSERT INTO auth.users (id, email, email_confirmed_at) VALUES
+  ('34000000-0000-0000-0000-00000000000f', 'handclaim-340@example.invalid', now());
+INSERT INTO public.gallery_artists (id, name, user_id) VALUES
+  ('34000000-0000-0000-0001-000000000007', 'Hand Claimed', NULL);
+-- Filed before any contacts row exists, so #331 has nothing to match and it waits.
+INSERT INTO public.gallery_artist_claims (artist_id, user_id) VALUES
+  ('34000000-0000-0000-0001-000000000007', '34000000-0000-0000-0000-00000000000f');
+DO $$
+BEGIN
+  ASSERT (SELECT user_id FROM public.gallery_artists WHERE id = '34000000-0000-0000-0001-000000000007') IS NULL;
+  INSERT INTO public.gallery_artist_contacts (artist_id, commission_email, invited_email) VALUES
+    ('34000000-0000-0000-0001-000000000007', 'handclaim-340@example.invalid', 'handclaim-340@example.invalid');
+  ASSERT (SELECT user_id FROM public.gallery_artists WHERE id = '34000000-0000-0000-0001-000000000007')
+    = '34000000-0000-0000-0000-00000000000f', 'an existing pending claim by the invitee must be approved';
+  ASSERT (SELECT count(*) FROM public.gallery_artist_claims
+          WHERE artist_id = '34000000-0000-0000-0001-000000000007') = 1, 'no second claim is filed';
+  ASSERT (SELECT status FROM public.gallery_artist_claims
+          WHERE artist_id = '34000000-0000-0000-0001-000000000007') = 'approved';
+  ASSERT public.gallery_invited_claim_outcome('34000000-0000-0000-0001-000000000007') = 'linked';
+END $$;
+
+-- The holder's hand-filed claim on another invited page still waits (owns P3).
+INSERT INTO public.gallery_artists (id, name, user_id) VALUES
+  ('34000000-0000-0000-0001-000000000008', 'Holder Again', NULL);
+INSERT INTO public.gallery_artist_claims (artist_id, user_id) VALUES
+  ('34000000-0000-0000-0001-000000000008', '34000000-0000-0000-0000-00000000000c');
+DO $$
+BEGIN
+  INSERT INTO public.gallery_artist_contacts (artist_id, commission_email, invited_email) VALUES
+    ('34000000-0000-0000-0001-000000000008', 'holder-340@example.invalid', 'holder-340@example.invalid');
+  ASSERT (SELECT user_id FROM public.gallery_artists WHERE id = '34000000-0000-0000-0001-000000000008') IS NULL,
+    'a retried approval for an account that owns a page must leave it unclaimed, not fail the save';
+  ASSERT (SELECT status FROM public.gallery_artist_claims
+          WHERE artist_id = '34000000-0000-0000-0001-000000000008') = 'pending';
+  ASSERT public.gallery_invited_claim_outcome('34000000-0000-0000-0001-000000000008') = 'owns_another';
+END $$;
+
 -- ---- What the edge function reports: only the invitee's claim counts ----
 INSERT INTO auth.users (id, email, email_confirmed_at) VALUES
   ('34000000-0000-0000-0000-00000000000e', 'stranger-340@example.invalid', now());
