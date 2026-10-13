@@ -9,3 +9,4 @@ docs/research/paywall-dossier.html
 
 # Impeccable design-hook state, rewritten every session
 .impeccable/hook.cache.json
+.codex/
