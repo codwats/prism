@@ -72,3 +72,12 @@ test('isMissingCustomer matches only a missing customer (#258)', () => {
 	assert.equal(isMissingCustomer(undefined), false);
 	assert.equal(isMissingCustomer(null), false);
 });
+
+test('subscriptionRow carries paused and resumed statuses through (#203)', () => {
+	const paused = subscriptionRow({ id: 'sub_1', status: 'paused' }, 'user-1', 1751760000);
+	assert.equal(paused.status, 'paused');
+	const resumed = subscriptionRow({ id: 'sub_1', status: 'active' }, 'user-1', 1751760100);
+	assert.equal(resumed.status, 'active');
+	// The out-of-order guard compares updated_at: the later event must sort after.
+	assert.ok(resumed.updated_at > paused.updated_at);
+});
