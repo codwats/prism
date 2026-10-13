@@ -319,7 +319,7 @@ async function renderArtistPageSection(user) {
       { headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` } });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const [artist] = await res.json();
-    if (!artist || user !== getCurrentUser()) return;
+    if (!artist || user.id !== getCurrentUser()?.id) return;
     elements.artistPageName.textContent = artist.name;
     elements.btnViewArtistPage.setAttribute('href', `gallery.html?artist=${encodeURIComponent(artist.id)}`);
     section.hidden = false;
