@@ -1250,7 +1250,9 @@ async function renderEditArtist(root) {
 
 const INVITE_OUTCOME = {
   sent: 'Invite sent',
-  existing_account: 'They already have an account — they can sign in and claim',
+  linked: 'They already have an account, so the page is linked to it — they own it now',
+  owns_another: 'Their account already owns an artist page, so this one stays unclaimed. Its claim waits in the Claims tab.',
+  existing_account: 'They have an account that isn’t confirmed yet — the page becomes theirs when they confirm their email',
   failed: 'Invite failed — try Resend',
   email_not_saved: 'The email couldn’t be saved, so no invite went out. Add it to the artist’s gallery_artist_contacts row (invited_email) in the SQL editor, then use Resend invite.',
 };
@@ -1374,7 +1376,7 @@ const STATUS_TAGS = {
   rejected: '<wa-tag variant="danger"><wa-icon slot="start" name="circle-xmark"></wa-icon>Rejected</wa-tag>',
 };
 
-function uploadRowHtml(u) {
+function uploadRowHtml(u, myArtist) {
   return `
     <div class="gallery-row${u.status === 'rejected' ? ' gallery-row--rejected' : ''}">
       <div class="gallery-thumb">${u.imageUrl ? `<img src="${escapeHtml(u.imageUrl)}" alt="" loading="lazy" />` : '<wa-icon name="image"></wa-icon>'}</div>
@@ -1392,6 +1394,7 @@ function uploadRowHtml(u) {
       <wa-button size="s" appearance="outlined" href="gallery.html?view=edit&art=${encodeURIComponent(u.id)}"><wa-icon slot="start" name="pen"></wa-icon>Edit</wa-button>
       ${u.status === 'approved' ? `<wa-button size="s" appearance="outlined" href="gallery.html?art=${encodeURIComponent(u.id)}">View</wa-button>` : ''}
       ${u.status === 'rejected' ? `<wa-button size="s" appearance="outlined" data-resubmit="${u.id}">Resubmit</wa-button>` : ''}
+      ${myArtist && u.artistId !== myArtist.id ? `<wa-button size="s" appearance="outlined" data-add-to-page="${u.id}"><wa-icon slot="start" name="user-plus"></wa-icon>Add to my page</wa-button>` : ''}
       ${u.status === 'pending' ? `<wa-button size="s" appearance="plain" data-withdraw="${u.id}" aria-label="Withdraw upload"><wa-icon name="trash"></wa-icon></wa-button>` : ''}
     </div>`;
 }
@@ -1422,9 +1425,10 @@ async function renderMyUploads(root) {
     return;
   }
   const uploads = (data || []).map(mapArtwork);
+  const myArtist = artistsDb.find(a => a.userId === user.id); // the RPC re-checks ownership
   const by = status => uploads.filter(u => u.status === status);
   const listHtml = list => (list.length
-    ? `<div class="wa-stack wa-gap-s">${list.map(uploadRowHtml).join('')}</div>`
+    ? `<div class="wa-stack wa-gap-s">${list.map(u => uploadRowHtml(u, myArtist)).join('')}</div>`
     : '<p style="color: var(--wa-color-neutral-text-subtle);">Nothing here yet.</p>');
 
   root.innerHTML = `
@@ -1453,6 +1457,16 @@ async function renderMyUploads(root) {
       .eq('id', btn.dataset.resubmit);
     if (err) { showError('Could not resubmit — try again.'); return; }
     showSuccess('Resubmitted for review');
+    render();
+  }));
+  // #339: the Artist's explicit link for uploads credit matching missed.
+  root.querySelectorAll('[data-add-to-page]').forEach(btn => btn.addEventListener('click', async () => {
+    btn.setAttribute('loading', '');
+    const { error: err } = await sb.rpc('add_own_artwork_to_artist_page', { p_artwork_id: btn.dataset.addToPage });
+    btn.removeAttribute('loading');
+    if (err) { console.error('Add to my page failed:', err); showError('Could not add it to your artist page — try again.'); return; }
+    showSuccess('Added to your artist page');
+    await loadPublicData(); // an approved work now shows on the page
     render();
   }));
   root.querySelectorAll('[data-withdraw]').forEach(btn => btn.addEventListener('click', async () => {

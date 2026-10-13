@@ -1090,6 +1090,132 @@ BEGIN;
 COMMIT;
 
 -- ============================================
+-- MIGRATION: Inviting an existing account's email claims the page at once (#340)
+-- ============================================
+-- An account that is already confirmed never confirms again, so the #338
+-- trigger never fires for it. Saving the page's invited_email files the same
+-- claim instead, and the #331 trigger approves it (or leaves it pending when
+-- that account already owns an artist page). An unconfirmed account is left
+-- to #338. Tests: tests/gallery-artists.sql.
+BEGIN;
+  CREATE OR REPLACE FUNCTION gallery_claim_invited_artist_on_save()
+    RETURNS trigger
+    LANGUAGE plpgsql
+    SECURITY DEFINER
+    SET search_path = public, pg_temp
+  AS $$
+  DECLARE
+    v_user UUID;
+    v_claim UUID;
+  BEGIN
+    SELECT u.id INTO v_user FROM gallery_artists a, auth.users u
+      WHERE a.id = NEW.artist_id AND a.user_id IS NULL
+        AND u.email_confirmed_at IS NOT NULL
+        AND lower(btrim(NEW.invited_email)) = lower(btrim(u.email));
+    IF v_user IS NULL THEN
+      RETURN NULL; -- no confirmed account at that email, or the page is already claimed
+    END IF;
+
+    INSERT INTO gallery_artist_claims (artist_id, user_id) VALUES (NEW.artist_id, v_user)
+    ON CONFLICT DO NOTHING
+    RETURNING id INTO v_claim;
+    IF v_claim IS NULL THEN
+      -- They already filed "Claim this artist page" by hand, so no new claim and
+      -- no #331 trigger: approve that pending claim the same way.
+      SELECT id INTO v_claim FROM gallery_artist_claims
+        WHERE artist_id = NEW.artist_id AND user_id = v_user AND status = 'pending';
+      BEGIN
+        PERFORM approve_gallery_artist_claim_core(v_claim, NULL);
+      EXCEPTION WHEN unique_violation THEN
+        NULL; -- claimant already owns an artist: the claim waits for an admin
+      END;
+    END IF;
+    RETURN NULL;
+  EXCEPTION WHEN OTHERS THEN
+    -- Never fail saving the page: the artist can still use "Claim this artist page".
+    RAISE WARNING 'invited artist claim failed for artist %: %', NEW.artist_id, SQLERRM;
+    RETURN NULL;
+  END;
+  $$;
+
+  REVOKE EXECUTE ON FUNCTION gallery_claim_invited_artist_on_save() FROM public;
+  REVOKE EXECUTE ON FUNCTION gallery_claim_invited_artist_on_save() FROM anon;
+  REVOKE EXECUTE ON FUNCTION gallery_claim_invited_artist_on_save() FROM authenticated;
+
+  DROP TRIGGER IF EXISTS gallery_claim_invited_artist_on_save ON gallery_artist_contacts;
+  CREATE TRIGGER gallery_claim_invited_artist_on_save
+    AFTER INSERT OR UPDATE OF invited_email ON gallery_artist_contacts
+    FOR EACH ROW
+    WHEN (NEW.invited_email IS NOT NULL)
+    EXECUTE FUNCTION gallery_claim_invited_artist_on_save();
+
+  -- What the Add artist edge function tells the admin: 'linked' once the page
+  -- is claimed, 'owns_another' when the invited account's own claim waits
+  -- because it already owns a page, else NULL. Only the invitee's claim counts: a
+  -- stranger's pending claim on the page says nothing about the invite.
+  CREATE OR REPLACE FUNCTION gallery_invited_claim_outcome(p_artist_id UUID)
+    RETURNS text
+    LANGUAGE sql
+    STABLE
+    SECURITY DEFINER
+    SET search_path = public, pg_temp
+  AS $$
+    SELECT CASE
+      WHEN a.user_id IS NOT NULL THEN 'linked'
+      WHEN EXISTS (
+        SELECT 1 FROM gallery_artist_claims cl JOIN auth.users u ON u.id = cl.user_id
+          WHERE cl.artist_id = a.id AND cl.status = 'pending'
+            AND lower(btrim(u.email)) = lower(btrim(c.invited_email))
+            AND EXISTS (SELECT 1 FROM gallery_artists o WHERE o.user_id = cl.user_id)
+      ) THEN 'owns_another'
+    END
+    FROM gallery_artists a LEFT JOIN gallery_artist_contacts c ON c.artist_id = a.id
+    WHERE a.id = p_artist_id;
+  $$;
+
+  -- Service role only (the edge function); it reads auth.users.
+  REVOKE EXECUTE ON FUNCTION gallery_invited_claim_outcome(UUID) FROM public;
+  REVOKE EXECUTE ON FUNCTION gallery_invited_claim_outcome(UUID) FROM anon;
+  REVOKE EXECUTE ON FUNCTION gallery_invited_claim_outcome(UUID) FROM authenticated;
+  GRANT EXECUTE ON FUNCTION gallery_invited_claim_outcome(UUID) TO service_role;
+COMMIT;
+
+-- ============================================
+-- MIGRATION: Add to my page for an Artist's own unlinked uploads (#339)
+-- ============================================
+-- Credit matching leaves near-misses as Attributions. The Artist can attach
+-- their own upload explicitly; the credit becomes the page name. Only the
+-- uploader who owns an artist page can, enforced here rather than in the UI.
+-- Errors: 42501 no artist page, or not the caller's upload.
+-- Tests: tests/gallery-artists.sql.
+BEGIN;
+  CREATE OR REPLACE FUNCTION add_own_artwork_to_artist_page(p_artwork_id UUID)
+    RETURNS void
+    LANGUAGE plpgsql
+    SECURITY DEFINER
+    SET search_path = public, pg_temp
+  AS $$
+  DECLARE
+    v_artist gallery_artists;
+  BEGIN
+    SELECT * INTO v_artist FROM gallery_artists WHERE user_id = auth.uid();
+    IF NOT FOUND THEN
+      RAISE EXCEPTION 'You have no artist page' USING ERRCODE = 'insufficient_privilege';
+    END IF;
+    UPDATE gallery_artworks SET artist_id = v_artist.id, artist_name = v_artist.name
+      WHERE id = p_artwork_id AND uploader_id = auth.uid();
+    IF NOT FOUND THEN
+      RAISE EXCEPTION 'Not your upload' USING ERRCODE = 'insufficient_privilege';
+    END IF;
+  END;
+  $$;
+
+  REVOKE EXECUTE ON FUNCTION add_own_artwork_to_artist_page(UUID) FROM public;
+  REVOKE EXECUTE ON FUNCTION add_own_artwork_to_artist_page(UUID) FROM anon;
+  GRANT EXECUTE ON FUNCTION add_own_artwork_to_artist_page(UUID) TO authenticated;
+COMMIT;
+
+-- ============================================
 -- MIGRATION: Founders and the entitlement predicate
 -- ============================================
 -- Safe to deploy before the cutover: while app_config.payment_enforcement is
