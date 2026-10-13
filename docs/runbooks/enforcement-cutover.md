@@ -520,7 +520,8 @@ probes the webhook at the end.
 | `SUPABASE_SERVICE_ROLE_KEY` | Supabase → API keys → Legacy → `service_role` | yes |
 
 The webhook destination sends exactly `checkout.session.completed`,
-`customer.subscription.updated`, `customer.subscription.deleted` and
+`customer.subscription.updated`, `customer.subscription.deleted`,
+`customer.subscription.paused`, `customer.subscription.resumed` and
 `invoice.payment_failed`, as snapshot payloads, to
 `https://prismmtg.com/api/stripe-webhook`.
 

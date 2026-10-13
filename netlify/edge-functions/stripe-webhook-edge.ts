@@ -92,8 +92,11 @@ async function handleEvent(event: StripeObject): Promise<void> {
     }
 
     case 'customer.subscription.updated':
-    case 'customer.subscription.deleted': {
-      // Stripe sets status to 'canceled' on the deleted event's object.
+    case 'customer.subscription.deleted':
+    case 'customer.subscription.paused':
+    case 'customer.subscription.resumed': {
+      // Stripe sets status to 'canceled' on the deleted event's object and
+      // 'paused' on the paused one; is_entitled() doesn't count 'paused' (#203).
       const userId = await findUserByCustomer(obj.customer);
       if (!userId) {
         console.error(`No stripe_customers row for ${obj.customer} (event ${event.id}) — skipping`);
