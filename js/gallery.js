@@ -516,7 +516,7 @@ function renderDetail(root, id) {
             : '<wa-button variant="brand" id="detail-download-gated"><wa-icon slot="start" name="lock"></wa-icon>Sign in to download</wa-button>'}
           ${artwork.type === 'alter' && artist?.userId && artist.commissionsOpen
             ? `<wa-button variant="brand" href="gallery.html?artist=${encodeURIComponent(artist.id)}&art=${encodeURIComponent(artwork.id)}#commission"><wa-icon slot="start" name="paintbrush"></wa-icon>Commission this artist</wa-button>` : ''}
-          ${artwork.highlighted && artwork.storeUrl ? `<wa-button appearance="outlined" href="${escapeHtml(safeUrl(artwork.storeUrl))}" target="_blank" rel="noopener"><wa-icon slot="start" name="cart-shopping"></wa-icon>Order custom sleeves <wa-icon slot="end" name="arrow-up-right-from-square" style="font-size: 0.7em;"></wa-icon></wa-button>` : ''}
+          ${artwork.storeUrl ? `<wa-button appearance="outlined" href="${escapeHtml(safeUrl(artwork.storeUrl))}" target="_blank" rel="noopener"><wa-icon slot="start" name="cart-shopping"></wa-icon>Order custom sleeves <wa-icon slot="end" name="arrow-up-right-from-square" style="font-size: 0.7em;"></wa-icon></wa-button>` : ''}
           ${user && !usingDemo && (isAdmin || artwork.uploaderId === user.id) ? `<wa-button appearance="outlined" href="gallery.html?view=edit&art=${encodeURIComponent(artwork.id)}"><wa-icon slot="start" name="pen"></wa-icon>Edit</wa-button>` : ''}
           ${user && !usingDemo && isAdmin ? '<wa-button variant="danger" appearance="outlined" id="detail-delete"><wa-icon slot="start" name="trash"></wa-icon>Delete</wa-button>' : ''}
         </div>
@@ -1054,8 +1054,8 @@ async function renderEditArtwork(root, id) {
       <wa-input id="edit-reject-reason" label="Rejection reason" placeholder="Shown to the uploader" value="${escapeHtml(artwork.reason || '')}">
         <span slot="hint">Only used when status is Rejected.</span>
       </wa-input>
-      <wa-switch id="edit-highlight"${artwork.highlighted ? ' checked' : ''}>Highlight (Featured + sleeves link)</wa-switch>
-      <wa-input id="edit-store" label="Store URL" placeholder="https://&hellip; (highlighted only)" value="${escapeHtml(artwork.storeUrl || '')}"></wa-input>` : ''}
+      <wa-switch id="edit-highlight"${artwork.highlighted ? ' checked' : ''}>Highlight (Featured)</wa-switch>
+      <wa-input id="edit-store" label="Store URL" placeholder="https://&hellip;" value="${escapeHtml(artwork.storeUrl || '')}"></wa-input>` : ''}
       <div class="wa-cluster wa-gap-s">
         <wa-button type="submit" variant="brand" id="edit-submit"><wa-icon slot="start" name="floppy-disk"></wa-icon>Save changes</wa-button>
         <wa-button type="button" appearance="plain" href="${backHref}">Cancel</wa-button>
@@ -1535,6 +1535,7 @@ async function renderAdmin(root) {
             <div class="wa-cluster wa-gap-xs">
               ${!a.userId && invitedIds.has(a.id) ? `<wa-button size="s" appearance="outlined" data-resend-invite="${escapeHtml(a.id)}"><wa-icon slot="start" name="paper-plane"></wa-icon>Resend invite</wa-button>` : ''}
               <wa-button size="s" appearance="outlined" href="gallery.html?view=admin-artist&id=${encodeURIComponent(a.id)}"><wa-icon slot="start" name="pen"></wa-icon>Edit</wa-button>
+              ${a.userId ? '' : `<wa-button size="s" variant="danger" appearance="plain" data-delete-artist="${escapeHtml(a.id)}" aria-label="Delete artist page"><wa-icon name="trash"></wa-icon></wa-button>`}
             </div>
           </div>`).join('')}
         </div>
@@ -1607,10 +1608,10 @@ async function renderAdmin(root) {
               <wa-switch size="s" data-highlight="${u.id}">Highlight</wa-switch>
               <div class="wa-cluster wa-gap-xs wa-align-items-center">
                 <wa-icon name="cart-shopping" style="color: var(--wa-color-neutral-text-subtle);"></wa-icon>
-                <wa-input size="s" placeholder="Store URL (highlighted only)" data-store-url="${u.id}" style="width: 17.5rem;"></wa-input>
+                <wa-input size="s" placeholder="Store URL" data-store-url="${u.id}" style="width: 17.5rem;"></wa-input>
               </div>
             </div>
-            <span class="wa-caption-s" style="color: var(--wa-color-neutral-text-subtle);">Highlight &rarr; surfaces in Featured + enables sleeves link</span>
+            <span class="wa-caption-s" style="color: var(--wa-color-neutral-text-subtle);">Highlight &rarr; surfaces in Featured. A store URL adds the sleeves link.</span>
           </div>
           <div class="gallery-reject-row" data-reject-row="${u.id}">
             <wa-input size="s" placeholder="Reason (shown to the uploader)" data-reject-reason="${u.id}"></wa-input>
@@ -1665,6 +1666,12 @@ async function renderAdmin(root) {
     if (err) { showError('Could not approve — try again.'); return; }
     showSuccess('Approved');
     await loadPublicData(); // approved art is public now
+    render();
+  }));
+  root.querySelectorAll('[data-delete-artist]').forEach(btn => btn.addEventListener('click', async () => {
+    const a = artistsDb.find(x => x.id === btn.dataset.deleteArtist);
+    if (!a || !await confirmDeleteArtist(a)) return;
+    await loadPublicData(); // the page is gone from the public artist list
     render();
   }));
   root.querySelectorAll('[data-delete-art]').forEach(btn => btn.addEventListener('click', async () => {
@@ -1725,6 +1732,52 @@ function confirmDeleteArtwork(artwork) {
       if (artwork.imagePath) sb.storage.from('gallery-art').remove([artwork.imagePath]); // best-effort
       deleted = true;
       showToast('Artwork deleted', 'danger', 'trash');
+      dialog.removeAttribute('open');
+    });
+    document.body.appendChild(dialog);
+    dialog.setAttribute('open', '');
+  });
+}
+
+/**
+ * Admin delete of an Attribution (#347). Linked artworks stay live, unlinked
+ * (artist_id ON DELETE SET NULL); claims and contacts cascade. Resolves true once deleted.
+ */
+async function confirmDeleteArtist(artist) {
+  const sb = getSupabase();
+  const { count, error: countErr } = sb
+    ? await sb.from('gallery_artworks').select('id', { count: 'exact', head: true }).eq('artist_id', artist.id)
+    : { error: new Error('Not connected') };
+  if (countErr) { showError('Could not check the page\u2019s artworks — try again.'); return false; }
+  const linked = count === 0 ? 'No artworks are linked to it.'
+    : `${count} ${count === 1 ? 'artwork' : 'artworks'} will lose ${count === 1 ? 'its' : 'their'} link and stay in the gallery, credited by name.`;
+  return new Promise(resolve => {
+    let deleted = false;
+    const dialog = document.createElement('wa-dialog');
+    dialog.setAttribute('label', 'Delete artist page?');
+    dialog.innerHTML = `
+      <p style="margin: 0;">The artist page <strong>${escapeHtml(artist.name)}</strong> will be deleted for everyone. This can&rsquo;t be undone.</p>
+      <p style="margin: var(--wa-space-s) 0 0;">${linked}</p>
+      <wa-button slot="footer" appearance="plain" data-dialog="close">Cancel</wa-button>
+      <wa-button slot="footer" variant="danger" data-delete-confirm><wa-icon slot="start" name="trash"></wa-icon>Delete</wa-button>`;
+    dialog.addEventListener('wa-after-hide', e => {
+      if (e.target !== dialog) return;
+      dialog.remove();
+      resolve(deleted);
+    });
+    const btn = dialog.querySelector('[data-delete-confirm]');
+    btn.addEventListener('click', async () => {
+      btn.setAttribute('loading', '');
+      // .select() so a delete RLS filtered to zero rows reads as a failure, not a silent success.
+      const { data, error } = await sb.from('gallery_artists').delete().eq('id', artist.id).select('id');
+      btn.removeAttribute('loading');
+      if (error || !data?.length) {
+        console.error('Artist delete failed:', error);
+        showError('Could not delete the artist page — try again.');
+        return;
+      }
+      deleted = true;
+      showToast('Artist page deleted', 'danger', 'trash');
       dialog.removeAttribute('open');
     });
     document.body.appendChild(dialog);
