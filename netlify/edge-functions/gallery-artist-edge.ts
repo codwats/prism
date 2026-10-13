@@ -6,9 +6,14 @@
  * admin's Supabase access token. Creates the artist page with the service role;
  * with an email (#332) it then writes the contacts row (invited_email +
  * commission_email) and sends a Supabase account invite that lands on the
- * page. Returns { artistId, url, invite: 'sent'|'existing_account'|'failed'|'email_not_saved'|'none' };
+ * page. Returns { artistId, url, invite: 'sent'|'linked'|'owns_another'|'existing_account'|'failed'|'email_not_saved'|'none' };
  * the artist row is kept whatever the invite does. 'email_not_saved' means the
  * contacts row failed, so no invite went out and Resend has nothing to send to.
+ * Saving invited_email claims the page for an existing confirmed account at
+ * that email (#340, a database trigger): 'linked' when it now owns the page,
+ * 'owns_another' when its claim waits because it already owns one. Neither
+ * sends an invite. 'existing_account' is then an unconfirmed account, which
+ * the #338 trigger links on confirmation.
  *
  * POST { artistId, resend: true } re-sends the invite to the stored
  * invited_email: 404 unknown artist, 409 claimed or never invited.
@@ -56,6 +61,7 @@ function isHttps(value: unknown): value is string {
 type Link = { label: string; icon: string; family?: string; href: string };
 type ArtistInput = { name: string; bio: string; links: Link[]; avatarUrl: string | null; isPartner: boolean; email: string | null };
 type Invite = 'sent' | 'existing_account' | 'failed';
+type Linked = 'linked' | 'owns_another';
 
 /** The validated, normalized create body, or a reason it was refused. */
 function parseArtist(raw: unknown): ArtistInput | string {
@@ -100,6 +106,16 @@ async function sendInvite(supabaseUrl: string, serviceKey: string, email: string
     || /already (been )?registered/i.test(String(err.msg ?? err.message ?? '')))) return 'existing_account';
   console.error(`Gallery artist: invite failed: ${res.status}`);
   return 'failed';
+}
+
+/** 'linked' / 'owns_another' when the contacts trigger claimed the page for an existing account (#340), else null. */
+async function existingAccountOutcome(supabaseUrl: string, headers: Record<string, string>, artistId: string): Promise<Linked | null> {
+  const artistRes = await fetch(`${supabaseUrl}/rest/v1/gallery_artists?id=eq.${artistId}&select=user_id`, { headers });
+  if (!artistRes.ok) throw new Error(`gallery_artists read failed: ${artistRes.status}`);
+  if ((await artistRes.json())[0]?.user_id) return 'linked';
+  const claimRes = await fetch(`${supabaseUrl}/rest/v1/gallery_artist_claims?artist_id=eq.${artistId}&status=eq.pending&select=id&limit=1`, { headers });
+  if (!claimRes.ok) throw new Error(`gallery_artist_claims read failed: ${claimRes.status}`);
+  return (await claimRes.json()).length > 0 ? 'owns_another' : null;
 }
 
 export default async function handler(request: Request): Promise<Response> {
@@ -149,7 +165,8 @@ export default async function handler(request: Request): Promise<Response> {
       if (!contactRes.ok) throw new Error(`gallery_artist_contacts read failed: ${contactRes.status}`);
       const [contact] = await contactRes.json();
       if (!contact?.invited_email) return jsonResponse(request, 409, { error: 'This artist was never invited' });
-      const invite = await sendInvite(supabaseUrl, serviceKey, contact.invited_email, pageUrl(artistId));
+      const invite = await existingAccountOutcome(supabaseUrl, serviceHeaders, artistId)
+        ?? await sendInvite(supabaseUrl, serviceKey, contact.invited_email, pageUrl(artistId));
       return jsonResponse(request, 200, { artistId, url: pageUrl(artistId), invite });
     }
 
@@ -166,7 +183,7 @@ export default async function handler(request: Request): Promise<Response> {
     if (!insertRes.ok) throw new Error(`gallery_artists insert failed: ${insertRes.status}`);
     const [{ id: artistId }] = await insertRes.json();
 
-    let invite: Invite | 'email_not_saved' | 'none' = 'none';
+    let invite: Invite | Linked | 'email_not_saved' | 'none' = 'none';
     if (artist.email) {
       const contactRes = await fetch(`${supabaseUrl}/rest/v1/gallery_artist_contacts`, {
         method: 'POST',
@@ -178,7 +195,10 @@ export default async function handler(request: Request): Promise<Response> {
         console.error(`Gallery artist: contacts insert failed: ${contactRes.status}`);
         invite = 'email_not_saved';
       } else {
-        invite = await sendInvite(supabaseUrl, serviceKey, artist.email, pageUrl(artistId));
+        // A failed read only costs the shortcut: the invite still goes out.
+        const linked = await existingAccountOutcome(supabaseUrl, serviceHeaders, artistId)
+          .catch((err) => { console.error('Gallery artist: claim check failed:', (err as Error).message); return null; });
+        invite = linked ?? await sendInvite(supabaseUrl, serviceKey, artist.email, pageUrl(artistId));
       }
     }
     return jsonResponse(request, 200, { artistId, url: pageUrl(artistId), invite });

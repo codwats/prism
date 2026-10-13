@@ -1030,3 +1030,144 @@ BEGIN
   ASSERT (SELECT name FROM public.gallery_artists WHERE id = '33000000-0000-0000-0001-000000000002') = 'Nu Renamed';
 END $$;
 ROLLBACK;
+
+-- ============================================
+-- Inviting an existing account's email claims the page at once (#340)
+-- ============================================
+-- Saving invited_email (as the Add artist edge function does, service role)
+-- files the claim for a confirmed account; #331's trigger approves it.
+BEGIN;
+
+INSERT INTO auth.users (id, email, email_confirmed_at) VALUES
+  ('34000000-0000-0000-0000-00000000000a', 'existing-340@example.invalid', now()), -- confirmed, no page
+  ('34000000-0000-0000-0000-00000000000b', 'unconfirmed-340@example.invalid', NULL),
+  ('34000000-0000-0000-0000-00000000000c', 'holder-340@example.invalid', now());    -- owns P3
+INSERT INTO public.gallery_artists (id, name, user_id) VALUES
+  ('34000000-0000-0000-0001-000000000001', 'Existing Hand', NULL),
+  ('34000000-0000-0000-0001-000000000002', 'Waiting Hand', NULL),
+  ('34000000-0000-0000-0001-000000000003', 'Holder Page', '34000000-0000-0000-0000-00000000000c'),
+  ('34000000-0000-0000-0001-000000000004', 'Second Holder', NULL);
+INSERT INTO public.gallery_artworks (id, title, type, artist_name, uploader_id, image_path, status) VALUES
+  ('34000000-0000-0000-0002-000000000001', 'Earlier', 'proxy', 'existing hand', '34000000-0000-0000-0000-00000000000a', 'a/1.png', 'approved');
+
+DO $$
+BEGIN
+  ASSERT NOT has_function_privilege('authenticated', 'public.gallery_claim_invited_artist_on_save()', 'EXECUTE');
+  ASSERT NOT has_function_privilege('anon', 'public.gallery_claim_invited_artist_on_save()', 'EXECUTE');
+
+  INSERT INTO public.gallery_artist_contacts (artist_id, commission_email, invited_email) VALUES
+    ('34000000-0000-0000-0001-000000000001', 'existing-340@example.invalid', ' Existing-340@Example.invalid '),
+    ('34000000-0000-0000-0001-000000000002', 'unconfirmed-340@example.invalid', 'unconfirmed-340@example.invalid'),
+    ('34000000-0000-0000-0001-000000000004', 'holder-340@example.invalid', 'holder-340@example.invalid');
+
+  ASSERT (SELECT user_id FROM public.gallery_artists WHERE id = '34000000-0000-0000-0001-000000000001')
+    = '34000000-0000-0000-0000-00000000000a', 'a confirmed account at the invited email must own the page at once';
+  ASSERT (SELECT artist_id FROM public.gallery_artworks WHERE id = '34000000-0000-0000-0002-000000000001')
+    = '34000000-0000-0000-0001-000000000001', 'matching earlier uploads must join the page';
+
+  ASSERT (SELECT user_id FROM public.gallery_artists WHERE id = '34000000-0000-0000-0001-000000000002') IS NULL,
+    'an unconfirmed account must not be linked';
+  ASSERT NOT EXISTS (SELECT 1 FROM public.gallery_artist_claims WHERE user_id = '34000000-0000-0000-0000-00000000000b'),
+    'an unconfirmed account must get no claim (#338 files it on confirmation)';
+
+  ASSERT (SELECT user_id FROM public.gallery_artists WHERE id = '34000000-0000-0000-0001-000000000004') IS NULL,
+    'an account that already owns a page must not get a second';
+  ASSERT (SELECT status FROM public.gallery_artist_claims WHERE user_id = '34000000-0000-0000-0000-00000000000c') = 'pending',
+    'its claim must wait (the edge function reads this as owns_another)';
+
+  -- Setting the email later, by UPDATE, links too; confirming afterwards changes nothing more.
+  UPDATE public.gallery_artist_contacts SET invited_email = NULL WHERE artist_id = '34000000-0000-0000-0001-000000000002';
+  UPDATE auth.users SET email_confirmed_at = now() WHERE id = '34000000-0000-0000-0000-00000000000b';
+  UPDATE public.gallery_artist_contacts SET invited_email = 'unconfirmed-340@example.invalid'
+    WHERE artist_id = '34000000-0000-0000-0001-000000000002';
+  ASSERT (SELECT user_id FROM public.gallery_artists WHERE id = '34000000-0000-0000-0001-000000000002')
+    = '34000000-0000-0000-0000-00000000000b', 'an UPDATE of invited_email must link a confirmed account';
+END $$;
+
+-- ---- A failing claim never fails saving the page ----
+INSERT INTO auth.users (id, email, email_confirmed_at) VALUES
+  ('34000000-0000-0000-0000-00000000000d', 'broken-340@example.invalid', now());
+INSERT INTO public.gallery_artists (id, name, user_id) VALUES
+  ('34000000-0000-0000-0001-000000000005', 'Broken Save', NULL);
+ALTER TABLE public.gallery_artist_claims ADD CONSTRAINT t340_refuse_claims CHECK (false) NOT VALID;
+DO $$
+BEGIN
+  INSERT INTO public.gallery_artist_contacts (artist_id, commission_email, invited_email) VALUES
+    ('34000000-0000-0000-0001-000000000005', 'broken-340@example.invalid', 'broken-340@example.invalid');
+  ASSERT EXISTS (SELECT 1 FROM public.gallery_artist_contacts WHERE artist_id = '34000000-0000-0000-0001-000000000005'),
+    'a failing claim must not fail the contacts insert';
+  ASSERT (SELECT user_id FROM public.gallery_artists WHERE id = '34000000-0000-0000-0001-000000000005') IS NULL;
+END $$;
+
+ROLLBACK;
+
+-- ============================================
+-- Add to my page for an Artist's own unlinked uploads (#339)
+-- ============================================
+BEGIN;
+
+INSERT INTO auth.users (id, email, email_confirmed_at) VALUES
+  ('33900000-0000-0000-0000-00000000000a', 'artist-339@example.invalid', now()),   -- owns page K
+  ('33900000-0000-0000-0000-00000000000b', 'other-339@example.invalid', now()),    -- owns page L
+  ('33900000-0000-0000-0000-00000000000c', 'nopage-339@example.invalid', now());   -- no page
+INSERT INTO public.gallery_artists (id, name, user_id) VALUES
+  ('33900000-0000-0000-0001-000000000001', 'Jay Smith', '33900000-0000-0000-0000-00000000000a'),
+  ('33900000-0000-0000-0001-000000000002', 'Other Page', '33900000-0000-0000-0000-00000000000b');
+INSERT INTO public.gallery_artworks (id, title, type, artist_name, uploader_id, image_path, status) VALUES
+  ('33900000-0000-0000-0002-000000000001', 'Near miss', 'proxy', 'J. Smith', '33900000-0000-0000-0000-00000000000a', 'a/1.png', 'approved'),
+  ('33900000-0000-0000-0002-000000000002', 'Pending one', 'token', 'J Smith', '33900000-0000-0000-0000-00000000000a', 'a/2.png', 'pending'),
+  ('33900000-0000-0000-0002-000000000003', 'B''s work', 'proxy', 'Jay Smith', '33900000-0000-0000-0000-00000000000b', 'b/1.png', 'approved'),
+  ('33900000-0000-0000-0002-000000000004', 'C''s work', 'proxy', 'Cee', '33900000-0000-0000-0000-00000000000c', 'c/1.png', 'approved');
+
+DO $$
+BEGIN
+  ASSERT has_function_privilege('authenticated', 'public.add_own_artwork_to_artist_page(uuid)', 'EXECUTE');
+  ASSERT NOT has_function_privilege('anon', 'public.add_own_artwork_to_artist_page(uuid)', 'EXECUTE');
+END $$;
+
+-- ---- The Artist attaches their own uploads, any status ----
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', '33900000-0000-0000-0000-00000000000a', true);
+DO $$
+BEGIN
+  PERFORM public.add_own_artwork_to_artist_page('33900000-0000-0000-0002-000000000001');
+  PERFORM public.add_own_artwork_to_artist_page('33900000-0000-0000-0002-000000000002');
+
+  BEGIN
+    PERFORM public.add_own_artwork_to_artist_page('33900000-0000-0000-0002-000000000003');
+    RAISE EXCEPTION 'an Artist moved someone else''s upload onto their page';
+  EXCEPTION WHEN insufficient_privilege THEN NULL;
+  END;
+END $$;
+RESET ROLE;
+
+-- ---- No artist page: refused, even for their own upload ----
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', '33900000-0000-0000-0000-00000000000c', true);
+DO $$
+BEGIN
+  BEGIN
+    PERFORM public.add_own_artwork_to_artist_page('33900000-0000-0000-0002-000000000004');
+    RAISE EXCEPTION 'an account with no artist page linked an upload';
+  EXCEPTION WHEN insufficient_privilege THEN NULL;
+  END;
+END $$;
+RESET ROLE;
+
+-- ---- Outcomes, read as the table owner ----
+DO $$
+BEGIN
+  ASSERT (SELECT artist_id FROM public.gallery_artworks WHERE id = '33900000-0000-0000-0002-000000000001')
+    = '33900000-0000-0000-0001-000000000001', 'the near miss must join the page';
+  ASSERT (SELECT artist_name FROM public.gallery_artworks WHERE id = '33900000-0000-0000-0002-000000000001')
+    = 'Jay Smith', 'the credit must become the page name';
+  ASSERT (SELECT status FROM public.gallery_artworks WHERE id = '33900000-0000-0000-0002-000000000001')
+    = 'approved', 'adding to a page must not change review status';
+  ASSERT (SELECT artist_id FROM public.gallery_artworks WHERE id = '33900000-0000-0000-0002-000000000002')
+    = '33900000-0000-0000-0001-000000000001', 'a pending upload may join too';
+  ASSERT (SELECT artist_id FROM public.gallery_artworks WHERE id = '33900000-0000-0000-0002-000000000003') IS NULL,
+    'someone else''s upload must stay where it was';
+  ASSERT (SELECT artist_id FROM public.gallery_artworks WHERE id = '33900000-0000-0000-0002-000000000004') IS NULL;
+END $$;
+
+ROLLBACK;
