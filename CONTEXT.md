@@ -111,7 +111,7 @@ _In code_: the `founders` table. Both intakes write the same row: the unfiltered
 ### Gallery
 
 **Artist**:
-A person whose gallery profile is claimed by their PRISM account. The artist asks to claim the profile; an admin approves it — unless the profile was set up with an invite and the claim comes from that invited, confirmed email, which is approved automatically ([#331](https://github.com/codwats/prism/issues/331)). An invited artist does not even ask: accepting the invite files and approves the claim ([#338](https://github.com/codwats/prism/issues/338)).
+A person whose artist page is claimed by their PRISM account. The artist asks to claim the page; an admin approves it — unless the page was set up with an invite and the claim comes from that invited, confirmed email, which is approved automatically ([#331](https://github.com/codwats/prism/issues/331)). An invited artist does not even ask: accepting the invite files and approves the claim ([#338](https://github.com/codwats/prism/issues/338)).
 _Avoid_: creator, contributor, and uploader when the maker is meant
 _In code_: a `gallery_artists` row with `user_id` set.
 
@@ -119,6 +119,11 @@ _In code_: a `gallery_artists` row with `user_id` set.
 The credit naming who made a work, carried whether or not that person has an account. Most makers never sign up, and their work is credited all the same.
 _Avoid_: unclaimed artist, artist name
 _In code_: `gallery_artworks.artist_name`, and `gallery_artists` rows with `user_id` null. A claim sets `user_id` on the same row, so an Attribution becomes an Artist in place and the credit never changes.
+
+**Artist page**:
+The public gallery page for one maker: name, bio, links, avatar, commission settings, and their credited work. It belongs to an Attribution until claimed, then to the Artist. **Profile** means only the private account page (email, password, Membership, PRISMs); the two link to each other but are never merged ([#345](https://github.com/codwats/prism/issues/345)).
+_Avoid_: profile, artist profile, gallery profile
+_In code_: a `gallery_artists` row, shown at `gallery.html?artist=<id>` and edited by its Artist at `?view=edit-artist`.
 
 **Uploader**:
 The account that submitted a work. Often not the Artist — the two are only the same person when an Artist uploads their own work.
