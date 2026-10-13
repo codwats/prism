@@ -12,6 +12,7 @@ import { isMembershipDrawerAvailable, getSubscription, isEntitled, openBillingPo
 import { initMembershipDrawer } from './modules/membership.js';
 import { showError, showSuccess } from './core/notifications.js';
 import { escapeHtml, getLogicalDeckCount, pausedSyncDetail } from './core/utils.js';
+import { SUPABASE_URL, SUPABASE_ANON_KEY } from './modules/supabase-client.js';
 
 // DOM Elements
 let elements = {};
@@ -26,6 +27,9 @@ function getElements() {
     profileAvatar: document.getElementById('profile-avatar'),
     profileMeta: document.getElementById('profile-meta'),
     accountEmailCaption: document.getElementById('account-email-caption'),
+    artistPageSection: document.getElementById('artist-page-section'),
+    artistPageName: document.getElementById('artist-page-name'),
+    btnViewArtistPage: document.getElementById('btn-view-artist-page'),
 
     // PRISMs list
     prismsList: document.getElementById('prisms-list'),
@@ -292,11 +296,35 @@ function handleAuthChange(user) {
 
     // Subscription section (hidden unless enforcement flag or PRISM_DEBUG)
     renderSubscriptionSection();
+    renderArtistPageSection(user);
   } else {
     // Show logged out state
     if (elements.profileLoggedOut) elements.profileLoggedOut.style.display = '';
     if (elements.profileLoggedIn) elements.profileLoggedIn.style.display = 'none';
     if (elements.subscriptionSection) elements.subscriptionSection.hidden = true;
+    if (elements.artistPageSection) elements.artistPageSection.hidden = true;
+  }
+}
+
+/**
+ * Link to the account's gallery Artist page, if it owns one (#345). A public
+ * anon-key read, like the gallery's; a failure just leaves the section hidden.
+ */
+async function renderArtistPageSection(user) {
+  const section = elements.artistPageSection;
+  if (!section) return;
+  section.hidden = true;
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/gallery_artists?user_id=eq.${encodeURIComponent(user.id)}&select=id,name&limit=1`,
+      { headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` } });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const [artist] = await res.json();
+    if (!artist || user !== getCurrentUser()) return;
+    elements.artistPageName.textContent = artist.name;
+    elements.btnViewArtistPage.setAttribute('href', `gallery.html?artist=${encodeURIComponent(artist.id)}`);
+    section.hidden = false;
+  } catch (err) {
+    console.error('Artist page lookup failed:', err);
   }
 }
 
