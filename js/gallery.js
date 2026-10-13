@@ -8,7 +8,7 @@
  *   gallery.html?view=upload     community upload form (signed-in)
  *   gallery.html?view=uploads    my uploads (status tracking)
  *   gallery.html?view=admin      moderation queue (gallery admins only)
- *   gallery.html?view=edit-artist  the signed-in Artist's own profile + commission settings
+ *   gallery.html?view=edit-artist  the signed-in Artist's own artist page + commission settings
  *   gallery.html?view=admin-artist[&id=]  admin: add an artist page, or edit any one
  *
  * Backend: Supabase (see the GALLERY section of supabase-schema.sql).
@@ -571,7 +571,7 @@ function renderArtist(root, id) {
           <h1 class="wa-heading-xl">${escapeHtml(artist.name)}</h1>
           ${artist.isPartner ? '<wa-tag variant="brand"><wa-icon slot="start" name="handshake-angle"></wa-icon>PRISM Partner</wa-tag>' : ''}
           ${artist.commissionsOpen ? '<wa-tag variant="success"><wa-icon slot="start" name="paintbrush"></wa-icon>Open for commissions</wa-tag>' : ''}
-          ${isOwnArtist(artist) ? '<wa-button size="s" appearance="outlined" href="gallery.html?view=edit-artist"><wa-icon slot="start" name="pen"></wa-icon>Edit profile</wa-button>' : ''}
+          ${isOwnArtist(artist) ? '<wa-button size="s" appearance="outlined" href="gallery.html?view=edit-artist"><wa-icon slot="start" name="pen"></wa-icon>Edit artist page</wa-button>' : ''}
         </div>
         <p style="color: var(--wa-color-neutral-text); margin: var(--wa-space-xs) 0 0; max-width: 64ch;">${escapeHtml(artist.bio)}</p>
         ${artist.links.length ? `<div class="wa-cluster wa-gap-m" style="margin-top: var(--wa-space-s); font-size: var(--wa-font-size-s);">${artist.links.map(l => `<a href="${escapeHtml(safeUrl(l.href))}" target="_blank" rel="noopener"><wa-icon name="${escapeHtml(l.icon || 'globe')}"${l.family ? ` family="${escapeHtml(l.family)}"` : ''}></wa-icon> ${escapeHtml(l.label)}</a>`).join('')}</div>` : ''}
@@ -690,9 +690,9 @@ function isOwnArtist(artist) {
   return !!(user && artist.userId && artist.userId === user.id);
 }
 
-/** "Claim this profile" on an unclaimed profile, or "Claim pending" once filed. */
+/** "Claim this artist page" on an unclaimed page, or "Claim pending" once filed. */
 async function renderClaimSlot(slot, artist) {
-  if (!slot) return; // claimed profile: nothing to show
+  if (!slot) return; // claimed page: nothing to show
   const user = getCurrentUser();
   const sb = getSupabase();
   let claims = [];
@@ -714,12 +714,12 @@ async function renderClaimSlot(slot, artist) {
   }
   const rejected = claims[0]?.status === 'rejected';
   slot.innerHTML = `
-    <wa-button size="s" appearance="outlined" id="btn-claim-artist"><wa-icon slot="start" name="user-check"></wa-icon>Claim this profile</wa-button>
-    ${rejected ? '<span class="wa-caption-s" style="color: var(--wa-color-neutral-text-subtle);">Your last claim on this profile was rejected. If that was a mistake, contact PRISM.</span>' : ''}`;
+    <wa-button size="s" appearance="outlined" id="btn-claim-artist"><wa-icon slot="start" name="user-check"></wa-icon>Claim this artist page</wa-button>
+    ${rejected ? '<span class="wa-caption-s" style="color: var(--wa-color-neutral-text-subtle);">Your last claim on this artist page was rejected. If that was a mistake, contact PRISM.</span>' : ''}`;
   slot.querySelector('#btn-claim-artist').addEventListener('click', async () => {
     const me = getCurrentUser();
     if (!me) {
-      showToast('Sign in to claim this profile', 'brand', 'user-check');
+      showToast('Sign in to claim this artist page', 'brand', 'user-check');
       promptSignIn();
       return;
     }
@@ -740,7 +740,7 @@ async function renderClaimSlot(slot, artist) {
       .select('id').eq('artist_id', artist.id).eq('user_id', me.id).eq('status', 'approved').limit(1);
     if (approved?.length) {
       showSuccess('This page is yours — you can edit it and open commissions.');
-      await loadPublicData(); // the artist row now carries user_id, so Edit profile appears
+      await loadPublicData(); // the artist row now carries user_id, so Edit artist page appears
       render();
       return;
     }
@@ -1140,7 +1140,7 @@ async function renderEditArtwork(root, id) {
 }
 
 // ============================================================
-// Artist profile edit view (#324)
+// Artist page edit view (#324)
 // ============================================================
 
 /** One link per line. A line whose URL is unchanged keeps its stored label and icon. */
@@ -1163,7 +1163,7 @@ async function renderEditArtist(root) {
   const user = getCurrentUser();
   if (!user) {
     if (hasStoredSession()) { root.innerHTML = loadingHtml(); return; } // auth still restoring
-    renderNotFound(root, 'Sign in to edit your profile', 'Your artist profile is linked to your account.');
+    renderNotFound(root, 'Sign in to edit your artist page', 'Your artist page is linked to your account.');
     return;
   }
   if (usingDemo) {
@@ -1173,7 +1173,7 @@ async function renderEditArtist(root) {
   const artist = artistsDb.find(a => a.userId === user.id);
   const sb = getSupabase();
   if (!artist || !sb) {
-    renderNotFound(root, 'No artist profile', 'Claim your profile with “Claim this profile” on your artist page first.');
+    renderNotFound(root, 'No artist page', 'Claim your page with “Claim this artist page” on it first.');
     return;
   }
   root.innerHTML = loadingHtml();
@@ -1184,9 +1184,9 @@ async function renderEditArtist(root) {
   const backHref = `gallery.html?artist=${encodeURIComponent(artist.id)}`;
 
   root.innerHTML = `
-    ${breadcrumbHtml([{ label: 'Gallery', href: 'gallery.html' }, { label: artist.name, href: backHref }, { label: 'Edit profile' }])}
-    <h1 class="wa-heading-2xl">Edit profile</h1>
-    <p style="color: var(--wa-color-neutral-text-subtle); margin-top: var(--wa-space-2xs);">Changes apply right away.</p>
+    ${breadcrumbHtml([{ label: 'Gallery', href: 'gallery.html' }, { label: artist.name, href: backHref }, { label: 'Edit artist page' }])}
+    <h1 class="wa-heading-2xl">Edit artist page</h1>
+    <p style="color: var(--wa-color-neutral-text-subtle); margin-top: var(--wa-space-2xs);">Everything here is public and changes apply right away. Account settings (email, password, Membership) live on your <a href="profile.html">Profile</a>.</p>
     <form class="gallery-form" id="artist-form" style="margin-top: var(--wa-space-l);">
       <wa-textarea id="ar-bio" label="Bio" rows="4" value="${escapeHtml(artist.bio)}"></wa-textarea>
       <wa-textarea id="ar-links" label="Links" rows="3" placeholder="https://your-site.example" value="${escapeHtml(linksToText(artist.links))}">
@@ -1230,13 +1230,13 @@ async function renderEditArtist(root) {
       p_commission_email: email,
     });
     if (error) {
-      console.error('Artist profile save failed:', error);
-      showError('Could not save your profile — try again.');
+      console.error('Artist page save failed:', error);
+      showError('Could not save your artist page — try again.');
       submitBtn.removeAttribute('loading');
       submitBtn.removeAttribute('disabled');
       return;
     }
-    showSuccess('Profile saved');
+    showSuccess('Artist page saved');
     await loadPublicData();
     history.pushState({}, '', backHref);
     render();
@@ -1546,7 +1546,7 @@ async function renderAdmin(root) {
         <div class="gallery-empty">
           <div class="ic"><wa-icon name="user-check"></wa-icon></div>
           <h3 class="wa-heading-s">No pending claims</h3>
-          <p class="wa-caption-m" style="color: var(--wa-color-neutral-text-subtle);">When a maker clicks &ldquo;Claim this profile&rdquo; on their profile, the claim lands here.</p>
+          <p class="wa-caption-m" style="color: var(--wa-color-neutral-text-subtle);">When a maker clicks &ldquo;Claim this artist page&rdquo; on their page, the claim lands here.</p>
         </div>` : `
         <div class="wa-stack wa-gap-m">
           ${claims.map(c => `
@@ -1566,7 +1566,7 @@ async function renderAdmin(root) {
             </div>
           </div>`).join('')}
         </div>`}
-        <p class="wa-caption-s" style="color: var(--wa-color-neutral-text-subtle); margin-top: var(--wa-space-m);"><wa-icon name="circle-info"></wa-icon> Approving links the account to the existing profile and rejects any other pending claims on it. Check the email before approving.</p>
+        <p class="wa-caption-s" style="color: var(--wa-color-neutral-text-subtle); margin-top: var(--wa-space-m);"><wa-icon name="circle-info"></wa-icon> Approving links the account to the existing artist page and rejects any other pending claims on it. Check the email before approving.</p>
       </wa-tab-panel>
       <wa-tab-panel name="uploads">
     ${pending.length === 0 ? `
@@ -1645,12 +1645,12 @@ async function renderAdmin(root) {
     btn.setAttribute('loading', '');
     const { error: err } = await sb.rpc(rpc, { p_claim_id: btn.getAttribute(attr) });
     btn.removeAttribute('loading');
-    if (err) showError(err.code === '23505' ? 'That profile is already claimed, or the claimant already owns one.' : 'Could not update the claim — try again.');
+    if (err) showError(err.code === '23505' ? 'That artist page is already claimed, or the claimant already owns one.' : 'Could not update the claim — try again.');
     else done();
     await loadPublicData(); // an approved claim changes the public artist row
     render();
   }));
-  claimAction('data-claim-approve', 'approve_gallery_artist_claim', () => showSuccess('Claim approved — the profile is now an Artist'));
+  claimAction('data-claim-approve', 'approve_gallery_artist_claim', () => showSuccess('Claim approved — the account now owns this artist page'));
   claimAction('data-claim-reject', 'reject_gallery_artist_claim', () => showToast('Claim rejected', 'danger', 'circle-xmark'));
 
   root.querySelectorAll('[data-approve]').forEach(btn => btn.addEventListener('click', async () => {
