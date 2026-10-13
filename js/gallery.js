@@ -61,7 +61,8 @@ const DEMO_ARTWORKS = [
 const TYPE_LABELS = { proxy: 'Proxy', token: 'Token', showcase: 'Showcase', alter: 'Alter' };
 const TYPE_TAG_VARIANTS = { proxy: 'neutral', token: 'brand', showcase: 'warning', alter: 'success' };
 const LICENSE_HTML = 'Personal, non-commercial use only — credit the artist. <a href="terms.html">Full terms</a>';
-// An alter is a photograph of a real painted card, never a file to print (#322).
+// An alter is a photograph of a real painted card, display-only unless its
+// uploader turns downloads on (#322, #342).
 const ALTER_LICENSE_HTML = 'Display only — not for reproduction. Commission the artist for your own.';
 // Public Turnstile site key (prismmtg.com + localhost); its secret is TURNSTILE_SECRET_KEY in Netlify.
 const TURNSTILE_SITE_KEY = '0x4AAAAAAFSxouNPhJdr5HGl';
@@ -106,6 +107,7 @@ function mapArtwork(r) {
     imagePath: r.image_path,
     likes: r.likes_count || 0,
     downloads: r.downloads_count || 0,
+    downloadsEnabled: !!r.downloads_enabled,
     highlighted: r.highlighted,
     storeUrl: r.store_url,
     status: r.status,
@@ -296,8 +298,11 @@ function breadcrumbHtml(items) {
   </wa-breadcrumb>`;
 }
 
-function licenseHtml(type) {
-  return `<div class="gallery-license"><wa-icon name="scale-balanced" style="margin-top: 0.15em; flex: none;"></wa-icon><span>${type === 'alter' ? ALTER_LICENSE_HTML : LICENSE_HTML}</span></div>`;
+/** Everything but an Alter is downloadable; an Alter only when its uploader allows it (#342). */
+const isDownloadable = a => a.type !== 'alter' || a.downloadsEnabled;
+
+function licenseHtml(artwork) {
+  return `<div class="gallery-license"><wa-icon name="scale-balanced" style="margin-top: 0.15em; flex: none;"></wa-icon><span>${isDownloadable(artwork) ? LICENSE_HTML : ALTER_LICENSE_HTML}</span></div>`;
 }
 
 function loadingHtml() {
@@ -354,8 +359,12 @@ function filteredArtworks() {
 function renderGrid(root) {
   const user = getCurrentUser();
   const alley = filters.type === 'alter';
-  if (alley && filters.sort === 'dl') filters.sort = 'liked'; // alters are never downloaded
-  const results = sortArtworks(filteredArtworks());
+  // Most downloaded leaves out display-only Alters, and isn't offered when
+  // nothing in view can be downloaded (Alter Alley with every Alter off).
+  const filtered = filteredArtworks();
+  const canSortDl = filtered.some(isDownloadable);
+  if (!canSortDl && filters.sort === 'dl') filters.sort = 'liked';
+  const results = sortArtworks(filtered.filter(a => filters.sort !== 'dl' || isDownloadable(a)));
   const featured = results.filter(a => a.highlighted);
   const rest = results.filter(a => !a.highlighted);
   const hasFilter = filters.type !== 'all' || filters.artist !== 'all' || filters.q.trim() !== '';
@@ -400,7 +409,7 @@ function renderGrid(root) {
       <div>
         ${alley ? `
         <h1 class="wa-heading-2xl">Alter Alley</h1>
-        <p style="color: var(--wa-color-neutral-text-subtle); max-width: 60ch; margin-top: var(--wa-space-2xs);">Real cards, painted over by hand. An alter is expensive, unique and expressive, so you own exactly one, and that one copy has to serve every deck that runs the card: a Pool copy by definition. One alter, every deck. Each piece is shown as a photograph, never a file to print. Commission the artist for your own.</p>` : `
+        <p style="color: var(--wa-color-neutral-text-subtle); max-width: 60ch; margin-top: var(--wa-space-2xs);">Real cards, painted over by hand. An alter is expensive, unique and expressive, so you own exactly one, and that one copy has to serve every deck that runs the card: a Pool copy by definition. One alter, every deck. Each piece is shown as a photograph, and is a file to print only when its artist allows it. Commission the artist for your own.</p>` : `
         <h1 class="wa-heading-2xl">Gallery</h1>
         <p style="color: var(--wa-color-neutral-text-subtle); max-width: 60ch; margin-top: var(--wa-space-2xs);">Partnered and community artwork for proxies, tokens, and showcase treatments, plus hand-painted alters. Personal, non-commercial use with credit to the artist.</p>`}
       </div>
@@ -434,7 +443,7 @@ function renderGrid(root) {
       <wa-select id="gallery-sort" size="s" label="Sort" value="${escapeHtml(filters.sort)}" style="width: 11rem;">
         <wa-option value="liked">Most liked</wa-option>
         <wa-option value="new">Newest</wa-option>
-        ${alley ? '' : '<wa-option value="dl">Most downloaded</wa-option>'}
+        ${canSortDl ? '<wa-option value="dl">Most downloaded</wa-option>' : ''}
       </wa-select>
     </div>
 
@@ -511,7 +520,7 @@ function renderDetail(root, id) {
         </div>
         <div class="wa-cluster wa-gap-s wa-align-items-center">
           <wa-button appearance="outlined" id="detail-like"><wa-icon slot="start" name="heart" family="${liked ? 'solid' : 'regular'}"${liked ? ' style="color: var(--wa-color-brand-text);"' : ''}></wa-icon>Like &middot; ${likeCount(artwork)}</wa-button>
-          ${artwork.type === 'alter' ? '' : user
+          ${!isDownloadable(artwork) ? '' : user
             ? '<wa-button variant="brand" id="detail-download"><wa-icon slot="start" name="download"></wa-icon>Download</wa-button>'
             : '<wa-button variant="brand" id="detail-download-gated"><wa-icon slot="start" name="lock"></wa-icon>Sign in to download</wa-button>'}
           ${artwork.type === 'alter' && artist?.userId && artist.commissionsOpen
@@ -520,8 +529,8 @@ function renderDetail(root, id) {
           ${user && !usingDemo && (isAdmin || artwork.uploaderId === user.id) ? `<wa-button appearance="outlined" href="gallery.html?view=edit&art=${encodeURIComponent(artwork.id)}"><wa-icon slot="start" name="pen"></wa-icon>Edit</wa-button>` : ''}
           ${user && !usingDemo && isAdmin ? '<wa-button variant="danger" appearance="outlined" id="detail-delete"><wa-icon slot="start" name="trash"></wa-icon>Delete</wa-button>' : ''}
         </div>
-        ${user || artwork.type === 'alter' ? '' : '<p class="wa-caption-s" style="color: var(--wa-color-neutral-text-subtle); margin: 0;">Downloads need an account, and signup is currently closed. Each download is one print-ready file (2.5&times;3.5&Prime; + bleed).</p>'}
-        ${licenseHtml(artwork.type)}
+        ${user || !isDownloadable(artwork) ? '' : '<p class="wa-caption-s" style="color: var(--wa-color-neutral-text-subtle); margin: 0;">Downloads need an account, and signup is currently closed. Each download is one print-ready file (2.5&times;3.5&Prime; + bleed).</p>'}
+        ${licenseHtml(artwork)}
       </div>
     </div>
     ${more.length ? `
@@ -795,8 +804,12 @@ function artworkFieldsHtml(v = {}) {
         <wa-radio value="token">Token</wa-radio>
         <wa-radio value="showcase">Showcase</wa-radio>
         <wa-radio value="alter">Alter</wa-radio>
-        <span slot="hint">Alter: a photo of a real card you painted by hand. It is shown, never offered as a download.</span>
+        <span slot="hint">Alter: a photo of a real card you painted by hand. It is display only unless you allow downloads.</span>
       </wa-radio-group>
+      <wa-switch id="up-downloads"${v.downloadsEnabled ? ' checked' : ''}${v.type === 'alter' ? '' : ' hidden'}>
+        Allow downloads
+        <span slot="hint">Off: the photo is shown only. On: signed-in visitors can download it for personal use.</span>
+      </wa-switch>
       <div class="card-suggest">
         <wa-input id="up-card" label="Original card (optional)" placeholder="Start typing a card name" autocomplete="off" value="${escapeHtml(v.originalCard?.name || '')}">
           <wa-icon slot="start" name="magnifying-glass"></wa-icon>
@@ -824,6 +837,9 @@ let acDismissCleanup = null;
 
 /** Scryfall card-name autocomplete for the #up-card input. */
 function wireCardAutocomplete(root) {
+  // The downloads switch is an Alter-only choice (#342); it shares this form wiring.
+  const downloads = root.querySelector('#up-downloads');
+  root.querySelector('#up-type')?.addEventListener('change', e => { if (downloads) downloads.hidden = e.target.value !== 'alter'; });
   acDismissCleanup?.();
   acDismissCleanup = wireCardAutocompleteInput(root.querySelector('#up-card'), root.querySelector('#up-card-suggest'));
 }
@@ -846,9 +862,11 @@ function readArtworkFields(root) {
   if (!artistName) { showError('Add a display name — it’s shown publicly next to the artwork.'); return null; }
   if (EMAIL_RE.test(artistName)) { showError('That looks like an email address. Your display name is shown publicly — use a pseudonym or handle instead.'); return null; }
   const cardName = fieldValue(root, '#up-card').trim() || null;
+  const type = root.querySelector('#up-type').value || 'proxy';
   return {
     title,
-    type: root.querySelector('#up-type').value || 'proxy',
+    type,
+    downloadsEnabled: type === 'alter' && !!root.querySelector('#up-downloads')?.checked,
     cardName,
     scryfallUrl: cardName ? 'https://scryfall.com/search?q=' + encodeURIComponent('!"' + cardName + '"') : null,
     description: fieldValue(root, '#up-desc').trim(),
@@ -945,6 +963,7 @@ function renderUpload(root) {
         scryfall_url: fields.scryfallUrl,
         description: fields.description,
         is_ai: fields.isAI,
+        downloads_enabled: fields.downloadsEnabled,
         artist_name: fields.artistName,
         uploader_id: user.id,
         image_path: path,
@@ -1100,6 +1119,7 @@ async function renderEditArtwork(root, id) {
           scryfall_url: fields.scryfallUrl,
           description: fields.description,
           is_ai: fields.isAI,
+          downloads_enabled: fields.downloadsEnabled,
           artist_name: fields.artistName,
           status,
           reject_reason: status === 'rejected' ? rejectReason : null,
@@ -1122,6 +1142,7 @@ async function renderEditArtwork(root, id) {
           p_description: fields.description,
           p_is_ai: fields.isAI,
           p_artist_name: fields.artistName,
+          p_downloads_enabled: fields.downloadsEnabled,
         });
         if (err) throw err;
         if (!data) throw new Error('No row updated — not the uploader?');

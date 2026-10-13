@@ -1229,3 +1229,109 @@ BEGIN
 END $$;
 
 ROLLBACK;
+
+
+-- ============================================
+-- Alter downloads, off by default (#342)
+-- ============================================
+BEGIN;
+
+INSERT INTO auth.users (id, email, email_confirmed_at) VALUES
+  ('34200000-0000-0000-0000-00000000000a', 'alterist-342@example.invalid', now()),
+  ('34200000-0000-0000-0000-00000000000b', 'other-342@example.invalid', now()),
+  ('34200000-0000-0000-0000-00000000000d', 'admin-342@example.invalid', now());
+INSERT INTO public.gallery_admins (user_id) VALUES ('34200000-0000-0000-0000-00000000000d');
+INSERT INTO public.gallery_artworks (id, title, type, artist_name, uploader_id, image_path, status) VALUES
+  ('34200000-0000-0000-0002-000000000001', 'Painted', 'alter', 'Alterist', '34200000-0000-0000-0000-00000000000a', 'a/1.png', 'approved');
+
+DO $$
+BEGIN
+  ASSERT NOT (SELECT downloads_enabled FROM public.gallery_artworks WHERE id = '34200000-0000-0000-0002-000000000001'),
+    'an Alter must default to downloads off';
+  ASSERT has_function_privilege('authenticated',
+    'public.update_own_gallery_artwork(uuid, text, text, text, text, text, boolean, text, boolean)', 'EXECUTE');
+  -- Kept until the #342 client is live, so a schema-first rollout doesn't break owner edits.
+  ASSERT has_function_privilege('authenticated',
+    'public.update_own_gallery_artwork(uuid, text, text, text, text, text, boolean, text)', 'EXECUTE'),
+    'the 8-argument signature must still work for the old client';
+END $$;
+
+-- ---- Downloads off: the counter refuses it ----
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', '34200000-0000-0000-0000-00000000000b', true);
+SELECT public.increment_gallery_download('34200000-0000-0000-0002-000000000001');
+-- ---- Someone else can't turn it on ----
+DO $$
+BEGIN
+  ASSERT (SELECT public.update_own_gallery_artwork('34200000-0000-0000-0002-000000000001',
+    'Painted', 'alter', NULL, NULL, '', false, 'Alterist', true)) IS NULL,
+    'a non-uploader must not edit the flag';
+  UPDATE public.gallery_artworks SET downloads_enabled = true WHERE id = '34200000-0000-0000-0002-000000000001';
+  ASSERT NOT FOUND, 'a non-uploader updated the flag directly';
+END $$;
+RESET ROLE;
+
+DO $$
+BEGIN
+  ASSERT (SELECT downloads_count FROM public.gallery_artworks WHERE id = '34200000-0000-0000-0002-000000000001') = 0,
+    'a display-only Alter must not count a download';
+  ASSERT NOT (SELECT downloads_enabled FROM public.gallery_artworks WHERE id = '34200000-0000-0000-0002-000000000001');
+END $$;
+
+-- ---- The uploader turns it on, live without review; then it counts ----
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', '34200000-0000-0000-0000-00000000000a', true);
+DO $$
+BEGIN
+  ASSERT (SELECT public.update_own_gallery_artwork('34200000-0000-0000-0002-000000000001',
+    'Painted', 'alter', NULL, NULL, '', false, 'Alterist', true)),
+    'the uploader must be able to turn downloads on';
+  -- And upload a new Alter with downloads on: their own row, still pending.
+  INSERT INTO public.gallery_artworks (title, type, artist_name, uploader_id, image_path, downloads_enabled)
+  VALUES ('Second', 'alter', 'Alterist', '34200000-0000-0000-0000-00000000000a', 'a/2.png', true);
+  BEGIN
+    INSERT INTO public.gallery_artworks (title, type, artist_name, uploader_id, image_path, downloads_enabled)
+    VALUES ('Forged', 'alter', 'Other', '34200000-0000-0000-0000-00000000000b', 'b/1.png', true);
+    RAISE EXCEPTION 'an upload was filed under someone else''s id';
+  EXCEPTION WHEN insufficient_privilege THEN NULL;
+  END;
+END $$;
+SELECT public.increment_gallery_download('34200000-0000-0000-0002-000000000001');
+RESET ROLE;
+
+DO $$
+BEGIN
+  ASSERT (SELECT downloads_enabled FROM public.gallery_artworks WHERE id = '34200000-0000-0000-0002-000000000001');
+  ASSERT (SELECT status FROM public.gallery_artworks WHERE id = '34200000-0000-0000-0002-000000000001') = 'approved',
+    'an owner edit must stay live';
+  ASSERT (SELECT downloads_count FROM public.gallery_artworks WHERE id = '34200000-0000-0000-0002-000000000001') = 1,
+    'a download-enabled Alter must count downloads';
+END $$;
+
+-- ---- The old 8-argument edit (pre-#342 client) leaves the flag alone ----
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', '34200000-0000-0000-0000-00000000000a', true);
+DO $$
+BEGIN
+  ASSERT (SELECT public.update_own_gallery_artwork('34200000-0000-0000-0002-000000000001',
+    'Painted again', 'alter', NULL, NULL, '', false, 'Alterist'));
+END $$;
+RESET ROLE;
+DO $$
+BEGIN
+  ASSERT (SELECT downloads_enabled FROM public.gallery_artworks WHERE id = '34200000-0000-0000-0002-000000000001'),
+    'an old-client edit must not reset downloads';
+END $$;
+
+-- ---- An admin can turn it back off ----
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', '34200000-0000-0000-0000-00000000000d', true);
+UPDATE public.gallery_artworks SET downloads_enabled = false WHERE id = '34200000-0000-0000-0002-000000000001';
+RESET ROLE;
+DO $$
+BEGIN
+  ASSERT NOT (SELECT downloads_enabled FROM public.gallery_artworks WHERE id = '34200000-0000-0000-0002-000000000001'),
+    'an admin must be able to change the flag';
+END $$;
+
+ROLLBACK;

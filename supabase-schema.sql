@@ -445,6 +445,10 @@ ALTER TABLE gallery_artworks DROP CONSTRAINT IF EXISTS gallery_artworks_type_che
 ALTER TABLE gallery_artworks ADD CONSTRAINT gallery_artworks_type_check
   CHECK (type IN ('proxy', 'token', 'showcase', 'alter'));
 
+-- Alter downloads (#342): an Alter is display-only unless its uploader turns
+-- this on. Ignored for other types, which are always downloadable.
+ALTER TABLE gallery_artworks ADD COLUMN IF NOT EXISTS downloads_enabled BOOLEAN NOT NULL DEFAULT false;
+
 CREATE INDEX IF NOT EXISTS idx_gallery_artworks_status_likes ON gallery_artworks(status, likes_count DESC);
 CREATE INDEX IF NOT EXISTS idx_gallery_artworks_uploader ON gallery_artworks(uploader_id);
 CREATE INDEX IF NOT EXISTS idx_gallery_artworks_artist ON gallery_artworks(artist_id);
@@ -492,7 +496,8 @@ SET search_path = public
 AS $$
   UPDATE gallery_artworks
   SET downloads_count = downloads_count + 1
-  WHERE id = p_artwork_id AND status = 'approved';
+  WHERE id = p_artwork_id AND status = 'approved'
+    AND (type <> 'alter' OR downloads_enabled); -- display-only Alters never count (#342)
 $$;
 
 GRANT EXECUTE ON FUNCTION increment_gallery_download(UUID) TO authenticated;
@@ -504,6 +509,13 @@ GRANT EXECUTE ON FUNCTION increment_gallery_download(UUID) TO authenticated;
 -- status, highlighted, store_url, artist_id, counters, reviewed_* and
 -- image_path stay admin-only. Returns true when a row was updated, NULL
 -- when the caller doesn't own the artwork (or it doesn't exist).
+--
+-- #342 added p_downloads_enabled as a 9-argument overload. PostgREST matches
+-- an RPC by its argument names, and neither overload has defaults, so the
+-- two never collide. The 8-argument original stays so the live client keeps
+-- working between this schema run and the deploy (it leaves the flag alone).
+-- shortcut: two copies of the edit; drop the 8-argument one once the #342
+-- client is live: DROP FUNCTION update_own_gallery_artwork(UUID, TEXT, TEXT, TEXT, TEXT, TEXT, BOOLEAN, TEXT);
 CREATE OR REPLACE FUNCTION update_own_gallery_artwork(
   p_id UUID,
   p_title TEXT,
@@ -532,6 +544,37 @@ AS $$
 $$;
 
 GRANT EXECUTE ON FUNCTION update_own_gallery_artwork(UUID, TEXT, TEXT, TEXT, TEXT, TEXT, BOOLEAN, TEXT) TO authenticated;
+
+CREATE OR REPLACE FUNCTION update_own_gallery_artwork(
+  p_id UUID,
+  p_title TEXT,
+  p_type TEXT,
+  p_original_card_name TEXT,
+  p_scryfall_url TEXT,
+  p_description TEXT,
+  p_is_ai BOOLEAN,
+  p_artist_name TEXT,
+  p_downloads_enabled BOOLEAN
+)
+RETURNS BOOLEAN
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  UPDATE gallery_artworks SET
+    title = p_title,
+    type = p_type,
+    original_card_name = p_original_card_name,
+    scryfall_url = p_scryfall_url,
+    description = p_description,
+    is_ai = p_is_ai,
+    artist_name = p_artist_name,
+    downloads_enabled = coalesce(p_downloads_enabled, false)
+  WHERE id = p_id AND uploader_id = auth.uid()
+  RETURNING true;
+$$;
+
+GRANT EXECUTE ON FUNCTION update_own_gallery_artwork(UUID, TEXT, TEXT, TEXT, TEXT, TEXT, BOOLEAN, TEXT, BOOLEAN) TO authenticated;
 
 -- One-time cleanup: early uploads stored the uploader's email as the public
 -- attribution. Truncate anything email-shaped at the @ so addresses never

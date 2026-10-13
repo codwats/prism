@@ -131,7 +131,7 @@ _Avoid_: submitter, poster
 _In code_: `gallery_artworks.uploader_id`.
 
 **Alter**:
-A real card painted over by hand. The gallery shows a photograph of one, never a file to print, so an Alter is commissioned rather than downloaded.
+A real card painted over by hand. The gallery shows a photograph of one, display-only by default, so an Alter is commissioned rather than downloaded. Its uploader can allow downloads, for artists who want prints and proxies of their work out in the world ([#342](https://github.com/codwats/prism/issues/342)).
 _Avoid_: altered art, custom card, proxy
 _In code_: `type = 'alter'`. The view filtered to Alters is called Alter Alley in reader-facing prose.
 
