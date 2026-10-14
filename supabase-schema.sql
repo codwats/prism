@@ -395,7 +395,7 @@ RETURNS BOOLEAN
 LANGUAGE sql
 STABLE
 SECURITY DEFINER
-SET search_path = public
+SET search_path = public, pg_temp
 AS $$
   SELECT EXISTS (SELECT 1 FROM gallery_admins WHERE user_id = auth.uid());
 $$;
@@ -468,7 +468,7 @@ CREATE OR REPLACE FUNCTION gallery_likes_counter()
 RETURNS TRIGGER
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public
+SET search_path = public, pg_temp
 AS $$
 BEGIN
   IF TG_OP = 'INSERT' THEN
@@ -492,7 +492,7 @@ CREATE OR REPLACE FUNCTION increment_gallery_download(p_artwork_id UUID)
 RETURNS void
 LANGUAGE sql
 SECURITY DEFINER
-SET search_path = public
+SET search_path = public, pg_temp
 AS $$
   UPDATE gallery_artworks
   SET downloads_count = downloads_count + 1
@@ -500,6 +500,8 @@ AS $$
     AND (type <> 'alter' OR downloads_enabled); -- display-only Alters never count (#342)
 $$;
 
+-- Supabase grants anon directly, so revoking from public alone leaves it callable (#231, #357).
+REVOKE EXECUTE ON FUNCTION increment_gallery_download(UUID) FROM public, anon;
 GRANT EXECUTE ON FUNCTION increment_gallery_download(UUID) TO authenticated;
 
 -- Owner metadata edits. A plain owner-UPDATE policy can't work here: RLS
@@ -529,7 +531,7 @@ CREATE OR REPLACE FUNCTION update_own_gallery_artwork(
 RETURNS BOOLEAN
 LANGUAGE sql
 SECURITY DEFINER
-SET search_path = public
+SET search_path = public, pg_temp
 AS $$
   UPDATE gallery_artworks SET
     title = p_title,
@@ -543,6 +545,8 @@ AS $$
   RETURNING true;
 $$;
 
+-- Supabase grants anon directly, so revoking from public alone leaves it callable (#231, #357).
+REVOKE EXECUTE ON FUNCTION update_own_gallery_artwork(UUID, TEXT, TEXT, TEXT, TEXT, TEXT, BOOLEAN, TEXT) FROM public, anon;
 GRANT EXECUTE ON FUNCTION update_own_gallery_artwork(UUID, TEXT, TEXT, TEXT, TEXT, TEXT, BOOLEAN, TEXT) TO authenticated;
 
 CREATE OR REPLACE FUNCTION update_own_gallery_artwork(
@@ -559,7 +563,7 @@ CREATE OR REPLACE FUNCTION update_own_gallery_artwork(
 RETURNS BOOLEAN
 LANGUAGE sql
 SECURITY DEFINER
-SET search_path = public
+SET search_path = public, pg_temp
 AS $$
   UPDATE gallery_artworks SET
     title = p_title,
@@ -574,6 +578,8 @@ AS $$
   RETURNING true;
 $$;
 
+-- Supabase grants anon directly, so revoking from public alone leaves it callable (#231, #357).
+REVOKE EXECUTE ON FUNCTION update_own_gallery_artwork(UUID, TEXT, TEXT, TEXT, TEXT, TEXT, BOOLEAN, TEXT, BOOLEAN) FROM public, anon;
 GRANT EXECUTE ON FUNCTION update_own_gallery_artwork(UUID, TEXT, TEXT, TEXT, TEXT, TEXT, BOOLEAN, TEXT, BOOLEAN) TO authenticated;
 
 -- One-time cleanup: early uploads stored the uploader's email as the public

@@ -1,0 +1,26 @@
+-- Run with `npm run test:sql` (throwaway Docker database), or in a DISPOSABLE
+-- Supabase project's SQL editor after supabase-schema.sql.
+-- Checks the privileges and settings the database actually ends up with, which
+-- tests/schema-rules.test.js can only read off the schema text (#357).
+DO $$
+DECLARE
+  fn TEXT;
+BEGIN
+  FOREACH fn IN ARRAY ARRAY[
+    'increment_gallery_download(uuid)',
+    'update_own_gallery_artwork(uuid, text, text, text, text, text, boolean, text)',
+    'update_own_gallery_artwork(uuid, text, text, text, text, text, boolean, text, boolean)'
+  ] LOOP
+    ASSERT NOT has_function_privilege('anon', fn, 'EXECUTE'), fn || ' must not be callable by anon';
+    ASSERT has_function_privilege('authenticated', fn, 'EXECUTE'), fn || ' must stay callable by authenticated';
+  END LOOP;
+
+  -- The anon SELECT policy on gallery_artworks calls it.
+  ASSERT has_function_privilege('anon', 'is_gallery_admin()', 'EXECUTE'), 'is_gallery_admin must stay callable by anon';
+
+  ASSERT NOT EXISTS (
+    SELECT 1 FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+    WHERE n.nspname = 'public' AND p.prosecdef
+      AND NOT ('search_path=public, pg_temp' = ANY (coalesce(p.proconfig, '{}')))
+  ), 'every public SECURITY DEFINER function must pin search_path=public, pg_temp';
+END $$;

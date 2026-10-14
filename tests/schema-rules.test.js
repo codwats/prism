@@ -8,14 +8,9 @@ import { readFileSync } from 'node:fs';
 
 const schema = readFileSync(new URL('../supabase-schema.sql', import.meta.url), 'utf8');
 
-// Pre-#231 gallery functions, listed so the rule can land without a schema change.
-// Each entry must still break its rule: fix the function, then delete the entry.
-const PINS_PUBLIC_ONLY = new Set([
-  'is_gallery_admin', 'gallery_likes_counter', 'increment_gallery_download', 'update_own_gallery_artwork'
-]);
+// Known exceptions: each entry must still break its rule, or the test asks to delete it.
 const ANON_MAY_EXECUTE = new Set([
-  'is_gallery_admin', // the anon SELECT policy on gallery_artworks calls it; a revoke breaks public reads
-  'increment_gallery_download', 'update_own_gallery_artwork' // pre-#231, revoke pending
+  'is_gallery_admin' // the anon SELECT policy on gallery_artworks calls it; a revoke breaks public reads
 ]);
 
 function definerFunctions() {
@@ -36,22 +31,17 @@ test('the parser finds every SECURITY DEFINER function', () => {
   assert.equal(definerFunctions().length, declared);
 });
 
-test('every grandfathered function still exists', () => {
+test('every ANON_MAY_EXECUTE function still exists', () => {
   const names = new Set(definerFunctions().map(f => f.name));
-  for (const name of [...PINS_PUBLIC_ONLY, ...ANON_MAY_EXECUTE]) {
-    assert.ok(names.has(name), `${name} is gone — remove it from the allow-lists`);
+  for (const name of ANON_MAY_EXECUTE) {
+    assert.ok(names.has(name), `${name} is gone — remove it from ANON_MAY_EXECUTE`);
   }
 });
 
 test('every SECURITY DEFINER function pins search_path to public, pg_temp', () => {
   for (const { name, options } of definerFunctions()) {
-    const pinned = /SET\s+search_path\s*=\s*public\s*,\s*pg_temp/i.test(options);
-    if (PINS_PUBLIC_ONLY.has(name)) {
-      assert.ok(!pinned, `${name} now pins pg_temp — remove it from PINS_PUBLIC_ONLY`);
-      assert.match(options, /SET\s+search_path\s*=\s*public/i, `${name} pins no search_path`);
-    } else {
-      assert.ok(pinned, `${name} must SET search_path = public, pg_temp`);
-    }
+    assert.match(options, /SET\s+search_path\s*=\s*public\s*,\s*pg_temp/i,
+      `${name} must SET search_path = public, pg_temp`);
   }
 });
 
