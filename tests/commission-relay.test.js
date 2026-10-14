@@ -117,7 +117,7 @@ for (const [name, body] of [
   ['a non-uuid artist id', valid({ artistId: 'okafor' })],
   ['a non-uuid artwork id', valid({ artworkId: '1 OR 1=1' })],
   ['no Turnstile token', valid({ turnstileToken: '' })],
-  ['a non-string message', valid({ message: 12345678901234567890 })]
+  ['a non-string message', valid({ message: 12345 })]
 ]) {
   endpointTest(`${name} is a 400 that reaches nothing upstream`, async t => {
     const res = await send(t, body);

@@ -12,7 +12,7 @@
     "globals": "^15.0.0"
   },
   "scripts": {
-    "lint": "eslint js/",
+    "lint": "eslint js/ netlify/ tests/ scripts/",
     "test": "node --test \"tests/**/*.test.js\""
   }
 }
