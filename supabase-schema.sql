@@ -482,6 +482,11 @@ BEGIN
 END;
 $$;
 
+-- Trigger-only: no role calls it directly (#357, as the #331 triggers).
+REVOKE EXECUTE ON FUNCTION gallery_likes_counter() FROM public;
+REVOKE EXECUTE ON FUNCTION gallery_likes_counter() FROM anon;
+REVOKE EXECUTE ON FUNCTION gallery_likes_counter() FROM authenticated;
+
 DROP TRIGGER IF EXISTS trg_gallery_likes_counter ON gallery_likes;
 CREATE TRIGGER trg_gallery_likes_counter
   AFTER INSERT OR DELETE ON gallery_likes
@@ -501,7 +506,8 @@ AS $$
 $$;
 
 -- Supabase grants anon directly, so revoking from public alone leaves it callable (#231, #357).
-REVOKE EXECUTE ON FUNCTION increment_gallery_download(UUID) FROM public, anon;
+REVOKE EXECUTE ON FUNCTION increment_gallery_download(UUID) FROM public;
+REVOKE EXECUTE ON FUNCTION increment_gallery_download(UUID) FROM anon;
 GRANT EXECUTE ON FUNCTION increment_gallery_download(UUID) TO authenticated;
 
 -- Owner metadata edits. A plain owner-UPDATE policy can't work here: RLS
@@ -545,8 +551,8 @@ AS $$
   RETURNING true;
 $$;
 
--- Supabase grants anon directly, so revoking from public alone leaves it callable (#231, #357).
-REVOKE EXECUTE ON FUNCTION update_own_gallery_artwork(UUID, TEXT, TEXT, TEXT, TEXT, TEXT, BOOLEAN, TEXT) FROM public, anon;
+REVOKE EXECUTE ON FUNCTION update_own_gallery_artwork(UUID, TEXT, TEXT, TEXT, TEXT, TEXT, BOOLEAN, TEXT) FROM public;
+REVOKE EXECUTE ON FUNCTION update_own_gallery_artwork(UUID, TEXT, TEXT, TEXT, TEXT, TEXT, BOOLEAN, TEXT) FROM anon;
 GRANT EXECUTE ON FUNCTION update_own_gallery_artwork(UUID, TEXT, TEXT, TEXT, TEXT, TEXT, BOOLEAN, TEXT) TO authenticated;
 
 CREATE OR REPLACE FUNCTION update_own_gallery_artwork(
@@ -578,8 +584,8 @@ AS $$
   RETURNING true;
 $$;
 
--- Supabase grants anon directly, so revoking from public alone leaves it callable (#231, #357).
-REVOKE EXECUTE ON FUNCTION update_own_gallery_artwork(UUID, TEXT, TEXT, TEXT, TEXT, TEXT, BOOLEAN, TEXT, BOOLEAN) FROM public, anon;
+REVOKE EXECUTE ON FUNCTION update_own_gallery_artwork(UUID, TEXT, TEXT, TEXT, TEXT, TEXT, BOOLEAN, TEXT, BOOLEAN) FROM public;
+REVOKE EXECUTE ON FUNCTION update_own_gallery_artwork(UUID, TEXT, TEXT, TEXT, TEXT, TEXT, BOOLEAN, TEXT, BOOLEAN) FROM anon;
 GRANT EXECUTE ON FUNCTION update_own_gallery_artwork(UUID, TEXT, TEXT, TEXT, TEXT, TEXT, BOOLEAN, TEXT, BOOLEAN) TO authenticated;
 
 -- One-time cleanup: early uploads stored the uploader's email as the public
