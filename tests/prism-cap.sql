@@ -1,4 +1,5 @@
--- Run in a DISPOSABLE Supabase project's SQL editor after supabase-schema.sql.
+-- Run with `npm run test:sql` (throwaway Docker database), or in a DISPOSABLE
+-- Supabase project's SQL editor after supabase-schema.sql.
 -- Never run on production. Fixtures and enforcement changes roll back together.
 -- Run the whole file in one submission; any failed assertion aborts it.
 -- The 25-cloud-PRISM cap (#209): refuses the 26th create, never an edit.

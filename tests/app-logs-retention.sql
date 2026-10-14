@@ -1,4 +1,5 @@
--- Run in a DISPOSABLE Supabase project's SQL editor after supabase-schema.sql.
+-- Run with `npm run test:sql` (throwaway Docker database), or in a DISPOSABLE
+-- Supabase project's SQL editor after supabase-schema.sql.
 -- Never run on production: it deletes app_logs rows. Fixtures roll back with
 -- the transaction. Run the whole file in one submission; a failed assertion
 -- aborts it.

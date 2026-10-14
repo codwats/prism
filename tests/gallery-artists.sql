@@ -1,4 +1,5 @@
--- Run in a DISPOSABLE Supabase project's SQL editor after supabase-schema.sql.
+-- Run with `npm run test:sql` (throwaway Docker database), or in a DISPOSABLE
+-- Supabase project's SQL editor after supabase-schema.sql.
 -- Never run on production. Fixtures roll back with everything else.
 -- Run the whole file in one submission; any failed assertion aborts it.
 -- Gallery artists, Alter Alley and commissions (#321). Each ticket's section

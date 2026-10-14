@@ -246,6 +246,9 @@ The paid tier is a **Membership**: $3/mo or $30/yr USD for cloud sync, up to 25 
 # Dev server (defined in .claude/launch.json)
 npx http-server -p 3456
 
+# Checks (CI runs all three; test:sql needs docker)
+npm run lint && npm test && npm run test:sql
+
 # No build step — edit files and reload
 # All JS is ES modules loaded directly by the browser
 ```
