@@ -2,13 +2,15 @@
  * Toast notification helpers.
  */
 
+import { debugLog } from './utils.js';
+
 export function showError(message) {
   console.error('PRISM Error:', message);
   showToast(message, 'danger', 'circle-exclamation');
 }
 
 export function showSuccess(message) {
-  console.log('PRISM Success:', message);
+  debugLog('PRISM Success:', message);
   showToast(message, 'success', 'check-circle');
 }
 

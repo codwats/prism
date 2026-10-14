@@ -1,99 +1,53 @@
 # PRISM — MTG Commander Sleeve Marking Tool
 
-PRISM helps Magic: The Gathering Commander players who share cards across multiple decks mark their card sleeves with colored stripes so they can quickly identify which sleeve goes in which deck.
+Helps MTG Commander players who share cards across decks mark sleeves with colored stripes, so each sleeve's deck is identifiable at a glance.
+
+## Read before touching
+
+- **Storage, cloud sync, auth init** (`storage.js`, `auth.js`, `syncState`, build.html sync UI) → `docs/agents/sync.md`
+- **Billing, Membership, entitlement** (`billing.js`, `stripe-*-edge.ts`, `founders`/`subscriptions`/`app_config`, `isEntitled()`) → `docs/agents/billing.md`
+- **Gallery** (`gallery.html`, `js/gallery.js`, `gallery_*` tables/RPCs, `gallery-artist`/`gallery-notify`/`commission` edge functions) → `docs/agents/gallery.md`
+- **Domain terms** → `CONTEXT.md`; product policy → `PRODUCT.md`; decisions → `docs/adr/`
+- **Reviewing a diff** → `CODING_STANDARDS.md` (judgement calls; mechanical rules are in lint and `tests/schema-rules.test.js`)
+
+New domain facts go in the matching `docs/agents/*.md`, not here.
 
 ## Tech Stack
 
-- **Frontend:** Vanilla JavaScript with ES modules (no bundler, no build step)
-- **UI Components:** [Web Awesome 3.14.0](https://www.webawesome.com/) loaded via CDN kit. WA CSS, the autoloader, fonts, and `custom.css` are **static tags in every page's `<head>`** (so the browser preload scanner starts them at byte 0); `injectHeadResources` in layout.js skips tags already present and remains only as a fallback. Keep the static blocks and layout.js URLs in sync when bumping versions.
-- **Styling:** `css/custom.css` + Web Awesome design tokens (`--wa-color-*`, `--wa-space-*`)
-- **Persistence:** localStorage-first (`prism_data` key), optional Supabase sync when authenticated with merge-before-write conflict handling
-- **Auth:** Supabase Auth (email/password), idempotent init via cached `authInitPromise` so concurrent callers share one awaitable sync; `initAuth()` waits for the Supabase CDN script `load` event before proceeding so slow CDN loads don't break auth. The SDK is **lazy**: layout.js eager-loads it only when `hasStoredSession()` (sync localStorage check for `sb-<ref>-auth-token`) or an `access_token` URL hash exists; anonymous visitors get it on demand via `ensureAuthReady()` (login-button click, or top of `signUp`/`signIn`/`resetPassword`)
-- **APIs:** Scryfall (card data, no key needed), Moxfield & Archidekt (deck import via edge proxies)
-- **Hosting:** Netlify — `publish = "."` (root), edge functions in Deno/TypeScript
-- **Dev server:** `http-server` on port 3456, configured in `.claude/launch.json`
+- **Frontend:** Vanilla JS, ES modules, no bundler, no build step
+- **UI:** [Web Awesome 3.14.0](https://www.webawesome.com/) via CDN kit. WA CSS, autoloader, fonts, `custom.css` are **static tags in every page's `<head>`** (preload scanner starts them at byte 0); `injectHeadResources` in layout.js skips present tags, fallback only. Bump versions in static blocks and layout.js URLs together.
+- **Styling:** `css/custom.css` + WA tokens (`--wa-color-*`, `--wa-space-*`)
+- **Persistence:** localStorage-first (`prism_data`), optional Supabase sync when authed, merge-before-write
+- **Auth:** Supabase Auth (email/password). SDK is **lazy**: layout.js eager-loads only when `hasStoredSession()` (sync localStorage check for `sb-<ref>-auth-token`) or `access_token` URL hash; anonymous visitors get it on demand via `ensureAuthReady()` (login click, or top of `signUp`/`signIn`/`resetPassword`). Init details in `docs/agents/sync.md`.
+- **APIs:** Scryfall (no key), Moxfield & Archidekt (deck import via edge proxies)
+- **Hosting:** Netlify, `publish = "."` (root), edge functions Deno/TypeScript
+- **Dev server:** `http-server` port 3456, in `.claude/launch.json`
 
-## Project Structure
+## Layout notes
 
-```
-prism/
-├── index.html              Landing page
-├── build.html              Main PRISM builder (the core app)
-├── guide.html              Marking guide
-├── tools.html              Paint pen recommendations
-├── gallery.html            Community artwork gallery (see Gallery section)
-├── mpc-stripes.html        MPC Stripe Compositor — a paid Extra, Members-only via `initExtraGate()` in membership.js (soft gate, ADR 0003)
-├── swap-planner.html       Swap Planner — a paid Extra, same gate; `initExtraGate(onTool)` starts its Scryfall/tag fetches for Members only
-├── links.html              QR/social funnel page (#243) — standalone: no layout.js, no nav, its own inlined tokens, so it can move to another domain unchanged
-├── profile.html            User account management
-├── privacy.html / terms.html
-├── css/custom.css          Styles beyond Web Awesome
-├── js/
-│   ├── app.js              Entry point for build.html (~12 lines, imports init)
-│   ├── profile.js          Entry point for profile.html
-│   ├── gallery.js          Entry point for gallery.html
-│   ├── swap-planner.js     Entry point for swap-planner.html: search → rankComparables → rows; "Other swaps" costs fill in after render (applySwap per deck); the confirm dialog previews and applies through the same applySwap call, then recordUnmarkedCards → savePrism
-│   ├── layout.js           Shared layout injection (nav, header, footer, auth dialog)
-│   ├── core/
-│   │   ├── state.js        Singleton mutable state (ES module = same reference everywhere)
-│   │   ├── notifications.js  showError, showSuccess, showToast
-│   │   └── utils.js        escapeHtml, getLogicalDeckCount, stripePositionLabel, debugLog
-│   ├── features/           Build page feature modules
-│   │   ├── init.js         getElements, init(), renderAll(), renderPrismHeader, setupSyncStatus
-│   │   ├── events.js       setupEventListeners, card preview handlers
-│   │   ├── deck-form.js    Add deck form, color swatches, validation
-│   │   ├── deck-import.js  Moxfield/Archidekt URL import, file upload, JSON import
-│   │   ├── deck-list.js    Deck card rendering, edit/delete/split/mark handlers
-│   │   ├── stripe-reorder-dialog.js  Visual slot-picker dialog for moving deck stripe positions
-│   │   ├── results.js      Results table, sorting, filtering, deck filter menu
-│   │   ├── analysis.js     Overlap matrix, what-if analysis
-│   │   └── export-view.js  Deck legend, stripe reorder list (export tab)
-│   └── modules/            Reusable business logic (shared across pages)
-│       ├── processor.js    Core engine: processCards, createPrism, stripe assignment, split logic
-│       ├── parser.js       Decklist parsing (MTGO/Moxfield format), basic land detection
-│       ├── storage.js      localStorage + Supabase sync, version migrations, per-entity merge logic
-│       ├── auth.js         Supabase auth init, listeners, idempotent guard
-│       ├── supabase-client.js  Supabase client singleton (public anon key)
-│       ├── scryfall.js     Scryfall API with localStorage cache (24h TTL) + rate limiting
-│       ├── moxfield.js     Moxfield deck import (via /api/moxfield-edge proxy)
-│       ├── archidekt.js    Archidekt deck import (via /api/archidekt-edge proxy)
-│       ├── swap.js         Swap engine (applySwap, cost in marks) + removed-card/unmark bookkeeping shared with deck edits
-│       ├── comparables.js  Swap Planner ranking: eligible decks, comparable cards (same type / different job / look beyond), Sleeve-swap rows
-│       ├── oracle-tags.js  Swap Planner job index: 51 pinned Tagger jobs + land families, built from the Oracle Tags bulk file, IndexedDB, daily
-│       ├── export.js       CSV/JSON/printable guide export
-│       ├── card-autocomplete.js  Scryfall name autocomplete under an input (gallery upload, Swap Planner search)
-│       └── card-preview.js Hover tooltip: card image, stripes, type line + mana cost; `wireCardPreview(root, stripesFor)` wires hover / mobile tap-to-open
-├── netlify/
-│   └── edge-functions/     Deno TypeScript, deployed to Netlify Edge
-│       ├── moxfield-edge.ts   POST proxy → api2.moxfield.com
-│       ├── archidekt-edge.ts  POST proxy → archidekt.com/api
-│       ├── stripe-checkout-edge.ts  Creates Stripe Checkout sessions (subscription mode)
-│       ├── stripe-portal-edge.ts    Creates Stripe billing portal sessions (manage card/cancel)
-│       ├── stripe-webhook-edge.ts   Stripe webhook → Supabase subscription state
-│       └── commission-edge.ts       Commission relay (#325): Turnstile + session + rate limits (`gallery_commission_sends`) → one Resend email, reply_to the requester
-├── netlify.toml            Deployment config (publish ".", edge function routes)
-├── supabase-schema.sql     Database schema (prisms, decks, deck_cards, app_logs, replace_deck_cards RPC)
-└── package.json            Minimal (no deps, node >=18)
-```
+`js/core/` shared helpers, `js/features/` build.html modules, `js/modules/` business logic shared across pages, `netlify/edge-functions/` Deno proxies + Stripe/gallery endpoints. Non-obvious pages:
+
+- `mpc-stripes.html`, `swap-planner.html` — paid Extras, Members-only via `initExtraGate()` in membership.js (soft gate, ADR 0003). Swap Planner's `initExtraGate(onTool)` starts Scryfall/tag fetches for Members only.
+- `swap-planner.js`: search → `rankComparables` → rows; "Other swaps" costs fill in after render (`applySwap` per deck); confirm dialog previews and applies through same `applySwap` call, then `recordUnmarkedCards` → `savePrism`. `oracle-tags.js` builds 51 pinned Tagger jobs + land families from Oracle Tags bulk file, IndexedDB, daily.
+- `card-preview.js`: `wireCardPreview(root, stripesFor)` wires hover tooltip / mobile tap-to-open on any page.
+- `links.html` (#243) — standalone: no layout.js, no nav, own inlined tokens, so it moves domains unchanged.
 
 ## Key Architecture Patterns
 
 ### State Management
 
-`js/core/state.js` exports a singleton object. All feature modules `import { state }` and get the same reference. State fields:
+`js/core/state.js` exports singleton; every module `import { state }` gets same reference. Fields:
 
-- `currentPrism` — the active PRISM object (decks, cards, splitGroups, markedCards, removedCards)
+- `currentPrism` — active PRISM (decks, cards, splitGroups, markedCards, removedCards)
 - `deckToDelete` / `deckToEdit` — temp IDs for dialog workflows
-- `elements` — cached DOM references (set during init)
+- `elements` — cached DOM refs (set during init)
 - `sortState` — `{ column, direction }` for results table
 - `selectedDeckIds` — `Set` for deck filter dropdown
-- `processedCards` — cached result of last `processCards()` call (used by hover preview)
+- `processedCards` — cached last `processCards()` result (hover preview)
 
 ### Layout Injection
 
-`js/layout.js` exports `initLayout({ activePage, headerCta })`. Every HTML page calls it to inject shared nav, header (with CTA button), footer, and auth dialog. Pages only contain their `<main>` content.
-
-The nav uses `<wa-page mobile-breakpoint="768">` for desktop sidebar / mobile hamburger switching.
+`js/layout.js` exports `initLayout({ activePage, headerCta })`. Every page calls it to inject nav, header (with CTA), footer, auth dialog. Pages hold only `<main>`. Nav uses `<wa-page mobile-breakpoint="768">`: desktop sidebar / mobile hamburger.
 
 ### Module Dependency Flow
 
@@ -103,26 +57,7 @@ app.js → features/init.js → all feature modules
                            → all modules/ business logic
 ```
 
-Feature modules have circular imports (e.g., `deck-form ↔ deck-list`, `deck-list → init → deck-list`). This works because all exports are function declarations (hoisted) and only called at runtime, never during module evaluation.
-
-### Storage
-
-localStorage key: `prism_data`. Structure: `{ version, currentPrismId, prisms: { [id]: prismData }, preferences, syncState }`. `syncState` stores per-prism sync baselines plus local deletion tombstones and un-mark tombstones so multi-device merges can distinguish local edits from local deletes and intentional un-marks. Version migrations supported. Supabase sync happens optionally on auth state changes and on debounced saves while authenticated. `getPreferences()` merges with defaults so new preference keys auto-populate for existing users.
-
-Sync behavior is merge-first, not whole-PRISM last-write-wins:
-
-- On login/session restore, local and cloud PRISMs are merged per prism, per deck, and per split group.
-- `markedCards` merge by union minus any keys with an `unmarkedCards` tombstone newer than the last sync baseline — this ensures intentional un-marks (manual checkbox or auto-unmark when a new deck shares a card) are not reverted by the cloud copy.
-- `removedCards` merge by `(cardName, deckId)` with latest `removedAt`; `previousQuantity` keeps the max of both rows so successive quantity edits never under-report the surplus.
-- `useDedicatedCommanderCopies` merges on its own `useDedicatedCommanderCopiesUpdatedAt` (newer wins, ties local) — explicitly, in `mergePrismVersions`, like `markedCardsUpdatedAt`. The Supabase columns are `use_dedicated_commander_copies` (NOT NULL DEFAULT false) + `use_dedicated_commander_copies_updated_at`; rollout was schema-first.
-- Background saves fetch the latest cloud copy, merge it with local using the stored baseline, then write the merged result back to Supabase.
-- Deck and split-group `updatedAt` timestamps are important for conflict resolution and should be preserved on mutation.
-- Split-group child ordering should be preserved from `group.childDeckIds` during merge; only orphaned child IDs should be dropped, with deck-derived order used as a fallback when the stored ordering is missing.
-- Auto-created empty PRISMs (no decks, no cards, no prior baseline) are **not** uploaded to Supabase during the login sync — they exist only as a pre-login UI placeholder and are discarded when real cloud data is available.
-- `syncWithSupabase` tracks which prisms have genuine local changes (`needsCloudWrite` set) and only writes those. Cloud-only prisms (fresh device load) have their baseline recorded without re-uploading, preventing redundant `replace_deck_cards` calls.
-- `savePrismToSupabase` continues past per-deck RPC failures so one failing deck does not leave all subsequent decks without cards. It returns `false` when any deck fails so the baseline is not recorded and the sync retries. `importAllData` routes each imported PRISM through `syncPrismToSupabase` for the same reason — a baseline recorded before the upload would make a failed import read as already-synced.
-- **Cloud writes pause on a lapse; cloud reads never do** (#212). Pull paths (`syncWithSupabase`, `loadPrismsFromSupabase`) gate on `shouldSyncToSupabase()`; every upload, cloud delete and debounced drain gates on `shouldWriteToSupabase()` — which is `shouldSyncToSupabase() && !cloudWritesPaused`. `cloudWritesPaused` is refreshed from `isEntitled()` once per page load, at the top of `syncWithSupabase`, and fails open. Auth publishes the user before that verdict lands, so the paths that write immediately (`syncPrismToSupabase`, `forceSyncCurrentPrism`, `deletePrism`) gate on `canWriteToSupabase()` instead — it awaits the in-flight read, then answers. The debounce keeps queueing on `shouldWriteToSupabase()` so an edit made mid-verdict is deferred, never dropped; the drain re-checks. While paused, a prism with local changes is skipped **including its baseline**: the baseline must keep describing what the cloud really holds, since it is both the merge reference and the date the paused notice shows. Exports: `isCloudWritePaused()`, `getLastCloudSyncDate(prismId?)`.
-- **25 cloud PRISMs per account** (#209), enforced by the `prisms` INSERT policy, which counts the owner's *other* PRISMs so an upsert of an existing one still saves at the cap. A `42501` on the prism upsert for a PRISM with no cloud baseline is read as the cap: `savePrismToSupabase` adds it to `localOnlyPrismIds`, it is not retried this page load (Sync Now clears it and retries), and `#local-only-notice` on build.html says it lives on this device. Export: `isPrismLocalOnly(prismId)`.
+Feature modules import circularly (`deck-form ↔ deck-list`, `deck-list → init → deck-list`). Safe: all exports are hoisted function declarations, called only at runtime (user interactions), never during module evaluation.
 
 ### PRISM Data Model
 
@@ -135,110 +70,61 @@ Card:  { name, quantity, isCommander, isBasicLand, sleeve? }
 Preferences: { colorScheme, defaultColors, stripeStartCorner ('top-right'|'top-left'|'bottom-right'|'bottom-left') }
 ```
 
-- **Commander role** — per-card `isCommander` flags are the only source of truth (#147). There is no `deck.commander` field; read via `commanderNames(deck)` in `processor.js` (alphabetical, derived). The decklist textarea carries N flags losslessly through `Commander`/`Deck` section headers (`cardsToDecklistText`/`rewriteDecklistCommanders` in `parser.js`); the parsed text is the sole save-time authority, with the Add/Edit commander fields kept in sync both ways (`syncCommanderFieldsFromText`/`applyCommanderFieldsToText` in `deck-form.js`). `parseDecklist(text)` takes no commander-name argument. Archidekt import flags only the exact `Commander` category. Legacy scalar-only decks are normalized once at build-page load (`applyCommanderFallback`).
-- **useDedicatedCommanderCopies** (#145/#150) — synced per-PRISM boolean with its own merge timestamp (never rides whole-prism LWW; mark-toggle bumps `prism.updatedAt` too often). Toggle lives on the Decks tab; write path = set flag + its timestamp + `prism.updatedAt` + `savePrism()`. When on, each (commander card, logical deck) pair emits a **dedicated batch** at the deck's full quantity and leaves the shared threshold derivation (replace, not add on top). A split group dedicates as one batch when flagged in ≥1 variant, never per variant. Dedicated-ness is derived at processing time (`isDedicated` on the batch), never stored.
-- **Separate sleeve** (#309) — optional `sleeve` id on a card row (`deck_cards.sleeve`, written by `replace_deck_cards`). Rows of one card sharing an id are one batch (`isSeparateSleeve`) at their highest quantity, removed from the shared threshold derivation after dedication (which wins). It rides the deck, so it merges with the deck's `updatedAt` — no `mergePrismVersions` branch. Decklist text can't hold it: `keepSeparateSleeves(oldCards, newCards)` in swap.js carries it by name in `handleEditConfirm`, which every card-replacing edit path (form, URL re-import, file upload) goes through. A Sleeve swap (`applySwap(..., { sleeve: true })`) creates one when the incoming card is already in the PRISM.
-- **Stripe positions** 1–24 (Side A) and 25–48 (Side B) — 48 physical slots, the real capacity limit (`MAX_STRIPE_SLOTS` in `processor.js`). Stripe-only decks/variants each consume one slot (up to 48 decks); dot variants share a Side A slot (up to 96 decks). There is no fixed "logical deck" cap — adding a standalone deck is gated on slot availability (`getUsedPositions(prism).size >= MAX_STRIPE_SLOTS`).
-- **Split groups** let one deck slot have 2–8 (stripes) or exactly 2 (dots) variants sharing a Side A position. The group itself holds `name`, `sideAColor`, and `sideAPosition` — editable via the ✎ button on the group card header (`handleEditGroupClick`/`handleEditGroupConfirm` in `deck-list.js`, `updateSplitGroupInPrism` in `processor.js`).
-- **Split styles** — `'stripes'` (Side B marks on opposite edge) or `'dots'` (one colored dot next to the Side A stripe square). Dots groups are capped at 2 variants (physical 1-hole limit). Child variant marks are determined in a **post-loop pass** using shared-vs-subset analysis:
-  - Card in **all** children → parent Side A stripe only; membership anchors emitted per variant for deck-filter (not rendered)
+- **Commander role** — per-card `isCommander` flags are sole source of truth (#147). No `deck.commander` field; read via `commanderNames(deck)` in `processor.js` (alphabetical, derived). Decklist textarea carries N flags losslessly through `Commander`/`Deck` section headers (`cardsToDecklistText`/`rewriteDecklistCommanders` in `parser.js`); parsed text is sole save-time authority, Add/Edit commander fields synced both ways (`syncCommanderFieldsFromText`/`applyCommanderFieldsToText` in `deck-form.js`). `parseDecklist(text)` takes no commander-name argument. Archidekt import flags only exact `Commander` category. Legacy scalar-only decks normalized once at build-page load (`applyCommanderFallback`).
+- **useDedicatedCommanderCopies** (#145/#150) — synced per-PRISM boolean with own merge timestamp (never rides whole-prism LWW; mark-toggle bumps `prism.updatedAt` too often). Toggle on Decks tab; write path = flag + its timestamp + `prism.updatedAt` + `savePrism()`. When on, each (commander card, logical deck) pair emits **dedicated batch** at deck's full quantity and leaves shared threshold derivation (replace, not add on top). Split group dedicates as one batch when flagged in ≥1 variant, never per variant. Dedicated-ness derived at processing time (`isDedicated` on batch), never stored.
+- **Separate sleeve** (#309) — optional `sleeve` id on card row (`deck_cards.sleeve`, written by `replace_deck_cards`). Rows of one card sharing an id = one batch (`isSeparateSleeve`) at highest quantity, removed from shared threshold derivation after dedication (dedication wins). Rides the deck, merges with deck's `updatedAt` — no `mergePrismVersions` branch. Decklist text can't hold it: `keepSeparateSleeves(oldCards, newCards)` in swap.js carries it by name in `handleEditConfirm`, which every card-replacing edit path (form, URL re-import, file upload) goes through. Sleeve swap (`applySwap(..., { sleeve: true })`) creates one when incoming card already in PRISM.
+- **Stripe positions** 1–24 (Side A), 25–48 (Side B) — 48 physical slots, real capacity limit (`MAX_STRIPE_SLOTS` in `processor.js`). Stripe-only decks/variants consume one slot each (up to 48 decks); dot variants share a Side A slot (up to 96). No fixed "logical deck" cap — adding standalone deck gated on `getUsedPositions(prism).size >= MAX_STRIPE_SLOTS`.
+- **Split groups** — one deck slot, 2–8 (stripes) or exactly 2 (dots) variants sharing Side A position. Group holds `name`, `sideAColor`, `sideAPosition`, editable via ✎ on group card header (`handleEditGroupClick`/`handleEditGroupConfirm` in `deck-list.js`, `updateSplitGroupInPrism` in `processor.js`).
+- **Split styles** — `'stripes'` (Side B marks on opposite edge) or `'dots'` (one colored dot beside Side A stripe square). Dots capped at 2 variants (physical 1-hole limit). Child marks decided in **post-loop pass**, shared-vs-subset:
+  - Card in **all** children → parent Side A stripe only; membership anchors per variant for deck-filter (not rendered)
   - Card in **subset**, stripes-style → child Side B stripe per matching variant
   - Card in **subset**, dots-style, exactly 1 variant → dot in that variant's color
   - Card in **subset**, dots-style, 2+ variants → dot conflict; membership anchors only, parent stripe only
-- **Stripe starting corner** — global preference controlling which card corner stripes originate from. Pure presentation: slot numbers never change on corner change; the rendering layer (`cornerToConfig` in card-preview.js and friends) maps slot → physical location using the preference, so Slot 1 always renders at the chosen corner. No prism data is mutated or synced. If any prism has `markedCards`, Apply shows a native `confirm()` warning that physical sleeve marks won't move.
-- **markedCards** tracks which copies the user has physically marked. Three key shapes (#151): plain `<name>` for single-batch cards, `<name>|#b|<sorted deck ids>|<copy count>` per batch of a multi-batch card, and `<name>|<deck name>` for one-mark-at-a-time pass rows. `isCardDone` in `core/utils.js` is the single done gate (plain key for single-batch only; every batch key for multi-batch — legacy plain marks on multi-batch cards deliberately present as undone; every pass key via `passKeysForCard`). Participant/size changes re-key batches so Done retires with no invalidation code; dead keys are never pruned so reverted edits resurrect their marks.
-- **removedCards** tracks cards removed from decks that still need physical marks cleared. Rows carry `previousQuantity`/`newQuantity` — a quantity decrease is a removal of copies (full removal = `newQuantity` 0). Writers upsert by `(cardName, deckId)` via `trackRemovedCard` in `deck-list.js`; `autoClearRemovedCards` only clears once quantity is fully restored; `mergeRemovedCards` keeps `max(previousQuantity)` with the latest row. A card back in the deck it left, at the slot and color its row recorded, is `clearReturnedRemovals` (swap.js): that mark is still painted, so the row clears and `unmarkCardsWithNewStripes` doesn't un-mark the card for it (#307). Plain Swaps and deck edits use it; a Sleeve swap doesn't, since the incoming card goes into another sleeve.
-- **syncState** is local-only metadata used for Supabase merge reconciliation; it is not part of the PRISM domain model. Baseline shape per prism: `{ updatedAt, deckUpdatedAts, splitGroupUpdatedAts, deletedDecks, deletedSplitGroups, unmarkedCards: { [cardKey]: isoTimestamp } }`
+- **Stripe starting corner** — global preference, pure presentation: slot numbers never change; render layer (`cornerToConfig` in card-preview.js and friends) maps slot → physical location, so Slot 1 always renders at chosen corner. No prism data mutated or synced. If any prism has `markedCards`, Apply shows native `confirm()` warning physical marks won't move.
+- **markedCards** — copies user physically marked. Three key shapes (#151): plain `<name>` for single-batch cards, `<name>|#b|<sorted deck ids>|<copy count>` per batch of multi-batch card, `<name>|<deck name>` for one-mark-at-a-time pass rows. `isCardDone` in `core/utils.js` is sole done gate (plain key for single-batch only; every batch key for multi-batch — legacy plain marks on multi-batch cards deliberately read undone; every pass key via `passKeysForCard`). Participant/size changes re-key batches so Done retires with no invalidation code; dead keys never pruned, so reverted edits resurrect marks.
+- **removedCards** — cards removed from decks whose physical marks still need clearing. Rows carry `previousQuantity`/`newQuantity` — quantity decrease = removal of copies (full removal = `newQuantity` 0). Writers upsert by `(cardName, deckId)` via `trackRemovedCard` in `deck-list.js`; `autoClearRemovedCards` clears only once quantity fully restored; `mergeRemovedCards` keeps `max(previousQuantity)` with latest row. Card back in deck it left, at slot and color its row recorded, is `clearReturnedRemovals` (swap.js): mark still painted, so row clears and `unmarkCardsWithNewStripes` doesn't un-mark it (#307). Plain Swaps and deck edits use it; Sleeve swap doesn't (incoming card goes in another sleeve).
+- **syncState** — local-only merge metadata, not domain model. See `docs/agents/sync.md`.
 
 ### Card Processing
 
-`processCards(prism)` deduplicates cards across all decks and assigns stripe indicators. Card names are canonicalized via Scryfall API before storage. Child variant marks for split groups are emitted in a **post-loop pass** — the main loop only emits the group's Side A stripe. The post-loop determines shared vs subset membership for the full group before emitting any child marks (see split styles above). `markType` values: `'stripe'` (rendered Side B stripe), `'dot'` (rendered dot), `'membership'` (not rendered; carries `deckId` for deck-filter matching). `dotIndex` is not stored — renderers compute local dot order from the stripes array at render time. Results table and printable guide both use ö-style rendering (dot row above the stripe square).
+`processCards(prism)` dedupes cards across decks, assigns stripe indicators. Names canonicalized via Scryfall before storage. Split-group child marks emitted in **post-loop pass** — main loop emits only group's Side A stripe; post-loop decides shared vs subset over whole group first (see split styles). `markType`: `'stripe'` (rendered Side B stripe), `'dot'` (rendered dot), `'membership'` (not rendered; carries `deckId` for deck-filter). `dotIndex` not stored — renderers compute dot order from stripes array. Results table and printable guide both use ö-style rendering (dot row above stripe square).
 
-**Marking batches (#146)** — every ProcessedCard carries `batches`: quantity-tier thresholds over the distinct per-deck quantities, each batch `{ copyCount: ti−t(i−1), participantIds (sorted), key, logicalDeckCount, isPool, isDedicated?, stripes }`. Batch marks are **re-derived from the exact participant set** (`marksForParticipants`), never filtered from the card's stripes — `processCards` decides shared-vs-subset over the whole group, so an A5/B2 group emits no child indicator while the 5-tier batch needs one. `totalQuantity` = Σ batch copyCounts (dedicated batches + max across remaining participants; plain max when dedication is off). Results renders multi-batch cards as expandable sub-rows with a derived, non-clickable parent roll-up checkbox; the parent never shows the mark union (over-marking trap). SCRY consumes the flattened `state.resultsView` snapshot — one screen per batch, stating its copy count. "One Mark at a Time" (internal filter value still `basics-by-deck`) is the per-mark projection of batches over every repeated card.
+**Marking batches (#146)** — every ProcessedCard carries `batches`: quantity-tier thresholds over distinct per-deck quantities, each `{ copyCount: ti−t(i−1), participantIds (sorted), key, logicalDeckCount, isPool, isDedicated?, stripes }`. Batch marks **re-derived from exact participant set** (`marksForParticipants`), never filtered from card's stripes — `processCards` decides shared-vs-subset over whole group, so an A5/B2 group emits no child indicator while the 5-tier batch needs one. `totalQuantity` = Σ batch copyCounts (dedicated batches + max across remaining participants; plain max when dedication off). Results renders multi-batch cards as expandable sub-rows with derived, non-clickable parent roll-up checkbox; parent never shows mark union (over-marking trap). SCRY consumes flattened `state.resultsView` snapshot — one screen per batch, stating copy count. "One Mark at a Time" (internal filter value still `basics-by-deck`) = per-mark projection of batches over every repeated card.
 
 ### Display Counts
 
-Pool/core classification belongs to **batches**, not card names (#146): a pool batch participates in 2+ logical decks, a core batch in exactly one; dedicated batches are core by construction.
+Pool/core belongs to **batches**, not card names (#146): pool batch spans 2+ logical decks, core batch exactly one; dedicated batches core by construction.
 
-- **Decks tab** — Each deck card shows **pool**/**core** counts: Σ copyCount of the pool/core batches the deck participates in (`getDeckPoolCoreCounts()` in `deck-list.js`). Per-deck pool + core equals the deck's trusted decklist quantity per card; per-deck counts are intentionally not additive across decks.
-- **Results tab** — Stats cards show **Total Cards** (Σ `totalQuantity`) and **Pool Cards** (Σ of pool-batch quantities). The Marked progress counts copies: full `totalQuantity` for done cards plus copyCounts of done batches on partially-done cards. Turning dedication on drains commanders out of the pool (Total rises, Pool drops) — correct, not a bug.
+- **Decks tab** — each deck card shows **pool**/**core**: Σ copyCount of pool/core batches deck participates in (`getDeckPoolCoreCounts()` in `deck-list.js`). Per-deck pool + core = deck's decklist quantity per card; not additive across decks.
+- **Results tab** — **Total Cards** (Σ `totalQuantity`), **Pool Cards** (Σ pool-batch quantities). Marked progress counts copies: full `totalQuantity` for done cards + copyCounts of done batches on partially-done cards. Dedication on drains commanders from pool (Total rises, Pool drops) — correct, not a bug.
 
 ### Logical vs Physical Deck Count
 
-`processCards()` returns two count fields per card:
-- `deckCount` — raw count of individual deck IDs (includes each split variant separately). Used for sorting and display of "N decks" in the Stripes column.
-- `logicalDeckCount` — standalone decks + split groups, where all variants of the same split group count as 1. Used for all pool/shared/core classification. A card shared only among variants of the same split group has `logicalDeckCount: 1` and is treated as **core**, not pool.
+`processCards()` returns per card:
+- `deckCount` — raw count of deck IDs (each split variant separately). Sorting and "N decks" in Stripes column.
+- `logicalDeckCount` — standalone decks + split groups (all variants of a group count 1). All pool/shared/core classification. Card shared only among one group's variants has `logicalDeckCount: 1` → **core**, not pool.
 
 ### Split Position Assignment
 
-`getNextVariantPosition(prism)` scans slots 48→25 (Side B, far end) then 1→24 (Side A) and returns the first unused position. Returns **`null`** — not a fallback index — when all 48 slots are occupied.
-
-`splitDeck` and `addSplitToGroup` check for `null` and **throw** before mutating any deck or assigning any `stripePosition`/`sideAPosition`. Callers in `deck-list.js` (`handleSplitConfirm`, `handleAddSplit`) wrap these in try/catch and surface the error via `showError`, leaving `state.currentPrism` unchanged.
+`getNextVariantPosition(prism)` scans 48→25 (Side B, far end) then 1→24 (Side A), returns first unused. Returns **`null`** — not fallback index — when all 48 occupied. `splitDeck` and `addSplitToGroup` check `null` and **throw** before mutating any deck or assigning `stripePosition`/`sideAPosition`. Callers in `deck-list.js` (`handleSplitConfirm`, `handleAddSplit`) try/catch → `showError`, `state.currentPrism` unchanged.
 
 ## Common Debugging
 
 ### Web Awesome Components
 
-- Components load from CDN (`kit.webawesome.com`). The `wa-menu` and `wa-menu-item` components sometimes fail to autoload — this is a known CDN issue, not our bug.
-- Web Awesome inputs store values in shadow DOM. Use `element.shadowRoot?.querySelector('input')?.value` as fallback when `.value` is empty.
-- `<wa-page mobile-breakpoint="768">` controls layout. Desktop shows sidebar nav; mobile shows hamburger.
-- FOUC prevention: all HTML pages include `<style>wa-page:not(:defined){visibility:hidden}</style>`.
-- **Dialog open/close:** Use `dialog.setAttribute('open', '')` / `dialog.removeAttribute('open')` — NOT `dialog.open = true/false`. The property setter only works after WA upgrades the element; the attribute is observed via `attributeChangedCallback` and works before upgrade too.
-- **`<wa-button href>` navigation:** WA button href-navigation only works after the element is upgraded. Add a `click` listener fallback (`window.location.href = ...`) for any nav `<wa-button href>` that must work immediately on page load.
-
-### Auth Double-Init
-
-`initAuth()` caches its async body as `authInitPromise`. Both `layout.js` and page scripts can call it safely and will await the same Promise — including the initial `syncWithSupabase()` — so cloud merge always completes before any caller proceeds. `setupAuthListeners()` is separate and handles UI updates. It calls `updateAuthUI(currentUser)` at the end so the nav reflects auth state immediately, since `INITIAL_SESSION` from Supabase can fire before listeners are registered when the session is already in memory.
-
-If the Supabase CDN hasn't loaded when `initAuth()` runs, it awaits the script's `load` event (5s timeout fallback). If `getSupabase()` still returns null after the wait (CDN error/timeout), `authInitPromise` is reset to `null` so callers can retry — without this reset, a resolved-null promise would permanently block re-initialization.
-
-### Supabase Card Sync
-
-`savePrismToSupabase()` replaces all cards for each deck via the `replace_deck_cards(p_deck_id, p_cards, p_created_at)` RPC defined in `supabase-schema.sql`. The RPC runs DELETE + INSERT in a single transaction, preventing a partial-failure window where a deck could be left with no cards. Pass an empty array to clear cards safely. Uses `SECURITY INVOKER` so existing RLS on `deck_cards` applies — users cannot replace cards in decks they don't own. Run `supabase-schema.sql` in the Supabase SQL editor after any schema changes.
-
-The deck-card loop uses **continue-on-error**: a failing RPC for one deck is logged but does not abort the loop. All decks are attempted. If any deck failed, `savePrismToSupabase` returns `false` so `recordPrismBaseline` is not called and the next debounced save retries.
-
-**No `updated_at` triggers on `prisms` or `decks`.** The client always supplies `updated_at` on upsert. A server-side trigger that overwrites it with `now()` (server clock) causes clock-skew bugs: `cloud.updated_at` ends up ahead of `local.updatedAt`, so `mergeEntityCollection` in `syncPrismToSupabase` silently picks the stale cloud deck and reverts user edits on the next page load. The schema includes an idempotent `BEGIN/COMMIT` migration block to drop those triggers on existing deployments.
-
-### Merge Conflict Resolution
-
-`mergeEntityCollection` handles three cases per entity ID:
-- **Both local and cloud present:** if `local.updatedAt > baseline.updatedAt` for that entity, local wins (user edited since last sync — guards against server-clock-ahead skew). Otherwise, `pickNewerEntity` compares timestamps.
-- **Local only:** kept if `local.updatedAt > baseline.updatedAt`, otherwise treated as deleted on another device.
-- **Cloud only:** kept unless locally deleted after the cloud's `updatedAt`.
-
-**markedCards tombstones:** `mergeMarkedCards(local, cloud, unmarkedTombstones, baselineUpdatedAt)` starts from the union of local+cloud marks, then removes any key whose tombstone timestamp is strictly greater than `baselineUpdatedAt`. `recordPrismBaseline` prunes tombstones with `unmarkedAt <= newBaseline.updatedAt` after each successful sync (they've been baked in). `recordUnmarkedCards(prismId, cardKeys)` writes the tombstones; call it immediately before `savePrism()` whenever cards are removed from `markedCards` — in `handleMarkToggle` (un-check), `unmarkSharedCards` (new deck shares a card), and `unmarkCardsWithNewStripes` (deck edit adds stripes). `unmarkSharedCards` and `unmarkCardsWithNewStripes` now return the array of removed keys (was: count); callers compute `.length` for the success message.
-
-### Circular Dependencies
-
-Feature modules have circular imports. This is safe because:
-
-1. ES module `export function` declarations are hoisted during evaluation
-2. All cross-module function calls happen at runtime (user interactions), never at import time
-3. By the time any function runs, all modules have fully evaluated
+- `wa-menu`/`wa-menu-item` sometimes fail to autoload from `kit.webawesome.com` — known CDN issue, not ours.
+- WA inputs hold values in shadow DOM. Fallback when `.value` empty: `element.shadowRoot?.querySelector('input')?.value`.
+- FOUC prevention: every page includes `<style>wa-page:not(:defined){visibility:hidden}</style>`.
+- **Dialog open/close:** `dialog.setAttribute('open', '')` / `dialog.removeAttribute('open')`. Property setter works only after WA upgrades element; attribute observed via `attributeChangedCallback`, works before upgrade. Lint enforces. `<wa-details>` accordions still use `.open` property.
+- **`<wa-button href>` navigation** works only after upgrade. Add `click` fallback (`window.location.href = ...`) for nav `<wa-button href>` that must work at page load.
 
 ### Scryfall Rate Limiting
 
-`scryfall.js` implements 500ms delay between requests (every chained request is `/cards/named` or `/cards/collection`, which Scryfall limits to 2/s — #279), localStorage cache with 24h TTL, and request queuing. The 500ms spacing is enforced by **one shared promise chain** (`rateLimit()`) that every request path awaits — the single-name GET queue, the fuzzy fallback, and the batched `/cards/collection` POSTs of `canonicalizeCards` and `getCardAttributes`. All of them go through `scryfallFetch`, which also owns the 429 lockout. A shared mutable timestamp is not enough: two loops read it, sleep to the same deadline and fire in the same tick (#194). `/cards/collection` is a batched POST and deliberately does not go through `requestQueue`, whose entries are single-name GETs — gate it, don't queue it. `canonicalizeCards()` corrects card name spelling/capitalization. Fuzzy fallback (on 404) is also rate-limited. A 429 is never retried (#280): Scryfall locks the client out for 30 s, so `scryfallFetch` fails that request and every request in the next 30 s without fetching. `canonicalizeCards` leaves names as they are; `getCardAttributes` and `fetchCard` throw. Entries with null `image_uri` are not cached (prevents 24h cache poisoning from transient errors). `card-preview.js` strips DFC back-face names before lookup and dual-caches under both the front-face and full Oracle name.
+`scryfall.js`: 500ms between requests (every chained request is `/cards/named` or `/cards/collection`, limited 2/s — #279), localStorage cache 24h TTL, request queue. Spacing enforced by **one shared promise chain** (`rateLimit()`) every path awaits — single-name GET queue, fuzzy fallback (on 404), batched `/cards/collection` POSTs of `canonicalizeCards` and `getCardAttributes`. All go through `scryfallFetch`, which owns 429 lockout. Shared mutable timestamp not enough: two loops read it, sleep to same deadline, fire same tick (#194). `/cards/collection` is batched POST, deliberately not in `requestQueue` (single-name GETs) — gate it, don't queue it. `canonicalizeCards()` fixes name spelling/capitalization. 429 never retried (#280): Scryfall locks client out 30 s, so `scryfallFetch` fails that request and every request in next 30 s without fetching; `canonicalizeCards` leaves names as-is, `getCardAttributes` and `fetchCard` throw. Null `image_uri` entries not cached (prevents 24h cache poisoning). `card-preview.js` strips DFC back-face names before lookup, dual-caches under front-face and full Oracle name.
 
 ### Edge Function Proxies
 
-Moxfield and Archidekt APIs don't allow direct browser requests (CORS). Edge functions at `/api/moxfield-edge` and `/api/archidekt-edge` act as POST proxies. They validate input format and forward to the upstream API.
-
-### Billing (Stripe)
-
-The paid tier is a **Membership**: $3/mo or $30/yr USD for cloud sync, up to 25 cloud PRISMs, the Extras and a Discord role, on Stripe or Patreon at identical prices. The gating model is **decided and written down** — `PRODUCT.md` (the policy and its brand rules), `CONTEXT.md` (Membership / Member / Extras / Founder / Lapse), `docs/adr/0002-membership-gates-sync-not-deck-count.md` (why sync and not deck count), and `docs/runbooks/enforcement-cutover.md` (the flip).
-
-**Cloud sync is the paid line; there is no deck or slot cap.** Anonymous local-only use stays fully functional forever. Enforcement gates INSERT on `prisms` and `decks` only and **never** gates reads or edits — see "Gate adding, never access" in `PRODUCT.md`. Entitlement reads fail open.
-
-**Enforcement is on** (flipped 2026-09-25, #268). `payment_enforcement` in `app_config` is `true` in production; the schema default is still `false`, so a fresh deployment starts dark. The entitlement machinery — the `founders` table, the `is_entitled()` predicate, and the predicate on the INSERT policies for `prisms` and `decks` — lives in `supabase-schema.sql` as idempotent migration blocks. `is_entitled()` folds the enforcement flag in and short-circuits `true` for everyone while the flag is `false`. Every real account that existed at the flip is a Founder (the non-Founder test account is deliberately unstamped); accounts created after it are free until they join or claim a backer entry (#240). Rollback is setting the row back to `false`.
-
-- **Tables** (supabase-schema.sql): `stripe_customers`, `subscriptions` (one row per user; `updated_at` = Stripe event `created` so out-of-order webhook deliveries never overwrite newer state), `processed_stripe_events` (idempotency — dedupe redelivered event ids), `app_config` (publicly readable; `payment_enforcement` row defaults to `false` — flipped to `true` in production on 2026-09-25), `founders` (one row per Founder; a Founder is never derived from `auth.users.created_at`, and the flag cannot live on `subscriptions`, which is webhook-owned and would revert it).
-- **RLS**: users SELECT their own `stripe_customers`/`subscriptions` row only; no client write policies. All writes happen in edge functions via `SUPABASE_SERVICE_ROLE_KEY` (bypasses RLS). `processed_stripe_events` and `founders` have RLS enabled and zero policies — service role and `SECURITY DEFINER` only. `is_entitled()` is `STABLE SECURITY DEFINER` with `search_path` pinned to `public, pg_temp`, execute revoked from `public` **and** from `anon` (Supabase grants public-schema functions to `anon` directly, so the `public` revoke alone leaves it callable unauthenticated — #231) and granted to `authenticated`.
-- **Edge functions** (Netlify, Deno): `/api/stripe-checkout` verifies the Supabase access token, reuses/creates a Stripe customer, returns a Checkout session URL. `/api/stripe-portal` does the same token check, then returns a `billing_portal` session URL for the caller's existing Stripe customer — it never creates one (404 if there is no `stripe_customers` row; Patreon members manage their pledge on Patreon). `/api/stripe-webhook` verifies the Stripe signature on the raw body first (fail → 400 + log), dedupes on event id, handles `checkout.session.completed`, `customer.subscription.updated/deleted/paused/resumed` (all four through `subscriptionRow`; `paused` is not entitled), `invoice.payment_failed`, and records the event id only after successful processing (failures return 500 so Stripe retries). Subscription upserts are insert-if-missing + update-only-if-older (`updated_at=lt.` filter).
-- **Env vars** (Netlify dashboard only, never in code; Production deploy context, Functions scope): `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRICE_ID`, `STRIPE_ANNUAL_PRICE_ID` (optional; unset = yearly checkout answers 503), `STRIPE_PORTAL_CONFIGURATION_ID` (optional `bpc_...`; unset = account default portal config), `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`. Production uses the business Stripe account's live keys (#253). `scripts/setup-stripe-netlify.sh` walks the whole setup and probes the webhook; each function logs the names of any missing vars (`missingEnv` in `lib/stripe-helpers.js`).
-- **Client** (`js/modules/billing.js`): `isPaymentEnforced()` (reads `app_config`, defaults false on any error), `getSubscription()`, `isEntitled()`/`clearEntitlementCache()` (the single source-blind entitlement read — calls the `is_entitled()` RPC, fails open, cached per page and cleared on every auth change), `startCheckout()`/`openBillingPortal()` (both thin wrappers over one `redirectToStripe` POST). Profile page has a Membership section, hidden unless the enforcement flag is on or `PRISM_DEBUG` is set. Reader-facing strings say Membership/Member/join; **code names do not follow** — `subscriptions`, `getSubscription()`, `#btn-subscribe` stay, on the `Slot`/`stripePosition` precedent.
-- Pure helpers (`safeReturnPath`, `subscriptionRow`, `missingEnv`) are unit-tested in `tests/stripe-billing.test.js` — both edge modules keep Deno/network access inside functions so Node can import them.
+Moxfield and Archidekt block browser requests (CORS). `/api/moxfield-edge` and `/api/archidekt-edge` are POST proxies: validate input format, forward upstream.
 
 ## Development
 
@@ -246,56 +132,36 @@ The paid tier is a **Membership**: $3/mo or $30/yr USD for cloud sync, up to 25 
 # Dev server (defined in .claude/launch.json)
 npx http-server -p 3456
 
+# Checks (CI runs all three; test:sql needs docker)
+npm run lint && npm test && npm run test:sql
+
 # No build step — edit files and reload
 # All JS is ES modules loaded directly by the browser
 ```
 
-Preview viewport should be 1280px+ wide to see the desktop layout (sidebar nav). Below 768px triggers mobile layout.
+Preview viewport 1280px+ for desktop layout (sidebar nav); below 768px = mobile.
 
 ## Conventions
 
-- Use `state.elements.xxx` for cached DOM refs, never re-query by ID in hot paths
-- Use `state.currentPrism` instead of a local variable — it's the single source of truth
-- `renderAll()` is the safe way to re-render everything after state changes
+- `state.elements.xxx` for cached DOM refs; never re-query by ID in hot paths
+- `state.currentPrism`, not a local variable — single source of truth
+- `renderAll()` = safe full re-render after state changes
 - `savePrism(state.currentPrism)` persists to localStorage after mutations
-- When removing cards from `markedCards`, call `recordUnmarkedCards(prismId, keys)` **before** `savePrism()` to record tombstones that survive the next cloud merge
-- Feature modules import from `../core/`, `../modules/`, and sibling `./` files
-- Developer trace logs go through `debugLog(...)` (core/utils.js), which no-ops unless the `PRISM_DEBUG` localStorage flag is set — do not use bare `console.log("PRISM: ...")`. Genuine `console.error`/`console.warn` are left ungated
-- `app_logs` rows expire after 30 days (#214). `prune_app_logs(p_retain_days DEFAULT 30)` in `supabase-schema.sql` is scheduled nightly by `pg_cron` as the `prune-app-logs` job, and EXECUTE is revoked from `anon` and `authenticated` — nothing in the client calls it. Do not put anything in `app_logs` that has to outlive a month; `logToSupabase` writes only and nothing reads it back
-- Dialogs (`<wa-dialog>`) are opened/closed with `setAttribute('open','')` / `removeAttribute('open')`, never `dialog.open = true/false` (see Common Debugging). `<wa-details>` accordions still use the `.open` property
-- URL deck imports (add + edit) share `resolveDeckSource(urlOrId)` in deck-import.js for Moxfield/Archidekt detection — extend that one helper rather than duplicating detection logic
-- First-run onboarding callout on build.html persists its dismissal in the `prism_onboarding_dismissed` localStorage flag
-- Share cards: every indexable page carries Open Graph + Twitter tags and a `rel="canonical"`, anchored on `https://prismmtg.com` (absolute, because a scraper resolves relative paths against itself). One image serves them all, `assets/og-card.png`, rebuilt by `node scripts/build-og-card.mjs` — it composes the card from vector paths only (the outlined logo + `DEFAULT_COLORS`) because adobe-aldine and halyard-micro are Typekit fonts and would not resolve in a rasterizer. `mpc-stripes.html` is deliberately excluded; it is `noindex,nofollow`. Add the block to any new page
-- Supabase Auth emails (#341): the six templates live in `docs/email-templates/`, generated from one layout by `node scripts/build-email-templates.mjs` (inline styles, table layout, Georgia/system-sans fallbacks, `{{ .Var }}` kept verbatim; `tests/email-templates.test.js` fails when they're stale). They're pasted into the Supabase dashboard by hand, and Auth sends through Resend SMTP; `scripts/setup-auth-email.sh` walks both. Edit the generator, never the HTML
-- `sitemap.xml` and `robots.txt` sit at the publish root. The sitemap is generated by `node scripts/build-sitemap.mjs`, which globs root `*.html`, drops anything carrying a `noindex` robots meta, and drops `profile.html` (an account stub with nothing to rank, though it keeps its share tags). `<loc>` only: Google ignores `changefreq`/`priority`, and a `lastmod` written once and never regenerated is worse than none. Regenerate after adding a page. `robots.txt` does **not** `Disallow` the noindexed page — a disallowed URL is never fetched, so its `noindex` is never read
-- Loading skeletons (`<wa-skeleton effect="pulse">`): the nav account section renders `#auth-loading` (sized via `hasStoredSession()` — one bar logged-out, two bars logged-in) hidden by `updateAuthUI`; build.html ships static skeleton markup in `#decks-list`/`#results-tbody` destroyed by the first render; profile.html has `#profile-loading` hidden by `handleAuthChange`. Skeleton CSS lives in custom.css (`.skeleton-*`, `.nav-auth-skeleton*`). Skeletons only cover the post-`wa-cloak` wait (auth/sync) — anything under the cloak is invisible
-- 22 paint pen colors in `DEFAULT_COLORS` (processor.js) — matched to real products
-- Bracket values 1–5 represent Commander power level
-- `formatSlotLabel(position, side?)` renders "Side A - Slot 1" style labels
-- Stripe display settings (starting corner, position numbers) live in the global settings drawer injected by `layout.js`; the per-PRISM "Dedicated commander copies" `wa-switch` lives on the Decks tab (per-PRISM synced data does not belong in the global drawer)
-- The Stripe Positions reorder card was removed from the Decks tab — use the Move button (⊕) on each deck card to open the visual slot-picker dialog, or use the Export tab's dropdown list for bulk reordering
-- `build.html` has a sync status indicator (`#sync-status`) and a Sync Now button (`#btn-sync-now`) near the PRISM name; both are hidden until the user is logged in. `setupSyncStatus()` in `init.js` wires these to `onSyncStatusChange` / `forceSyncCurrentPrism` from `storage.js`. Storage exports: `onSyncStatusChange(cb)` (returns unsubscribe fn), `forceSyncCurrentPrism()`, `recordUnmarkedCards(prismId, keys)`
-- The paused-sync notice (`#sync-paused-notice` on build.html, the profile Subscription caption) is shown only when writes are paused **and** a last-sync date exists — with no cloud copy there is no sync to pause, and the notice would claim one. Its dated sentence has one source, `pausedSyncDetail()` in `core/utils.js`; the wording is fixed by CONTEXT.md (*paused*, never frozen or locked, always dated). `renderAll()` re-renders it because the date is per-PRISM
-
-### Gallery
-
-`gallery.html` + `js/gallery.js` — community artwork gallery (proxies/tokens/showcase). One page, query-param views: grid (default), `?art=<id>` detail, `?artist=<id>` artist page, `?view=upload|uploads|admin`. Tables `gallery_artists`, `gallery_artworks`, `gallery_likes`, `gallery_admins` in `supabase-schema.sql` (GALLERY section):
-
-- **Public reads** (approved artworks + artists) use plain PostgREST `fetch` with the anon key (`SUPABASE_URL`/`SUPABASE_ANON_KEY` exported from supabase-client.js) so anonymous visitors never load the SDK. Authed actions (likes, uploads, moderation) use the SDK.
-- **Admin role** = row in `gallery_admins`; `is_gallery_admin()` (SECURITY DEFINER) is used in RLS policies and callable via RPC to gate the admin UI. Add admins with `INSERT INTO gallery_admins (user_id) VALUES ('<uuid>')`.
-- **Moderation**: uploads INSERT as `pending` only (RLS WITH CHECK blocks self-approve/highlight/store_url/artist_id). Admins approve/reject via UPDATE; owners may resubmit `rejected → pending` and delete own pending/rejected rows. Admins delete any artwork, any status (#344), from the detail view, the queue rows and the edit view (the only one that reaches rejected uploads) via `confirmDeleteArtwork` — a `wa-dialog` confirm, then the row delete (`.select()` so an RLS-filtered zero-row delete reads as a failure) and a best-effort image remove; no schema change. Admins delete an **Attribution** (never a claimed Artist) from the Artists tab via `confirmDeleteArtist` (#347): the dialog states how many artworks lose their link (`artist_id` → `SET NULL`; claims, contacts and commission sends cascade); no schema change.
-- **Editing** (`?view=edit&art=<id>`): owners edit metadata (title/type/card/description/AI flag/display name) via the `update_own_gallery_artwork` SECURITY DEFINER RPC — a plain owner-UPDATE policy can't work because RLS WITH CHECK can't compare OLD vs NEW (it would allow self-approval). Approved artwork stays live after an owner edit; image replacement is not supported (withdraw + re-upload). Admins edit everything (incl. status/highlight/store URL, post-approval) via direct UPDATE under the existing admin policy. The upload and edit forms share `artworkFieldsHtml`/`wireCardAutocomplete`/`readArtworkFields` in gallery.js.
-- **Attribution**: `artist_name` is a public display name — never an email. The upload/edit forms require it, reject email-shaped values, and prefill from the `prism_gallery_artist_name` localStorage key (falling back to the email's local part). The schema includes an idempotent migration masking legacy email values at the `@`.
-- **Artist claims** (#323): "Claim this artist page" on an Attribution's page (a `gallery_artists` row with `user_id` null) inserts a pending `gallery_artist_claims` row (RLS: own, pending, Attribution only; one pending per user per artist). One account owns at most one Artist (partial unique index `gallery_artists_one_per_user`; approve raises 23505 for a claimant who already owns one). The admin view's Claims tab uses `list_gallery_artist_claims` / `approve_gallery_artist_claim` / `reject_gallery_artist_claim` (admin-only SECURITY DEFINER). Approve sets `gallery_artists.user_id` on the same row, rejects rival claims and seeds `gallery_artist_contacts.commission_email` (private: owner + admins only, since `gallery_artists` is public). The approval lives in `approve_gallery_artist_claim_core(claim, reviewer)` (no client EXECUTE); the admin RPC is an admin check + the core. **Automatic approval** (#331): the `gallery_artist_claims_auto_approve` AFTER INSERT trigger runs the core (reviewer NULL) when the artist's private `gallery_artist_contacts.invited_email` equals the claimant's confirmed `auth.users.email` (trimmed, case-insensitive); a 23505 leaves the claim pending, never fails the insert. **On invite acceptance** (#338): the `gallery_claim_invited_artist_on_confirm` AFTER UPDATE trigger on `auth.users` (fires on any first confirmation, `email_confirmed_at` NULL → set) inserts the claim on each unclaimed page whose `invited_email` matches, so the auto-approve trigger makes the invitee the Artist with no click (one invited email on several pages: the first is approved, the rest wait for an admin, unnotified); any error is a `WARNING`, never a failed confirmation. **On saving an invited email** (#340): the `gallery_claim_invited_artist_on_save` AFTER INSERT/UPDATE OF `invited_email` trigger on `gallery_artist_contacts` files the same claim for an already-confirmed account at that email (which will never confirm again), or approves that account's pending hand-filed claim when the insert finds one; same never-fail `WARNING` rule. The "Claim this artist page" handler re-reads the claim and reloads the page when it came back approved. RLS script: `tests/gallery-artists.sql`.
-- **Auto-link**: uploads can't set `artist_id`, so the `gallery_artworks_link_on_approve` trigger sets it when status moves to `approved` — to the uploader's own Artist row, only if `gallery_credit_matches(artist_name, artist.name)` (blank or same name, case/space-insensitive). Work credited to someone else stays an Attribution; an admin's later unlink sticks. Claim approval applies the same rule to the claimant's earlier uploads. **Add to my page** (#339) in My uploads is the explicit fallback: `add_own_artwork_to_artist_page(id)` (SECURITY DEFINER, 42501 unless the caller owns both the upload and an artist page) sets `artist_id` and rewrites the credit to the page name, any status, even after an admin unlink. The upload form prefills an Artist's display name with their page's name.
-- **Artist page editor** (#324, `?view=edit-artist`): reader-facing strings say *artist page*, never *profile* — **Profile** is `profile.html` (#345; code names like `edit-artist`/`renderEditArtist` keep their names). `profile.html` shows an **Artist page** section (View/Edit links, from an anon-key read of `gallery_artists` by `user_id`) only when the account owns one; a failed lookup leaves it hidden. The editor links back to Profile for account settings. The owning Artist edits bio/links/avatar and commission settings (public `commissions_open`/`commission_note` on `gallery_artists`, private email in `gallery_artist_contacts`) via the `update_own_gallery_artist` SECURITY DEFINER RPC — not an owner-UPDATE policy, for the same OLD-vs-NEW reason (it would let them set `is_partner`/`user_id`). Live without review; a blank email keeps the stored one; opening without any email is refused; avatar and every link `href` must be `https://` (23514). Admins edit artists via the existing admin policy (no UI).
-- **Admin Artists tab** (#330): the admin view's Artists tab lists every artist page. **Add artist** (`?view=admin-artist`) POSTs to `/api/gallery-artist` (`gallery-artist-edge.ts`: bearer → `/auth/v1/user` → `is_gallery_admin` as the caller → validate → service-role insert → with an optional `email` (#332), a contacts row with `invited_email` + `commission_email` and a service-role `POST /auth/v1/invite?redirect_to=<SITE_URL>/gallery.html?artist=<id>`; returns `{ artistId, url, invite: 'sent'|'linked'|'owns_another'|'existing_account'|'failed'|'email_not_saved'|'none' }` (`email_not_saved` = the contacts row failed, so no invite and no Resend; `linked`/`owns_another` = the #340 trigger claimed the page for an existing confirmed account, read back through the service-role-only `gallery_invited_claim_outcome(artist)` before inviting (`owns_another` only for the invitee's own pending claim while they own another page) — no invite sent; a failed check is `failed`, never a blind invite; `existing_account` is then an unconfirmed one), always keeping the artist row, never echoing the address). `{ artistId, resend: true }` re-sends to the stored `invited_email` (404 unknown, 409 claimed/never invited) — the **Resend invite** button on unclaimed invited artists. **Invite landing**: `auth.js` reads `type=recovery|invite` from the hash at import (the SDK clears it during start-up) and opens the auth dialog's set-new-password view before the initial sync; **Edit** (`?view=admin-artist&id=`) is a direct UPDATE under the admin policy. Link icons come from `linkIcon(href)` in `js/modules/gallery-links.js`, shared by client and edge; the edge function imports it cross-tree on purpose, because `/netlify/*` is 404'd on the site and the browser couldn't load it from `netlify/edge-functions/lib/`. Handler tests: `tests/gallery-artist.test.js`.
-- **Alter Alley** (#322): `type = 'alter'` (a photo of a hand-painted real card); `?type=alter` is its URL. Alters are display-only by default: no download button, out of sort-by-downloads, and `ALTER_LICENSE_HTML` (display only, commission the artist) instead of the personal-use line. The uploader can turn `gallery_artworks.downloads_enabled` on (#342; upload insert, or the 9-argument `update_own_gallery_artwork` with `p_downloads_enabled` — the 8-argument original is kept until the #342 client is live, so the rollout is schema-first; admins by direct UPDATE), and the Alter then behaves like other artwork (`isDownloadable` in gallery.js). `increment_gallery_download` refuses display-only Alters. Commission this artist shows either way.
-- **Commission relay** (#325): the form on an Artist's page (commissions open) POSTs to `/api/commission` (`commission-edge.ts`) with a Turnstile token; `TURNSTILE_SITE_KEY` is a constant in gallery.js. Env vars `RESEND_API_KEY`, `TURNSTILE_SECRET_KEY`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`; setup wizard `scripts/setup-commission-relay.sh`. No response body ever carries either address. Handler tests: `tests/commission-relay.test.js`.
-- **Review notifications** (#333): after an upload or claim insert, gallery.js fires `notifyReviewers(kind, id)` (fire-and-forget, client-generated ids) at `/api/gallery-notify` (`gallery-notify-edge.ts`). It emails every `gallery_admins` account once per item via Resend (`RESEND_API_KEY`, from `gallery@relay.prismmtg.com`) only if the item is the caller's, pending and ≤ 10 min old; every refusal is a bare 204. Dedupe ledger `gallery_review_notices` (PK `(kind, item_id)`, service role only), written after Resend accepts. Handler tests: `tests/gallery-notify.test.js`.
-- **Likes**: one row per user per artwork; `likes_count` on artworks is trigger-maintained (SECURITY DEFINER) so most-liked sorting never aggregates. `increment_gallery_download` RPC (authenticated) bumps download counts.
-- **Storage**: single public bucket `gallery-art`, paths `<uid>/<uuid>.<ext>` (10 MB, png/jpg/webp). No SELECT policy on storage.objects → bucket can't be listed; pending art is undiscoverable via table RLS. Download gating is UI-level (soft) by design.
-- **Demo fallback**: if the gallery tables aren't reachable (schema not deployed), gallery.js falls back to read-only `DEMO_*` sample data — remove once real partner art is seeded.
+- Removing cards from `markedCards`: call `recordUnmarkedCards(prismId, keys)` **before** `savePrism()` so tombstones survive next cloud merge
+- Feature modules import from `../core/`, `../modules/`, sibling `./`
+- Trace logs via `debugLog(...)` (core/utils.js), no-op unless `PRISM_DEBUG` localStorage flag set. Lint enforces; `console.error`/`console.warn` stay ungated
+- `app_logs` rows expire after 30 days (#214): `prune_app_logs(p_retain_days DEFAULT 30)` scheduled nightly by `pg_cron` as `prune-app-logs`, EXECUTE revoked from `anon` and `authenticated`. Nothing needing >1 month goes in `app_logs`; `logToSupabase` writes only, nothing reads back
+- URL deck imports (add + edit) share `resolveDeckSource(urlOrId)` in deck-import.js — extend it, don't duplicate detection
+- build.html onboarding callout dismissal persists in `prism_onboarding_dismissed` localStorage flag
+- Share cards: every indexable page carries Open Graph + Twitter tags and `rel="canonical"`, anchored on `https://prismmtg.com` (absolute — scrapers resolve relative paths against themselves). One image, `assets/og-card.png`, rebuilt by `node scripts/build-og-card.mjs` from vector paths only (outlined logo + `DEFAULT_COLORS`), since adobe-aldine and halyard-micro are Typekit fonts a rasterizer can't resolve. `mpc-stripes.html` excluded (`noindex,nofollow`). Add block to every new page
+- Supabase Auth emails (#341): six templates in `docs/email-templates/`, generated from one layout by `node scripts/build-email-templates.mjs` (inline styles, table layout, Georgia/system-sans fallbacks, `{{ .Var }}` verbatim; `tests/email-templates.test.js` fails when stale). Pasted into Supabase dashboard by hand; Auth sends via Resend SMTP; `scripts/setup-auth-email.sh` walks both. Edit generator, never HTML
+- `sitemap.xml`, `robots.txt` at publish root. Sitemap generated by `node scripts/build-sitemap.mjs`: globs root `*.html`, drops `noindex` pages and `profile.html` (account stub, keeps share tags). `<loc>` only: Google ignores `changefreq`/`priority`, stale `lastmod` worse than none. Regenerate after adding page. `robots.txt` does **not** `Disallow` noindexed page — disallowed URL never fetched, so its `noindex` never read
+- Loading skeletons (`<wa-skeleton effect="pulse">`): nav renders `#auth-loading` (sized via `hasStoredSession()` — one bar logged-out, two logged-in), hidden by `updateAuthUI`; build.html ships static skeletons in `#decks-list`/`#results-tbody`, destroyed by first render; profile.html `#profile-loading` hidden by `handleAuthChange`. CSS in custom.css (`.skeleton-*`, `.nav-auth-skeleton*`). Skeletons cover only post-`wa-cloak` wait (auth/sync) — anything under cloak invisible
+- 22 paint pen colors in `DEFAULT_COLORS` (processor.js), matched to real products
+- Bracket 1–5 = Commander power level
+- `formatSlotLabel(position, side?)` renders "Side A - Slot 1" labels
+- Stripe display settings (starting corner, position numbers) live in global settings drawer injected by `layout.js`; per-PRISM "Dedicated commander copies" `wa-switch` lives on Decks tab (per-PRISM synced data doesn't belong in global drawer)
+- Stripe Positions reorder card removed from Decks tab — Move button (⊕) on each deck card opens slot-picker dialog; Export tab dropdown for bulk reorder
 
 ## Agent skills
 
