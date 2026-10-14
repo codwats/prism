@@ -9,6 +9,7 @@ import { getSupabase, isConfigured } from './supabase-client.js';
 import { getCurrentUser } from './auth.js';
 import { isEntitled } from './billing.js';
 import { showToast } from '../core/notifications.js';
+import { debugLog } from '../core/utils.js';
 
 const STORAGE_KEY = 'prism_data';
 const CURRENT_VERSION = 2;
@@ -789,7 +790,7 @@ async function savePrismToSupabase(prism) {
       return false;
     }
 
-    console.log('PRISM saved to Supabase:', prism.name);
+    debugLog('PRISM saved to Supabase:', prism.name);
     return true;
   } catch (err) {
     console.error('Error syncing to Supabase:', err);
@@ -877,7 +878,7 @@ export async function loadPrismsFromSupabase() {
       prismMap[prism.id] = buildPrismFromRow(prism);
     }
 
-    console.log('Loaded', Object.keys(prismMap).length, 'prisms from Supabase');
+    debugLog('Loaded', Object.keys(prismMap).length, 'prisms from Supabase');
     return prismMap;
   } catch (err) {
     console.error('Error loading from Supabase:', err);
@@ -1047,7 +1048,7 @@ export async function syncWithSupabase() {
     }
   }
 
-  console.log('Synced with Supabase');
+  debugLog('Synced with Supabase');
 }
 
 async function syncPrismToSupabase(prismId) {

@@ -20,6 +20,7 @@ export function getLogicalDeckCount(prism) {
  */
 export function debugLog(...args) {
   try {
+    // eslint-disable-next-line no-console -- the one gated console.log
     if (localStorage.getItem('PRISM_DEBUG')) console.log(...args);
   } catch {
     // localStorage unavailable (private mode / blocked) — stay silent.
