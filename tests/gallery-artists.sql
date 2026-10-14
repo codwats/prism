@@ -1341,3 +1341,37 @@ BEGIN
 END $$;
 
 ROLLBACK;
+
+-- ============================================
+-- Likes (#357): the counter trigger still fires for a signed-in liker after
+-- EXECUTE on gallery_likes_counter() is revoked from every client role
+-- ============================================
+BEGIN;
+
+INSERT INTO auth.users (id, email, email_confirmed_at) VALUES
+  ('35700000-0000-0000-0000-00000000000a', 'liker@example.invalid', now());
+INSERT INTO public.gallery_artworks (id, title, type, artist_name, image_path, status) VALUES
+  ('35700000-0000-0000-0001-000000000001', 'Liked Piece', 'proxy', 'Some Artist', 'x/liked.png', 'approved');
+
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', '35700000-0000-0000-0000-00000000000a', true);
+DO $$
+BEGIN
+  INSERT INTO public.gallery_likes (artwork_id, user_id)
+  VALUES ('35700000-0000-0000-0001-000000000001', '35700000-0000-0000-0000-00000000000a');
+  ASSERT (SELECT likes_count FROM public.gallery_artworks WHERE id = '35700000-0000-0000-0001-000000000001') = 1,
+    'a like must bump likes_count';
+
+  DELETE FROM public.gallery_likes WHERE artwork_id = '35700000-0000-0000-0001-000000000001';
+  ASSERT (SELECT likes_count FROM public.gallery_artworks WHERE id = '35700000-0000-0000-0001-000000000001') = 0,
+    'an unlike must drop likes_count';
+
+  BEGIN
+    PERFORM public.gallery_likes_counter();
+    RAISE EXCEPTION 'a client called gallery_likes_counter() directly';
+  EXCEPTION WHEN insufficient_privilege THEN NULL;
+  END;
+END $$;
+RESET ROLE;
+
+ROLLBACK;
