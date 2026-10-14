@@ -13,11 +13,9 @@ const schema = readFileSync(new URL('../supabase-schema.sql', import.meta.url), 
 const PINS_PUBLIC_ONLY = new Set([
   'is_gallery_admin', 'gallery_likes_counter', 'increment_gallery_download', 'update_own_gallery_artwork'
 ]);
-const ANON_MAY_EXECUTE = new Map([
-  // The anon SELECT policy on gallery_artworks calls it; a revoke breaks public reads.
-  ['is_gallery_admin', 'needed by RLS'],
-  ['increment_gallery_download', 'pre-#231, revoke pending'],
-  ['update_own_gallery_artwork', 'pre-#231, revoke pending']
+const ANON_MAY_EXECUTE = new Set([
+  'is_gallery_admin', // the anon SELECT policy on gallery_artworks calls it; a revoke breaks public reads
+  'increment_gallery_download', 'update_own_gallery_artwork' // pre-#231, revoke pending
 ]);
 
 function definerFunctions() {
@@ -30,8 +28,19 @@ function definerFunctions() {
 const revokesAnon = name =>
   new RegExp(`REVOKE[^;]*ON\\s+FUNCTION\\s+(?:public\\.)?${name}\\b[^;]*FROM[^;]*\\banon\\b`, 'is').test(schema);
 
-test('the parser finds the SECURITY DEFINER functions', () => {
-  assert.ok(definerFunctions().length >= 18);
+test('the parser finds every SECURITY DEFINER function', () => {
+  // Counted on comment-free lines, so a function the regex skips (quoted name,
+  // single-quoted body) fails here instead of escaping every rule below.
+  const declared = schema.split('\n').map(l => l.replace(/--.*$/, ''))
+    .filter(l => /SECURITY\s+DEFINER/i.test(l)).length;
+  assert.equal(definerFunctions().length, declared);
+});
+
+test('every grandfathered function still exists', () => {
+  const names = new Set(definerFunctions().map(f => f.name));
+  for (const name of [...PINS_PUBLIC_ONLY, ...ANON_MAY_EXECUTE]) {
+    assert.ok(names.has(name), `${name} is gone — remove it from the allow-lists`);
+  }
 });
 
 test('every SECURITY DEFINER function pins search_path to public, pg_temp', () => {

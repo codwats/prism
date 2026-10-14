@@ -22,7 +22,7 @@ for _ in $(seq 120); do
   [ "$(psql_in -tAc "SELECT to_regclass('auth.users') IS NOT NULL" 2>/dev/null)" = t ] && break
   sleep 1
 done
-[ "$(psql_in -tAc "SELECT to_regclass('auth.users') IS NOT NULL")" = t ]
+[ "$(psql_in -tAc "SELECT to_regclass('auth.users') IS NOT NULL")" = t ] || { echo "sql: database not ready after 120 s" >&2; exit 1; }
 
 psql_as supabase_admin < tests/helpers/supabase-services-stub.sql
 for pass in 1 2; do

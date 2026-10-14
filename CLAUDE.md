@@ -8,6 +8,7 @@ Helps MTG Commander players who share cards across decks mark sleeves with color
 - **Billing, Membership, entitlement** (`billing.js`, `stripe-*-edge.ts`, `founders`/`subscriptions`/`app_config`, `isEntitled()`) → `docs/agents/billing.md`
 - **Gallery** (`gallery.html`, `js/gallery.js`, `gallery_*` tables/RPCs, `gallery-artist`/`gallery-notify`/`commission` edge functions) → `docs/agents/gallery.md`
 - **Domain terms** → `CONTEXT.md`; product policy → `PRODUCT.md`; decisions → `docs/adr/`
+- **Reviewing a diff** → `CODING_STANDARDS.md` (judgement calls; mechanical rules are in lint and `tests/schema-rules.test.js`)
 
 New domain facts go in the matching `docs/agents/*.md`, not here.
 
