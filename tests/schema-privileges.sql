@@ -23,10 +23,12 @@ BEGIN
   ASSERT NOT has_function_privilege('anon', 'gallery_likes_counter()', 'EXECUTE'), 'gallery_likes_counter must not be callable by anon';
   ASSERT NOT has_function_privilege('authenticated', 'gallery_likes_counter()', 'EXECUTE'), 'gallery_likes_counter must not be callable by authenticated';
 
-  -- Ours only: an extension installed into public owns its own functions.
+  -- Ours only: an extension installed into public owns its own functions, and
+  -- event-trigger functions (none in our schema) are Supabase's, e.g. rls_auto_enable.
   SELECT string_agg(p.oid::regprocedure::text, ', ') INTO unpinned
   FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
   WHERE n.nspname = 'public' AND p.prosecdef
+    AND p.prorettype <> 'event_trigger'::regtype
     AND NOT ('search_path=public, pg_temp' = ANY (coalesce(p.proconfig, '{}')))
     AND NOT EXISTS (SELECT 1 FROM pg_depend d
                     WHERE d.classid = 'pg_proc'::regclass AND d.objid = p.oid AND d.deptype = 'e');
