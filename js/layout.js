@@ -511,6 +511,9 @@ function injectFooter() {
                 <a href="https://github.com/codwats/prism" target="_blank" rel="noopener" title="PRISM on GitHub" aria-label="PRISM on GitHub">
                   <wa-icon name="github" family="brands"></wa-icon>
                 </a>
+                <a href="https://www.kickstarter.com/projects/prismmtg/prism-one-card-every-deck" target="_blank" rel="noopener" title="PRISM on Kickstarter" aria-label="PRISM on Kickstarter">
+                  <wa-icon name="kickstarter-k" family="brands"></wa-icon>
+                </a>
                 <a href="https://discord.gg/Jp84QUPSe" target="_blank" rel="noopener" title="Join the PRISM Discord" aria-label="Join the PRISM Discord">
                   <wa-icon name="discord" family="brands"></wa-icon>
                 </a>

@@ -23,31 +23,13 @@
       deck colors as the divider rule, 3-6px radii, flat surfaces, no gradients.
       Dark-committed, unlike the app: this is read on a phone at a table or in a
       hall, and it is a poster, not a tool.
-
-      Every outbound link is a placeholder. See the TODO block below.
     -->
 
     <!--
-      TODO(#243): every href below is a placeholder and none of them resolve.
-      Replace before this page is linked or a QR code is printed:
-
-        KICKSTARTER_URL_TODO   the Kickstarter page (pre-launch URL works; the
-                               slug carries over when the project launches)
-        YOUTUBE_URL_TODO
-        INSTAGRAM_URL_TODO
-        TIKTOK_URL_TODO
-        BLUESKY_URL_TODO
-        X_URL_TODO
-
-      The share tags below, the Open PRISM link and Discord are already filled
-      in
-      against prismmtg.com and are not part of that list. Both are absolute
-      even though the site may end up on the same host: this page is built to
-      move to defcat-website or its own subdomain, and a relative link would
-      silently start resolving against whatever serves it.
-
-      They are deliberately not valid links: a premature deploy fails loudly
-      instead of looking correct.
+      Every link is absolute, including those to prismmtg.com: this page is
+      built to move to defcat-website or its own subdomain, and a relative link
+      would silently start resolving against whatever serves it. TikTok stays
+      commented out until the account exists.
     -->
 
     <!-- Share cards. This page exists to be pasted into Discord and socials, so
@@ -595,7 +577,7 @@
             Kickstarter, along with matching sleeves, tokens and playmats. Backing the campaign
             also includes a lifetime PRISM Membership.
           </p>
-          <a class="btn btn--loud" href="KICKSTARTER_URL_TODO" target="_blank" rel="noopener">
+          <a class="btn btn--loud" href="https://www.kickstarter.com/projects/prismmtg/prism-one-card-every-deck" target="_blank" rel="noopener">
             See it on Kickstarter
           </a>
         </div>
@@ -651,16 +633,16 @@
         <a class="social" href="https://discord.gg/Jp84QUPSe" target="_blank" rel="noopener" aria-label="Discord">
           <wa-icon family="brands" name="discord"></wa-icon>
         </a>
-        <a class="social" href="https://www.instagram.com/prismmtg/" target="_blank" rel="noopener" aria-label="YouTube">
-          <wa-icon family="brands" name="youtube"></wa-icon>
-        </a>
-        <a class="social" href="https://www.youtube.com/@prismmtg" target="_blank" rel="noopener" aria-label="Instagram">
+        <a class="social" href="https://www.instagram.com/prismmtg/" target="_blank" rel="noopener" aria-label="Instagram">
           <wa-icon family="brands" name="instagram"></wa-icon>
+        </a>
+        <a class="social" href="https://www.youtube.com/@prismmtg" target="_blank" rel="noopener" aria-label="YouTube">
+          <wa-icon family="brands" name="youtube"></wa-icon>
         </a>
         <!--<a class="social" href="TIKTOK_URL_TODO" target="_blank" rel="noopener" aria-label="TikTok">
           <wa-icon family="brands" name="tiktok"></wa-icon>
         </a>--->
-        <a class="social" href="https://bsky.app/profile/prismmtg.bsky.socia:l target="_blank" rel="noopener" aria-label="Bluesky">
+        <a class="social" href="https://bsky.app/profile/prismmtg.bsky.social" target="_blank" rel="noopener" aria-label="Bluesky">
           <wa-icon family="brands" name="bluesky"></wa-icon>
         </a>
         <a class="social" href="https://x.com/prism_mtg" target="_blank" rel="noopener" aria-label="X">
