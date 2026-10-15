@@ -473,9 +473,6 @@ function renderGrid(root) {
 // Detail view
 // ============================================================
 
-// CAMPAIGN WINDOW (#222): the logged-out download caption below. Reverted when
-// signups reopen (#206), see docs/runbooks/enforcement-cutover.md. A JS comment, not an
-// HTML one inside the template literal: that renders into public page source.
 function renderDetail(root, id) {
   const artwork = findArtwork(id);
   if (!artwork) {
@@ -529,7 +526,7 @@ function renderDetail(root, id) {
           ${user && !usingDemo && (isAdmin || artwork.uploaderId === user.id) ? `<wa-button appearance="outlined" href="gallery.html?view=edit&art=${encodeURIComponent(artwork.id)}"><wa-icon slot="start" name="pen"></wa-icon>Edit</wa-button>` : ''}
           ${user && !usingDemo && isAdmin ? '<wa-button variant="danger" appearance="outlined" id="detail-delete"><wa-icon slot="start" name="trash"></wa-icon>Delete</wa-button>' : ''}
         </div>
-        ${user || !isDownloadable(artwork) ? '' : '<p class="wa-caption-s" style="color: var(--wa-color-neutral-text-subtle); margin: 0;">Downloads need an account, and signup is currently closed. Each download is one print-ready file (2.5&times;3.5&Prime; + bleed).</p>'}
+        ${user || !isDownloadable(artwork) ? '' : '<p class="wa-caption-s" style="color: var(--wa-color-neutral-text-subtle); margin: 0;">Downloads need a free account — one print-ready file (2.5&times;3.5&Prime; + bleed).</p>'}
         ${licenseHtml(artwork)}
       </div>
     </div>
@@ -879,9 +876,6 @@ function readArtworkFields(root) {
 // Upload view
 // ============================================================
 
-// CAMPAIGN WINDOW (#222): the signed-out upload gate copy below. Reverted when
-// signups reopen (#206), see docs/runbooks/enforcement-cutover.md. A JS comment, not an
-// HTML one inside the template literal: that renders into public page source.
 function renderUpload(root) {
   const user = getCurrentUser();
   if (!user) {
@@ -891,7 +885,7 @@ function renderUpload(root) {
       <div class="gallery-empty" style="max-width: 34rem;">
         <div class="ic"><wa-icon name="lock"></wa-icon></div>
         <h2 class="wa-heading-m">Sign in to upload artwork</h2>
-        <p class="wa-caption-m" style="color: var(--wa-color-neutral-text-subtle); max-width: 40ch;">Community uploads need an account, and signup is currently closed. Ask on <a href="https://discord.gg/Jp84QUPSe" target="_blank" rel="noopener">Discord</a> and we will set one up for you. Uploads are reviewed before going public.</p>
+        <p class="wa-caption-m" style="color: var(--wa-color-neutral-text-subtle); max-width: 40ch;">Community uploads need a free account. Uploads are reviewed before going public.</p>
         <wa-button variant="brand" id="upload-signin"><wa-icon slot="start" name="right-to-bracket"></wa-icon>Sign in</wa-button>
       </div>`;
     root.querySelector('#upload-signin')?.addEventListener('click', promptSignIn);

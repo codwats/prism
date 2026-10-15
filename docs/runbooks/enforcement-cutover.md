@@ -52,6 +52,12 @@ the signup lock and [#222](https://github.com/codwats/prism/issues/222) owns the
 site edits, but the two sessions are weeks apart and this file is the only thing
 that spans them.
 
+**Signups reopened 2026-10-15, ahead of the campaign** (step 6). With enforcement
+on, the lock protected nothing and kept artists and backers out of the self-serve
+path. Steps 1–3 are not re-run in November: the changeover is the `index.html`
+campaign block alone, and signups stay open through the campaign and after it.
+Where steps 4–5 below say signups are still shut, that no longer holds.
+
 ### Schedule (updated 2026-09-25)
 
 **Enforcement was flipped on 2026-09-25, ahead of the campaign**
@@ -60,8 +66,8 @@ campaign close: signups were already shut and the pre-flight count of accounts
 without a Founder row was `0`, so the cohort was final and nothing was gained by
 holding the flag. The campaign-window steps below still run on the campaign's
 dates. The backer survey and allowlist (#240) grant Membership after the flip
-just as well as before it. Signups reopen after the campaign concludes, in late
-November ([#206](https://github.com/codwats/prism/issues/206)). With enforcement
+just as well as before it. Signups reopened on 2026-10-15
+([#206](https://github.com/codwats/prism/issues/206)), before the campaign. With enforcement
 on, a new account is a free account, not a Founder, so the lock no longer
 protects the cohort, but the #240 claim RPC must be deployed first.
 
@@ -82,14 +88,13 @@ below as a placeholder until that conversation happens.
 - **Pending, expected 2026-09-18:** the bank's letter to Stripe, and Stripe's
   confirmation back. No launch date is real before this lands.
 - **November, date not set:** Kickstarter pre-launch page opens.
-- **The Sunday evening before it:** deploy the site changeover and close
-  signups, so the destination can be verified before Monday's public traffic.
+- **The Sunday evening before it:** deploy the site changeover (signups stay
+  open), so the destination can be verified before Monday's public traffic.
 - **Roughly a week after pre-launch:** funding launch. No site deploy: the
   campaign block reads correctly in both phases and the pre-launch URL becomes
   the live one. See below.
-- **Late November, date not set:** campaign close. Then the backer survey, the
-  allowlist load, and reopening signups (step 6 below, after the #240 claim RPC
-  is deployed). The flip is done (2026-09-25).
+- **Late November, date not set:** campaign close. Then the backer survey and the
+  allowlist load. Signups are already open (step 6, done 2026-10-15). The flip is done (2026-09-25).
 - **January:** fulfilment target.
 
 Fill in the exact dates once the team has met. An approximate month in this
@@ -204,7 +209,7 @@ Payment enforcement is already on (2026-09-25); the changeover does not touch it
    nobody can create. `grep -rn "CAMPAIGN WINDOW"` lists all four markers; only
    the `index.html` one is in scope at this step.
 
-**When signups reopen ([#206](https://github.com/codwats/prism/issues/206)):**
+**When signups reopen ([#206](https://github.com/codwats/prism/issues/206)) — done 2026-10-15:**
 
 6. **Re-enable signups** in Supabase, then revert the remaining three
    `CAMPAIGN WINDOW` markers. The flip (2026-09-25) already made this safe for
