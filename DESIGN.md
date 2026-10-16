@@ -264,7 +264,7 @@ WA 3.11 renamed or dropped its own versions of most of these (`neutral-text` →
 --wa-color-warning-stroke-subtle:   var(--wa-color-warning-70);
 ```
 
-Dark mode (`.wa-dark`) remaps the ramp-derived tokens above: surfaces to `neutral-10/20/30`, `neutral-text` to `neutral-95`, `neutral-text-subtle` to `neutral-80`, `neutral-stroke` to `neutral-30`, `brand-text`/`brand-stroke` to `brand-80`/`brand-70`, state text to the 80 step, state surface to the 20 step (surface-subtle one step further, the 10 step). Tokens that resolve through a WA-native token (`surface-1` via `surface-default`, `brand-fill-loud`, etc.) don't need a PRISM-authored dark remap — WA already themes those itself.
+Dark mode (`.wa-dark`) remaps the ramp-derived tokens above: surfaces to `neutral-10/20/30`, `neutral-text` to `neutral-95`, `neutral-text-subtle` to `neutral-80`, `neutral-stroke` to `neutral-30`, `brand-text`/`brand-stroke` to `brand-80`/`brand-70`, state text to the 80 step, state surface to the 20 step (surface-subtle one step further, the 10 step). Tokens that resolve through a WA-native token (`surface-1` via `surface-default`, etc.) don't need a PRISM-authored dark remap — WA already themes those itself. The exception is `brand-fill-loud`: WA's dark value, `brand-50`, puts white text at 4.45:1, so dark mode mixes it 20% toward `brand-40` (4.85:1, still ≥3:1 against dark surfaces).
 
 ### 2.6 Contrast rules (non-negotiable)
 
