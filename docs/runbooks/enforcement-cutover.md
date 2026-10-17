@@ -87,12 +87,12 @@ below as a placeholder until that conversation happens.
 
 - **Pending, expected 2026-09-18:** the bank's letter to Stripe, and Stripe's
   confirmation back. No launch date is real before this lands.
-- **November, date not set:** Kickstarter pre-launch page opens.
-- **The Sunday evening before it:** deploy the site changeover (signups stay
-  open), so the destination can be verified before Monday's public traffic.
-- **Roughly a week after pre-launch:** funding launch. No site deploy: the
-  campaign block reads correctly in both phases and the pre-launch URL becomes
-  the live one. See below.
+- **Done 2026-10-15:** Kickstarter pre-launch page opened, and the site
+  changeover deployed with it (#362); the link was verified to open the right
+  page.
+- **November, date not set:** funding launch. No site deploy: the campaign block
+  reads correctly in both phases and the pre-launch URL becomes the live one.
+  See below.
 - **Late November, date not set:** campaign close. Then the backer survey and the
   allowlist load. Signups are already open (step 6, done 2026-10-15). The flip is done (2026-09-25).
 - **January:** fulfilment target.
@@ -100,16 +100,9 @@ below as a placeholder until that conversation happens.
 Fill in the exact dates once the team has met. An approximate month in this
 file is fine; a stale exact date is not.
 
-[Draft PR #236](https://github.com/codwats/prism/pull/236) already prepares
-#222 and #206. It no longer waits on the Kickstarter URL: the CTA ships
-`disabled`, labelled "Coming soon", so the block can go up before the
-pre-launch page exists. Enable it by deleting `disabled`, adding
-`href="<pre-launch URL>" target="_blank" rel="noopener"`, and changing the
-label back to "See it on Kickstarter" — that is the pre-launch URL, not the
-live campaign one. Verify
-the destination works on the Sunday evening, before Monday's public pre-launch.
-Complete the anonymous build/import/mark/export walkthrough on the deploy
-preview. The kit photo can follow later.
+The campaign block's CTA now links to the pre-launch URL (#362), which is also
+the live campaign URL. Still open: the anonymous build/import/mark/export
+walkthrough on production. The kit photo can follow later.
 
 **There is no copy swap at funding launch.** #221 wrote the block for a live
 campaign, and the schedule since put pre-launch a week ahead of funding. Rather
@@ -153,13 +146,9 @@ Payment enforcement is already on (2026-09-25); the changeover does not touch it
    - **The campaign block** on `index.html`, below How It Works and above the
      features grid, carrying #221's paragraph under a phase-agnostic heading and
      CTA, its opening verb changed so the block reads correctly before the
-     campaign page exists. Its button ships `disabled` and labelled "Coming soon"
-     until the pre-launch URL exists, so the block can deploy ahead of the
-     campaign page; see the `TODO(#222)` at the block for the change that turns
-     it into a link. Disabled rather than a placeholder href: a dead link that
-     looks live is worse than a button that says it is not ready, and the label
-     carries the status because a tooltip on a disabled button is hover-only.
-     The block ships text-only: #221 specifies a flank with a kit-contents photo, and if that
+     campaign page exists. Its button
+     shipped `disabled` and labelled "Coming soon" until the pre-launch URL
+     existed, and now links to it (#362). The block ships text-only: #221 specifies a flank with a kit-contents photo, and if that
      photo lands it is a follow-up, not a blocker.
    - **Two gallery notices** in `js/gallery.js` — the download gate on the
      artwork detail view and the upload gate on `?view=upload`. Both previously
