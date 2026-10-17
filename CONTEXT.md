@@ -60,6 +60,18 @@ _In code_: the `sleeve` id on a deck's card row (`deck_cards.sleeve`); rows shar
 A card already in a deck the incoming card fits, which could be the outgoing card of a Swap because it does a similar job. By default it shares the incoming card's main type. Looking beyond the type, it must do every job the incoming card does. Lands are compared by the colors they fit.
 _Avoid_: replacement, alternative
 
+**Swap Queue**:
+A PRISM's list of Planned swaps, grouped by target deck so the player can work through one deck per session. An Extra. It is planning, not the member's data, so a Lapse takes it away like any other Extra.
+_Avoid_: wishlist, backlog
+
+**Planned swap**:
+A Swap in the Swap Queue that has not been applied yet: an incoming card, one target deck, a number of copies and, when the player has chosen one, an outgoing card. Whether it goes in as a Sleeve swap is decided when it is applied, not when it is queued. A Planned swap with no outgoing card holds an idea and blocks its deck from being applied until a cut is chosen. Applying a deck applies the Planned swaps the player keeps ticked; the rest stay queued.
+_Avoid_: queue entry, addition
+
+**Pull list**:
+The outgoing cards of the Planned swaps just applied that are in no other deck of the PRISM, so they leave the PRISM entirely and are candidates to trade or sell. Shown with the applied deck's result and never kept.
+_Avoid_: buylist, trade pile
+
 **Mark**:
 A painted indicator on a sleeve edge. Every mark is either a stripe or a dot.
 
@@ -100,7 +112,7 @@ _Avoid_: subscribe, subscription, subscriber (reader-facing prose only), upgrade
 _In code_: `subscriptions`, `getSubscription()`, `#btn-subscribe`. The mismatch is deliberate — the table is webhook-owned and mirrors Stripe's own object — so do not align either direction. Stripe's hosted Checkout says "Subscribe" and we do not control it. Unrelated: `markType: 'membership'` (`processor.js`) is a card's membership in a split-group variant, and is never rendered.
 
 **Extras**:
-The bundled perks a Membership includes beyond sync. Today that is the MPC Stripe Compositor (`mpc-stripes.html`). Only Members can use Extras: a free account does not unlock them, and a Lapse takes them away. An Extra is a perk, not the member's data, so "gate adding, never access" does not cover it. Members reach Extras from build.html and the Membership drawer. Non-Members see Extras only as one line of the Membership pitch. Always capitalized. The modest register is deliberate — Extras is not the sell.
+The bundled perks a Membership includes beyond sync. Today that is the MPC Stripe Compositor (`mpc-stripes.html`) and the Swap Planner with its Swap Queue (`swap-planner.html`). Only Members can use Extras: a free account does not unlock them, and a Lapse takes them away. An Extra is a perk, not the member's data, so "gate adding, never access" does not cover it. Members reach Extras from build.html and the Membership drawer. Non-Members see Extras only as one line of the Membership pitch. Always capitalized. The modest register is deliberate — Extras is not the sell.
 _Avoid_: premium features, bonus content, perks (as a proper noun)
 
 **Founder**:
