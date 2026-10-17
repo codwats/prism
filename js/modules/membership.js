@@ -4,6 +4,25 @@ import { getCurrentPrism } from './storage.js';
 import { isEntitled, isMembershipDrawerAvailable, startCheckout } from './billing.js';
 
 const PRICES = { month: '$3 a month', year: '$30 a year' };
+// The one price statement, shared by the drawer and the landing pitch.
+const PRICE_LINE = '<strong>$3</strong> a month or <strong>$30</strong> a year';
+// Until the Patreon rail opens; the drawer and the landing pitch say it the same way.
+const PATREON_NOT_YET = 'Paying on Patreon is not available yet.';
+
+/**
+ * Auth-dependent async reads for one render target: each call supersedes the
+ * last. Resolves { user, value }, or null when a later call or a user change
+ * overtook it, so a slow read never paints over a newer one.
+ */
+export function latestRead() {
+  let seq = 0;
+  return async read => {
+    const mine = ++seq;
+    const user = getCurrentUser();
+    const value = await read(user);
+    return mine === seq && user === getCurrentUser() ? { user, value } : null;
+  };
+}
 
 export function joinLabel(period, signedIn) {
   return `${signedIn ? 'Join' : 'Sign in to join'} for ${PRICES[period]}`;
@@ -31,7 +50,7 @@ export function membershipContent({ entitled, signedIn, createdName = null, peri
     <p>${createdName !== null ? `<strong>${escapeHtml(createdName || 'Your new PRISM')}</strong> stays on this device.` : 'Your PRISMs work on this device without a Membership.'}
       Keep creating, marking and exporting for free.</p>
     <section class="wa-stack wa-gap-m" aria-label="Join PRISM">
-      <p class="membership-price"><strong>$3</strong> a month or <strong>$30</strong> a year. USD.</p>
+      <p class="membership-price">${PRICE_LINE}. USD.</p>
       <ul class="wa-stack wa-gap-xs">
         <li>Your PRISMs on every device</li>
         <li>PRISM Extras</li>
@@ -46,7 +65,7 @@ export function membershipContent({ entitled, signedIn, createdName = null, peri
         <wa-radio value="stripe">Here, through Stripe</wa-radio>
         <wa-radio value="patreon" disabled>On Patreon</wa-radio>
       </wa-radio-group>
-      <p class="wa-caption-m">Paying on Patreon is not available yet.</p>
+      <p class="wa-caption-m">${PATREON_NOT_YET}</p>
       <wa-button variant="brand" data-membership-checkout>${joinLabel(period, signedIn)}</wa-button>
       <p data-membership-error role="alert" hidden></p>
       <p class="wa-caption-m">Your price stays the same while your Membership continues. Cancel and rejoin at the current price.</p>
@@ -60,6 +79,44 @@ export function membershipContent({ entitled, signedIn, createdName = null, peri
       <p>Find the cards a new card could replace across your decks, and what each Swap costs in marks. Included with Membership.</p>
     </section>
   </div>`;
+}
+
+/**
+ * The landing page's pitch block (#215). Same single branch as the drawer:
+ * an entitled visitor (a Founder included) never renders a price. Checkout
+ * lives only in the build.html drawer, so the button hands off to it.
+ */
+export function membershipPitch({ entitled }) {
+  if (entitled) {
+    return '<p>Your Membership is included. Your PRISMs sync to every device you sign in to.</p>';
+  }
+  return `<p>Everything PRISM does today stays free and stays on this device. A free account adds gallery participation: liking and uploading work. Membership adds sync across devices, PRISM Extras, and a member role in the Discord.</p>
+    <p class="membership-price">${PRICE_LINE}. USD.</p>
+    <p class="wa-caption-m">Same price on Stripe or Patreon. ${PATREON_NOT_YET}</p>
+    <div class="wa-cluster wa-gap-s wa-justify-content-center">
+      <wa-button href="build.html#membership" variant="brand" size="l">Join for ${PRICES.month}</wa-button>
+    </div>`;
+}
+
+/** Called only by index.html. Renders nothing until auth state can be painted. */
+export function initMembershipPitch() {
+  const container = document.querySelector('[data-membership-pitch]');
+  if (!container) return;
+  const read = latestRead();
+  const render = async () => {
+    if (!canPaintAuthState()) return;
+    const result = await read(user => Promise.all([
+      isMembershipDrawerAvailable(),
+      user ? isEntitled() : false
+    ]));
+    if (!result) return;
+    const [available, entitled] = result.value;
+    // No drawer to hand off to while enforcement is off.
+    // layout.js's document-level fallback covers the button before WA upgrades it.
+    container.innerHTML = available ? membershipPitch({ entitled }) : '';
+  };
+  onAuthChange(render);
+  render();
 }
 
 let drawer;
@@ -142,8 +199,6 @@ async function updateExtrasLinks() {
  * onTool runs each time the tool is revealed, so a page starts its
  * Members-only fetches only for Members.
  */
-let gateVersion = 0;
-
 export async function initExtraGate(onTool) {
   const [tool, pitch, loading] = ['tool', 'pitch', 'loading']
     .map(part => document.querySelector(`[data-extra-${part}]`));
@@ -153,11 +208,11 @@ export async function initExtraGate(onTool) {
     document.getElementById('auth-dialog')?.setAttribute('open', '');
   });
 
+  const read = latestRead();
   const render = async () => {
-    const version = ++gateVersion;
-    const user = getCurrentUser();
-    const entitled = !canPaintAuthState() || (user ? await isEntitled() : false);
-    if (version !== gateVersion || user !== getCurrentUser()) return;
+    const result = await read(user => !canPaintAuthState() || (user ? isEntitled() : false));
+    if (!result) return;
+    const { user, value: entitled } = result;
     loading.remove();
     tool.hidden = !entitled;
     pitch.hidden = entitled;
