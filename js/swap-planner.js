@@ -10,6 +10,8 @@ import { fetchCard, getCardAttributes } from './modules/scryfall.js';
 import { loadJobIndex } from './modules/oracle-tags.js';
 import { rankComparables, mainType } from './modules/comparables.js';
 import { applySwap } from './modules/swap.js';
+import { queueSwap, queueByDeck, applyDeck, removeSwap } from './modules/swap-queue.js';
+import { cardsToDecklistText } from './modules/parser.js';
 import { processCards } from './modules/processor.js';
 import { wireCardPreview, buildCardWithStripes, createLoadingElement, createErrorElement } from './modules/card-preview.js';
 import { wireCardAutocomplete } from './modules/card-autocomplete.js';
@@ -29,6 +31,7 @@ let current = null;
 
 initLayout({ activePage: '', headerCta: { href: 'build.html', label: 'Build PRISM', icon: 'wand-magic-sparkles' } });
 initExtraGate(() => {
+  renderQueue();
   // Once per page: eligibility needs the commanders' attributes before any
   // search, and the job index can take a few seconds on its first daily load.
   if (jobIndexReady) return;
@@ -42,6 +45,7 @@ wireIntro();
 wireCardAutocomplete($('swap-search'), $('swap-search-suggest'), search);
 wireCardPreview($('swap-results'), (name) => stripesByName.get(name) || []);
 wireSwapDialog();
+wireQueue();
 
 function wireIntro() {
   const intro = $('swap-intro');
@@ -141,6 +145,7 @@ function renderIncoming(incoming, imageUri) {
   $('swap-incoming-meta').textContent = metaLine(incoming);
   $('swap-fit').textContent = '';
   $('swap-unmatched').hidden = true;
+  $('swap-queue-deck').hidden = true;
   $('swap-incoming').hidden = false;
 }
 
@@ -157,6 +162,13 @@ function renderSummary(ranked) {
     : 'Fits none of the decks in this PRISM. The decks that could take it already run it, or its colors are outside theirs.';
   $('swap-unmatched').textContent = `${plural(ranked.unmatched, 'card')} couldn't be matched.`;
   $('swap-unmatched').hidden = !ranked.unmatched;
+
+  const picker = $('swap-queue-deck');
+  const deckNames = new Map(getCurrentPrism().decks.map((d) => [d.id, d.name]));
+  picker.innerHTML = ranked.eligibleDecks
+    .map((d) => `<wa-option value="${escapeHtml(d.deckId)}">${escapeHtml(deckNames.get(d.deckId))}</wa-option>`).join('');
+  picker.value = '';
+  picker.hidden = !decks;
 }
 
 function costText({ marksToAdd, staleMarks }) {
@@ -179,7 +191,7 @@ function renderResults(prism, incoming, ranked, attributes, version) {
     const cost = withCost
       ? `<span data-cost-out="${escapeHtml(name)}" data-cost-deck="${escapeHtml(deckId)}">· …</span>`
       : '';
-    return `<wa-button size="s" appearance="outlined" variant="neutral" data-swap-deck="${escapeHtml(deckId)}"><span slot="start" class="stripe-detail-swatch" style="background:${escapeHtml(deck.color)}"></span>${escapeHtml(deck.name)}${cost}</wa-button>`;
+    return `<span class="wa-cluster wa-gap-3xs"><wa-button size="s" appearance="outlined" variant="neutral" data-swap-deck="${escapeHtml(deckId)}"><span slot="start" class="stripe-detail-swatch" style="background:${escapeHtml(deck.color)}"></span>${escapeHtml(deck.name)}${cost}</wa-button><wa-button size="s" appearance="plain" variant="neutral" data-queue-deck="${escapeHtml(deckId)}"><wa-icon name="list-check" label="Add to queue for ${escapeHtml(deck.name)}"></wa-icon></wa-button></span>`;
   };
   const row = (r, withCost) => `<li class="swap-row wa-stack wa-gap-2xs" data-swap-out="${escapeHtml(r.name)}"${withCost ? '' : ` data-sleeve="${escapeHtml(r.deckIds.join(','))}"`}>
       <span class="card-name-cell" data-card-name="${escapeHtml(r.name)}">${escapeHtml(r.name)}</span>
@@ -264,6 +276,11 @@ function wireSwapDialog() {
     if (e.target.closest('.card-name-cell') && window.matchMedia('(max-width: 768px)').matches) return;
     const row = e.target.closest('[data-swap-out]');
     if (!row || !current) return;
+    const queueDeck = e.target.closest('[data-queue-deck]')?.dataset.queueDeck;
+    if (queueDeck) {
+      addToQueue({ deckId: queueDeck, outgoing: row.dataset.swapOut });
+      return;
+    }
     const deckId = e.target.closest('[data-swap-deck]')?.dataset.swapDeck;
     const first = row.dataset.sleeve ? `sleeve:${row.dataset.sleeve}` : `deck:${deckId || row.querySelector('[data-swap-deck]').dataset.swapDeck}`;
     openSwapDialog(row.dataset.swapOut, first);
@@ -383,4 +400,235 @@ function confirmSwap() {
   $('swap-dialog').removeAttribute('open');
   showSuccess(`Swapped ${outgoing} for ${incoming} in ${deckNames}. Update the deck on Moxfield or Archidekt too; PRISM only changes its own decklist.`);
   search(incoming);
+  renderQueue();
+}
+
+// ============================================================================
+// Swap Queue (#364)
+// ============================================================================
+
+// Ticks live for the page only. A flagged swap starts unticked.
+const ticks = new Map();
+const isTicked = (swap) => ticks.get(swap.id) ?? !swap.flag;
+const FLAG_TEXT = {
+  'in-deck': 'Already in this deck. Untick it, or remove it.',
+  'duplicate-cut': 'Another Planned swap for this deck cuts the same card.',
+};
+
+function addToQueue({ deckId, outgoing }) {
+  const prism = getCurrentPrism();
+  savePrism(queueSwap(prism, { incoming: current.incoming.name, deckId, outgoing }));
+  const deck = prism.decks.find((d) => d.id === deckId);
+  showSuccess(`Queued ${current.incoming.name} for ${deck.name}.`);
+  renderQueue();
+}
+
+// Each Planned swap's single-swap cost on the PRISM as it is now.
+function estimateText(prism, swap) {
+  if (!swap.outgoing) return 'No cut chosen yet.';
+  try {
+    const { summary } = applySwap(prism, { outgoing: swap.outgoing, incoming: swap.incoming, deckIds: [swap.deckId], copies: swap.copies });
+    return `Estimate: ${costText(summary).toLowerCase()}`;
+  } catch (err) {
+    return err.message;
+  }
+}
+
+let queueVersion = 0;
+
+function renderQueue() {
+  const stored = getCurrentPrism();
+  if (!stored) return;
+  const { prism, groups } = queueByDeck(stored);
+  // Planned swaps for a deleted deck are removed for good, with a tombstone.
+  if (prism !== stored) savePrism(prism);
+  const version = ++queueVersion;
+
+  $('swap-queue').hidden = !groups.length;
+  $('swap-queue-decks').innerHTML = groups.map(({ deck, swaps }) => {
+    const blocked = swaps.some((s) => isTicked(s) && !s.outgoing);
+    const none = !swaps.some(isTicked);
+    return `<section class="wa-stack wa-gap-s" data-queue-group="${escapeHtml(deck.id)}">
+      <h3 class="wa-heading-m wa-cluster wa-gap-xs"><span class="stripe-detail-swatch" style="background:${escapeHtml(deck.color)}"></span>${escapeHtml(deck.name)}</h3>
+      <ul class="swap-rows">${swaps.map((s) => `<li class="queue-swap wa-stack wa-gap-xs" data-planned="${escapeHtml(s.id)}">
+        <wa-checkbox data-tick ${isTicked(s) ? 'checked' : ''}><span class="card-name-cell" data-card-name="${escapeHtml(s.incoming)}">${escapeHtml(s.incoming)}</span>${s.outgoing ? ` for <span class="card-name-cell" data-card-name="${escapeHtml(s.outgoing)}">${escapeHtml(s.outgoing)}</span>` : ''}</wa-checkbox>
+        ${s.flag ? `<wa-callout size="small" variant="warning">${FLAG_TEXT[s.flag]}</wa-callout>` : ''}
+        <span class="wa-caption-s wa-color-text-quiet">${escapeHtml(estimateText(prism, s))}</span>
+        <div class="queue-swap-fields wa-cluster wa-gap-s wa-align-items-end">
+          <wa-select data-cut size="s" label="Cut" placeholder="Choose a cut">${s.outgoing ? `<wa-option value="0">${escapeHtml(s.outgoing)}</wa-option>` : ''}</wa-select>
+          <wa-input data-copies type="number" min="1" size="s" label="Copies" value="${s.copies}"></wa-input>
+          <wa-input data-note size="s" label="Note" value="${escapeHtml(s.note || '')}"></wa-input>
+          <wa-button data-remove size="s" appearance="plain" variant="danger"><wa-icon slot="start" name="trash"></wa-icon>Remove</wa-button>
+        </div>
+      </li>`).join('')}</ul>
+      <div class="wa-cluster wa-gap-s wa-align-items-center">
+        <wa-button data-apply-deck="${escapeHtml(deck.id)}" variant="brand" size="s" ${blocked || none ? 'disabled' : ''}>Apply this deck</wa-button>
+        ${blocked ? '<span class="wa-caption-s wa-color-text-quiet">Choose a cut for every ticked idea first.</span>' : ''}
+      </div>
+    </section>`;
+  }).join('');
+
+  for (const group of groups) {
+    for (const swap of group.swaps) {
+      const select = $('swap-queue-decks').querySelector(`[data-planned="${CSS.escape(swap.id)}"] [data-cut]`);
+      select.value = swap.outgoing ? '0' : '';
+      fillCutOptions(prism, swap, select, version);
+    }
+  }
+}
+
+// The cut picker lists the comparable ranking for this deck. It needs Scryfall
+// attributes (cached), so it fills in after render; if Scryfall fails it
+// falls back to the deck's other cards.
+const cutChoices = new WeakMap();
+async function fillCutOptions(prism, swap, select, version) {
+  const deck = prism.decks.find((d) => d.id === swap.deckId);
+  let names;
+  try {
+    const attributes = await getCardAttributes([...new Set([swap.incoming, ...commanderNames(prism), ...deck.cards.map((c) => c.name)])]);
+    const incoming = attributes.get(swap.incoming);
+    if (!incoming) throw new Error(`Scryfall couldn't match ${swap.incoming}.`);
+    const ranked = rankComparables(prism, { name: swap.incoming, ...incoming }, attributes, await (jobIndexReady ?? loadJobIndex()));
+    names = [ranked.sameType, ranked.differentJob, ranked.lookBeyond].filter(Boolean)
+      .flatMap((s) => [...s.noNewMarks, ...s.otherSwaps])
+      .filter((r) => r.deckIds.includes(swap.deckId))
+      .map((r) => r.name);
+  } catch (err) {
+    console.warn('Swap Queue: ranking the cut picker failed:', err);
+    names = deck.cards.filter((c) => !c.isCommander && !c.isBasicLand).map((c) => c.name);
+  }
+  if (version !== queueVersion) return;
+  names = [...new Set([...(swap.outgoing ? [swap.outgoing] : []), ...names])];
+  cutChoices.set(select, names);
+  select.innerHTML = names.map((n, i) => `<wa-option value="${i}">${escapeHtml(n)}</wa-option>`).join('');
+  select.value = swap.outgoing ? '0' : '';
+}
+
+function plannedSwapFor(el) {
+  const id = el.closest('[data-planned]')?.dataset.planned;
+  return getCurrentPrism().plannedSwaps?.find((s) => s.id === id);
+}
+
+function updatePlanned(swap, changes) {
+  savePrism(queueSwap(getCurrentPrism(), { incoming: swap.incoming, deckId: swap.deckId, ...changes }));
+  renderQueue();
+}
+
+function wireQueue() {
+  const list = $('swap-queue-decks');
+  wireCardPreview(list, (name) => processCards(getCurrentPrism()).find((c) => c.name === name)?.stripes || []);
+
+  $('swap-queue-deck').addEventListener('change', (e) => {
+    const deckId = e.target.value;
+    if (!deckId || !current) return;
+    addToQueue({ deckId });
+    e.target.value = '';
+  });
+
+  list.addEventListener('change', (e) => {
+    const swap = plannedSwapFor(e.target);
+    if (!swap) return;
+    if (e.target.matches('[data-tick]')) {
+      ticks.set(swap.id, e.target.checked);
+      renderQueue();
+    } else if (e.target.matches('[data-cut]')) {
+      const outgoing = cutChoices.get(e.target)?.[Number(e.target.value)];
+      if (outgoing && outgoing !== swap.outgoing) updatePlanned(swap, { outgoing });
+    } else if (e.target.matches('[data-copies]')) {
+      const copies = Math.max(1, Math.floor(Number(e.target.value)) || 1);
+      if (copies !== swap.copies) updatePlanned(swap, { copies });
+    } else if (e.target.matches('[data-note]')) {
+      const note = e.target.value.trim();
+      if (note !== (swap.note || '')) updatePlanned(swap, { note });
+    }
+  });
+
+  list.addEventListener('click', (e) => {
+    const remove = e.target.closest('[data-remove]');
+    if (remove) {
+      savePrism(removeSwap(getCurrentPrism(), plannedSwapFor(remove).id));
+      renderQueue();
+      return;
+    }
+    const apply = e.target.closest('[data-apply-deck]');
+    if (apply && !apply.disabled) openQueueDialog(apply.dataset.applyDeck);
+  });
+
+  $('queue-steps').addEventListener('change', (e) => {
+    if (!e.target.matches('[data-sleeve]') || !queueState) return;
+    queueState.sleeves.set(e.target.dataset.sleeve, e.target.checked);
+    renderQueuePreview();
+  });
+  $('queue-confirm').addEventListener('click', confirmQueue);
+  $('queue-dialog').addEventListener('wa-after-hide', (e) => {
+    if (e.target === $('queue-dialog')) queueState = null;
+  });
+}
+
+// { deckId, sleeves: Map(id → wants a Sleeve swap; default yes when offered) }
+let queueState = null;
+
+function tickedFor(deckId) {
+  const group = queueByDeck(getCurrentPrism()).groups.find((g) => g.deck.id === deckId);
+  return (group?.swaps || []).filter(isTicked)
+    .map((s) => ({ id: s.id, sleeve: queueState.sleeves.get(s.id) ?? true }));
+}
+
+function openQueueDialog(deckId) {
+  const deck = getCurrentPrism().decks.find((d) => d.id === deckId);
+  queueState = { deckId, sleeves: new Map() };
+  const dialog = $('queue-dialog');
+  dialog.setAttribute('label', `Apply ${deck.name}`);
+  $('queue-preview').hidden = false;
+  $('queue-result').hidden = true;
+  $('queue-confirm').hidden = false;
+  $('queue-cancel').textContent = 'Cancel';
+  if (renderQueuePreview()) dialog.setAttribute('open', '');
+}
+
+// The same applyDeck call prices the preview and performs the apply.
+function renderQueuePreview() {
+  let result;
+  try {
+    result = applyDeck(getCurrentPrism(), tickedFor(queueState.deckId));
+  } catch (err) {
+    showError(err.message);
+    return false;
+  }
+  const { summary, steps } = result;
+  $('queue-cost').textContent = costText(summary);
+  $('queue-copies').textContent = summary.copiesToBuy ? `Buy ${copiesText(summary.copiesToBuy)} in all.` : 'No copy to buy.';
+  $('queue-steps').innerHTML = steps.map(({ swap, sleeve, sleeveSwap }) => `<li class="wa-stack wa-gap-2xs">
+      <span><strong>${escapeHtml(swap.incoming)}</strong> for ${escapeHtml(swap.outgoing)}${swap.copies > 1 ? ` (${copiesText(swap.copies)})` : ''}</span>
+      ${sleeve === 'available' ? `<wa-checkbox data-sleeve="${escapeHtml(swap.id)}" ${sleeveSwap ? 'checked' : ''} hint="${escapeHtml(swap.incoming)} goes into the ${escapeHtml(swap.outgoing)} sleeve, which already carries this deck's marks.">Sleeve swap</wa-checkbox>` : ''}
+      ${sleeve === 'other-decks' ? `<span class="wa-caption-s wa-color-text-quiet">The ${escapeHtml(swap.outgoing)} sleeve also carries other decks' marks, so this is a plain Swap.</span>` : ''}
+    </li>`).join('');
+  return true;
+}
+
+function confirmQueue() {
+  if (!queueState) return;
+  const prism = getCurrentPrism();
+  let result;
+  try {
+    result = applyDeck(prism, tickedFor(queueState.deckId));
+  } catch (err) {
+    showError(err.message);
+    return;
+  }
+  recordUnmarkedCards(prism.id, result.summary.unmarkedKeys);
+  savePrism(result.prism);
+
+  const deck = result.prism.decks.find((d) => d.id === queueState.deckId);
+  $('queue-result-summary').textContent = `Applied ${plural(result.steps.length, 'Planned swap')} to ${deck.name}. PRISM only changes its own decklist, so paste this one into Moxfield or Archidekt too.`;
+  $('queue-decklist').value = cardsToDecklistText(deck.cards);
+  $('queue-pull').innerHTML = result.pullList.map((n) => `<li>${escapeHtml(n)}</li>`).join('');
+  $('queue-pull-empty').hidden = result.pullList.length > 0;
+  $('queue-preview').hidden = true;
+  $('queue-result').hidden = false;
+  $('queue-confirm').hidden = true;
+  $('queue-cancel').textContent = 'Done';
+
+  renderQueue();
+  if (current) search(current.incoming.name);
 }

@@ -116,7 +116,9 @@ function getPrismBaseline(storage, prismId) {
       splitGroupUpdatedAts: {},
       deletedDecks: {},
       deletedSplitGroups: {},
-      unmarkedCards: {}
+      unmarkedCards: {},
+      plannedSwapUpdatedAts: {},
+      deletedPlannedSwaps: {}
     };
   }
 
@@ -126,6 +128,8 @@ function getPrismBaseline(storage, prismId) {
   baseline.deletedDecks = baseline.deletedDecks || {};
   baseline.deletedSplitGroups = baseline.deletedSplitGroups || {};
   baseline.unmarkedCards = baseline.unmarkedCards || {};
+  baseline.plannedSwapUpdatedAts = baseline.plannedSwapUpdatedAts || {};
+  baseline.deletedPlannedSwaps = baseline.deletedPlannedSwaps || {};
 
   return baseline;
 }
@@ -272,6 +276,18 @@ function recordLocalPrismChanges(storage, previousPrism, nextPrism) {
   for (const groupId of nextGroupIds) {
     delete baseline.deletedSplitGroups[groupId];
   }
+
+  // A removed or applied Planned swap is tombstoned at the wall clock, not
+  // prism.updatedAt: queue edits don't bump it, and an applied swap that came
+  // back from a stale copy could be applied twice (#364).
+  const nextSwapIds = new Set((nextPrism.plannedSwaps || []).map(s => s.id));
+  const removedAt = new Date().toISOString();
+  for (const swap of previousPrism?.plannedSwaps || []) {
+    if (!nextSwapIds.has(swap.id)) baseline.deletedPlannedSwaps[swap.id] = removedAt;
+  }
+  for (const swapId of nextSwapIds) {
+    delete baseline.deletedPlannedSwaps[swapId];
+  }
 }
 
 function recordPrismBaseline(storage, prism) {
@@ -296,6 +312,15 @@ function recordPrismBaseline(storage, prism) {
   for (const groupId of Object.keys(baseline.deletedSplitGroups)) {
     if (baseline.splitGroupUpdatedAts[groupId]) {
       delete baseline.deletedSplitGroups[groupId];
+    }
+  }
+
+  baseline.plannedSwapUpdatedAts = Object.fromEntries(
+    (prism.plannedSwaps || []).map(swap => [swap.id, swap.updatedAt])
+  );
+  for (const swapId of Object.keys(baseline.deletedPlannedSwaps)) {
+    if (baseline.plannedSwapUpdatedAts[swapId]) {
+      delete baseline.deletedPlannedSwaps[swapId];
     }
   }
 
@@ -333,6 +358,16 @@ function buildPrismFromRow(prism) {
     useDedicatedCommanderCopies: prism.use_dedicated_commander_copies || false,
     useDedicatedCommanderCopiesUpdatedAt: prism.use_dedicated_commander_copies_updated_at || null,
     removedCards: prism.removed_cards || [],
+    plannedSwaps: (prism.planned_swaps || []).map(swap => ({
+      id: swap.id,
+      incoming: swap.incoming,
+      deckId: swap.deck_id,
+      copies: swap.copies,
+      ...(swap.outgoing ? { outgoing: swap.outgoing } : {}),
+      ...(swap.note ? { note: swap.note } : {}),
+      createdAt: swap.created_at,
+      updatedAt: swap.updated_at
+    })).sort(byCreatedAt),
     splitGroups: (prism.split_groups || []).map(group => ({
       ...group,
       updatedAt: group.updatedAt || prism.updated_at
@@ -356,6 +391,36 @@ function buildPrismFromRow(prism) {
       }))
     })).sort((a, b) => a.stripePosition - b.stripePosition)
   };
+}
+
+const byCreatedAt = (a, b) => getTimestampMs(a.createdAt) - getTimestampMs(b.createdAt);
+
+// Planned swaps (#364) merge per id on their own updatedAt, never via
+// basePrism. Unlike decks, removal always beats an edit: an applied swap that
+// came back could be applied twice. So a swap tombstoned here never returns,
+// and one this device synced before that the cloud no longer holds was removed
+// or applied on another device, whatever was edited here since.
+function mergePlannedSwaps(localSwaps, cloudSwaps, baseline) {
+  const synced = baseline.plannedSwapUpdatedAts || {};
+  const deleted = baseline.deletedPlannedSwaps || {};
+  const cloudMap = new Map(cloudSwaps.map(swap => [swap.id, swap]));
+  const merged = new Map();
+
+  for (const local of localSwaps) {
+    const cloud = cloudMap.get(local.id);
+    if (cloud) {
+      merged.set(local.id, getTimestampMs(local.updatedAt) >= getTimestampMs(cloud.updatedAt) ? local : cloud);
+    } else if (!synced[local.id]) {
+      merged.set(local.id, local);
+    }
+  }
+  for (const cloud of cloudSwaps) {
+    if (!merged.has(cloud.id) && !deleted[cloud.id]) {
+      merged.set(cloud.id, cloud);
+    }
+  }
+
+  return [...merged.values()].sort(byCreatedAt);
 }
 
 export function mergePrismVersions(localPrism, cloudPrism, prismBaseline) {
@@ -425,6 +490,7 @@ export function mergePrismVersions(localPrism, cloudPrism, prismBaseline) {
       localPrism.removedCards || [],
       cloudPrism.removedCards || []
     ),
+    plannedSwaps: mergePlannedSwaps(localPrism.plannedSwaps || [], cloudPrism.plannedSwaps || [], baseline),
     decks: mergedDecks,
     splitGroups: mergedSplitGroups,
     updatedAt: getTimestampMs(localUpdatedAt) >= getTimestampMs(cloudUpdatedAt)
@@ -444,6 +510,16 @@ const PRISM_SELECT = `
   removed_cards,
   created_at,
   updated_at,
+  planned_swaps (
+    id,
+    deck_id,
+    incoming,
+    outgoing,
+    copies,
+    note,
+    created_at,
+    updated_at
+  ),
   decks (
     id,
     name,
@@ -785,6 +861,42 @@ async function savePrismToSupabase(prism) {
       }
     }
 
+    // Planned swaps (#364) after the decks they reference. Rows not in the
+    // local queue were removed or applied here; the merge already kept
+    // anything another device added since. A swap whose deck is gone waits
+    // for the Swap Queue to drop it; its cloud row went with the deck.
+    const plannedSwaps = (prism.plannedSwaps || []).filter(swap => localDeckIdSet.has(swap.deckId));
+    if (plannedSwaps.length > 0) {
+      const { error: swapsUpsertError } = await supabase
+        .from('planned_swaps')
+        .upsert(plannedSwaps.map(swap => ({
+          id: swap.id,
+          prism_id: prism.id,
+          deck_id: swap.deckId,
+          incoming: swap.incoming,
+          outgoing: swap.outgoing || null,
+          copies: swap.copies || 1,
+          note: swap.note || null,
+          created_at: swap.createdAt || prismUpdatedAt,
+          updated_at: swap.updatedAt || prismUpdatedAt
+        })), { onConflict: 'id' });
+
+      if (swapsUpsertError) {
+        console.error('Error upserting planned swaps to Supabase:', swapsUpsertError);
+        return false;
+      }
+    }
+
+    let staleSwaps = supabase.from('planned_swaps').delete().eq('prism_id', prism.id);
+    if (plannedSwaps.length > 0) {
+      staleSwaps = staleSwaps.not('id', 'in', `(${plannedSwaps.map(swap => swap.id).join(',')})`);
+    }
+    const { error: deleteSwapsError } = await staleSwaps;
+    if (deleteSwapsError) {
+      console.error('Error deleting removed planned swaps from Supabase:', deleteSwapsError);
+      return false;
+    }
+
     if (anyCardFailed) {
       console.warn('PRISM saved with some card sync failures:', prism.name);
       return false;
@@ -978,7 +1090,8 @@ export async function syncWithSupabase() {
       // and should not be uploaded as phantom empty PRISMs.
       const hasContent = (localPrism.decks?.length > 0) ||
                          (localPrism.markedCards?.length > 0) ||
-                         (localPrism.removedCards?.length > 0);
+                         (localPrism.removedCards?.length > 0) ||
+                         (localPrism.plannedSwaps?.length > 0);
       const hasBaseline = !!(baseline?.updatedAt);
       if (!hasContent && !hasBaseline) continue;
 

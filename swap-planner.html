@@ -110,10 +110,23 @@
                 <p id="swap-incoming-meta" class="wa-color-text-quiet"></p>
                 <p id="swap-fit"></p>
                 <p id="swap-unmatched" class="wa-caption-s wa-color-text-quiet" hidden></p>
+                <!-- Queues an idea: a Planned swap with no cut yet (#364) -->
+                <wa-select id="swap-queue-deck" size="s" placeholder="Choose a deck" label="Queue for deck…" hint="Queues it with no cut yet. Choose the cut later in the Swap Queue." hidden></wa-select>
               </div>
             </section>
 
             <div id="swap-results" class="wa-stack wa-gap-l"></div>
+
+            <!-- Swap Queue (#364): Planned swaps by target deck, applied one deck at a time -->
+            <section id="swap-queue" hidden>
+              <div class="wa-stack wa-gap-l">
+              <div class="wa-stack wa-gap-2xs">
+                <h2 class="wa-heading-l">Swap Queue</h2>
+                <p class="wa-color-text-quiet">Planned swaps, by deck. Apply one deck at a time, then paste its decklist into Moxfield or Archidekt.</p>
+              </div>
+              <div id="swap-queue-decks" class="wa-stack wa-gap-xl"></div>
+              </div>
+            </section>
           </div>
           </div>
         </div>
@@ -152,6 +165,38 @@
       <div slot="footer" class="wa-cluster wa-gap-s">
         <wa-button variant="neutral" appearance="outlined" data-dialog="close">Cancel</wa-button>
         <wa-button id="swap-confirm" variant="brand">Swap</wa-button>
+      </div>
+    </wa-dialog>
+
+    <!-- Apply one deck's ticked Planned swaps (#364): preview, then the result -->
+    <wa-dialog id="queue-dialog" label="Apply deck" class="swap-dialog">
+      <div id="queue-preview">
+      <div class="wa-stack wa-gap-l">
+        <div class="wa-stack wa-gap-2xs" aria-live="polite">
+          <p id="queue-cost" class="wa-heading-l"></p>
+          <p id="queue-copies"></p>
+        </div>
+        <ol id="queue-steps" class="queue-steps wa-stack wa-gap-s"></ol>
+      </div>
+      </div>
+      <!-- hidden on a plain wrapper: wa-stack's display overrides [hidden] -->
+      <div id="queue-result" hidden>
+      <div class="wa-stack wa-gap-l">
+        <p id="queue-result-summary"></p>
+        <div class="wa-stack wa-gap-xs">
+          <wa-textarea id="queue-decklist" label="Updated decklist" hint="Paste it into the deck's bulk edit on Moxfield or Archidekt." rows="8" readonly></wa-textarea>
+          <wa-copy-button from="queue-decklist.value" copy-label="Copy decklist"></wa-copy-button>
+        </div>
+        <div class="wa-stack wa-gap-xs">
+          <h3 class="wa-heading-m">Pull list</h3>
+          <p id="queue-pull-empty" class="wa-color-text-quiet">Every card you cut is still in another deck of this PRISM.</p>
+          <ul id="queue-pull" class="queue-pull"></ul>
+        </div>
+      </div>
+      </div>
+      <div slot="footer" class="wa-cluster wa-gap-s">
+        <wa-button id="queue-cancel" variant="neutral" appearance="outlined" data-dialog="close">Cancel</wa-button>
+        <wa-button id="queue-confirm" variant="brand">Apply</wa-button>
       </div>
     </wa-dialog>
 
