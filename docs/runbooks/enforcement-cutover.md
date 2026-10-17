@@ -58,7 +58,7 @@ path. Steps 1–3 are not re-run in November: the changeover is the `index.html`
 campaign block alone, and signups stay open through the campaign and after it.
 Where steps 4–5 below say signups are still shut, that no longer holds.
 
-### Schedule (updated 2026-09-25)
+### Schedule (updated 2026-10-16)
 
 **Enforcement was flipped on 2026-09-25, ahead of the campaign**
 ([#268](https://github.com/codwats/prism/issues/268)). It no longer waits for
@@ -81,24 +81,26 @@ impulse buying, and buys prep time; it accepts up front that backers will not
 receive the kit before Christmas. Fulfilment moves with the campaign, from
 shortly after a November wrap to a **January** target.
 
-The month is settled; the dates are not. The team has not met on this yet, and
-the reasoning above is Jay's rather than a team decision. Treat every entry
-below as a placeholder until that conversation happens.
+**Dates confirmed 2026-10-16:** funding launches Monday **2026-11-02** and runs
+**21 days**, closing Monday **2026-11-23**.
 
 - **Pending, expected 2026-09-18:** the bank's letter to Stripe, and Stripe's
   confirmation back. No launch date is real before this lands.
-- **November, date not set:** Kickstarter pre-launch page opens.
-- **The Sunday evening before it:** deploy the site changeover (signups stay
-  open), so the destination can be verified before Monday's public traffic.
-- **Roughly a week after pre-launch:** funding launch. No site deploy: the
-  campaign block reads correctly in both phases and the pre-launch URL becomes
-  the live one. See below.
-- **Late November, date not set:** campaign close. Then the backer survey and the
-  allowlist load. Signups are already open (step 6, done 2026-10-15). The flip is done (2026-09-25).
+- **2026-10-15, done:** the Kickstarter pre-launch page is live and the campaign
+  block's CTA points at it (#362). That was the site changeover.
+- **2026-11-02 (Monday):** funding launch. No site deploy: the campaign block
+  reads correctly in both phases and the pre-launch URL becomes the live one.
+  See below.
+- **2026-11-23 (Monday):** campaign close, after 21 days. One deploy that day:
+  delete the campaign block (step 4) and land the Membership section
+  ([#365](https://github.com/codwats/prism/pull/365), step 7) together, so the
+  landing page never asks for both a pledge and a Membership. Then the backer
+  survey and the allowlist load. Signups are already open (step 6, done
+  2026-10-15). The flip is done (2026-09-25).
 - **January:** fulfilment target.
 
-Fill in the exact dates once the team has met. An approximate month in this
-file is fine; a stale exact date is not.
+If a date moves, update it here the same day: a stale exact date is worse than
+an approximate month.
 
 [Draft PR #236](https://github.com/codwats/prism/pull/236) already prepares
 #222 and #206. It no longer waits on the Kickstarter URL: the CTA ships
@@ -227,8 +229,11 @@ Payment enforcement is already on (2026-09-25); the changeover does not touch it
      since signup is the path again.
 
 7. **Land the membership section** on `index.html`
-   ([#215](https://github.com/codwats/prism/issues/215)) and the membership
-   drawer ([#216](https://github.com/codwats/prism/issues/216)).
+   ([#215](https://github.com/codwats/prism/issues/215), draft PR
+   [#365](https://github.com/codwats/prism/pull/365)) at campaign close, in the
+   same deploy as step 4. Signups reopening early did not move this step: it
+   waits for the campaign block to come out. The membership drawer
+   ([#216](https://github.com/codwats/prism/issues/216)) shipped in #249.
 
 The closed-signup window and the campaign-copy window share a start and do not
 share an end: the copy comes out at campaign close, the signup lock when signups reopen.

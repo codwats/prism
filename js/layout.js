@@ -257,6 +257,9 @@ function injectHeadResources() {
     --wa-color-neutral-text-subtle: var(--wa-color-neutral-80);
     --wa-color-brand-text: var(--wa-color-brand-80);
     --wa-color-brand-stroke: var(--wa-color-brand-70);
+    /* WA's dark fill-loud is brand-50: white on it is 4.45:1. A 20% step toward
+       brand-40 reaches 4.85:1 and stays >=3:1 against dark surfaces. */
+    --wa-color-brand-fill-loud: color-mix(in srgb, var(--wa-color-brand-40) 20%, var(--wa-color-brand-50));
     --wa-color-success-text: var(--wa-color-success-80);
     --wa-color-warning-text: var(--wa-color-warning-80);
     --wa-color-warning-surface: var(--wa-color-warning-20);

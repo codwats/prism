@@ -617,8 +617,9 @@ wa-page[view='desktop'] [data-toggle-nav] {
 
 @media (max-width: 768px) {
   /* Tighten main content gutters on mobile (WA default padding is desktop-sized) */
+  /* space-m, not space-s: at the 1.125 scale s is 13.5px, under the 16px body-text floor */
   wa-page > main {
-    padding-inline: var(--wa-space-s);
+    padding-inline: var(--wa-space-m);
   }
 }
 
