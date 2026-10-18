@@ -441,7 +441,7 @@
                   <wa-radio appearance="button" value="all" size="s">All Cards</wa-radio>
                   <wa-radio appearance="button" value="shared" size="s">Pool</wa-radio>
                   <wa-radio appearance="button" value="basics-by-deck" size="s">One Mark at a Time</wa-radio>
-                  <wa-radio appearance="button" value="removed" id="removed-filter-btn" size="s">Stale Marks</wa-radio>
+                  <wa-radio appearance="button" value="removed" id="removed-filter-btn" size="s">Marks to Clear</wa-radio>
                 </wa-radio-group>
                 <!-- Search -->
                 <wa-input id="results-search" placeholder="Search cards..." size="m" style="max-width: 400px; flex: 1; min-width: 10rem;">
@@ -564,9 +564,9 @@
       </div>
     </wa-dialog>
 
-    <!-- Clear All Stale Marks Confirmation Dialog -->
-    <wa-dialog id="clear-all-removed-dialog" label="Clear all stale marks">
-      <p>Clear all <strong id="clear-all-removed-count"></strong> stale marks from this list?</p>
+    <!-- Clear All Marks to Clear Confirmation Dialog -->
+    <wa-dialog id="clear-all-removed-dialog" label="Empty Marks to Clear">
+      <p>Remove all <strong id="clear-all-removed-count"></strong> from the Marks to Clear list?</p>
       <p style="color: var(--wa-color-neutral-text-subtle);">
         Each row is a mark still painted on a sleeve for a deck that no longer needs the card.
         Clearing the list does not remove the paint, and the list cannot be rebuilt.

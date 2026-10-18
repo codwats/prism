@@ -256,7 +256,7 @@ export function handleClearAllRemoved() {
   state.elements.clearAllRemovedDialog?.removeAttribute('open');
   updateRemovedFilterBadge();
   renderResults();
-  showSuccess(`Cleared ${count} stale ${count === 1 ? 'mark' : 'marks'}.`);
+  showSuccess(`Cleared ${count} ${count === 1 ? 'mark' : 'marks'} from Marks to Clear.`);
 }
 
 // ============================================================================

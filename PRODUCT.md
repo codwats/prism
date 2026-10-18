@@ -23,7 +23,7 @@ The mechanism a spreadsheet or generic label system can't replicate: PRISM encod
 - Import: paste decklists (MTGO/Moxfield text format) or pull directly from Moxfield/Archidekt URLs.
 - The tool computes stripe/dot assignments and a printable/exportable marking guide (CSV, JSON, printable).
 - The user physically paints Perfect Fit inner sleeves with colored paint pens per the guide, then double-sleeves for protection.
-- Ongoing use: decks change over time: cards get added/removed, decks get added — PRISM tracks stale marks and lets the user mark only what's new rather than re-deriving everything.
+- Ongoing use: decks change over time: cards get added/removed, decks get added — PRISM tracks marks to clear and lets the user mark only what's new rather than re-deriving everything.
 - 100% client-side by default (localStorage, no account required). Cloud sync across devices is what a Membership buys; a free account exists for gallery participation and syncs nothing.
 
 ## Capabilities and Constraints
@@ -34,7 +34,7 @@ The mechanism a spreadsheet or generic label system can't replicate: PRISM encod
 - Enforcement gates *adding*, never *access* — see Product Principles. Entitlement is read through one source-blind `is_entitled()` check (`docs/runbooks/enforcement-cutover.md`), so a Founder, a Stripe member and a Patreon member are indistinguishable to every feature.
 - The Founder grant is half-advertised, deliberately (#221). That a **backer tier includes a lifetime Membership** is advertised freely, since the campaign sells it as a reward. That an **existing account, by itself, becomes permanently free at enforcement** is never advertised: no PRISM surface, in the campaign window or after, invites anyone to create an account in order to get in ahead of the flip. The control on the size of the Founder cohort is the closed signup window, not publicity.
 - No formal accessibility standard is a binding commitment; real a11y defects (touch targets, aria-labels, etc.) are handled as bugs, not against a stated WCAG level.
-- Terminology is a controlled vocabulary (see `CONTEXT.md`) — e.g. Pool/Core/Dedicated, Slot, Marking batch/pass, Stale mark, Perfect Fit inner. Future copy work should read `CONTEXT.md` before introducing new terms.
+- Terminology is a controlled vocabulary (see `CONTEXT.md`) — e.g. Pool/Core/Dedicated, Slot, Marking batch/pass, Mark to clear, Perfect Fit inner. Future copy work should read `CONTEXT.md` before introducing new terms.
 
 ## Brand Commitments
 

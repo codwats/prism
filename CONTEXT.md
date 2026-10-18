@@ -46,7 +46,7 @@ A qualifier on a Core batch that exists because the PRISM gives a commander its 
 The number of physical copies of a card needed across a PRISM. It equals the sum of that card's marking-batch quantities.
 
 **Swap**:
-One card replacing another in a deck: a pair of an outgoing card and an incoming card, never two unrelated edits. What a Swap costs is counted in marks: the marks that go stale and the marks that must be added.
+One card replacing another in a deck: a pair of an outgoing card and an incoming card, never two unrelated edits. What a Swap costs is counted in marks: the marks to clear and the marks that must be added.
 _Avoid_: replacement (as a term), substitution, paint cost
 
 **Sleeve swap**:
@@ -75,9 +75,9 @@ _Avoid_: buylist, trade pile
 **Mark**:
 A painted indicator on a sleeve edge. Every mark is either a stripe or a dot.
 
-**Stale mark**:
-A mark on a sleeve for a deck that no longer needs the card. Arises when a card leaves a decklist or its quantity drops. Lowercase in prose.
-_Avoid_: removed card, pending removal
+**Mark to clear**:
+A mark on a sleeve for a deck that no longer needs the card. Arises when a card leaves a decklist or its quantity drops. Lowercase in prose; the Results filter reads **Marks to Clear**. Named for the job, not the state: "stale mark" left players and partners asking what it meant.
+_Avoid_: stale mark, removed card, pending removal
 _In code_: `removedCards`, and the filter value is `removed`.
 
 **Slot**:
