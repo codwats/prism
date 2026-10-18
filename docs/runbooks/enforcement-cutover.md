@@ -103,8 +103,9 @@ If a date moves, update it here the same day: a stale exact date is worse than
 an approximate month.
 
 The campaign block's CTA now links to the pre-launch URL (#362), which is also
-the live campaign URL. Still open: the anonymous build/import/mark/export
-walkthrough on production. The kit photo can follow later.
+the live campaign URL. The anonymous build/import/mark/export walkthrough
+passed on production on 2026-10-18, including URL import and export. The kit
+photo can follow later.
 
 **There is no copy swap at funding launch.** #221 wrote the block for a live
 campaign, and the schedule since put pre-launch a week ahead of funding. Rather
