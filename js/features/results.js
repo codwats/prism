@@ -151,10 +151,10 @@ export function updateRemovedFilterBadge() {
   const count = state.currentPrism?.removedCards?.length || 0;
 
   if (count > 0) {
-    removedBtn.textContent = `Stale Marks (${count})`;
+    removedBtn.textContent = `Marks to Clear (${count})`;
     removedBtn.style.setProperty('--wa-color-surface', 'var(--wa-color-warning-surface-subtle)');
   } else {
-    removedBtn.textContent = 'Stale Marks';
+    removedBtn.textContent = 'Marks to Clear';
     removedBtn.style.removeProperty('--wa-color-surface');
   }
 }
@@ -671,7 +671,7 @@ export function renderResults({ preserveRows = false } = {}) {
     let emptyMessage = 'No cards match your filters. Clear All Filters shows every card again.';
 
     if (filter === 'removed') {
-      emptyMessage = 'No stale marks. A stale mark belongs to a deck that no longer needs the card.';
+      emptyMessage = 'No marks to clear. A mark to clear is paint for a deck that no longer needs the card.';
     } else if (processedCards.length === 0) {
       // Decks exist but hold no cards: a blank table under live stats reads as
       // lost data, so state the failure instead of returning silently.

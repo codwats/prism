@@ -36,7 +36,7 @@ Proxies give you two shortcuts. You can mark the proxy face and skip the sleeve,
 2. **Get your slots.** Each deck gets a color and a stripe position from 1 to 48.
 3. **See what's shared.** PRISM works out which cards are shared and how many copies you actually need.
 4. **Mark your sleeves.** Work from the results list, the printable guide or SCRY-Mode, and tick each card off as you go.
-5. **Keep it current.** When a deck changes, PRISM shows only the new marks to paint and the stale ones to clear.
+5. **Keep it current.** When a deck changes, PRISM shows only the new marks to paint and the old ones to clear.
 
 The [Sleeve Marking Guide](https://prismmtg.com/guide.html) walks through a full marking session.
 
@@ -47,7 +47,7 @@ The [Sleeve Marking Guide](https://prismmtg.com/guide.html) walks through a full
 - **Up to 48 decks per PRISM**, or 96 with dot splits
 - **Exact copy counts.** If one deck runs 12 Islands and another runs 8, you own 12, and PRISM tells you which 8 carry both marks.
 - **Split groups.** Two to eight builds of one deck share a slot, told apart by a second stripe or a dot.
-- **Stale marks.** Remove a card from a deck and PRISM keeps a list of the marks you still need to clear.
+- **Marks to clear.** Remove a card from a deck and PRISM keeps a list of the paint you still need to take off.
 - **Export.** Printable guide, CSV, a JSON backup, or a plain-text list of what's left to mark.
 - **Move a deck's slot** at any time, before you paint
 - **No account needed.** Everything runs in your browser and saves locally.
