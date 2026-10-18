@@ -1462,3 +1462,61 @@ BEGIN
   -- the world that runs at midnight or on the hour.
   PERFORM cron.schedule('prune-app-logs', '17 4 * * *', 'SELECT public.prune_app_logs();');
 END $$;
+
+-- ============================================
+-- MIGRATION: Swap Queue (#364)
+-- ============================================
+-- One row per Planned swap. Deploy before the client that selects it: the
+-- PRISM load embeds planned_swaps, so a missing table fails every cloud read.
+-- Merged by id on updated_at in the client, never with the prism row; the
+-- client supplies updated_at (no trigger, see the trigger migration above).
+-- Owner-only through the prism, like decks. INSERT gated on entitlement (the
+-- queue is an Extra); UPDATE/DELETE/SELECT are not, so a Lapse leaves the rows
+-- where they are and they come back on rejoining.
+BEGIN;
+  CREATE TABLE IF NOT EXISTS planned_swaps (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    prism_id UUID REFERENCES prisms(id) ON DELETE CASCADE NOT NULL,
+    deck_id UUID REFERENCES decks(id) ON DELETE CASCADE NOT NULL,
+    incoming TEXT NOT NULL,
+    outgoing TEXT,
+    copies INTEGER NOT NULL DEFAULT 1 CHECK (copies >= 1),
+    note TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_planned_swaps_prism ON planned_swaps(prism_id);
+  CREATE INDEX IF NOT EXISTS idx_planned_swaps_deck ON planned_swaps(deck_id);
+
+  ALTER TABLE planned_swaps ENABLE ROW LEVEL SECURITY;
+  REVOKE ALL ON planned_swaps FROM anon;
+
+  DROP POLICY IF EXISTS "Users can view planned swaps in own prisms" ON planned_swaps;
+  CREATE POLICY "Users can view planned swaps in own prisms"
+    ON planned_swaps FOR SELECT
+    USING (prism_id IN (SELECT id FROM prisms WHERE user_id = auth.uid()));
+
+  DROP POLICY IF EXISTS "Users can create planned swaps in own prisms" ON planned_swaps;
+  CREATE POLICY "Users can create planned swaps in own prisms"
+    ON planned_swaps FOR INSERT
+    WITH CHECK (
+      prism_id IN (SELECT id FROM prisms WHERE user_id = auth.uid())
+      AND deck_id IN (SELECT id FROM decks WHERE prism_id = planned_swaps.prism_id)
+      AND is_entitled()
+    );
+
+  DROP POLICY IF EXISTS "Users can update planned swaps in own prisms" ON planned_swaps;
+  CREATE POLICY "Users can update planned swaps in own prisms"
+    ON planned_swaps FOR UPDATE
+    USING (prism_id IN (SELECT id FROM prisms WHERE user_id = auth.uid()))
+    WITH CHECK (
+      prism_id IN (SELECT id FROM prisms WHERE user_id = auth.uid())
+      AND deck_id IN (SELECT id FROM decks WHERE prism_id = planned_swaps.prism_id)
+    );
+
+  DROP POLICY IF EXISTS "Users can delete planned swaps in own prisms" ON planned_swaps;
+  CREATE POLICY "Users can delete planned swaps in own prisms"
+    ON planned_swaps FOR DELETE
+    USING (prism_id IN (SELECT id FROM prisms WHERE user_id = auth.uid()));
+COMMIT;

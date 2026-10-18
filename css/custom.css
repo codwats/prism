@@ -1685,9 +1685,27 @@ wa-page[view='desktop'] [data-toggle-nav] {
   color: var(--wa-color-text-quiet);
 }
 
-.swap-questions {
+.swap-questions,
+.queue-steps,
+.queue-pull {
   margin: 0;
   padding-inline-start: var(--wa-space-l);
+}
+
+/* Swap Queue (#364) */
+.queue-swap {
+  margin: 0;
+  padding-block: var(--wa-space-s);
+  border-block-start: var(--wa-border-width-s) solid var(--wa-color-surface-border);
+}
+
+.queue-swap-fields wa-select,
+.queue-swap-fields [data-note] {
+  min-inline-size: 12rem;
+}
+
+.queue-swap-fields [data-copies] {
+  inline-size: 6rem;
 }
 
 @media (max-width: 768px) {
