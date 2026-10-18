@@ -861,10 +861,9 @@ async function savePrismToSupabase(prism) {
       }
     }
 
-    // Planned swaps (#364) after the decks they reference. Rows not in the
-    // local queue were removed or applied here; the merge already kept
-    // anything another device added since. A swap whose deck is gone waits
-    // for the Swap Queue to drop it; its cloud row went with the deck.
+    // Planned swaps (#364) after the decks they reference. A swap whose deck
+    // is gone waits for the Swap Queue to drop it; its cloud row went with
+    // the deck.
     const plannedSwaps = (prism.plannedSwaps || []).filter(swap => localDeckIdSet.has(swap.deckId));
     if (plannedSwaps.length > 0) {
       const { error: swapsUpsertError } = await supabase
@@ -887,14 +886,27 @@ async function savePrismToSupabase(prism) {
       }
     }
 
-    let staleSwaps = supabase.from('planned_swaps').delete().eq('prism_id', prism.id);
-    if (plannedSwaps.length > 0) {
-      staleSwaps = staleSwaps.not('id', 'in', `(${plannedSwaps.map(swap => swap.id).join(',')})`);
-    }
-    const { error: deleteSwapsError } = await staleSwaps;
-    if (deleteSwapsError) {
-      console.error('Error deleting removed planned swaps from Supabase:', deleteSwapsError);
-      return false;
+    // Delete only rows this device has evidence it removed: a tombstone, or a
+    // swap it synced before that is no longer queued here. A row merely absent
+    // here may have been queued on another device after this save's merge.
+    // shortcut: tombstones are never pruned, so this list only grows; prune
+    // once a successful delete is recorded in the baseline.
+    const baseline = getPrismBaseline(loadStorage(), prism.id);
+    const queuedIds = new Set((prism.plannedSwaps || []).map(swap => swap.id));
+    const removedSwapIds = [...new Set([
+      ...Object.keys(baseline.deletedPlannedSwaps),
+      ...Object.keys(baseline.plannedSwapUpdatedAts)
+    ])].filter(id => !queuedIds.has(id));
+    if (removedSwapIds.length > 0) {
+      const { error: deleteSwapsError } = await supabase
+        .from('planned_swaps')
+        .delete()
+        .eq('prism_id', prism.id)
+        .in('id', removedSwapIds);
+      if (deleteSwapsError) {
+        console.error('Error deleting removed planned swaps from Supabase:', deleteSwapsError);
+        return false;
+      }
     }
 
     if (anyCardFailed) {
