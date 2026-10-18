@@ -171,7 +171,9 @@ Payment enforcement is already on (2026-09-25); the changeover does not touch it
 
 **At campaign close:**
 
-4. **Delete the campaign block** from `index.html`, and nothing else yet. Its
+4. **Delete the campaign block** from `index.html` and the Kickstarter callout
+   from `tools.html` (`grep -rn 'CAMPAIGN WINDOW' *.html` finds both), and
+   nothing else yet. Its
    copy asks a visitor to back a live campaign and goes stale the moment funding
    ends, and signups do not reopen the same day. The revert
    is a deletion, not new copy: the page returns to its prior state. Until
