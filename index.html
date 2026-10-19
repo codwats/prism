@@ -309,6 +309,39 @@
 
         <wa-divider style="--spacing: var(--wa-space-2xl);"></wa-divider>
 
+        <!-- Membership (#215). Makes the case only. The story below is for everyone;
+             the sell (benefits, price, button) is rendered by initMembershipPitch,
+             one branch on entitlement, so an entitled visitor sees none of it. Its
+             button hands off to the build.html drawer, the one checkout surface. -->
+        <section id="membership" class="wa-stack wa-gap-xl" style="max-width: 900px; margin: 0 auto;">
+          <h2 class="wa-heading-2xl" style="text-align: center;">Your PRISM, at the desk and at the shop</h2>
+          <p style="text-align: center; max-width: 640px; margin-inline: auto;">
+            You build at the desk. You paint at the kitchen table. You check a slot at the shop with a phone in one hand and a deck box in the other. Membership keeps the same PRISM in all three places.
+          </p>
+
+          <div class="wa-grid wa-gap-xl" style="--min-column-size: 220px;">
+            <div class="wa-stack wa-gap-s wa-align-items-center" style="text-align: center;">
+              <wa-icon name="desktop" style="font-size: 2rem; color: var(--wa-color-brand-fill);"></wa-icon>
+              <h3 class="wa-heading-l">At the desk</h3>
+              <p>Import your decklists, let PRISM work out the batches, and assign the slots.</p>
+            </div>
+            <div class="wa-stack wa-gap-s wa-align-items-center" style="text-align: center;">
+              <wa-icon name="paintbrush" style="font-size: 2rem; color: var(--wa-color-brand-fill);"></wa-icon>
+              <h3 class="wa-heading-l">At the table</h3>
+              <p>Follow the marking pass on a tablet with the paint pen in your other hand.</p>
+            </div>
+            <div class="wa-stack wa-gap-s wa-align-items-center" style="text-align: center;">
+              <wa-icon name="store" style="font-size: 2rem; color: var(--wa-color-brand-fill);"></wa-icon>
+              <h3 class="wa-heading-l">At the shop</h3>
+              <p>Check which slot a sleeve belongs to before you pull the deck apart.</p>
+            </div>
+          </div>
+
+          <div class="wa-stack wa-gap-m" style="text-align: center; max-width: 640px; margin-inline: auto;" data-membership-pitch></div>
+        </section>
+
+        <wa-divider style="--spacing: var(--wa-space-2xl);"></wa-divider>
+
         <!-- CTA Section -->
         <section class="wa-stack wa-align-items-center wa-gap-l" style="padding-block: var(--wa-space-2xl);">
           <h2 class="wa-heading-3xl" style="text-align: center;">
@@ -361,7 +394,9 @@
 
     <script type="module">
       import { initLayout } from './js/layout.js';
+      import { initMembershipPitch } from './js/modules/membership.js';
       initLayout({ activePage: 'home' });
+      initMembershipPitch();
     </script>
   </body>
 </html>
