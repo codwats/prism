@@ -9,6 +9,9 @@ import { savePrism, setCurrentPrism } from '../modules/storage.js';
 import { buildPrismFromJson } from '../modules/prism-import.js';
 import { importFromMoxfield, toDecklistText, extractMoxfieldId } from '../modules/moxfield.js';
 import { importFromArchidekt, extractArchidektId } from '../modules/archidekt.js';
+import { extractCubeCobraId, fetchCube, cubeTags, cubeToPacks, packsToPrismJson } from '../modules/cubecobra.js';
+import { MAX_STRIPE_SLOTS } from '../modules/processor.js';
+import { escapeHtml } from '../core/utils.js';
 import {
   initColorSwatches,
   syncCommanderFieldsFromText,
@@ -78,6 +81,105 @@ export function handleEditFileUpload(e) {
   reader.onerror = () => showError('Failed to read file. Please try again.');
   reader.readAsText(file);
   resetFileInput(e.target);
+}
+
+// ============================================================================
+// CubeCobra Import (#196)
+// ============================================================================
+
+let loadedCube = null;
+
+export function openCubeDialog() {
+  const els = state.elements;
+  loadedCube = null;
+  if (els.cubeUrl) els.cubeUrl.value = '';
+  if (els.cubeError) els.cubeError.hidden = true;
+  if (els.cubeTags) { els.cubeTags.hidden = true; els.cubeTags.innerHTML = ''; }
+  if (els.cubeCapacity) els.cubeCapacity.hidden = true;
+  if (els.btnCreateCube) els.btnCreateCube.disabled = true;
+  els.cubeDialog?.setAttribute('open', '');
+}
+
+function showCubeError(message) {
+  if (!state.elements.cubeError) return;
+  state.elements.cubeError.textContent = message;
+  state.elements.cubeError.hidden = false;
+}
+
+function tickedCubeTags() {
+  return [...(state.elements.cubeTags?.querySelectorAll('wa-checkbox') || [])]
+    .filter(box => box.checked)
+    .map(box => box.dataset.tag);
+}
+
+export function updateCubeCapacity() {
+  const els = state.elements;
+  const ticked = tickedCubeTags().length;
+  const over = ticked > MAX_STRIPE_SLOTS;
+  if (els.cubeCapacity) {
+    els.cubeCapacity.textContent = over
+      ? `${ticked} packs ticked; a PRISM holds ${MAX_STRIPE_SLOTS}. Untick ${ticked - MAX_STRIPE_SLOTS} to continue.`
+      : `${ticked} of ${MAX_STRIPE_SLOTS} stripe slots used.`;
+    els.cubeCapacity.style.color = over ? 'var(--wa-color-danger-text)' : '';
+    els.cubeCapacity.hidden = false;
+  }
+  if (els.btnCreateCube) els.btnCreateCube.disabled = ticked === 0 || over;
+}
+
+export async function handleLoadCube() {
+  const els = state.elements;
+  const cubeId = extractCubeCobraId(els.cubeUrl?.value);
+  if (els.cubeError) els.cubeError.hidden = true;
+  if (!cubeId) {
+    showCubeError('Paste a CubeCobra cube URL or cube id.');
+    return;
+  }
+
+  if (els.btnLoadCube) els.btnLoadCube.loading = true;
+  try {
+    const cube = await fetchCube(cubeId);
+    const tags = cubeTags(cube);
+    if (tags.length === 0) throw new Error('This cube has no tagged cards. Tag each card with its pack on CubeCobra first.');
+    loadedCube = cube;
+    els.cubeTags.innerHTML = `<span class="wa-caption-m">Tags that are packs in <strong>${escapeHtml(cube.name || cubeId)}</strong>:</span>`
+      + tags.map(({ tag, count }) =>
+        `<wa-checkbox checked data-tag="${escapeHtml(tag)}">${escapeHtml(tag)} (${count} card${count === 1 ? '' : 's'})</wa-checkbox>`
+      ).join('');
+    els.cubeTags.hidden = false;
+    updateCubeCapacity();
+  } catch (err) {
+    console.error('Cube import error:', err);
+    logToSupabase('error', 'cube_import_failed', { error: err.message });
+    loadedCube = null;
+    if (els.cubeTags) els.cubeTags.hidden = true;
+    if (els.cubeCapacity) els.cubeCapacity.hidden = true;
+    if (els.btnCreateCube) els.btnCreateCube.disabled = true;
+    showCubeError(err.message || 'Failed to load cube.');
+  } finally {
+    if (els.btnLoadCube) els.btnLoadCube.loading = false;
+  }
+}
+
+export function handleCreateCubePrism() {
+  if (!loadedCube) return;
+  try {
+    const { packs, skipped } = cubeToPacks(loadedCube, tickedCubeTags());
+    const newPrism = buildPrismFromJson(packsToPrismJson(loadedCube.name, packs), { preserveId: false });
+
+    savePrism(newPrism);
+    setCurrentPrism(newPrism.id);
+    state.currentPrism = newPrism;
+    initColorSwatches();
+    renderAll();
+    state.elements.cubeDialog?.removeAttribute('open');
+
+    logToSupabase('info', 'cube_import', { name: newPrism.name, deckCount: newPrism.decks.length, skipped });
+    const skippedNote = skipped > 0 ? ` Skipped ${skipped} card${skipped === 1 ? '' : 's'} with no ticked tag.` : '';
+    showSuccess(`Imported "${newPrism.name}" with ${newPrism.decks.length} pack${newPrism.decks.length === 1 ? '' : 's'}.${skippedNote}`);
+  } catch (err) {
+    console.error('Cube import error:', err);
+    showCubeError(err.message || 'Failed to import cube.');
+  }
 }
 
 // ============================================================================

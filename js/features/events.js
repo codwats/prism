@@ -17,7 +17,7 @@ import {
   addCommanderRefs,
   editCommanderRefs,
 } from './deck-form.js';
-import { handleFileUpload, handleJsonImport, handleMoxfieldImport, handleEditFileUpload, handleEditUrlImport } from './deck-import.js';
+import { handleFileUpload, handleJsonImport, handleMoxfieldImport, handleEditFileUpload, handleEditUrlImport, openCubeDialog, handleLoadCube, updateCubeCapacity, handleCreateCubePrism } from './deck-import.js';
 import { handleDeleteConfirm, handleEditConfirm, handleNewPrism, handleSplitConfirm, handleEditGroupConfirm, handleClearAllRemoved } from './deck-list.js';
 import { renderResults } from './results.js';
 import { openScryMode } from './scry-mode.js';
@@ -99,6 +99,21 @@ export function setupEventListeners() {
       state.elements.importDialog?.removeAttribute('open');
     });
   }
+
+  // CubeCobra import (#196)
+  state.elements.btnImportCube?.addEventListener('click', openCubeDialog);
+  state.elements.btnLoadCube?.addEventListener('click', handleLoadCube);
+  state.elements.cubeUrl?.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleLoadCube();
+    }
+  });
+  state.elements.cubeTags?.addEventListener('change', updateCubeCapacity);
+  state.elements.btnCreateCube?.addEventListener('click', handleCreateCubePrism);
+  state.elements.btnCancelCube?.addEventListener('click', () => {
+    state.elements.cubeDialog?.removeAttribute('open');
+  });
 
   // Moxfield import
   if (state.elements.btnImportMoxfield) {

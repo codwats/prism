@@ -116,6 +116,10 @@
                   <wa-icon slot="icon" name="file-import"></wa-icon>
                   Import backup (.json)
                 </wa-dropdown-item>
+                <wa-dropdown-item id="btn-import-cube">
+                  <wa-icon slot="icon" name="cubes"></wa-icon>
+                  Import CubeCobra cube
+                </wa-dropdown-item>
                 <wa-dropdown-item data-open-membership hidden>
                   <wa-icon slot="icon" name="gem"></wa-icon>
                   Membership and Extras
@@ -538,6 +542,29 @@
       </div>
       <div slot="footer" class="wa-cluster wa-gap-s">
         <wa-button id="btn-cancel-import" variant="neutral" appearance="outlined">Cancel</wa-button>
+      </div>
+    </wa-dialog>
+
+    <!-- CubeCobra Import Dialog (#196): one deck per ticked tag, as a new PRISM -->
+    <wa-dialog id="cube-dialog" label="Import CubeCobra cube">
+      <div class="wa-stack wa-gap-m">
+        <p class="wa-caption-m" style="color: var(--wa-color-neutral-text-subtle); margin: 0;">
+          Each tag you tick becomes one deck with its own stripe, so you can sort a Jumpstart-style cube back into its packs. The cube becomes a new PRISM; your current one is not changed.
+        </p>
+        <div class="wa-cluster wa-gap-s wa-align-items-end">
+          <wa-input id="cube-url" label="Cube URL" placeholder="https://cubecobra.com/cube/overview/..." style="flex: 1; min-width: 220px;"></wa-input>
+          <wa-button type="button" id="btn-load-cube" variant="neutral">
+            <wa-icon slot="start" name="download"></wa-icon>
+            Load
+          </wa-button>
+        </div>
+        <div id="cube-error" hidden class="wa-caption-s" style="color: var(--wa-color-danger-text);"></div>
+        <div id="cube-tags" class="wa-stack wa-gap-xs" hidden></div>
+        <div id="cube-capacity" class="wa-caption-s" hidden></div>
+      </div>
+      <div slot="footer" class="wa-cluster wa-gap-s">
+        <wa-button id="btn-cancel-cube" variant="neutral" appearance="outlined">Cancel</wa-button>
+        <wa-button id="btn-create-cube" variant="brand" disabled>Create PRISM</wa-button>
       </div>
     </wa-dialog>
 
