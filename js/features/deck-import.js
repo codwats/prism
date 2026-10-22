@@ -88,15 +88,23 @@ export function handleEditFileUpload(e) {
 // ============================================================================
 
 let loadedCube = null;
+let cubeLoadGeneration = 0; // a response from an older load is ignored
 
-export function openCubeDialog() {
+function resetLoadedCube() {
   const els = state.elements;
   loadedCube = null;
-  if (els.cubeUrl) els.cubeUrl.value = '';
-  if (els.cubeError) els.cubeError.hidden = true;
   if (els.cubeTags) { els.cubeTags.hidden = true; els.cubeTags.innerHTML = ''; }
   if (els.cubeCapacity) els.cubeCapacity.hidden = true;
   if (els.btnCreateCube) els.btnCreateCube.disabled = true;
+}
+
+export function openCubeDialog() {
+  const els = state.elements;
+  cubeLoadGeneration++;
+  resetLoadedCube();
+  if (els.cubeUrl) els.cubeUrl.value = '';
+  if (els.cubeError) els.cubeError.hidden = true;
+  if (els.btnLoadCube) els.btnLoadCube.loading = false;
   els.cubeDialog?.setAttribute('open', '');
 }
 
@@ -135,6 +143,8 @@ export function setAllCubeTags(checked) {
 export async function handleLoadCube() {
   const els = state.elements;
   const cubeId = extractCubeCobraId(els.cubeUrl?.value);
+  const generation = ++cubeLoadGeneration;
+  resetLoadedCube();
   if (els.cubeError) els.cubeError.hidden = true;
   if (!cubeId) {
     showCubeError('Paste a CubeCobra cube URL or cube id.');
@@ -144,6 +154,7 @@ export async function handleLoadCube() {
   if (els.btnLoadCube) els.btnLoadCube.loading = true;
   try {
     const cube = await fetchCube(cubeId);
+    if (generation !== cubeLoadGeneration) return;
     const tags = cubeTags(cube);
     if (tags.length === 0) throw new Error('This cube has no tagged cards. Tag each card with its pack on CubeCobra first.');
     loadedCube = cube;
@@ -160,15 +171,14 @@ export async function handleLoadCube() {
     els.cubeTags.hidden = false;
     updateCubeCapacity();
   } catch (err) {
+    if (generation !== cubeLoadGeneration) return;
     console.error('Cube import error:', err);
     logToSupabase('error', 'cube_import_failed', { error: err.message });
-    loadedCube = null;
-    if (els.cubeTags) els.cubeTags.hidden = true;
-    if (els.cubeCapacity) els.cubeCapacity.hidden = true;
-    if (els.btnCreateCube) els.btnCreateCube.disabled = true;
+    resetLoadedCube();
     showCubeError(err.message || 'Failed to load cube.');
   } finally {
-    if (els.btnLoadCube) els.btnLoadCube.loading = false;
+    // A newer load owns the spinner
+    if (generation === cubeLoadGeneration && els.btnLoadCube) els.btnLoadCube.loading = false;
   }
 }
 
