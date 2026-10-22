@@ -64,6 +64,7 @@ export function cubeTags(cubeJson) {
  */
 export function cubeToPacks(cubeJson, packTags) {
   const packs = new Map(packTags.map(tag => [tag, new Map()]));
+  const sharedRows = new Set(); // pack entries holding a multi-pack row
   let skipped = 0;
 
   for (const row of mainboard(cubeJson)) {
@@ -80,6 +81,21 @@ export function cubeToPacks(cubeJson, packTags) {
       const existing = cards.get(name);
       if (existing) existing.quantity++;
       else cards.set(name, { name, quantity: 1, isCommander: false, isBasicLand: isBasicLand(name) });
+      // A row in two ticked packs is one physical card the packs really share
+      if (tags.length > 1) sharedRows.add(cards.get(name));
+    }
+  }
+
+  // Separate rows of one name in different packs are different physical cards
+  // (each pack has its own Thriving Bluff), so each pack's copies get their
+  // own Separate sleeve (#309) and only that pack's stripe.
+  const packCount = new Map();
+  for (const cards of packs.values()) {
+    for (const name of cards.keys()) packCount.set(name, (packCount.get(name) || 0) + 1);
+  }
+  for (const cards of packs.values()) {
+    for (const card of cards.values()) {
+      if (packCount.get(card.name) > 1 && !sharedRows.has(card)) card.sleeve = crypto.randomUUID();
     }
   }
 

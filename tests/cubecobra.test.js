@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 
 const { extractCubeCobraId, cubeTags, cubeToPacks, packsToPrismJson } = await import('../js/modules/cubecobra.js');
 const { buildPrismFromJson } = await import('../js/modules/prism-import.js');
+const { processCards } = await import('../js/modules/processor.js');
 
 // Real response shape: name lives on details, one row per physical card
 function row(name, tags) {
@@ -49,7 +50,9 @@ test('cubeToPacks sums rows, splits multi-tagged cards, skips unticked', () => {
 	const goblins = packs.find(p => p.name === 'Goblins').cards;
 	const elves = packs.find(p => p.name === 'Elves').cards;
 
-	assert.deepEqual(goblins.find(c => c.name === 'Mountain'), { name: 'Mountain', quantity: 2, isCommander: false, isBasicLand: true });
+	const { sleeve, ...goblinMountain } = goblins.find(c => c.name === 'Mountain');
+	assert.deepEqual(goblinMountain, { name: 'Mountain', quantity: 2, isCommander: false, isBasicLand: true });
+	assert.ok(sleeve && sleeve !== elves.find(c => c.name === 'Mountain').sleeve);
 	assert.equal(elves.find(c => c.name === 'Mountain').quantity, 1);
 	assert.ok(goblins.some(c => c.name === 'Shared Spell'));
 	assert.ok(elves.some(c => c.name === 'Shared Spell'));
@@ -67,6 +70,30 @@ test('packsToPrismJson builds a new PRISM via buildPrismFromJson', () => {
 	assert.deepEqual(prism.decks.map(d => [d.name, d.stripePosition, d.bracket]), [['Goblins', 1, 2], ['Elves', 2, 2]]);
 	assert.notEqual(prism.decks[0].color, prism.decks[1].color);
 	assert.ok(prism.decks.every(d => d.cards.every(c => !c.isCommander)));
+});
+
+test('a card listed in two packs is two physical cards, never shared', () => {
+	const { packs } = cubeToPacks(cube, ['Goblins', 'Elves']);
+	const prism = buildPrismFromJson(packsToPrismJson(cube.name, packs), { preserveId: false });
+	const [goblins, elves] = prism.decks;
+	const byName = (name) => processCards(prism).find(c => c.name === name);
+
+	// Mountain: separate rows in each pack -> one core batch per pack, own stripe only
+	const mountain = byName('Mountain');
+	assert.deepEqual(
+		mountain.batches.map(b => [b.participantIds, b.copyCount, b.isPool]).sort(),
+		[[[elves.id], 1, false], [[goblins.id], 2, false]].sort(),
+	);
+	assert.equal(mountain.totalQuantity, 3);
+
+	// Shared Spell: one row tagged with both packs -> one physical card, shared
+	const spell = byName('Shared Spell');
+	assert.equal(spell.batches.length, 1);
+	assert.equal(spell.batches[0].isPool, true);
+	assert.equal(goblins.cards.find(c => c.name === 'Shared Spell').sleeve, undefined);
+
+	// A card in one pack only needs no sleeve
+	assert.equal(goblins.cards.find(c => c.name === 'Goblin Guide').sleeve, undefined);
 });
 
 test('packsToPrismJson refuses more than 48 packs and zero packs', () => {
