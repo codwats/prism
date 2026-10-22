@@ -17,7 +17,7 @@ import {
   addCommanderRefs,
   editCommanderRefs,
 } from './deck-form.js';
-import { handleFileUpload, handleJsonImport, handleMoxfieldImport, handleEditFileUpload, handleEditUrlImport, openCubeDialog, handleLoadCube, updateCubeCapacity, handleCreateCubePrism } from './deck-import.js';
+import { handleFileUpload, handleJsonImport, handleMoxfieldImport, handleEditFileUpload, handleEditUrlImport, openCubeDialog, handleLoadCube, updateCubeCapacity, uncheckAllCubeTags, handleCreateCubePrism } from './deck-import.js';
 import { handleDeleteConfirm, handleEditConfirm, handleNewPrism, handleSplitConfirm, handleEditGroupConfirm, handleClearAllRemoved } from './deck-list.js';
 import { renderResults } from './results.js';
 import { openScryMode } from './scry-mode.js';
@@ -110,6 +110,10 @@ export function setupEventListeners() {
     }
   });
   state.elements.cubeTags?.addEventListener('change', updateCubeCapacity);
+  // The button is re-rendered with each loaded cube, so delegate
+  state.elements.cubeTags?.addEventListener('click', (e) => {
+    if (e.target.closest('#btn-uncheck-cube-tags')) uncheckAllCubeTags();
+  });
   state.elements.btnCreateCube?.addEventListener('click', handleCreateCubePrism);
   state.elements.btnCancelCube?.addEventListener('click', () => {
     state.elements.cubeDialog?.removeAttribute('open');
