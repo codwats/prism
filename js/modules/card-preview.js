@@ -375,13 +375,14 @@ export function updatePosition(event) {
 // root. Desktop: hover to show, leave to hide. Mobile (≤768px, the same
 // breakpoint as the rest of the mobile layout): tap a name to open, tap
 // outside to dismiss — there is no mouseleave on touch.
-// stripesFor(name) → the stripes to draw over the image.
+// stripesFor(name, cell) → the stripes to draw over the image.
 export function wireCardPreview(root, stripesFor) {
   const isMobile = () => window.matchMedia('(max-width: 768px)').matches;
   const cellOf = e => e.target.closest?.('.card-name-cell');
   const open = e => {
-    const name = cellOf(e)?.dataset.cardName;
-    if (name) showPreview(name, stripesFor(name), e);
+    const cell = cellOf(e);
+    const name = cell?.dataset.cardName;
+    if (name) showPreview(name, stripesFor(name, cell), e);
   };
 
   root.addEventListener('mouseenter', e => { if (!isMobile()) open(e); }, true);

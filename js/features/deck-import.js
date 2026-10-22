@@ -126,8 +126,8 @@ export function updateCubeCapacity() {
   if (els.btnCreateCube) els.btnCreateCube.disabled = ticked === 0 || over;
 }
 
-export function uncheckAllCubeTags() {
-  state.elements.cubeTags?.querySelectorAll('wa-checkbox').forEach(box => { box.checked = false; });
+export function setAllCubeTags(checked) {
+  state.elements.cubeTags?.querySelectorAll('wa-checkbox').forEach(box => { box.checked = checked; });
   // Setting .checked fires no change event
   updateCubeCapacity();
 }
@@ -149,7 +149,10 @@ export async function handleLoadCube() {
     loadedCube = cube;
     els.cubeTags.innerHTML = `<div class="wa-split">
         <span class="wa-caption-m">Tags that are packs in <strong>${escapeHtml(cube.name || cubeId)}</strong>:</span>
-        <wa-button type="button" id="btn-uncheck-cube-tags" size="s" appearance="plain">Uncheck all</wa-button>
+        <div class="wa-cluster wa-gap-2xs">
+          <wa-button type="button" data-cube-tags-check="true" size="s" appearance="plain">Check all</wa-button>
+          <wa-button type="button" data-cube-tags-check="false" size="s" appearance="plain">Uncheck all</wa-button>
+        </div>
       </div>`
       + tags.map(({ tag, count }) =>
         `<wa-checkbox checked data-tag="${escapeHtml(tag)}">${escapeHtml(tag)} (${count} card${count === 1 ? '' : 's'})</wa-checkbox>`

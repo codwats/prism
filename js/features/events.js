@@ -17,7 +17,7 @@ import {
   addCommanderRefs,
   editCommanderRefs,
 } from './deck-form.js';
-import { handleFileUpload, handleJsonImport, handleMoxfieldImport, handleEditFileUpload, handleEditUrlImport, openCubeDialog, handleLoadCube, updateCubeCapacity, uncheckAllCubeTags, handleCreateCubePrism } from './deck-import.js';
+import { handleFileUpload, handleJsonImport, handleMoxfieldImport, handleEditFileUpload, handleEditUrlImport, openCubeDialog, handleLoadCube, updateCubeCapacity, setAllCubeTags, handleCreateCubePrism } from './deck-import.js';
 import { handleDeleteConfirm, handleEditConfirm, handleNewPrism, handleSplitConfirm, handleEditGroupConfirm, handleClearAllRemoved } from './deck-list.js';
 import { renderResults } from './results.js';
 import { openScryMode } from './scry-mode.js';
@@ -112,7 +112,8 @@ export function setupEventListeners() {
   state.elements.cubeTags?.addEventListener('change', updateCubeCapacity);
   // The button is re-rendered with each loaded cube, so delegate
   state.elements.cubeTags?.addEventListener('click', (e) => {
-    if (e.target.closest('#btn-uncheck-cube-tags')) uncheckAllCubeTags();
+    const btn = e.target.closest('[data-cube-tags-check]');
+    if (btn) setAllCubeTags(btn.dataset.cubeTagsCheck === 'true');
   });
   state.elements.btnCreateCube?.addEventListener('click', handleCreateCubePrism);
   state.elements.btnCancelCube?.addEventListener('click', () => {
@@ -330,7 +331,11 @@ export function setupEventListeners() {
   // Desktop: hover to show / leave to hide. Mobile (≤768px): tap a card name
   // to open, tap outside to dismiss — there is no mouseleave on touch.
   if (state.elements.resultsTbody) {
-    wireCardPreview(state.elements.resultsTbody,
-      name => (state.processedCards || []).find(c => c.name === name)?.stripes || []);
+    // A batch sub-row previews only its batch's marks, never the card's union
+    wireCardPreview(state.elements.resultsTbody, (name, cell) => {
+      const card = (state.processedCards || []).find(c => c.name === name);
+      const batchKey = cell.closest('tr.batch-subrow')?.dataset.cardKey;
+      return (batchKey && card?.batches?.find(b => b.key === batchKey)?.stripes) || card?.stripes || [];
+    });
   }
 }
