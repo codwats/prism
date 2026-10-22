@@ -88,6 +88,15 @@ function getElements() {
     importDialog: document.getElementById('import-dialog'),
     btnCancelImport: document.getElementById('btn-cancel-import'),
     prismJsonInput: document.getElementById('prism-json-input'),
+    btnImportCube: document.getElementById('btn-import-cube'),
+    cubeDialog: document.getElementById('cube-dialog'),
+    cubeUrl: document.getElementById('cube-url'),
+    btnLoadCube: document.getElementById('btn-load-cube'),
+    cubeError: document.getElementById('cube-error'),
+    cubeTags: document.getElementById('cube-tags'),
+    cubeCapacity: document.getElementById('cube-capacity'),
+    btnCancelCube: document.getElementById('btn-cancel-cube'),
+    btnCreateCube: document.getElementById('btn-create-cube'),
 
     // Dialogs
     deleteDialog: document.getElementById('delete-dialog'),
