@@ -7,8 +7,8 @@ import { showError, showSuccess } from '../core/notifications.js';
 import { logToSupabase } from '../modules/supabase-client.js';
 import { savePrism, setCurrentPrism } from '../modules/storage.js';
 import { buildPrismFromJson } from '../modules/prism-import.js';
-import { importFromMoxfield, toDecklistText, extractMoxfieldId } from '../modules/moxfield.js';
-import { importFromArchidekt, extractArchidektId } from '../modules/archidekt.js';
+import { toDecklistText } from '../modules/moxfield.js';
+import { resolveDeckSource } from '../modules/deck-source.js';
 import { extractCubeCobraId, fetchCube, cubeTags, cubeToPacks, packsToPrismJson } from '../modules/cubecobra.js';
 import { MAX_STRIPE_SLOTS } from '../modules/processor.js';
 import { escapeHtml } from '../core/utils.js';
@@ -246,25 +246,6 @@ export function handleJsonImport(e) {
 // ============================================================================
 // Moxfield / Archidekt URL Import
 // ============================================================================
-
-/**
- * Detect a deck URL/ID's source and fetch it. Shared by the add-deck and
- * edit-deck URL importers so the detection rules stay in one place.
- * @returns {Promise<{serviceName: string, deckData: Object}>}
- * @throws if the source can't be detected.
- */
-async function resolveDeckSource(urlOrId) {
-  if (urlOrId.includes('archidekt.com') || extractArchidektId(urlOrId)) {
-    if (urlOrId.includes('archidekt.com') || /^\d+$/.test(urlOrId)) {
-      return { serviceName: 'Archidekt', deckData: await importFromArchidekt(urlOrId) };
-    }
-    return { serviceName: 'Moxfield', deckData: await importFromMoxfield(urlOrId) };
-  }
-  if (urlOrId.includes('moxfield.com') || extractMoxfieldId(urlOrId)) {
-    return { serviceName: 'Moxfield', deckData: await importFromMoxfield(urlOrId) };
-  }
-  throw new Error('Could not detect deck source. Please use a Moxfield or Archidekt URL.');
-}
 
 export async function handleMoxfieldImport() {
   const urlOrId = state.elements.moxfieldUrl?.value?.trim();

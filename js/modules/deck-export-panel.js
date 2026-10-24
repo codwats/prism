@@ -4,7 +4,8 @@
  * Free on every page (ADR 0002).
  */
 
-import { exportDeck, changesText, siteForUrl, SITE_NAMES } from './deck-export.js';
+import { exportDeck, changesText, SITE_NAMES } from './deck-export.js';
+import { deckSourceSite } from './deck-source.js';
 import { escapeHtml } from '../core/utils.js';
 
 let nextId = 0;
@@ -53,7 +54,7 @@ function view(deck, result, sourced, uid) {
 export async function renderDeckExport(container, deck, site = 'moxfield') {
   const uid = `deck-export-${++nextId}`;
   container.dataset.exportId = uid;
-  const sourced = siteForUrl(deck.sourceUrl);
+  const sourced = deckSourceSite(deck.sourceUrl);
   if (sourced) container.innerHTML = `<p class="wa-caption-m">Loading the live ${SITE_NAMES[sourced]} deck…</p>`;
 
   const result = await exportDeck(deck, site);
@@ -69,16 +70,16 @@ export async function renderDeckExport(container, deck, site = 'moxfield') {
 
 let dialog = null;
 
-/** Open the export for `deck` in a dialog, created on first use. */
-export function openDeckExportDialog(deck) {
+/** Open the export for `deck` in a dialog, created on first use. `site`
+ * picks the format for a deck with no sourceUrl. */
+export function openDeckExportDialog(deck, site = 'moxfield') {
   if (!dialog) {
     dialog = document.createElement('wa-dialog');
     dialog.innerHTML = `<div class="deck-export-body"></div>
       <wa-button slot="footer" variant="neutral" appearance="outlined" data-dialog="close">Done</wa-button>`;
     document.body.append(dialog);
   }
-  const site = siteForUrl(deck.sourceUrl);
-  dialog.setAttribute('label', `Copy ${deck.name} for ${site ? SITE_NAMES[site] : 'Moxfield/Archidekt'}`);
-  renderDeckExport(dialog.querySelector('.deck-export-body'), deck);
+  dialog.setAttribute('label', `Copy ${deck.name} for ${SITE_NAMES[deckSourceSite(deck.sourceUrl) || site]}`);
+  renderDeckExport(dialog.querySelector('.deck-export-body'), deck, site);
   dialog.setAttribute('open', '');
 }

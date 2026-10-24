@@ -90,6 +90,20 @@ Putting a card that needs a sleeve into a Freed sleeve, after clearing at most 2
 _Avoid_: sleeve recycling, auto-swap, replacement
 _In code_: a match from `planSleeveReuse`, completed by `completeReuse`; the cleared copies are `clearedQuantity` on the `removedCards` rows.
 
+**Sleeve up**:
+The Extra in the Swap Planner for a sleeving session: every Sleeve reuse as an out → in row, the cards that need a fresh sleeve, and a prep card with sleeves to buy, pens to grab, marks to clear and the Pull list. Two words in prose, capitalized as a section name.
+_Avoid_: sleeving session (as a name), reuse table
+_In code_: `#sleeve-up` and `renderSleeveUp` (`js/swap-planner.js`), built on `planSleeveReuse`.
+
+**Straight swap**:
+A Sleeve reuse with no marks to clear: the Freed sleeve already carries every mark the incoming card needs and nothing else. Only a label in Sleeve up, so the easy ones can go first. Not a Sleeve swap.
+_Avoid_: exact match, perfect match
+
+**Needs a fresh sleeve**:
+A copy that needs a sleeve and marks, with no Freed sleeve to take it. Copies already in a marked sleeve (the card gained a deck or copies) need marks added, not a fresh sleeve. Fresh-sleeve copies minus spare blank sleeves is the sleeves-to-buy count.
+_Avoid_: new sleeve, unmatched card
+_In code_: `planSleeveReuse(prism).needsFreshSleeve`.
+
 **Slot**:
 One of the 48 places on a sleeve edge where a deck's mark goes. Lowercase in prose; capitalized only before a number, as in `Side A - Slot 3`.
 _Avoid_: stripe position, position

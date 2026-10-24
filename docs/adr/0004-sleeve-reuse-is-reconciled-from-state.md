@@ -4,6 +4,8 @@ When a card leaves the PRISM, its marked sleeve is a Freed sleeve that another c
 
 Matching by sleeve means PRISM never guesses which card replaced which. A freed sleeve marked for {A,B,C} fits any card that needs {A,B,C}, and card names only show up in labels. Reconciling from state means the order of edits doesn't matter: removing a card from five decks takes five saves, and only the last one shows the full picture. Matching at edit time would see each save on its own and get the first four wrong.
 
+`clearedQuantity` rides the `prisms.removed_cards` JSONB like every other `removedCards` field, so the spec's new column and SQL test aren't needed: there is no column, privilege or RLS change to check. Its merge rule (max on both sides) lives in `mergeRemovedCards` and is tested at the whole-PRISM merge seam. The same holds for `splitGroup`, which a split variant's row records so a deleted variant's sleeve is rebuilt with its real marks.
+
 ## Considered options
 
 - **Detect swaps at deck-edit time** (prompt in the Edit dialog, or store a pending pair). Rejected. Re-imports and file uploads change many cards at once with no pairing, single-deck edits see only part of a multi-deck change, and a stored pair goes stale the moment the next edit lands.

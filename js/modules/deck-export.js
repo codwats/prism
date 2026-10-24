@@ -6,17 +6,9 @@
  */
 
 import { cardsToDecklistText, normalizeCardName } from './parser.js';
-import { importFromMoxfield } from './moxfield.js';
-import { importFromArchidekt } from './archidekt.js';
+import { deckSourceSite, resolveDeckSource } from './deck-source.js';
 
 export const SITE_NAMES = { moxfield: 'Moxfield', archidekt: 'Archidekt' };
-
-/** @returns {'moxfield'|'archidekt'|null} */
-export function siteForUrl(url) {
-  if (/archidekt\.com/i.test(url || '')) return 'archidekt';
-  if (/moxfield\.com/i.test(url || '')) return 'moxfield';
-  return null;
-}
 
 function fullListText(cards, site) {
   if (site === 'moxfield') return cardsToDecklistText(cards);
@@ -81,12 +73,11 @@ export function changesText(changes) {
  * @returns {Promise<{site, changes, fullList, notice: string|null}>}
  */
 export async function exportDeck(deck, site = 'moxfield') {
-  const sourceSite = siteForUrl(deck.sourceUrl);
+  const sourceSite = deckSourceSite(deck.sourceUrl);
   if (!sourceSite) return { site, ...deckExport(deck, null, site), notice: null };
 
   try {
-    const load = sourceSite === 'archidekt' ? importFromArchidekt : importFromMoxfield;
-    const { cards } = await load(deck.sourceUrl);
+    const { deckData: { cards } } = await resolveDeckSource(deck.sourceUrl);
     return { site: sourceSite, ...deckExport(deck, cards, sourceSite), notice: null };
   } catch (err) {
     return {
