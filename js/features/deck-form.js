@@ -305,6 +305,7 @@ export async function handleDeckSubmit(e) {
       color,
       stripePosition: getNextStripePosition(state.currentPrism),
       cards: parseResult.cards,
+      sourceUrl: state.addSourceUrl,
     });
 
     // Add to PRISM
@@ -349,6 +350,7 @@ export async function handleDeckSubmit(e) {
 // ============================================================================
 
 export function resetDeckForm() {
+  state.addSourceUrl = null;
   if (state.elements.deckForm) state.elements.deckForm.reset();
   if (state.elements.deckName) state.elements.deckName.value = "";
   if (state.elements.deckCommander) {

@@ -99,7 +99,7 @@ export function transformMoxfieldDeck(moxfieldDeck) {
     format: moxfieldDeck.format || 'commander',
     cards,
     source: 'moxfield',
-    sourceUrl: moxfieldDeck.publicUrl || null,
+    sourceUrl: moxfieldDeck.publicUrl || (moxfieldDeck.publicId ? `https://moxfield.com/decks/${moxfieldDeck.publicId}` : null),
     sourceId: moxfieldDeck.publicId || null
   };
 }

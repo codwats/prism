@@ -11,7 +11,7 @@ import { loadJobIndex } from './modules/oracle-tags.js';
 import { rankComparables, mainType } from './modules/comparables.js';
 import { applySwap } from './modules/swap.js';
 import { queueSwap, queueByDeck, applyDeck, removeSwap } from './modules/swap-queue.js';
-import { cardsToDecklistText } from './modules/parser.js';
+import { renderDeckExport } from './modules/deck-export-panel.js';
 import { processCards } from './modules/processor.js';
 import { wireCardPreview, buildCardWithStripes, createLoadingElement, createErrorElement } from './modules/card-preview.js';
 import { wireCardAutocomplete } from './modules/card-autocomplete.js';
@@ -620,8 +620,8 @@ function confirmQueue() {
   savePrism(result.prism);
 
   const deck = result.prism.decks.find((d) => d.id === queueState.deckId);
-  $('queue-result-summary').textContent = `Applied ${plural(result.steps.length, 'Planned swap')} to ${deck.name}. PRISM only changes its own decklist, so paste this one into Moxfield or Archidekt too.`;
-  $('queue-decklist').value = cardsToDecklistText(deck.cards);
+  $('queue-result-summary').textContent = `Applied ${plural(result.steps.length, 'Planned swap')} to ${deck.name}. PRISM only changes its own decklist, so copy the changes to Moxfield or Archidekt too.`;
+  renderDeckExport($('queue-export'), deck);
   $('queue-pull').innerHTML = result.pullList.map((n) => `<li>${escapeHtml(n)}</li>`).join('');
   $('queue-pull-empty').hidden = result.pullList.length > 0;
   $('queue-preview').hidden = true;
