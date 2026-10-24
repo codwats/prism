@@ -10,7 +10,7 @@
  * MAX_MARKS_TO_CLEAR clears, cheapest first. Commanders get no special rule.
  */
 
-import { processCards } from "./processor.js";
+import { processCards, getColorName } from "./processor.js";
 import { normalizeCardName } from "./parser.js";
 import { removalOpenCopies } from "./swap.js";
 import { isCardDone } from "../core/utils.js";
@@ -66,15 +66,17 @@ function cost(fromMarks, toMarks) {
 
 // Old sleeves of one card that no current copy needs. The copies still in the
 // PRISM keep the sleeves that cost them the fewest changes, so an ambiguous
-// multi-batch loss frees the sleeve with the most marks to clear.
+// multi-batch loss frees the sleeve with the most marks to clear. `clears`
+// counts the marks to clear on the sleeves that stay.
 function freedSleevesOf(prism, current, normalizedName, rows, markedSet) {
   const [old] = processCards(oneCardPrism(prism, normalizedName, rows));
-  if (!old) return [];
+  if (!old) return { sleeves: [], clears: 0 };
   const now = current.find((c) => c.normalizedName === normalizedName);
   const sleeves = old.batches.map((b) => {
     const done = batchDone(old, b, markedSet);
     return { batch: b, done, marks: done ? visibleMarks(b.stripes) : [], left: b.copyCount };
   });
+  let clears = 0;
   for (const batch of now?.batches || []) {
     const need = visibleMarks(batch.stripes);
     for (let i = 0; i < batch.copyCount; i++) {
@@ -84,9 +86,10 @@ function freedSleevesOf(prism, current, normalizedName, rows, markedSet) {
         .sort(fewerChanges)[0];
       if (!best) break;
       best.s.left--;
+      clears += best.clear;
     }
   }
-  return sleeves.filter((s) => s.left > 0).map((s) => {
+  const freed = sleeves.filter((s) => s.left > 0).map((s) => {
     const names = visibleMarks(s.batch.stripes).map((m) => m.deckName);
     return {
       id: `${old.name}|${s.batch.key}`,
@@ -98,6 +101,37 @@ function freedSleevesOf(prism, current, normalizedName, rows, markedSet) {
       deckIds: s.batch.participantIds,
     };
   });
+  return { sleeves: freed, clears };
+}
+
+// What a sleeving session needs: copies counted, not rows.
+function prepTotals({ freed, matches, needsFreshSleeve, stayClears }) {
+  const sum = (list, f) => list.reduce((n, x) => n + f(x), 0);
+  const spares = sum(freed.filter((s) => s.blank), (s) => s.copies);
+  const pens = new Map();
+  const paint = (marks, copies) => marks.forEach((m) => {
+    const name = getColorName(m.color);
+    pens.set(name, (pens.get(name) || 0) + copies);
+  });
+  matches.forEach((m) => paint(m.marksToAdd, m.copies));
+  needsFreshSleeve.forEach((n) => paint(n.marks, n.copyCount));
+
+  const left = new Map(freed.map((s) => [s.id, s.copies]));
+  matches.forEach((m) => left.set(m.freedSleeve.id, left.get(m.freedSleeve.id) - m.copies));
+  const pull = new Map();
+  freed.forEach((s) => pull.set(s.cardName, (pull.get(s.cardName) || 0) + s.copies));
+
+  return {
+    sleevesToBuy: Math.max(0, sum(needsFreshSleeve, (n) => n.copyCount) - spares),
+    pens: [...pens].map(([name, count]) => ({ name, count }))
+      .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name)),
+    // Unmatched Freed sleeves still carry their marks, like any Marks to Clear row.
+    marksToClear: stayClears
+      + sum(matches, (m) => m.marksToClear.length * m.copies)
+      + sum(freed, (s) => s.marks.length * left.get(s.id)),
+    pullList: [...pull].map(([cardName, copies]) => ({ cardName, copies }))
+      .sort((a, b) => a.cardName.localeCompare(b.cardName)),
+  };
 }
 
 /**
@@ -107,11 +141,14 @@ function freedSleevesOf(prism, current, normalizedName, rows, markedSet) {
  *   spareSleeves: Array<{ id, cardName, label, marks: [], copies, blank: true, deckIds }>,
  *   matches: Array<{ id, freedSleeve, incomingBatch, copies, marksToClear, marksToAdd }>,
  *   needsFreshSleeve: Array<{ cardName, key, copyCount, marks }>,
+ *   prep: { sleevesToBuy, pens: Array<{ name, count }>, marksToClear, pullList: Array<{ cardName, copies }> },
  * }}
  *   Marks are `{ id, side, position, markType, color, deckName }`. A Freed
  *   sleeve's `label` names it ("the A-only sleeve") only when its card had
  *   several batches, so which sleeve is meant is not obvious; otherwise null. A match uses
- *   `copies` (the incoming batch's copyCount) of its Freed sleeve.
+ *   `copies` (the incoming batch's copyCount) of its Freed sleeve. `prep`
+ *   counts copies: sleeves to buy (fresh-sleeve copies minus spares), marks to
+ *   paint per pen color name, marks to clear, and the copies leaving the PRISM.
  */
 export function planSleeveReuse(prism) {
   const current = processCards(prism);
@@ -124,9 +161,9 @@ export function planSleeveReuse(prism) {
     if (!rowsByCard.has(name)) rowsByCard.set(name, []);
     rowsByCard.get(name).push(row);
   }
-  const freed = [...rowsByCard]
-    .flatMap(([name, rows]) => freedSleevesOf(prism, current, name, rows, markedSet))
-    .sort((a, b) => a.id.localeCompare(b.id));
+  const perCard = [...rowsByCard].map(([name, rows]) => freedSleevesOf(prism, current, name, rows, markedSet));
+  const stayClears = perCard.reduce((n, c) => n + c.clears, 0);
+  const freed = perCard.flatMap((c) => c.sleeves).sort((a, b) => a.id.localeCompare(b.id));
   const freedSleeves = freed.filter((s) => !s.blank);
   const spareSleeves = freed.filter((s) => s.blank);
 
@@ -156,7 +193,8 @@ export function planSleeveReuse(prism) {
     matches.push({ id: `${sleeve.id}>${need.key}`, freedSleeve: sleeve, incomingBatch: need, copies: need.copyCount, marksToClear, marksToAdd });
   }
 
-  return { freedSleeves, spareSleeves, matches, needsFreshSleeve: needs.filter((n) => !matched.has(n.key)) };
+  const needsFreshSleeve = needs.filter((n) => !matched.has(n.key));
+  return { freedSleeves, spareSleeves, matches, needsFreshSleeve, prep: prepTotals({ freed, matches, needsFreshSleeve, stayClears }) };
 }
 
 /**

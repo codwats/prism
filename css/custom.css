@@ -1928,3 +1928,19 @@ wa-page[view='desktop'] [data-toggle-nav] {
 [data-membership-error] {
   color: var(--wa-color-danger-text);
 }
+
+/* Sleeve up prep card (#378) */
+.sleeve-prep {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: var(--wa-space-xs) var(--wa-space-m);
+  margin: 0;
+}
+
+.sleeve-prep dt {
+  font-weight: var(--wa-font-weight-semibold);
+}
+
+.sleeve-prep dd {
+  margin: 0;
+}

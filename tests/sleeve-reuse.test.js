@@ -9,7 +9,7 @@ globalThis.localStorage = {
 	clear: () => store.clear(),
 };
 
-const { createPrism, createDeck, createSplitGroup, processCards } = await import('../js/modules/processor.js');
+const { createPrism, createDeck, createSplitGroup, processCards, DEFAULT_COLORS } = await import('../js/modules/processor.js');
 const { trackRemovedCard, getRemovalStripePosition, removalOpenCopies } = await import('../js/modules/swap.js');
 const { planSleeveReuse, completeReuse } = await import('../js/modules/sleeve-reuse.js');
 const { mergeRemovedCards } = await import('../js/modules/storage.js');
@@ -224,4 +224,54 @@ test('clearedQuantity merges by max on both sides and survives re-removal', () =
 	trackRemovedCard(prism, { cardName: 'Forest', deckId: 'd1', previousQuantity: 1, newQuantity: 0, removedAt: NOW });
 	assert.deepEqual([prism.removedCards[0].previousQuantity, prism.removedCards[0].clearedQuantity], [3, 2]);
 	assert.equal(removalOpenCopies(prism.removedCards[0]), 1);
+});
+
+// Six decks in palette colors: A Yellow, B Blue, C Purple, D Red, E Green, F White.
+function prepFixture() {
+	const prism = createPrism('T');
+	prism.decks = ['A', 'B', 'C', 'D', 'E', 'F'].map((n, i) => createDeck({
+		name: n, bracket: 3, color: DEFAULT_COLORS[i], stripePosition: i + 1,
+		cards: n === 'F' ? [] : [card("Kodama's Reach"), card('Rampant Growth')],
+	}));
+	byName(prism, 'A').cards.push(card('Mind Stone'), card('Sol Ring'));
+	byName(prism, 'B').cards.push(card('Sol Ring'));
+	prism.markedCards = ["Kodama's Reach", 'Rampant Growth', 'Sol Ring'];
+	for (const n of ['A', 'B', 'C', 'D', 'E']) {
+		setQuantity(prism, n, "Kodama's Reach", 0);
+		setQuantity(prism, n, 'Rampant Growth', 0);
+		setQuantity(prism, n, 'Cultivate', 1); // exact: 0 clears
+	}
+	for (const n of ['A', 'B', 'C', 'D', 'F']) setQuantity(prism, n, 'Farseek', 1); // partial: clear E, add F
+	setQuantity(prism, 'A', 'Mind Stone', 0); // never marked: a spare blank sleeve
+	setQuantity(prism, 'B', 'Sol Ring', 0); // still in A: clear B on the sleeve that stays
+	for (const n of ['A', 'B']) setQuantity(prism, n, 'Arcane Signet', 1); // fresh sleeve
+	setQuantity(prism, 'C', 'Fellwar Stone', 2); // fresh sleeves, 2 copies
+	return prism;
+}
+
+test('the prep totals: sleeves to buy, pens by color name, marks to clear, pull list', () => {
+	const { prep } = planSleeveReuse(prepFixture());
+	assert.equal(prep.sleevesToBuy, 2, '3 fresh-sleeve copies minus 1 spare');
+	assert.deepEqual(prep.pens, [
+		{ name: 'Purple', count: 2 },
+		{ name: 'Blue', count: 1 },
+		{ name: 'White', count: 1 },
+		{ name: 'Yellow', count: 1 },
+	]);
+	assert.equal(prep.marksToClear, 2, 'E on the reused sleeve, B on the Sol Ring that stays');
+	assert.deepEqual(prep.pullList, [
+		{ cardName: "Kodama's Reach", copies: 1 },
+		{ cardName: 'Mind Stone', copies: 1 },
+		{ cardName: 'Rampant Growth', copies: 1 },
+	]);
+});
+
+test('completing every reuse leaves the prep with the fresh sleeves and the stay-behind clear', () => {
+	let prism = prepFixture();
+	for (const { id } of planSleeveReuse(prism).matches) prism = completeReuse(prism, id, { now: NOW }).prism;
+	const { matches, prep } = planSleeveReuse(prism);
+	assert.deepEqual(matches, []);
+	assert.equal(prep.sleevesToBuy, 2);
+	assert.equal(prep.marksToClear, 1);
+	assert.deepEqual(prep.pullList.map((p) => p.cardName), ['Mind Stone']);
 });
