@@ -30,7 +30,8 @@ CREATE TABLE IF NOT EXISTS decks (
   split_group_id UUID,
   created_at TIMESTAMPTZ DEFAULT now(),
   updated_at TIMESTAMPTZ DEFAULT now(),
-  cards_updated_at TIMESTAMPTZ
+  cards_updated_at TIMESTAMPTZ,
+  source_url TEXT DEFAULT NULL
 );
 
 -- Migration for existing deployments: tracks when a deck's card list last changed
@@ -253,6 +254,19 @@ COMMIT;
 BEGIN;
   ALTER TABLE deck_cards
     ADD COLUMN IF NOT EXISTS sleeve TEXT DEFAULT NULL;
+COMMIT;
+
+-- ============================================
+-- MIGRATION: Add decks.source_url (#377)
+-- ============================================
+-- The Moxfield/Archidekt URL a deck was imported from, so "Copy for
+-- Moxfield/Archidekt" can diff against the live site deck. Rides the deck
+-- row's updated_at like the other deck fields. Schema-first: PRISM_SELECT
+-- reads the column, so run this before deploying the client.
+-- Safe to re-run (IF NOT EXISTS).
+BEGIN;
+  ALTER TABLE decks
+    ADD COLUMN IF NOT EXISTS source_url TEXT DEFAULT NULL;
 COMMIT;
 
 -- ============================================

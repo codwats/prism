@@ -6,6 +6,7 @@ Helps MTG Commander players who share cards across decks mark sleeves with color
 
 - **Storage, cloud sync, auth init** (`storage.js`, `auth.js`, `syncState`, build.html sync UI) → `docs/agents/sync.md`
 - **Billing, Membership, entitlement** (`billing.js`, `stripe-*-edge.ts`, `founders`/`subscriptions`/`app_config`, `isEntitled()`) → `docs/agents/billing.md`
+- **Deck export / `sourceUrl`** (`deck-export.js`, Copy for Moxfield/Archidekt) → `docs/agents/deck-export.md`
 - **Gallery** (`gallery.html`, `js/gallery.js`, `gallery_*` tables/RPCs, `gallery-artist`/`gallery-notify`/`commission` edge functions) → `docs/agents/gallery.md`
 - **Domain terms** → `CONTEXT.md`; product policy → `PRODUCT.md`; decisions → `docs/adr/`
 - **Reviewing a diff** → `CODING_STANDARDS.md` (judgement calls; mechanical rules are in lint and `tests/schema-rules.test.js`)
@@ -44,6 +45,7 @@ New domain facts go in the matching `docs/agents/*.md`, not here.
 - `sortState` — `{ column, direction }` for results table
 - `selectedDeckIds` — `Set` for deck filter dropdown
 - `processedCards` — cached last `processCards()` result (hover preview)
+- `addSourceUrl` / `editSourceUrl` — deck `sourceUrl` from a URL import, pending until Add Deck / Save Changes (#377)
 
 ### Layout Injection
 
@@ -64,7 +66,7 @@ Feature modules import circularly (`deck-form ↔ deck-list`, `deck-list → ini
 ```
 Prism: { id, name, decks[], splitGroups[], markedCards[], removedCards[], plannedSwaps[],
          useDedicatedCommanderCopies, useDedicatedCommanderCopiesUpdatedAt, createdAt, updatedAt }
-Deck:  { id, name, bracket (1-5), color (hex), stripePosition (1-48), cards[], splitGroupId? }
+Deck:  { id, name, bracket (1-5), color (hex), stripePosition (1-48), cards[], splitGroupId?, sourceUrl? }
 SplitGroup: { id, name, sideAPosition, sideAColor, childDeckIds[], splitStyle ('stripes'|'dots'), createdAt?, updatedAt? }
 Card:  { name, quantity, isCommander, isBasicLand, sleeve? }
 Preferences: { colorScheme, defaultColors, stripeStartCorner ('top-right'|'top-left'|'bottom-right'|'bottom-left') }
@@ -82,7 +84,7 @@ Preferences: { colorScheme, defaultColors, stripeStartCorner ('top-right'|'top-l
   - Card in **subset**, dots-style, 2+ variants → dot conflict; membership anchors only, parent stripe only
 - **Stripe starting corner** — global preference, pure presentation: slot numbers never change; render layer (`cornerToConfig` in card-preview.js and friends) maps slot → physical location, so Slot 1 always renders at chosen corner. No prism data mutated or synced. If any prism has `markedCards`, Apply shows native `confirm()` warning physical marks won't move.
 - **markedCards** — copies user physically marked. Three key shapes (#151): plain `<name>` for single-batch cards, `<name>|#b|<sorted deck ids>|<copy count>` per batch of multi-batch card, `<name>|<deck name>` for one-mark-at-a-time pass rows. `isCardDone` in `core/utils.js` is sole done gate (plain key for single-batch only; every batch key for multi-batch — legacy plain marks on multi-batch cards deliberately read undone; every pass key via `passKeysForCard`). Participant/size changes re-key batches so Done retires with no invalidation code; dead keys never pruned, so reverted edits resurrect marks.
-- **removedCards** — cards removed from decks whose physical marks still need clearing. Rows carry `previousQuantity`/`newQuantity` — quantity decrease = removal of copies (full removal = `newQuantity` 0). Writers upsert by `(cardName, deckId)` via `trackRemovedCard` in `deck-list.js`; `autoClearRemovedCards` clears only once quantity fully restored; `mergeRemovedCards` keeps `max(previousQuantity)` with latest row. Card back in deck it left, at slot and color its row recorded, is `clearReturnedRemovals` (swap.js): mark still painted, so row clears and `unmarkCardsWithNewStripes` doesn't un-mark it (#307). Plain Swaps and deck edits use it; Sleeve swap doesn't (incoming card goes in another sleeve).
+- **removedCards** — cards removed from decks whose physical marks still need clearing. Rows carry `previousQuantity`/`newQuantity` — quantity decrease = removal of copies (full removal = `newQuantity` 0). `clearedQuantity` (#376) = copies a Sleeve reuse already cleared; row done when `removalOpenCopies` (swap.js) is 0, then hidden from Marks to Clear (`openRemovals`), never deleted. Split-variant rows also record `splitGroup` (group as painted) so Sleeve reuse can rebuild a deleted variant. Writers upsert by `(cardName, deckId)` via `trackRemovedCard` in swap.js (carries `clearedQuantity`); `autoClearRemovedCards` clears only once quantity fully restored; `mergeRemovedCards` keeps `max(previousQuantity)` and `max(clearedQuantity)` with latest row — both only go up. Card back in deck it left, at slot and color its row recorded, is `clearReturnedRemovals` (swap.js): mark still painted, so row clears and `unmarkCardsWithNewStripes` doesn't un-mark it (#307); skips partly cleared rows (that copy's sleeve went to another card). Plain Swaps and deck edits use it; Sleeve swap doesn't (incoming card goes in another sleeve).
 - **syncState** — local-only merge metadata, not domain model. See `docs/agents/sync.md`.
 
 ### Card Processing
@@ -151,7 +153,7 @@ Preview viewport 1280px+ for desktop layout (sidebar nav); below 768px = mobile.
 - Feature modules import from `../core/`, `../modules/`, sibling `./`
 - Trace logs via `debugLog(...)` (core/utils.js), no-op unless `PRISM_DEBUG` localStorage flag set. Lint enforces; `console.error`/`console.warn` stay ungated
 - `app_logs` rows expire after 30 days (#214): `prune_app_logs(p_retain_days DEFAULT 30)` scheduled nightly by `pg_cron` as `prune-app-logs`, EXECUTE revoked from `anon` and `authenticated`. Nothing needing >1 month goes in `app_logs`; `logToSupabase` writes only, nothing reads back
-- URL deck imports (add + edit) share `resolveDeckSource(urlOrId)` in deck-import.js — extend it, don't duplicate detection
+- URL deck imports (add + edit) and deck export share `resolveDeckSource(urlOrId)` / `deckSourceSite` in `modules/deck-source.js` — extend it, don't duplicate detection
 - build.html onboarding callout dismissal persists in `prism_onboarding_dismissed` localStorage flag
 - Share cards: every indexable page carries Open Graph + Twitter tags and `rel="canonical"`, anchored on `https://prismmtg.com` (absolute — scrapers resolve relative paths against themselves). One image, `assets/og-card.png`, rebuilt by `node scripts/build-og-card.mjs` from vector paths only (outlined logo + `DEFAULT_COLORS`), since adobe-aldine and halyard-micro are Typekit fonts a rasterizer can't resolve. `mpc-stripes.html` excluded (`noindex,nofollow`). Add block to every new page
 - Supabase Auth emails (#341): six templates in `docs/email-templates/`, generated from one layout by `node scripts/build-email-templates.mjs` (inline styles, table layout, Georgia/system-sans fallbacks, `{{ .Var }}` verbatim; `tests/email-templates.test.js` fails when stale). Pasted into Supabase dashboard by hand; Auth sends via Resend SMTP; `scripts/setup-auth-email.sh` walks both. Edit generator, never HTML

@@ -7,8 +7,8 @@ import { showError, showSuccess } from '../core/notifications.js';
 import { logToSupabase } from '../modules/supabase-client.js';
 import { savePrism, setCurrentPrism } from '../modules/storage.js';
 import { buildPrismFromJson } from '../modules/prism-import.js';
-import { importFromMoxfield, toDecklistText, extractMoxfieldId } from '../modules/moxfield.js';
-import { importFromArchidekt, extractArchidektId } from '../modules/archidekt.js';
+import { toDecklistText } from '../modules/moxfield.js';
+import { resolveDeckSource } from '../modules/deck-source.js';
 import { extractCubeCobraId, fetchCube, cubeTags, cubeToPacks, packsToPrismJson } from '../modules/cubecobra.js';
 import { MAX_STRIPE_SLOTS } from '../modules/processor.js';
 import { escapeHtml } from '../core/utils.js';
@@ -47,6 +47,7 @@ export function handleFileUpload(e) {
   reader.onload = (event) => {
     const content = event.target.result;
     if (state.elements.deckList) state.elements.deckList.value = content;
+    state.addSourceUrl = null; // the list no longer comes from the imported URL
     // Programmatic .value writes fire no change event — sync fields explicitly
     syncCommanderFieldsFromText(addCommanderRefs());
 
@@ -74,6 +75,7 @@ export function handleEditFileUpload(e) {
   reader.onload = (event) => {
     const content = event.target.result;
     if (state.elements.editDeckList) state.elements.editDeckList.value = content;
+    state.editSourceUrl = null;
     syncCommanderFieldsFromText(editCommanderRefs());
     showSuccess(`Loaded ${file.name}`);
   };
@@ -245,25 +247,6 @@ export function handleJsonImport(e) {
 // Moxfield / Archidekt URL Import
 // ============================================================================
 
-/**
- * Detect a deck URL/ID's source and fetch it. Shared by the add-deck and
- * edit-deck URL importers so the detection rules stay in one place.
- * @returns {Promise<{serviceName: string, deckData: Object}>}
- * @throws if the source can't be detected.
- */
-async function resolveDeckSource(urlOrId) {
-  if (urlOrId.includes('archidekt.com') || extractArchidektId(urlOrId)) {
-    if (urlOrId.includes('archidekt.com') || /^\d+$/.test(urlOrId)) {
-      return { serviceName: 'Archidekt', deckData: await importFromArchidekt(urlOrId) };
-    }
-    return { serviceName: 'Moxfield', deckData: await importFromMoxfield(urlOrId) };
-  }
-  if (urlOrId.includes('moxfield.com') || extractMoxfieldId(urlOrId)) {
-    return { serviceName: 'Moxfield', deckData: await importFromMoxfield(urlOrId) };
-  }
-  throw new Error('Could not detect deck source. Please use a Moxfield or Archidekt URL.');
-}
-
 export async function handleMoxfieldImport() {
   const urlOrId = state.elements.moxfieldUrl?.value?.trim();
   if (!urlOrId) {
@@ -280,6 +263,7 @@ export async function handleMoxfieldImport() {
 
     if (state.elements.deckName) state.elements.deckName.value = deckData.name || '';
     if (state.elements.deckList) state.elements.deckList.value = toDecklistText(deckData);
+    state.addSourceUrl = deckData.sourceUrl || null;
     // Commander fields auto-fill from the text's Commander section (#147)
     syncCommanderFieldsFromText(addCommanderRefs());
 
@@ -314,6 +298,7 @@ export async function handleEditUrlImport() {
     const { serviceName, deckData } = await resolveDeckSource(urlOrId);
 
     if (state.elements.editDeckList) state.elements.editDeckList.value = toDecklistText(deckData);
+    state.editSourceUrl = deckData.sourceUrl || null;
     syncCommanderFieldsFromText(editCommanderRefs());
 
     showEditImportSuccess(`Imported "${deckData.name}" from ${serviceName} (${deckData.cards.length} cards). Review and click "Save Changes" to update.`);

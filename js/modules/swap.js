@@ -22,13 +22,39 @@ export function trackRemovedCard(prism, row) {
   const idx = list.findIndex(
     (rc) => normalizeCardName(rc.cardName) === rowName && rc.deckId === row.deckId,
   );
+  // A split variant's marks depend on its whole group, so the row keeps the
+  // group as painted: Sleeve reuse rebuilds a deleted variant's sleeve from it.
+  const deck = prism.decks?.find((d) => d.id === row.deckId);
+  const group = deck?.splitGroupId && (prism.splitGroups || []).find((g) => g.id === deck.splitGroupId);
+  if (group) {
+    row.splitGroup = {
+      id: group.id, name: group.name, sideAPosition: group.sideAPosition, sideAColor: group.sideAColor,
+      splitStyle: group.splitStyle || 'stripes',
+      variants: group.childDeckIds
+        .map((id) => prism.decks.find((d) => d.id === id))
+        .filter(Boolean)
+        .map((d) => ({ id: d.id, name: d.name, color: d.color, stripePosition: d.stripePosition })),
+    };
+  }
   if (idx >= 0) {
     row.previousQuantity = Math.max(row.previousQuantity || 1, list[idx].previousQuantity || 0);
+    // Copies already cleared stay cleared (#376): both fields only go up.
+    if (list[idx].clearedQuantity) row.clearedQuantity = list[idx].clearedQuantity;
     list.splice(idx, 1);
   }
   list.push(row);
   return idx < 0;
 }
+
+// Copies of a removedCards row whose mark is still on a sleeve. clearedQuantity
+// (#376) counts copies a Sleeve reuse already dealt with; the row is done at 0.
+// Legacy rows without quantity fields stand for one copy.
+export function removalOpenCopies(row) {
+  return Math.max(0, (row.previousQuantity ?? 1) - (row.newQuantity ?? 0) - (row.clearedQuantity || 0));
+}
+
+// The removedCards rows still listed under Marks to Clear.
+export const openRemovals = (prism) => (prism?.removedCards || []).filter((rc) => removalOpenCopies(rc) > 0);
 
 // Carry each card's Separate sleeve id (#309) from a deck's old rows onto its
 // rebuilt ones, by name: decklist text can't hold it, and every path that
@@ -68,7 +94,10 @@ export function clearReturnedRemovals(prism, deck) {
   const cleared = [];
   prism.removedCards = (prism.removedCards || []).filter((rc) => {
     const quantity = quantities.get(normalizeCardName(rc.cardName));
+    // A partly cleared row (#376) gave a copy's sleeve away, so its mark is
+    // not all still painted; the quantity auto-clear takes it instead.
     const back = rc.deckId === deck.id
+      && !rc.clearedQuantity
       && quantity != null
       && quantity >= (rc.previousQuantity || 1)
       && rc.stripePosition === position
@@ -128,14 +157,17 @@ export function canSleeveSwap(prism, batch, { outgoing, incoming }) {
   );
 }
 
-// Copies per physical mark on a card: { "<side>|<pos>|<type>|<color>": copies }.
+// A physical mark's identity: side, slot, mark type, color. Sleeve reuse
+// matches sleeves by it too.
+export const markId = (s) => `${s.side}|${s.position}|${s.markType || 'stripe'}|${s.color}`;
+
+// Copies per physical mark on a card: { markId: copies }.
 function tallyMarks(cards, tally = new Map()) {
   for (const card of cards) {
     for (const batch of card?.batches || []) {
       for (const s of batch.stripes) {
         if (s.markType === 'membership') continue;
-        const id = `${s.side}|${s.position}|${s.markType || 'stripe'}|${s.color}`;
-        tally.set(id, (tally.get(id) || 0) + batch.copyCount);
+        tally.set(markId(s), (tally.get(markId(s)) || 0) + batch.copyCount);
       }
     }
   }
@@ -220,6 +252,7 @@ export function applySwap(prism, { outgoing, incoming, deckIds, copies = 1, slee
         removedAt: now,
         previousQuantity,
         newQuantity: out.quantity,
+        isCommander: !!out.isCommander,
       });
       returned.push(...clearReturnedRemovals(next, deck));
     }

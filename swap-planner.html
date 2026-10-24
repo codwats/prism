@@ -127,6 +127,29 @@
               <div id="swap-queue-decks" class="wa-stack wa-gap-xl"></div>
               </div>
             </section>
+
+            <!-- Sleeve up (#378): Sleeve reuse from the decks as they are now. No Scryfall fetch. -->
+            <section id="sleeve-up" hidden>
+              <div class="wa-stack wa-gap-l">
+              <div class="wa-stack wa-gap-2xs">
+                <h2 class="wa-heading-l">Sleeve up</h2>
+                <p class="wa-color-text-quiet">Sleeves your deck changes freed, and the new cards they can hold. Planned swaps count once you apply them.</p>
+              </div>
+              <wa-card>
+                <h3 slot="header" class="wa-heading-m">Before you start</h3>
+                <dl id="sleeve-prep" class="sleeve-prep"></dl>
+              </wa-card>
+              <div class="wa-stack wa-gap-xs">
+                <h3 class="wa-heading-m">Reuse a sleeve</h3>
+                <p id="sleeve-reuse-empty" class="wa-color-text-quiet">Nothing to reuse yet.</p>
+                <ul id="sleeve-reuse" class="swap-rows"></ul>
+              </div>
+              <div id="sleeve-fresh-section" class="wa-stack wa-gap-xs">
+                <h3 class="wa-heading-m">Needs a fresh sleeve</h3>
+                <ul id="sleeve-fresh" class="swap-rows"></ul>
+              </div>
+              </div>
+            </section>
           </div>
           </div>
         </div>
@@ -183,10 +206,7 @@
       <div id="queue-result" hidden>
       <div class="wa-stack wa-gap-l">
         <p id="queue-result-summary"></p>
-        <div class="wa-stack wa-gap-xs">
-          <wa-textarea id="queue-decklist" label="Updated decklist" hint="Paste it into the deck's bulk edit on Moxfield or Archidekt." rows="8" readonly></wa-textarea>
-          <wa-copy-button from="queue-decklist.value" copy-label="Copy decklist"></wa-copy-button>
-        </div>
+        <div id="queue-export"></div>
         <div class="wa-stack wa-gap-xs">
           <h3 class="wa-heading-m">Pull list</h3>
           <p id="queue-pull-empty" class="wa-color-text-quiet">Every card you cut is still in another deck of this PRISM.</p>

@@ -11,8 +11,9 @@ import { loadJobIndex } from './modules/oracle-tags.js';
 import { rankComparables, mainType } from './modules/comparables.js';
 import { applySwap } from './modules/swap.js';
 import { queueSwap, queueByDeck, applyDeck, removeSwap } from './modules/swap-queue.js';
-import { cardsToDecklistText } from './modules/parser.js';
-import { processCards } from './modules/processor.js';
+import { renderDeckExport } from './modules/deck-export-panel.js';
+import { processCards, formatSlotLabel } from './modules/processor.js';
+import { planSleeveReuse, completeReuse } from './modules/sleeve-reuse.js';
 import { wireCardPreview, buildCardWithStripes, createLoadingElement, createErrorElement } from './modules/card-preview.js';
 import { wireCardAutocomplete } from './modules/card-autocomplete.js';
 import { escapeHtml } from './core/utils.js';
@@ -46,6 +47,7 @@ wireCardAutocomplete($('swap-search'), $('swap-search-suggest'), search);
 wireCardPreview($('swap-results'), (name) => stripesByName.get(name) || []);
 wireSwapDialog();
 wireQueue();
+wireSleeveUp();
 
 function wireIntro() {
   const intro = $('swap-intro');
@@ -437,6 +439,8 @@ function estimateText(prism, swap) {
 let queueVersion = 0;
 
 function renderQueue() {
+  // Every deck change re-renders the queue, and Sleeve up reads the same decks.
+  renderSleeveUp();
   const stored = getCurrentPrism();
   if (!stored) return;
   const { prism, groups } = queueByDeck(stored);
@@ -620,8 +624,8 @@ function confirmQueue() {
   savePrism(result.prism);
 
   const deck = result.prism.decks.find((d) => d.id === queueState.deckId);
-  $('queue-result-summary').textContent = `Applied ${plural(result.steps.length, 'Planned swap')} to ${deck.name}. PRISM only changes its own decklist, so paste this one into Moxfield or Archidekt too.`;
-  $('queue-decklist').value = cardsToDecklistText(deck.cards);
+  $('queue-result-summary').textContent = `Applied ${plural(result.steps.length, 'Planned swap')} to ${deck.name}. PRISM only changes its own decklist, so copy the changes to Moxfield or Archidekt too.`;
+  renderDeckExport($('queue-export'), deck);
   $('queue-pull').innerHTML = result.pullList.map((n) => `<li>${escapeHtml(n)}</li>`).join('');
   $('queue-pull-empty').hidden = result.pullList.length > 0;
   $('queue-preview').hidden = true;
@@ -631,4 +635,73 @@ function confirmQueue() {
 
   renderQueue();
   if (current) search(current.incoming.name);
+}
+
+// ============================================================================
+// Sleeve up (#378): from the PRISM's own state only, no Scryfall fetch
+// ============================================================================
+
+function markText(m) {
+  const dot = m.markType === 'dot' ? ' stripe-detail-swatch-dot' : '';
+  return `<span class="wa-cluster wa-gap-2xs wa-align-items-center"><span class="stripe-detail-swatch${dot}" style="background:${escapeHtml(m.color)}"></span>${escapeHtml(m.deckName)} (${formatSlotLabel(m.position, m.side)}${m.markType === 'dot' ? ', dot' : ''})</span>`;
+}
+
+const marksLine = (label, marks) => (marks.length
+  ? `<span class="wa-cluster wa-gap-xs wa-align-items-center wa-caption-s">${label}: ${marks.map(markText).join('')}</span>`
+  : '');
+
+// "the Kodama's Reach sleeve", "the A-only sleeve of Sol Ring"
+const sleeveText = (s) => (s.label
+  ? `${escapeHtml(s.label)} of ${escapeHtml(s.cardName)}`
+  : `the ${escapeHtml(s.cardName)} sleeve${s.copies > 1 ? 's' : ''}`);
+
+function renderSleeveUp() {
+  const prism = getCurrentPrism();
+  $('sleeve-up').hidden = !prism?.decks?.length;
+  if ($('sleeve-up').hidden) return;
+  const { matches, needsFreshSleeve, prep } = planSleeveReuse(prism);
+
+  const pens = prep.pens.length
+    ? `<span class="wa-cluster wa-gap-s">${prep.pens.map((p) => `<span class="wa-cluster wa-gap-2xs wa-align-items-center"><span class="stripe-detail-swatch" style="background:${escapeHtml(p.color)}"></span>${escapeHtml(p.name)} × ${p.count}</span>`).join('')}</span>`
+    : 'None';
+  const pull = prep.pullList.length
+    ? `<ul class="queue-pull">${prep.pullList.map((p) => `<li>${escapeHtml(p.cardName)}${p.copies > 1 ? ` × ${p.copies}` : ''}</li>`).join('')}</ul>`
+    : 'Nothing leaves the PRISM.';
+  $('sleeve-prep').innerHTML = `
+    <dt>Sleeves to buy</dt><dd>${prep.sleevesToBuy}</dd>
+    <dt>Pens to grab</dt><dd>${pens}</dd>
+    <dt>Marks to clear</dt><dd>${prep.marksToClear}</dd>
+    <dt>Pull list</dt><dd>${pull}</dd>`;
+
+  $('sleeve-reuse-empty').hidden = matches.length > 0;
+  $('sleeve-reuse').innerHTML = matches.map(({ id, freedSleeves, incomingBatch, copies, marksToClear, marksToAdd }) => `<li class="queue-swap wa-stack wa-gap-xs">
+      <wa-checkbox data-reuse="${escapeHtml(id)}">Move <strong>${escapeHtml(incomingBatch.cardName)}</strong> into ${freedSleeves.map(sleeveText).join(' and ')}${copies > 1 ? ` (${copiesText(copies)})` : ''}</wa-checkbox>
+      ${marksToClear.length ? '' : '<wa-badge variant="success" appearance="outlined">Straight swap</wa-badge>'}
+      ${marksLine('Clear', marksToClear)}
+      ${marksLine('Add', marksToAdd)}
+    </li>`).join('');
+
+  $('sleeve-fresh-section').hidden = !needsFreshSleeve.length;
+  $('sleeve-fresh').innerHTML = needsFreshSleeve.map((n) => `<li class="queue-swap wa-stack wa-gap-xs">
+      <span><strong>${escapeHtml(n.cardName)}</strong>${n.copyCount > 1 ? ` (${copiesText(n.copyCount)})` : ''}</span>
+      ${marksLine('Add', n.marks)}
+    </li>`).join('');
+}
+
+// One tick is one physical step; undo is unticking Done in Results.
+function wireSleeveUp() {
+  $('sleeve-reuse').addEventListener('change', (e) => {
+    const id = e.target.dataset?.reuse;
+    if (!id) return;
+    const prism = getCurrentPrism();
+    try {
+      const { prism: next, unmarkedKeys } = completeReuse(prism, id);
+      recordUnmarkedCards(prism.id, unmarkedKeys);
+      savePrism(next);
+      showSuccess('Sleeve reused. Untick it in Results to undo.');
+    } catch (err) {
+      showError(err.message);
+    }
+    renderSleeveUp();
+  });
 }

@@ -103,6 +103,7 @@ export function createDeck({
 	createdAt,
 	updatedAt,
 	cardsUpdatedAt,
+	sourceUrl,
 }) {
 	const now = new Date().toISOString();
 	return {
@@ -116,6 +117,7 @@ export function createDeck({
 		createdAt: createdAt || now,
 		updatedAt: updatedAt || now,
 		cardsUpdatedAt: cardsUpdatedAt || createdAt || now,
+		...(sourceUrl ? { sourceUrl } : {}),
 	};
 }
 
@@ -980,6 +982,7 @@ export function calculateRemovedCards(oldCards, newCards) {
 				name: card.name,
 				normalizedName,
 				isBasicLand: card.isBasicLand,
+				isCommander: !!card.isCommander,
 				previousQuantity,
 				newQuantity,
 			});

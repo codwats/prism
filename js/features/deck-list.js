@@ -30,10 +30,13 @@ import {
   unmarkCardsWithNewStripes as unmarkCardsWithNewStripesIn,
   clearReturnedRemovals,
   keepSeparateSleeves,
+  openRemovals,
 } from "../modules/swap.js";
 import { savePrism, setCurrentPrism, recordUnmarkedCards, getPrism } from "../modules/storage.js";
 import { trackEvent } from "../modules/supabase-client.js";
 import { openMembershipDrawer } from "../modules/membership.js";
+import { openDeckExportDialog } from "../modules/deck-export-panel.js";
+import { deckSourceSite } from "../modules/deck-source.js";
 import { canonicalizeCards } from "../modules/scryfall.js";
 import { hideEditImportMessages } from "./deck-import.js";
 import {
@@ -231,7 +234,7 @@ export function handleClearRemoved(cardName, deckId) {
 export function handleClearAllRemovedClick() {
   if (!state.currentPrism || !state.currentPrism.removedCards?.length) return;
 
-  const count = state.currentPrism.removedCards.length;
+  const count = openRemovals(state.currentPrism).length;
   const { clearAllRemovedDialog, clearAllRemovedCount } = state.elements;
   if (!clearAllRemovedDialog) {
     // No dialog on this page — fall back to acting directly rather than
@@ -248,7 +251,7 @@ export function handleClearAllRemovedClick() {
 export function handleClearAllRemoved() {
   if (!state.currentPrism || !state.currentPrism.removedCards?.length) return;
 
-  const count = state.currentPrism.removedCards.length;
+  const count = openRemovals(state.currentPrism).length;
   state.currentPrism.removedCards = [];
   state.currentPrism.updatedAt = new Date().toISOString();
   savePrism(state.currentPrism);
@@ -277,6 +280,7 @@ export function handleEditClick(deckId) {
   if (!deck) return;
 
   state.deckToEdit = deckId;
+  state.editSourceUrl = null;
 
   if (state.elements.editDeckId) state.elements.editDeckId.value = deck.id;
   if (state.elements.editDeckName)
@@ -410,6 +414,7 @@ export async function handleEditConfirm() {
       stripePosition: removalPosition,
       removedAt: now,
       previousQuantity: removedCard.previousQuantity,
+      isCommander: removedCard.isCommander,
       newQuantity: removedCard.newQuantity,
     });
     if (isNew) removedCount++;
@@ -422,6 +427,9 @@ export async function handleEditConfirm() {
   deck.bracket = parseInt(bracket, 10);
   deck.color = color;
   deck.cards = parseResult.cards;
+  // A URL re-import repoints the source; a manual edit keeps it (#377)
+  if (state.editSourceUrl) deck.sourceUrl = state.editSourceUrl;
+  state.editSourceUrl = null;
   deck.updatedAt = now;
   if (cardsChanged) deck.cardsUpdatedAt = now;
 
@@ -477,6 +485,7 @@ export function handleDeleteConfirm() {
       removedAt: now,
       previousQuantity: card.quantity || 1,
       newQuantity: 0,
+      isCommander: !!card.isCommander,
     });
     if (isNew) removedCount++;
   }
@@ -767,13 +776,40 @@ function getMoveButtonHtml(deck, isInGroup) {
 // classes + data-deck-id so existing listeners attach automatically.
 // Uses plain wa-buttons (not wa-menu) because wa-menu/wa-menu-item autoload
 // flakily from the CDN kit (see CLAUDE.md); wa-button is always registered.
-function kebabItem(deck, cls, icon, label) {
+function kebabItem(deck, cls, icon, label, site) {
   return `
-    <wa-button class="kebab-item ${cls}" data-deck-id="${deck.id}"
+    <wa-button class="kebab-item ${cls}" data-deck-id="${deck.id}"${site ? ` data-site="${site}"` : ""}
       appearance="plain" variant="neutral" size="s">
       <wa-icon slot="start" name="${icon}"></wa-icon>${label}
     </wa-button>
   `;
+}
+
+// A deck imported by URL copies in its site's format; one with no source picks
+// a site from a split button, Moxfield first (#377).
+function getExportButtonHtml(deck) {
+  const name = escapeHtml(deck.name);
+  if (deckSourceSite(deck.sourceUrl)) {
+    return `<wa-button appearance="plain" variant="neutral" size="s"
+            class="btn-export-deck" data-deck-id="${deck.id}" title="Copy for Moxfield/Archidekt"
+            aria-label="Copy ${name} for Moxfield or Archidekt">
+            <wa-icon name="file-export"></wa-icon>
+          </wa-button>`;
+  }
+  return `<wa-button-group label="Copy ${name} for Moxfield or Archidekt">
+            <wa-button appearance="plain" variant="neutral" size="s"
+              class="btn-export-deck" data-deck-id="${deck.id}" data-site="moxfield" title="Copy for Moxfield"
+              aria-label="Copy ${name} for Moxfield">
+              <wa-icon name="file-export"></wa-icon>
+            </wa-button>
+            <wa-dropdown class="export-site-dropdown" data-deck-id="${deck.id}" placement="bottom-end">
+              <wa-button slot="trigger" appearance="plain" variant="neutral" size="s">
+                <wa-icon name="chevron-down" label="Choose Moxfield or Archidekt"></wa-icon>
+              </wa-button>
+              <wa-dropdown-item value="moxfield">Copy for Moxfield</wa-dropdown-item>
+              <wa-dropdown-item value="archidekt">Copy for Archidekt</wa-dropdown-item>
+            </wa-dropdown>
+          </wa-button-group>`;
 }
 
 function getMoveKebabItemHtml(deck, isInGroup) {
@@ -811,6 +847,10 @@ function getDeckActionsKebabHtml(deck, isInGroup) {
         ${whatIf}
         ${getMoveKebabItemHtml(deck, isInGroup)}
         ${split}
+        ${deckSourceSite(deck.sourceUrl)
+          ? kebabItem(deck, "btn-export-deck", "file-export", "Copy for Moxfield/Archidekt")
+          : `${kebabItem(deck, "btn-export-deck", "file-export", "Copy for Moxfield", "moxfield")}
+             ${kebabItem(deck, "btn-export-deck", "file-export", "Copy for Archidekt", "archidekt")}`}
         ${kebabItem(deck, "btn-edit-deck", "pen-to-square", "Edit deck")}
         ${kebabItem(deck, "btn-delete-deck", "trash", "Delete deck")}
       </div>
@@ -868,6 +908,7 @@ export function renderDeckCard(deck, showActions = true, processedCards = null) 
           `
               : ""
           }
+          ${getExportButtonHtml(deck)}
           <wa-button appearance="plain" variant="neutral" size="s"
             class="btn-edit-deck" data-deck-id="${deck.id}" title="Edit deck"
             aria-label="Edit ${escapeHtml(deck.name)}">
@@ -1008,6 +1049,18 @@ export function renderDecksList() {
   });
   state.elements.decksList.querySelectorAll(".btn-edit-group").forEach((btn) => {
     btn.addEventListener("click", () => handleEditGroupClick(btn.dataset.groupId));
+  });
+  state.elements.decksList.querySelectorAll(".btn-export-deck").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const deck = state.currentPrism.decks.find((d) => d.id === btn.dataset.deckId);
+      if (deck) openDeckExportDialog(deck, btn.dataset.site);
+    });
+  });
+  state.elements.decksList.querySelectorAll(".export-site-dropdown").forEach((dropdown) => {
+    dropdown.addEventListener("wa-select", (e) => {
+      const deck = state.currentPrism.decks.find((d) => d.id === dropdown.dataset.deckId);
+      if (deck) openDeckExportDialog(deck, e.detail.item.value);
+    });
   });
   state.elements.decksList.querySelectorAll(".btn-edit-deck").forEach((btn) => {
     btn.addEventListener("click", () => handleEditClick(btn.dataset.deckId));

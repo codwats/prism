@@ -382,6 +382,7 @@ function buildPrismFromRow(prism) {
       createdAt: deck.created_at,
       updatedAt: deck.updated_at,
       cardsUpdatedAt: deck.cards_updated_at || null,
+      ...(deck.source_url ? { sourceUrl: deck.source_url } : {}),
       cards: (deck.deck_cards || []).map(card => ({
         name: card.card_name,
         quantity: card.quantity,
@@ -531,6 +532,7 @@ const PRISM_SELECT = `
     created_at,
     updated_at,
     cards_updated_at,
+    source_url,
     deck_cards (
       id,
       card_name,
@@ -786,7 +788,8 @@ async function savePrismToSupabase(prism) {
           split_group_id: deck.splitGroupId || null,
           created_at: deck.createdAt || existingDeck?.created_at || deckUpdatedAt,
           updated_at: deckUpdatedAt,
-          cards_updated_at: deck.cardsUpdatedAt || null
+          cards_updated_at: deck.cardsUpdatedAt || null,
+          source_url: deck.sourceUrl || null
         };
       });
 
@@ -1056,7 +1059,14 @@ export function mergeRemovedCards(localArr, cloudArr) {
       // the last delta and under-report the surplus copies to clear.
       const newer = new Date(entry.removedAt) > new Date(existing.removedAt) ? entry : existing;
       const maxPrev = Math.max(entry.previousQuantity || 0, existing.previousQuantity || 0);
-      map.set(key, maxPrev > 0 ? { ...newer, previousQuantity: maxPrev } : newer);
+      // clearedQuantity (#376) only goes up too, so a Sleeve reuse ticked on
+      // one device is never undone by the other's older row.
+      const maxCleared = Math.max(entry.clearedQuantity || 0, existing.clearedQuantity || 0);
+      map.set(key, {
+        ...newer,
+        ...(maxPrev > 0 && { previousQuantity: maxPrev }),
+        ...(maxCleared > 0 && { clearedQuantity: maxCleared }),
+      });
     }
   }
 

@@ -59,7 +59,8 @@ export function buildPrismFromJson(jsonData, { preserveId = true } = {}) {
       cards: deckCards,
       createdAt: deck.createdAt,
       updatedAt: deck.updatedAt,
-      cardsUpdatedAt: deck.cardsUpdatedAt
+      cardsUpdatedAt: deck.cardsUpdatedAt,
+      sourceUrl: typeof deck.sourceUrl === 'string' ? deck.sourceUrl : null
     });
     // Backup flags win; a pre-#147 backup's commander scalar is the fallback
     applyCommanderFallback(newDeck, deck.commander);
