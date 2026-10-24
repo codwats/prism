@@ -6,6 +6,9 @@ import { state } from '../core/state.js';
 import { escapeHtml, stripeNumberLabel, countVisibleMarks, STRIPE_SPARSE_MAX, isCardDone } from '../core/utils.js';
 import { getStripeNumbersMode } from '../modules/storage.js';
 import { processCards, formatSlotLabel } from '../modules/processor.js';
+import { normalizeCardName } from '../modules/parser.js';
+import { removalOpenCopies } from '../modules/swap.js';
+import { planSleeveReuse } from '../modules/sleeve-reuse.js';
 import { prefetchCards } from '../modules/scryfall.js';
 import { handleMarkToggle, handleClearRemoved, handleClearAllRemovedClick } from './deck-list.js';
 import { renderOverlapMatrix } from './analysis.js';
@@ -140,6 +143,16 @@ function bindResultsDelegation(tbody) {
   });
 }
 
+// "Reuse for Cultivate: clear E, add F" — the full instruction, free (ADR 0003).
+function reuseHintText({ freedSleeve, incomingBatch, marksToClear, marksToAdd }) {
+  const decks = (marks) => marks.map(m => m.deckName).join(', ');
+  const steps = [
+    marksToClear.length && `clear ${decks(marksToClear)}`,
+    marksToAdd.length && `add ${decks(marksToAdd)}`,
+  ].filter(Boolean).join(', ') || 'no marks to change';
+  return `Reuse${freedSleeve.label ? ` ${freedSleeve.label}` : ''} for ${incomingBatch.cardName}: ${steps}`;
+}
+
 // ============================================================================
 // Removed filter badge
 // ============================================================================
@@ -148,7 +161,7 @@ export function updateRemovedFilterBadge() {
   const removedBtn = document.getElementById('removed-filter-btn');
   if (!removedBtn) return;
 
-  const count = state.currentPrism?.removedCards?.length || 0;
+  const count = (state.currentPrism?.removedCards || []).filter(rc => removalOpenCopies(rc) > 0).length;
 
   if (count > 0) {
     removedBtn.textContent = `Marks to Clear (${count})`;
@@ -282,10 +295,20 @@ export function renderResults({ preserveRows = false } = {}) {
   } else if (filter === 'removed') {
     // Show cards that have been removed from decks and need marks cleared
     displayCards = [];
-    const removedCards = state.currentPrism.removedCards || [];
+    const removedCards = (state.currentPrism.removedCards || []).filter(rc => removalOpenCopies(rc) > 0);
+    // Free Sleeve reuse hint (#376): each row a match's Freed sleeve covers.
+    const reuseHints = new Map();
+    for (const match of planSleeveReuse(state.currentPrism).matches) {
+      for (const deckId of match.freedSleeve.deckIds) {
+        const key = `${normalizeCardName(match.freedSleeve.cardName)}|${deckId}`;
+        reuseHints.set(key, [...(reuseHints.get(key) || []), reuseHintText(match)]);
+      }
+    }
 
     for (const removed of removedCards) {
       displayCards.push({
+        reuseHints: reuseHints.get(`${normalizeCardName(removed.cardName)}|${removed.deckId}`) || [],
+        removedOpenCopies: removalOpenCopies(removed),
         name: removed.cardName,
         isRemoved: true,
         removedDeckId: removed.deckId,
@@ -496,9 +519,7 @@ export function renderResults({ preserveRows = false } = {}) {
       const removedKey = `${card.name}|${card.removedDeckId}`;
       // "clear this mark from N copies" (#151); legacy rows without quantity
       // fields keep the plain label.
-      const clearCopies = card.removedPreviousQuantity != null
-        ? Math.max(1, (card.removedPreviousQuantity || 1) - (card.removedNewQuantity || 0))
-        : null;
+      const clearCopies = card.removedPreviousQuantity != null ? Math.max(1, card.removedOpenCopies) : null;
       const copiesNote = clearCopies != null
         ? ` — clear ${clearCopies} ${clearCopies === 1 ? 'copy' : 'copies'}`
         : '';
@@ -514,6 +535,7 @@ export function renderResults({ preserveRows = false } = {}) {
               ></div>
               <span class="removed-deck-label">Remove from ${escapeHtml(card.removedDeckName)}${copiesNote}</span>
             </div>
+            ${card.reuseHints.map(h => `<div class="reuse-hint">${escapeHtml(h)}</div>`).join('')}
           </td>
           <td style="text-align: center;">
             <wa-button

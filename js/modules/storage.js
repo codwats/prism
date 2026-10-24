@@ -1056,7 +1056,14 @@ export function mergeRemovedCards(localArr, cloudArr) {
       // the last delta and under-report the surplus copies to clear.
       const newer = new Date(entry.removedAt) > new Date(existing.removedAt) ? entry : existing;
       const maxPrev = Math.max(entry.previousQuantity || 0, existing.previousQuantity || 0);
-      map.set(key, maxPrev > 0 ? { ...newer, previousQuantity: maxPrev } : newer);
+      // clearedQuantity (#376) only goes up too, so a Sleeve reuse ticked on
+      // one device is never undone by the other's older row.
+      const maxCleared = Math.max(entry.clearedQuantity || 0, existing.clearedQuantity || 0);
+      map.set(key, {
+        ...newer,
+        ...(maxPrev > 0 && { previousQuantity: maxPrev }),
+        ...(maxCleared > 0 && { clearedQuantity: maxCleared }),
+      });
     }
   }
 

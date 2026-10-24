@@ -713,6 +713,12 @@ wa-page[view='desktop'] [data-toggle-nav] {
   color: var(--wa-color-danger-text);
 }
 
+.reuse-hint {
+  font-size: var(--wa-font-size-s);
+  color: var(--wa-color-success-text);
+  margin-top: var(--wa-space-3xs);
+}
+
 /* ============================================================================
    Deck Overlap Matrix
    ============================================================================ */

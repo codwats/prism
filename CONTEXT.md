@@ -80,6 +80,16 @@ A mark on a sleeve for a deck that no longer needs the card. Arises when a card 
 _Avoid_: stale mark, removed card, pending removal
 _In code_: `removedCards`, and the filter value is `removed`.
 
+**Freed sleeve**:
+A marked sleeve whose copy has left the PRISM, so it is empty and keeps its marks. Per card, the number freed is the old copy count minus the new copy count: a card cut from every deck frees its sleeve, a card cut from one of five decks frees nothing, because the sleeve is still in use for the other four and that deck's mark is just a mark to clear. A freed copy that was never marked is a **spare blank sleeve**, not a Freed sleeve.
+_Avoid_: empty sleeve, old sleeve, recycled sleeve
+_In code_: `planSleeveReuse(prism).freedSleeves` (`js/modules/sleeve-reuse.js`); spare blank sleeves are `spareSleeves`.
+
+**Sleeve reuse**:
+Putting a card that needs a sleeve into a Freed sleeve, after clearing at most 2 of its marks and adding the rest. Matched by the sleeve's marks alone, never by which card replaced which. Worked out from current state every time it is shown, never at deck-edit time and never stored ([ADR 0004](docs/adr/0004-sleeve-reuse-is-reconciled-from-state.md)). Distinct from a Sleeve swap, which is a Swap applied in the Swap Planner and needs no clearing at all.
+_Avoid_: sleeve recycling, auto-swap, replacement
+_In code_: a match from `planSleeveReuse`, completed by `completeReuse`; the cleared copies are `clearedQuantity` on the `removedCards` rows.
+
 **Slot**:
 One of the 48 places on a sleeve edge where a deck's mark goes. Lowercase in prose; capitalized only before a number, as in `Side A - Slot 3`.
 _Avoid_: stripe position, position

@@ -980,6 +980,7 @@ export function calculateRemovedCards(oldCards, newCards) {
 				name: card.name,
 				normalizedName,
 				isBasicLand: card.isBasicLand,
+				isCommander: !!card.isCommander,
 				previousQuantity,
 				newQuantity,
 			});

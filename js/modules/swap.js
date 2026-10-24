@@ -24,10 +24,19 @@ export function trackRemovedCard(prism, row) {
   );
   if (idx >= 0) {
     row.previousQuantity = Math.max(row.previousQuantity || 1, list[idx].previousQuantity || 0);
+    // Copies already cleared stay cleared (#376): both fields only go up.
+    if (list[idx].clearedQuantity) row.clearedQuantity = list[idx].clearedQuantity;
     list.splice(idx, 1);
   }
   list.push(row);
   return idx < 0;
+}
+
+// Copies of a removedCards row whose mark is still on a sleeve. clearedQuantity
+// (#376) counts copies a Sleeve reuse already dealt with; the row is done at 0.
+// Legacy rows without quantity fields stand for one copy.
+export function removalOpenCopies(row) {
+  return Math.max(0, (row.previousQuantity ?? 1) - (row.newQuantity ?? 0) - (row.clearedQuantity || 0));
 }
 
 // Carry each card's Separate sleeve id (#309) from a deck's old rows onto its
@@ -68,7 +77,10 @@ export function clearReturnedRemovals(prism, deck) {
   const cleared = [];
   prism.removedCards = (prism.removedCards || []).filter((rc) => {
     const quantity = quantities.get(normalizeCardName(rc.cardName));
+    // A partly cleared row (#376) gave a copy's sleeve away, so its mark is
+    // not all still painted; the quantity auto-clear takes it instead.
     const back = rc.deckId === deck.id
+      && !rc.clearedQuantity
       && quantity != null
       && quantity >= (rc.previousQuantity || 1)
       && rc.stripePosition === position
