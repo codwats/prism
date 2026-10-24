@@ -9,7 +9,7 @@ globalThis.localStorage = {
 	clear: () => store.clear(),
 };
 
-const { createPrism, createDeck, createSplitGroup, processCards, DEFAULT_COLORS } = await import('../js/modules/processor.js');
+const { createPrism, createDeck, createSplitGroup, processCards, removeSplitChild, DEFAULT_COLORS } = await import('../js/modules/processor.js');
 const { trackRemovedCard, getRemovalStripePosition, removalOpenCopies } = await import('../js/modules/swap.js');
 const { planSleeveReuse, completeReuse } = await import('../js/modules/sleeve-reuse.js');
 const { mergeRemovedCards } = await import('../js/modules/storage.js');
@@ -173,7 +173,7 @@ test('a dedicated commander sleeve is reused like any other', () => {
 	byName(prism, 'A').cards.push(card('Aesi', 1, true));
 
 	const [match] = planSleeveReuse(prism).matches;
-	assert.equal(match.freedSleeve.cardName, 'Tatyova');
+	assert.deepEqual(match.freedSleeves.map((s) => s.cardName), ['Tatyova']);
 	assert.equal(match.incomingBatch.cardName, 'Aesi');
 	assert.deepEqual(match.marksToClear, []);
 });
@@ -253,10 +253,10 @@ test('the prep totals: sleeves to buy, pens by color name, marks to clear, pull 
 	const { prep } = planSleeveReuse(prepFixture());
 	assert.equal(prep.sleevesToBuy, 2, '3 fresh-sleeve copies minus 1 spare');
 	assert.deepEqual(prep.pens, [
-		{ name: 'Purple', count: 2 },
-		{ name: 'Blue', count: 1 },
-		{ name: 'White', count: 1 },
-		{ name: 'Yellow', count: 1 },
+		{ name: 'Purple', color: DEFAULT_COLORS[2], count: 2 },
+		{ name: 'Blue', color: DEFAULT_COLORS[1], count: 1 },
+		{ name: 'White', color: DEFAULT_COLORS[5], count: 1 },
+		{ name: 'Yellow', color: DEFAULT_COLORS[0], count: 1 },
 	]);
 	assert.equal(prep.marksToClear, 2, 'E on the reused sleeve, B on the Sol Ring that stays');
 	assert.deepEqual(prep.pullList, [
@@ -274,4 +274,95 @@ test('completing every reuse leaves the prep with the fresh sleeves and the stay
 	assert.equal(prep.sleevesToBuy, 2);
 	assert.equal(prep.marksToClear, 1);
 	assert.deepEqual(prep.pullList.map((p) => p.cardName), ['Mind Stone']);
+});
+
+test('copies already in a marked sleeve under an older batch key need marks, not a sleeve', () => {
+	const prism = createPrism('T');
+	prism.decks = [deck('A', 1, [card('Sol Ring', 2)]), deck('B', 2, [card('Sol Ring')]), deck('C', 3, [card('Arcane Signet', 2)])];
+	prism.markedCards = [...processCards(prism).find((c) => c.name === 'Sol Ring').batches.map((b) => b.key), 'Arcane Signet'];
+	setQuantity(prism, 'C', 'Arcane Signet', 0); // two Freed sleeves marked C
+	setQuantity(prism, 'B', 'Sol Ring', 2); // a new batch key, but both copies are already sleeved
+
+	const plan = planSleeveReuse(prism);
+	assert.deepEqual(plan.needsFreshSleeve, []);
+	assert.deepEqual(plan.matches, []);
+	assert.equal(plan.prep.sleevesToBuy, 0);
+});
+
+test('a 2-copy need pools two 1-copy Freed sleeves with identical marks', () => {
+	const prism = createPrism('T');
+	prism.decks = [deck('A', 1, [card("Kodama's Reach"), card('Rampant Growth')])];
+	prism.markedCards = ["Kodama's Reach", 'Rampant Growth'];
+	setQuantity(prism, 'A', "Kodama's Reach", 0);
+	setQuantity(prism, 'A', 'Rampant Growth', 0);
+	setQuantity(prism, 'A', 'Cultivate', 2);
+
+	const plan = planSleeveReuse(prism);
+	assert.deepEqual(plan.needsFreshSleeve, []);
+	assert.equal(plan.prep.sleevesToBuy, 0);
+	const [match] = plan.matches;
+	assert.equal(match.copies, 2);
+	assert.deepEqual(match.freedSleeves.map((s) => [s.cardName, s.copies]), [["Kodama's Reach", 1], ['Rampant Growth', 1]]);
+
+	const { prism: next } = completeReuse(prism, match.id, { now: NOW });
+	assert.ok(next.removedCards.every((r) => removalOpenCopies(r) === 0));
+	assert.ok(next.markedCards.includes('Cultivate'));
+	assert.deepEqual(planSleeveReuse(next).freedSleeves, []);
+});
+
+test('a pen for a custom color is labeled, never shown as hex', () => {
+	const prism = createPrism('T');
+	prism.decks = [deck('A', 1, [card('Sol Ring')])]; // #000001, not a palette color
+	const [pen] = planSleeveReuse(prism).prep.pens;
+	assert.deepEqual(pen, { name: 'Custom color', color: '#000001', count: 1 });
+});
+
+// A split group G at Side A slot 2 whose variants hold the given cards.
+function splitFixture(splitStyle, variants) {
+	const prism = createPrism('T');
+	const group = createSplitGroup({ name: 'G', sideAPosition: 2, sideAColor: '#AA0000', splitStyle });
+	prism.decks = variants.map(([name, slot, cards], i) => ({
+		...createDeck({ name, bracket: 3, color: `#00${i}0AA`, stripePosition: slot, cards }),
+		splitGroupId: group.id,
+	}));
+	group.childDeckIds = prism.decks.map((d) => d.id);
+	prism.splitGroups = [group];
+	return prism;
+}
+
+// Deleting a variant as the delete path does: a row per card, then the deck goes.
+function deleteVariant(prism, name) {
+	const d = byName(prism, name);
+	for (const c of d.cards) {
+		trackRemovedCard(prism, {
+			cardName: c.name, deckId: d.id, deckName: d.name, deckColor: d.color,
+			stripePosition: getRemovalStripePosition(prism, d), removedAt: NOW,
+			previousQuantity: c.quantity, newQuantity: 0, isCommander: !!c.isCommander,
+		});
+	}
+	return removeSplitChild(prism, d.id);
+}
+
+const markShape = (marks) => marks.map((m) => [m.side, m.position, m.markType, m.deckName]);
+
+test('a deleted dot variant frees its sleeve with the dot it was painted with', () => {
+	let prism = splitFixture('dots', [['X', null, [card("Kodama's Reach")]], ['Y', null, [card('Forest')]]]);
+	prism.markedCards = ["Kodama's Reach", 'Forest'];
+	prism = deleteVariant(prism, 'X'); // the group dissolves; Y stands alone at slot 2
+	setQuantity(prism, 'G', 'Cultivate', 1);
+
+	const [match] = planSleeveReuse(prism).matches;
+	assert.deepEqual(markShape(match.marksToClear), [['b', 2, 'dot', 'X']]);
+	assert.deepEqual(match.marksToAdd, []);
+});
+
+test('a deleted Side B variant frees its sleeve with its Side B stripe', () => {
+	let prism = splitFixture('stripes', [['X', 48, [card("Kodama's Reach")]], ['Y', 47, []], ['W', 46, []]]);
+	prism.markedCards = ["Kodama's Reach"];
+	prism = deleteVariant(prism, 'X');
+	setQuantity(prism, 'Y', 'Cultivate', 1);
+
+	const [match] = planSleeveReuse(prism).matches;
+	assert.deepEqual(markShape(match.marksToClear), [['b', 48, 'stripe', 'X']]);
+	assert.deepEqual(markShape(match.marksToAdd), [['b', 47, 'stripe', 'Y']]);
 });

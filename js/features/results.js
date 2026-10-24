@@ -7,7 +7,7 @@ import { escapeHtml, stripeNumberLabel, countVisibleMarks, STRIPE_SPARSE_MAX, is
 import { getStripeNumbersMode } from '../modules/storage.js';
 import { processCards, formatSlotLabel } from '../modules/processor.js';
 import { normalizeCardName } from '../modules/parser.js';
-import { removalOpenCopies } from '../modules/swap.js';
+import { removalOpenCopies, openRemovals } from '../modules/swap.js';
 import { planSleeveReuse } from '../modules/sleeve-reuse.js';
 import { prefetchCards } from '../modules/scryfall.js';
 import { handleMarkToggle, handleClearRemoved, handleClearAllRemovedClick } from './deck-list.js';
@@ -144,7 +144,7 @@ function bindResultsDelegation(tbody) {
 }
 
 // "Reuse for Cultivate: clear E, add F" — the full instruction, free (ADR 0003).
-function reuseHintText({ freedSleeve, incomingBatch, marksToClear, marksToAdd }) {
+function reuseHintText({ incomingBatch, marksToClear, marksToAdd }, freedSleeve) {
   const decks = (marks) => marks.map(m => m.deckName).join(', ');
   const steps = [
     marksToClear.length && `clear ${decks(marksToClear)}`,
@@ -161,7 +161,7 @@ export function updateRemovedFilterBadge() {
   const removedBtn = document.getElementById('removed-filter-btn');
   if (!removedBtn) return;
 
-  const count = (state.currentPrism?.removedCards || []).filter(rc => removalOpenCopies(rc) > 0).length;
+  const count = openRemovals(state.currentPrism).length;
 
   if (count > 0) {
     removedBtn.textContent = `Marks to Clear (${count})`;
@@ -295,13 +295,15 @@ export function renderResults({ preserveRows = false } = {}) {
   } else if (filter === 'removed') {
     // Show cards that have been removed from decks and need marks cleared
     displayCards = [];
-    const removedCards = (state.currentPrism.removedCards || []).filter(rc => removalOpenCopies(rc) > 0);
+    const removedCards = openRemovals(state.currentPrism);
     // Free Sleeve reuse hint (#376): each row a match's Freed sleeve covers.
     const reuseHints = new Map();
     for (const match of planSleeveReuse(state.currentPrism).matches) {
-      for (const deckId of match.freedSleeve.deckIds) {
-        const key = `${normalizeCardName(match.freedSleeve.cardName)}|${deckId}`;
-        reuseHints.set(key, [...(reuseHints.get(key) || []), reuseHintText(match)]);
+      for (const sleeve of match.freedSleeves) {
+        for (const deckId of sleeve.deckIds) {
+          const key = `${normalizeCardName(sleeve.cardName)}|${deckId}`;
+          reuseHints.set(key, [...(reuseHints.get(key) || []), reuseHintText(match, sleeve)]);
+        }
       }
     }
 

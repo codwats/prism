@@ -650,13 +650,20 @@ const marksLine = (label, marks) => (marks.length
   ? `<span class="wa-cluster wa-gap-xs wa-align-items-center wa-caption-s">${label}: ${marks.map(markText).join('')}</span>`
   : '');
 
+// "the Kodama's Reach sleeve", "the A-only sleeve of Sol Ring"
+const sleeveText = (s) => (s.label
+  ? `${escapeHtml(s.label)} of ${escapeHtml(s.cardName)}`
+  : `the ${escapeHtml(s.cardName)} sleeve${s.copies > 1 ? 's' : ''}`);
+
 function renderSleeveUp() {
   const prism = getCurrentPrism();
   $('sleeve-up').hidden = !prism?.decks?.length;
   if ($('sleeve-up').hidden) return;
   const { matches, needsFreshSleeve, prep } = planSleeveReuse(prism);
 
-  const pens = prep.pens.map((p) => `${escapeHtml(p.name)} × ${p.count}`).join(', ') || 'None';
+  const pens = prep.pens.length
+    ? `<span class="wa-cluster wa-gap-s">${prep.pens.map((p) => `<span class="wa-cluster wa-gap-2xs wa-align-items-center"><span class="stripe-detail-swatch" style="background:${escapeHtml(p.color)}"></span>${escapeHtml(p.name)} × ${p.count}</span>`).join('')}</span>`
+    : 'None';
   const pull = prep.pullList.length
     ? `<ul class="queue-pull">${prep.pullList.map((p) => `<li>${escapeHtml(p.cardName)}${p.copies > 1 ? ` × ${p.copies}` : ''}</li>`).join('')}</ul>`
     : 'Nothing leaves the PRISM.';
@@ -667,8 +674,8 @@ function renderSleeveUp() {
     <dt>Pull list</dt><dd>${pull}</dd>`;
 
   $('sleeve-reuse-empty').hidden = matches.length > 0;
-  $('sleeve-reuse').innerHTML = matches.map(({ id, freedSleeve, incomingBatch, copies, marksToClear, marksToAdd }) => `<li class="queue-swap wa-stack wa-gap-xs">
-      <wa-checkbox data-reuse="${escapeHtml(id)}">Move <strong>${escapeHtml(incomingBatch.cardName)}</strong> into ${freedSleeve.label ? `${escapeHtml(freedSleeve.label)} of ` : 'the '}${escapeHtml(freedSleeve.cardName)}${freedSleeve.label ? '' : ' sleeve'}${copies > 1 ? ` (${copiesText(copies)})` : ''}</wa-checkbox>
+  $('sleeve-reuse').innerHTML = matches.map(({ id, freedSleeves, incomingBatch, copies, marksToClear, marksToAdd }) => `<li class="queue-swap wa-stack wa-gap-xs">
+      <wa-checkbox data-reuse="${escapeHtml(id)}">Move <strong>${escapeHtml(incomingBatch.cardName)}</strong> into ${freedSleeves.map(sleeveText).join(' and ')}${copies > 1 ? ` (${copiesText(copies)})` : ''}</wa-checkbox>
       ${marksToClear.length ? '' : '<wa-badge variant="success" appearance="outlined">Straight swap</wa-badge>'}
       ${marksLine('Clear', marksToClear)}
       ${marksLine('Add', marksToAdd)}

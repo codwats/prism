@@ -84,7 +84,7 @@ test('Plain Swap in one deck: 1 mark to add, 1 stale mark, a removed-card row', 
 		{ ...next.removedCards[0], removedAt: undefined },
 		{
 			cardName: 'Cultivate', deckId: a.id, deckName: 'A', deckColor: a.color,
-			stripePosition: 1, removedAt: undefined, previousQuantity: 1, newQuantity: 0,
+			stripePosition: 1, removedAt: undefined, previousQuantity: 1, newQuantity: 0, isCommander: false,
 		},
 	);
 	assert.equal(next.decks[1].cardsUpdatedAt, prism.decks[1].cardsUpdatedAt, 'untouched deck keeps its timestamp');
