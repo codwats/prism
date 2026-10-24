@@ -15,7 +15,7 @@ function pasteHint(deck, site) {
   if (site === 'archidekt') return 'Paste into Import cards on Archidekt. Import adds to a deck, so use it on a new or emptied deck.';
   const commanders = commanderNames(deck);
   const setCommander = commanders.length
-    ? ` Commanders aren't in the list, since Bulk Edit has no commander board: set ${commanders.join(' and ')} as ${commanders.length > 1 ? 'commanders' : 'commander'} from the card menu on Moxfield, if not set already.`
+    ? ` Commanders aren't in the list, since Bulk Edit has no commander board: if the Moxfield deck doesn't have ${commanders.join(' and ')} as ${commanders.length > 1 ? 'commanders' : 'commander'} yet, add ${commanders.length > 1 ? 'them' : 'it'} and use Set as Commander from the card menu.`
     : '';
   return `Paste into the Main Deck tab of the deck's Bulk Edit on Moxfield. It replaces the list there.${setCommander}`;
 }
