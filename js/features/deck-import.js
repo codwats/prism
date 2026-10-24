@@ -47,6 +47,7 @@ export function handleFileUpload(e) {
   reader.onload = (event) => {
     const content = event.target.result;
     if (state.elements.deckList) state.elements.deckList.value = content;
+    state.addSourceUrl = null; // the list no longer comes from the imported URL
     // Programmatic .value writes fire no change event — sync fields explicitly
     syncCommanderFieldsFromText(addCommanderRefs());
 
@@ -74,6 +75,7 @@ export function handleEditFileUpload(e) {
   reader.onload = (event) => {
     const content = event.target.result;
     if (state.elements.editDeckList) state.elements.editDeckList.value = content;
+    state.editSourceUrl = null;
     syncCommanderFieldsFromText(editCommanderRefs());
     showSuccess(`Loaded ${file.name}`);
   };
@@ -280,6 +282,7 @@ export async function handleMoxfieldImport() {
 
     if (state.elements.deckName) state.elements.deckName.value = deckData.name || '';
     if (state.elements.deckList) state.elements.deckList.value = toDecklistText(deckData);
+    state.addSourceUrl = deckData.sourceUrl || null;
     // Commander fields auto-fill from the text's Commander section (#147)
     syncCommanderFieldsFromText(addCommanderRefs());
 
@@ -314,6 +317,7 @@ export async function handleEditUrlImport() {
     const { serviceName, deckData } = await resolveDeckSource(urlOrId);
 
     if (state.elements.editDeckList) state.elements.editDeckList.value = toDecklistText(deckData);
+    state.editSourceUrl = deckData.sourceUrl || null;
     syncCommanderFieldsFromText(editCommanderRefs());
 
     showEditImportSuccess(`Imported "${deckData.name}" from ${serviceName} (${deckData.cards.length} cards). Review and click "Save Changes" to update.`);

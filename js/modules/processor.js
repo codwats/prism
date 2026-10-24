@@ -103,6 +103,7 @@ export function createDeck({
 	createdAt,
 	updatedAt,
 	cardsUpdatedAt,
+	sourceUrl,
 }) {
 	const now = new Date().toISOString();
 	return {
@@ -116,6 +117,7 @@ export function createDeck({
 		createdAt: createdAt || now,
 		updatedAt: updatedAt || now,
 		cardsUpdatedAt: cardsUpdatedAt || createdAt || now,
+		...(sourceUrl ? { sourceUrl } : {}),
 	};
 }
 

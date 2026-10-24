@@ -34,6 +34,7 @@ import {
 import { savePrism, setCurrentPrism, recordUnmarkedCards, getPrism } from "../modules/storage.js";
 import { trackEvent } from "../modules/supabase-client.js";
 import { openMembershipDrawer } from "../modules/membership.js";
+import { openDeckExportDialog } from "../modules/deck-export-panel.js";
 import { canonicalizeCards } from "../modules/scryfall.js";
 import { hideEditImportMessages } from "./deck-import.js";
 import {
@@ -277,6 +278,7 @@ export function handleEditClick(deckId) {
   if (!deck) return;
 
   state.deckToEdit = deckId;
+  state.editSourceUrl = null;
 
   if (state.elements.editDeckId) state.elements.editDeckId.value = deck.id;
   if (state.elements.editDeckName)
@@ -422,6 +424,9 @@ export async function handleEditConfirm() {
   deck.bracket = parseInt(bracket, 10);
   deck.color = color;
   deck.cards = parseResult.cards;
+  // A URL re-import repoints the source; a manual edit keeps it (#377)
+  if (state.editSourceUrl) deck.sourceUrl = state.editSourceUrl;
+  state.editSourceUrl = null;
   deck.updatedAt = now;
   if (cardsChanged) deck.cardsUpdatedAt = now;
 
@@ -811,6 +816,7 @@ function getDeckActionsKebabHtml(deck, isInGroup) {
         ${whatIf}
         ${getMoveKebabItemHtml(deck, isInGroup)}
         ${split}
+        ${kebabItem(deck, "btn-export-deck", "file-export", "Copy for Moxfield/Archidekt")}
         ${kebabItem(deck, "btn-edit-deck", "pen-to-square", "Edit deck")}
         ${kebabItem(deck, "btn-delete-deck", "trash", "Delete deck")}
       </div>
@@ -868,6 +874,11 @@ export function renderDeckCard(deck, showActions = true, processedCards = null) 
           `
               : ""
           }
+          <wa-button appearance="plain" variant="neutral" size="s"
+            class="btn-export-deck" data-deck-id="${deck.id}" title="Copy for Moxfield/Archidekt"
+            aria-label="Copy ${escapeHtml(deck.name)} for Moxfield or Archidekt">
+            <wa-icon name="file-export"></wa-icon>
+          </wa-button>
           <wa-button appearance="plain" variant="neutral" size="s"
             class="btn-edit-deck" data-deck-id="${deck.id}" title="Edit deck"
             aria-label="Edit ${escapeHtml(deck.name)}">
@@ -1008,6 +1019,12 @@ export function renderDecksList() {
   });
   state.elements.decksList.querySelectorAll(".btn-edit-group").forEach((btn) => {
     btn.addEventListener("click", () => handleEditGroupClick(btn.dataset.groupId));
+  });
+  state.elements.decksList.querySelectorAll(".btn-export-deck").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const deck = state.currentPrism.decks.find((d) => d.id === btn.dataset.deckId);
+      if (deck) openDeckExportDialog(deck);
+    });
   });
   state.elements.decksList.querySelectorAll(".btn-edit-deck").forEach((btn) => {
     btn.addEventListener("click", () => handleEditClick(btn.dataset.deckId));

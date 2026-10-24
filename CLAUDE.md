@@ -6,6 +6,7 @@ Helps MTG Commander players who share cards across decks mark sleeves with color
 
 - **Storage, cloud sync, auth init** (`storage.js`, `auth.js`, `syncState`, build.html sync UI) → `docs/agents/sync.md`
 - **Billing, Membership, entitlement** (`billing.js`, `stripe-*-edge.ts`, `founders`/`subscriptions`/`app_config`, `isEntitled()`) → `docs/agents/billing.md`
+- **Deck export / `sourceUrl`** (`deck-export.js`, Copy for Moxfield/Archidekt) → `docs/agents/deck-export.md`
 - **Gallery** (`gallery.html`, `js/gallery.js`, `gallery_*` tables/RPCs, `gallery-artist`/`gallery-notify`/`commission` edge functions) → `docs/agents/gallery.md`
 - **Domain terms** → `CONTEXT.md`; product policy → `PRODUCT.md`; decisions → `docs/adr/`
 - **Reviewing a diff** → `CODING_STANDARDS.md` (judgement calls; mechanical rules are in lint and `tests/schema-rules.test.js`)
@@ -64,7 +65,7 @@ Feature modules import circularly (`deck-form ↔ deck-list`, `deck-list → ini
 ```
 Prism: { id, name, decks[], splitGroups[], markedCards[], removedCards[], plannedSwaps[],
          useDedicatedCommanderCopies, useDedicatedCommanderCopiesUpdatedAt, createdAt, updatedAt }
-Deck:  { id, name, bracket (1-5), color (hex), stripePosition (1-48), cards[], splitGroupId? }
+Deck:  { id, name, bracket (1-5), color (hex), stripePosition (1-48), cards[], splitGroupId?, sourceUrl? }
 SplitGroup: { id, name, sideAPosition, sideAColor, childDeckIds[], splitStyle ('stripes'|'dots'), createdAt?, updatedAt? }
 Card:  { name, quantity, isCommander, isBasicLand, sleeve? }
 Preferences: { colorScheme, defaultColors, stripeStartCorner ('top-right'|'top-left'|'bottom-right'|'bottom-left') }

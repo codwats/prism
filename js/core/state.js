@@ -11,4 +11,7 @@ export const state = {
   sortState: { column: 'deckCount', direction: 'desc' },
   selectedDeckIds: new Set(),
   processedCards: [],  // Cache of last processCards() result for hover preview
+  // URL a URL import just filled the add / edit form from; the save writes it to deck.sourceUrl (#377)
+  addSourceUrl: null,
+  editSourceUrl: null,
 };

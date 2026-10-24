@@ -382,6 +382,7 @@ function buildPrismFromRow(prism) {
       createdAt: deck.created_at,
       updatedAt: deck.updated_at,
       cardsUpdatedAt: deck.cards_updated_at || null,
+      ...(deck.source_url ? { sourceUrl: deck.source_url } : {}),
       cards: (deck.deck_cards || []).map(card => ({
         name: card.card_name,
         quantity: card.quantity,
@@ -531,6 +532,7 @@ const PRISM_SELECT = `
     created_at,
     updated_at,
     cards_updated_at,
+    source_url,
     deck_cards (
       id,
       card_name,
@@ -786,7 +788,8 @@ async function savePrismToSupabase(prism) {
           split_group_id: deck.splitGroupId || null,
           created_at: deck.createdAt || existingDeck?.created_at || deckUpdatedAt,
           updated_at: deckUpdatedAt,
-          cards_updated_at: deck.cardsUpdatedAt || null
+          cards_updated_at: deck.cardsUpdatedAt || null,
+          source_url: deck.sourceUrl || null
         };
       });
 

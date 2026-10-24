@@ -53,12 +53,19 @@ export async function fetchArchidektDeck(deckId) {
 export function transformArchidektDeck(archidektDeck) {
   const cards = [];
 
+  // Maybeboard, Sideboard and any user category set to "not in deck" (#377)
+  const outOfDeck = new Set((archidektDeck.categories || [])
+    .filter(cat => cat.includedInDeck === false)
+    .map(cat => cat.name));
+
   // Process cards from the deck
   if (archidektDeck.cards && Array.isArray(archidektDeck.cards)) {
     for (const cardEntry of archidektDeck.cards) {
       const card = cardEntry.card;
       const quantity = cardEntry.quantity || 1;
       const categories = cardEntry.categories || [];
+      // Archidekt files a card under its first category
+      if (outOfDeck.has(categories[0])) continue;
 
       // Exact `Commander` category only (#148): loose substring matching
       // flagged user-authored categories like "Commander Damage" or
