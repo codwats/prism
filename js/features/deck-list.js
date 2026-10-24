@@ -30,6 +30,7 @@ import {
   unmarkCardsWithNewStripes as unmarkCardsWithNewStripesIn,
   clearReturnedRemovals,
   keepSeparateSleeves,
+  removalOpenCopies,
 } from "../modules/swap.js";
 import { savePrism, setCurrentPrism, recordUnmarkedCards, getPrism } from "../modules/storage.js";
 import { trackEvent } from "../modules/supabase-client.js";
@@ -231,7 +232,7 @@ export function handleClearRemoved(cardName, deckId) {
 export function handleClearAllRemovedClick() {
   if (!state.currentPrism || !state.currentPrism.removedCards?.length) return;
 
-  const count = state.currentPrism.removedCards.length;
+  const count = state.currentPrism.removedCards.filter((rc) => removalOpenCopies(rc) > 0).length;
   const { clearAllRemovedDialog, clearAllRemovedCount } = state.elements;
   if (!clearAllRemovedDialog) {
     // No dialog on this page — fall back to acting directly rather than
@@ -248,7 +249,7 @@ export function handleClearAllRemovedClick() {
 export function handleClearAllRemoved() {
   if (!state.currentPrism || !state.currentPrism.removedCards?.length) return;
 
-  const count = state.currentPrism.removedCards.length;
+  const count = state.currentPrism.removedCards.filter((rc) => removalOpenCopies(rc) > 0).length;
   state.currentPrism.removedCards = [];
   state.currentPrism.updatedAt = new Date().toISOString();
   savePrism(state.currentPrism);
@@ -410,6 +411,7 @@ export async function handleEditConfirm() {
       stripePosition: removalPosition,
       removedAt: now,
       previousQuantity: removedCard.previousQuantity,
+      isCommander: removedCard.isCommander,
       newQuantity: removedCard.newQuantity,
     });
     if (isNew) removedCount++;
@@ -477,6 +479,7 @@ export function handleDeleteConfirm() {
       removedAt: now,
       previousQuantity: card.quantity || 1,
       newQuantity: 0,
+      isCommander: !!card.isCommander,
     });
     if (isNew) removedCount++;
   }
