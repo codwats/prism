@@ -8,7 +8,8 @@
  *   initLayout({ activePage: 'build', title: 'Build Your PRISM' });
  */
 
-import { startAuth } from './modules/auth.js';
+import { startAuth, getCurrentUser, onAuthChange } from './modules/auth.js';
+import { isEntitled } from './modules/billing.js';
 import { hasStoredSession, loadSupabaseSdk } from './modules/supabase-client.js';
 import {
   getColorScheme,
@@ -18,9 +19,11 @@ import {
   getStripeNumbersMode,
   STRIPE_NUMBERS_MODES,
   getAllPrisms,
+  getCurrentPrism,
 } from './modules/storage.js';
 import { applyColorScheme } from './modules/theme.js';
 import { initGlobalErrorReporting } from './core/telemetry.js';
+import { debounce } from './core/utils.js';
 
 // Re-apply when the OS theme changes, but only while preference is 'auto'
 window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
@@ -34,6 +37,12 @@ const NAV_LINKS = [
   { href: 'tools.html', label: 'Tools', page: 'tools' },
   { href: 'gallery.html', label: 'Gallery', page: 'gallery' },
   { href: 'build.html', label: 'My PRISM', page: 'build' },
+];
+
+// Members-only (ADR 0003): the group ships hidden and only entitlement unhides it
+const EXTRAS_LINKS = [
+  { href: 'swap-planner.html', label: 'Swap Planner', icon: 'right-left' },
+  { href: 'mpc-stripes.html', label: 'MPC Stripes', icon: 'wand-magic-sparkles' },
 ];
 
 /**
@@ -63,6 +72,35 @@ export function initLayout(options = {}) {
   // Nothing here waits on Web Awesome: startAuth only sets style.display on
   // plain elements and attaches listeners, and both work before an upgrade.
   startAuth();
+  onAuthChange(updateNavExtras);
+  updateNavExtras();
+  // Debounced: a mark toggle saves too, and the count runs processCards
+  window.addEventListener('prism:saved', debounce(updateNavExtras, 300));
+}
+
+// Extras follow entitlement, not the enforcement flag: with the flag off every
+// signed-in account is a Member. Hidden again first, so a sign-out never shows them.
+async function updateNavExtras() {
+  const group = document.getElementById('nav-extras');
+  if (!group) return;
+  const user = getCurrentUser();
+  const entitled = user ? await isEntitled() : false;
+  if (user !== getCurrentUser()) return;
+  group.hidden = !entitled;
+  if (!entitled) return;
+
+  const badge = document.getElementById('nav-extras-reuse');
+  const prism = getCurrentPrism();
+  if (!badge) return;
+  if (!prism?.decks?.length) {
+    badge.hidden = true;
+    return;
+  }
+  const { planSleeveReuse } = await import('./modules/sleeve-reuse.js');
+  const reuse = planSleeveReuse(prism).matches.length;
+  badge.textContent = reuse;
+  badge.hidden = !reuse;
+  badge.setAttribute('aria-label', `${reuse} ${reuse === 1 ? 'sleeve' : 'sleeves'} to reuse`);
 }
 
 /**
@@ -366,9 +404,21 @@ function injectNav(activePage) {
     return `<a href="${link.href}"${activeClass} style="text-decoration: none; color: inherit;${activeColor}">${link.label}</a>`;
   }).join('\n          ');
 
+  const extrasHtml = EXTRAS_LINKS.map(link => {
+    const current = location.pathname.endsWith(`/${link.href}`) ? ' aria-current="page"' : '';
+    const count = link.href === 'swap-planner.html' ? '<wa-badge id="nav-extras-reuse" variant="brand" pill hidden></wa-badge>' : '';
+    return `<a href="${link.href}" class="nav-extra"${current}><wa-icon name="${link.icon}"></wa-icon>${link.label}${count}</a>`;
+  }).join('\n            ');
+
   nav.innerHTML = `
-        <div class="wa-stack wa-gap-m">
-          ${linksHtml}
+        <div class="wa-stack wa-gap-xl">
+          <div class="wa-stack wa-gap-m">
+            ${linksHtml}
+          </div>
+          <section id="nav-extras" class="wa-stack wa-gap-s" aria-labelledby="nav-extras-heading" hidden>
+            <h2 id="nav-extras-heading" class="nav-extras-heading">Extras</h2>
+            ${extrasHtml}
+          </section>
         </div>
 
         <!-- Account Section -->

@@ -73,6 +73,8 @@ export function saveStorage(data) {
     console.error('Error saving PRISM data:', error);
     throw new Error('Failed to save data. LocalStorage may be full.');
   }
+  // Every write lands here (edits, marks, cloud merges); the nav's Extras count listens
+  if (typeof window !== 'undefined') window.dispatchEvent?.(new Event('prism:saved'));
 }
 
 /**
