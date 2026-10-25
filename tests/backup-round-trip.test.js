@@ -71,12 +71,15 @@ test('malformed Planned swaps are dropped on import', () => {
 		'Sol Ring',
 		{ id: 's2', deckId: 'd1' }, // no incoming
 		{ id: 's3', incoming: 'Arcane Signet', deckId: 'gone' }, // deck not in backup
-		{ id: 's4', incoming: 'Arcane Signet', deckId: 'd1', copies: 'lots', outgoing: 5, note: {} },
+		{ id: 's4', incoming: 'Arcane Signet', deckId: 'd1', copies: 'lots', outgoing: 5, note: {},
+			createdAt: 'not-a-date', updatedAt: 'yesterday' },
 	);
 	const restored = buildPrismFromJson(json);
 	assert.deepEqual(restored.plannedSwaps.map((s) => s.id), ['s1', 's4']);
 	const s4 = restored.plannedSwaps[1];
 	assert.equal(s4.copies, 1);
+	assert.equal(s4.createdAt, restored.updatedAt);
+	assert.equal(s4.updatedAt, restored.updatedAt);
 	assert.equal('outgoing' in s4, false);
 	assert.equal('note' in s4, false);
 });
