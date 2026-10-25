@@ -308,7 +308,8 @@ BEGIN
   BEGIN
     PERFORM public.update_own_gallery_artist('bio', '[]'::jsonb, 'http://p.example/me.png', false, '', '');
     RAISE EXCEPTION 'accepted a non-https avatar';
-  EXCEPTION WHEN check_violation THEN NULL;
+  EXCEPTION WHEN check_violation THEN
+    ASSERT SQLERRM = 'Avatar must be an https:// address', 'avatar message changed: ' || SQLERRM;
   END;
   BEGIN
     PERFORM public.update_own_gallery_artist('bio', '[]'::jsonb, 'javascript:alert(1)', false, '', '');
@@ -324,7 +325,8 @@ BEGIN
   BEGIN
     PERFORM public.update_own_gallery_artist('bio', '[{"label":"Plain","href":"http://p.example"}]'::jsonb, NULL, false, '', '');
     RAISE EXCEPTION 'accepted a non-https link';
-  EXCEPTION WHEN check_violation THEN NULL;
+  EXCEPTION WHEN check_violation THEN
+    ASSERT SQLERRM = 'Every link must be an https:// address', 'link message changed: ' || SQLERRM;
   END;
   BEGIN
     PERFORM public.update_own_gallery_artist('bio', '[{"label":"No href"}]'::jsonb, NULL, false, '', '');
@@ -334,7 +336,8 @@ BEGIN
   BEGIN
     PERFORM public.update_own_gallery_artist('bio', '{"href":"https://p.example"}'::jsonb, NULL, false, '', '');
     RAISE EXCEPTION 'accepted links that are not an array';
-  EXCEPTION WHEN check_violation THEN NULL;
+  EXCEPTION WHEN check_violation THEN
+    ASSERT SQLERRM = 'Every link must be an https:// address', 'non-array message changed: ' || SQLERRM;
   END;
   ASSERT (SELECT bio FROM public.gallery_artists WHERE id = '32400000-0000-0000-0001-000000000001') = '',
     'a refused update must change nothing';
@@ -410,6 +413,35 @@ BEGIN
     WHERE id = '32400000-0000-0000-0001-000000000002';
   ASSERT (SELECT bio FROM public.gallery_artists WHERE id = '32400000-0000-0000-0001-000000000002') = 'fixed by admin';
   ASSERT (SELECT is_partner FROM public.gallery_artists WHERE id = '32400000-0000-0000-0001-000000000002') = true;
+
+  -- ...but the https-only rule binds them too (#394): the table refuses it, not just the browser.
+  BEGIN
+    UPDATE public.gallery_artists SET avatar_url = 'http://q.example/me.png'
+      WHERE id = '32400000-0000-0000-0001-000000000002';
+    RAISE EXCEPTION 'an admin set a non-https avatar';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+  BEGIN
+    UPDATE public.gallery_artists SET links = '[{"label":"Plain","href":"http://q.example"}]'::jsonb
+      WHERE id = '32400000-0000-0000-0001-000000000002';
+    RAISE EXCEPTION 'an admin set a non-https link';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+  BEGIN
+    UPDATE public.gallery_artists SET links = '{"href":"https://q.example"}'::jsonb
+      WHERE id = '32400000-0000-0000-0001-000000000002';
+    RAISE EXCEPTION 'an admin set links that are not an array';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+  BEGIN
+    INSERT INTO public.gallery_artists (name, avatar_url) VALUES ('Artist R', 'http://r.example/me.png');
+    RAISE EXCEPTION 'an admin inserted a non-https avatar';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+  UPDATE public.gallery_artists SET avatar_url = '', links = '[{"label":"Site","href":"HTTPS://q.example"}]'::jsonb
+    WHERE id = '32400000-0000-0000-0001-000000000002';
+  ASSERT (SELECT avatar_url FROM public.gallery_artists WHERE id = '32400000-0000-0000-0001-000000000002') = '',
+    'a blank avatar and an upper-case HTTPS link must be accepted';
 END $$;
 RESET ROLE;
 
