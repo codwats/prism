@@ -961,14 +961,11 @@ BEGIN;
     IF v_email IS NOT NULL AND v_email !~ '^[^@[:space:]]+@[^@[:space:]]+\.[^@[:space:]]+$' THEN
       RAISE EXCEPTION 'Commission email is not a valid address' USING ERRCODE = 'check_violation';
     END IF;
-    IF nullif(btrim(coalesce(p_avatar_url, '')), '') !~* '^https://' THEN
+    -- Checked one field at a time for the message; the table CHECK (#394) is the backstop.
+    IF NOT gallery_artist_urls_https(p_avatar_url, '[]'::jsonb) THEN
       RAISE EXCEPTION 'Avatar must be an https:// address' USING ERRCODE = 'check_violation';
     END IF;
-    -- CASE, not OR: jsonb_array_elements raises on a non-array, and OR has no evaluation order.
-    -- Parenthesised: PL/pgSQL ends an IF condition at the first bare THEN.
-    IF (CASE WHEN jsonb_typeof(coalesce(p_links, '[]'::jsonb)) <> 'array' THEN true
-             ELSE EXISTS (SELECT 1 FROM jsonb_array_elements(coalesce(p_links, '[]'::jsonb)) l
-                          WHERE coalesce(l->>'href', '') !~* '^https://') END) THEN
+    IF NOT gallery_artist_urls_https(NULL, p_links) THEN
       RAISE EXCEPTION 'Every link must be an https:// address' USING ERRCODE = 'check_violation';
     END IF;
     IF coalesce(p_commissions_open, false) AND v_email IS NULL
@@ -1610,4 +1607,34 @@ BEGIN;
   REVOKE EXECUTE ON FUNCTION claim_gallery_commission_send(UUID, UUID, UUID) FROM anon;
   REVOKE EXECUTE ON FUNCTION claim_gallery_commission_send(UUID, UUID, UUID) FROM authenticated;
   GRANT EXECUTE ON FUNCTION claim_gallery_commission_send(UUID, UUID, UUID) TO service_role;
+COMMIT;
+
+-- ============================================
+-- MIGRATION: https-only artist links on every write (#394)
+-- ============================================
+-- update_own_gallery_artist and the admin-create edge function already refuse
+-- non-https URLs, but an admin Edit is a direct UPDATE under the admin policy.
+-- The CHECK binds every path (23514); the RPC calls the same helper for its messages.
+-- Before the first run on a live database, list the rows that would fail it and fix them:
+--   SELECT id, name, avatar_url, links FROM gallery_artists
+--   WHERE NOT gallery_artist_urls_https(avatar_url, links);
+-- (Create the function below first.) Tests: tests/gallery-artists.sql.
+BEGIN;
+  -- A blank or null avatar is allowed; links must be an array and every href https://.
+  CREATE OR REPLACE FUNCTION gallery_artist_urls_https(p_avatar_url TEXT, p_links JSONB)
+    RETURNS boolean
+    LANGUAGE sql
+    IMMUTABLE
+    SET search_path = public, pg_temp
+  AS $$
+    SELECT coalesce(nullif(btrim(coalesce(p_avatar_url, '')), '') ~* '^https://', true)
+      -- CASE, not AND: jsonb_array_elements raises on a non-array, and AND has no evaluation order.
+      AND CASE WHEN jsonb_typeof(coalesce(p_links, '[]'::jsonb)) <> 'array' THEN false
+               ELSE NOT EXISTS (SELECT 1 FROM jsonb_array_elements(coalesce(p_links, '[]'::jsonb)) l
+                                WHERE coalesce(l->>'href', '') !~* '^https://') END
+  $$;
+
+  ALTER TABLE gallery_artists DROP CONSTRAINT IF EXISTS gallery_artists_urls_https;
+  ALTER TABLE gallery_artists ADD CONSTRAINT gallery_artists_urls_https
+    CHECK (gallery_artist_urls_https(avatar_url, links));
 COMMIT;
