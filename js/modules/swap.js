@@ -40,6 +40,7 @@ export function trackRemovedCard(prism, row) {
     row.previousQuantity = Math.max(row.previousQuantity || 1, list[idx].previousQuantity || 0);
     // Copies already cleared stay cleared (#376): both fields only go up.
     if (list[idx].clearedQuantity) row.clearedQuantity = list[idx].clearedQuantity;
+    if (list[idx].sleeveSwappedQuantity) row.sleeveSwappedQuantity = list[idx].sleeveSwappedQuantity;
     list.splice(idx, 1);
   }
   list.push(row);
@@ -95,9 +96,11 @@ export function clearReturnedRemovals(prism, deck) {
   prism.removedCards = (prism.removedCards || []).filter((rc) => {
     const quantity = quantities.get(normalizeCardName(rc.cardName));
     // A partly cleared row (#376) gave a copy's sleeve away, so its mark is
-    // not all still painted; the quantity auto-clear takes it instead.
+    // not all still painted; the quantity auto-clear takes it instead. So did
+    // a row whose card's sleeve a Sleeve swap gave to another card (#401).
     const back = rc.deckId === deck.id
       && !rc.clearedQuantity
+      && !rc.sleeveSwappedQuantity
       && quantity != null
       && quantity >= (rc.previousQuantity || 1)
       && rc.stripePosition === position
@@ -255,6 +258,16 @@ export function applySwap(prism, { outgoing, incoming, deckIds, copies = 1, slee
         isCommander: !!out.isCommander,
       });
       returned.push(...clearReturnedRemovals(next, deck));
+    }
+  }
+  // The outgoing card's open rows rebuild its old sleeves in Sleeve reuse, but
+  // this swap wrote none: they record the copies whose sleeve the incoming
+  // card now holds, so those sleeves don't count as freed (#401).
+  if (sleeveBatch) {
+    for (const row of next.removedCards) {
+      if (sameName(row.cardName, outgoing) && removalOpenCopies(row) > 0) {
+        row.sleeveSwappedQuantity = (row.sleeveSwappedQuantity || 0) + copies;
+      }
     }
   }
   next.updatedAt = now;

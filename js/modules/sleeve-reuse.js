@@ -134,6 +134,16 @@ function freedSleevesOf(prism, current, normalizedName, rows, markedSet) {
       clears += best.clear;
     }
   }
+  // Copies a Sleeve swap moved out hold their sleeve under the incoming card.
+  // Every open row of the card records each swap, so the max is the total.
+  // shortcut: which old sleeve they hold isn't recorded, so the first one left
+  // goes; record the batch if a multi-batch card shows the wrong freed sleeve.
+  let held = Math.max(0, ...rows.map((r) => r.sleeveSwappedQuantity || 0));
+  for (const s of sleeves) {
+    const take = Math.min(held, s.copiesLeft);
+    s.copiesLeft -= take;
+    held -= take;
+  }
   const freed = sleeves.filter((s) => s.copiesLeft > 0).map((s) => {
     const names = visibleMarks(s.batch.stripes).map((m) => m.deckName);
     return {

@@ -1064,10 +1064,13 @@ export function mergeRemovedCards(localArr, cloudArr) {
       // clearedQuantity (#376) only goes up too, so a Sleeve reuse ticked on
       // one device is never undone by the other's older row.
       const maxCleared = Math.max(entry.clearedQuantity || 0, existing.clearedQuantity || 0);
+      // So does sleeveSwappedQuantity (#401).
+      const maxSwapped = Math.max(entry.sleeveSwappedQuantity || 0, existing.sleeveSwappedQuantity || 0);
       map.set(key, {
         ...newer,
         ...(maxPrev > 0 && { previousQuantity: maxPrev }),
         ...(maxCleared > 0 && { clearedQuantity: maxCleared }),
+        ...(maxSwapped > 0 && { sleeveSwappedQuantity: maxSwapped }),
       });
     }
   }
