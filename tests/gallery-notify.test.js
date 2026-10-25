@@ -69,7 +69,10 @@ async function send(t, body, w = world(), { method = 'POST', token = 'user-token
     }
     if (url.startsWith('https://db.example/rest/v1/gallery_review_notices?') && options.method === 'DELETE') return new Response(null, { status: 204 });
     if (url.startsWith('https://db.example/rest/v1/gallery_admins?')) return Response.json(w.admins.map(user_id => ({ user_id })));
-    if (url === 'https://api.resend.com/emails/batch') return w.resendOk ? Response.json({ id: 'em_1' }) : new Response('{"message":"nope"}', { status: 500 });
+    if (url === 'https://api.resend.com/emails/batch') {
+      if (w.resendThrows) throw new TypeError('network down');
+      return w.resendOk ? Response.json({ id: 'em_1' }) : new Response('{"message":"nope"}', { status: 500 });
+    }
     throw new Error(`Unexpected request: ${url}`);
   });
   globalThis.Deno = { env: { get: key => w.env[key] } };
@@ -184,6 +187,16 @@ endpointTest('a Resend failure is a 502 and deletes the ledger row it claimed', 
   const res = await send(t, { kind: 'upload', id: ARTWORK }, world({ resendOk: false }));
   assert.equal(res.status, 502);
   assert.equal(res.resend.length, 1);
+  assert.equal(res.ledgerDeletes.length, 1);
+  const q = new URL(res.ledgerDeletes[0].url).searchParams;
+  assert.equal(q.get('kind'), 'eq.upload');
+  assert.equal(q.get('item_id'), `eq.${ARTWORK}`);
+});
+
+endpointTest('a Resend fetch that throws is a 502 and still deletes the ledger row it claimed', async t => {
+  t.mock.method(console, 'error', () => {});
+  const res = await send(t, { kind: 'upload', id: ARTWORK }, world({ resendThrows: true }));
+  assert.equal(res.status, 502);
   assert.equal(res.ledgerDeletes.length, 1);
   const q = new URL(res.ledgerDeletes[0].url).searchParams;
   assert.equal(q.get('kind'), 'eq.upload');

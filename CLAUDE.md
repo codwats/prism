@@ -66,7 +66,7 @@ Feature modules import circularly (`deck-form ↔ deck-list`, `deck-list → ini
 ```
 Prism: { id, name, decks[], splitGroups[], markedCards[], removedCards[], plannedSwaps[],
          useDedicatedCommanderCopies, useDedicatedCommanderCopiesUpdatedAt, createdAt, updatedAt }
-Deck:  { id, name, bracket (1-5), color (hex), stripePosition (1-48), cards[], splitGroupId?, sourceUrl? }
+Deck:  { id, name, bracket (1-5), color (hex), stripePosition (1-48), cards[], splitGroupId?, sourceUrl?, cardsUpdatedAt? }
 SplitGroup: { id, name, sideAPosition, sideAColor, childDeckIds[], splitStyle ('stripes'|'dots'), createdAt?, updatedAt? }
 Card:  { name, quantity, isCommander, isBasicLand, sleeve? }
 Preferences: { colorScheme, defaultColors, stripeStartCorner ('top-right'|'top-left'|'bottom-right'|'bottom-left') }

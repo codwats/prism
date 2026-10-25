@@ -166,9 +166,13 @@ ${artwork ? `<p>Regarding: <a href="${escapeHtml(link)}">${escapeHtml(title)}</a
         text,
         html,
       }),
+    }).catch(error => {
+      // A network throw must release the claim below, same as a non-2xx.
+      console.error('Commission relay: Resend unreachable', error);
+      return null;
     });
-    if (!sendRes.ok) {
-      console.error('Commission relay: Resend error', sendRes.status, await sendRes.text());
+    if (!sendRes?.ok) {
+      if (sendRes) console.error('Commission relay: Resend error', sendRes.status, await sendRes.text());
       // Release the claim so the requester can retry today; no email went out.
       const undo = await fetch(`${supabaseUrl}/rest/v1/gallery_commission_sends?id=eq.${encodeURIComponent(claimId)}`, { method: 'DELETE', headers: service });
       if (!undo.ok) console.error('Commission relay: ledger release failed', undo.status);
