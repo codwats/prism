@@ -189,6 +189,7 @@ test('completing a reuse clears the rows, marks the incoming batch Done, and the
 	const { prism: next, unmarkedKeys } = completeReuse(prism, match.id, { now: NOW });
 	assert.deepEqual(unmarkedKeys, []);
 	assert.ok(next.markedCards.includes('Cultivate'));
+	assert.ok(next.markedCards.includes(match.incomingBatch.batchKey), 'the batch key rides beside the plain name');
 	assert.equal(next.markedCardsUpdatedAt, NOW);
 	assert.ok(next.removedCards.every((r) => r.clearedQuantity === 1 && removalOpenCopies(r) === 0));
 	const after = planSleeveReuse(next);
@@ -249,9 +250,9 @@ function prepFixture() {
 	return prism;
 }
 
-test('the prep totals: sleeves to buy, pens by color name, marks to clear, pull list', () => {
+test('the prep totals: sleeves to gather, pens by color name, marks to clear, pull list', () => {
 	const { prep } = planSleeveReuse(prepFixture());
-	assert.equal(prep.sleevesToBuy, 2, '3 fresh-sleeve copies minus 1 spare');
+	assert.equal(prep.sleevesToGather, 2, '3 fresh-sleeve copies minus 1 spare');
 	assert.deepEqual(prep.pens, [
 		{ name: 'Purple', color: DEFAULT_COLORS[2], count: 2 },
 		{ name: 'Blue', color: DEFAULT_COLORS[1], count: 1 },
@@ -271,7 +272,7 @@ test('completing every reuse leaves the prep with the fresh sleeves and the stay
 	for (const { id } of planSleeveReuse(prism).matches) prism = completeReuse(prism, id, { now: NOW }).prism;
 	const { matches, prep } = planSleeveReuse(prism);
 	assert.deepEqual(matches, []);
-	assert.equal(prep.sleevesToBuy, 2);
+	assert.equal(prep.sleevesToGather, 2);
 	assert.equal(prep.marksToClear, 1);
 	assert.deepEqual(prep.pullList.map((p) => p.cardName), ['Mind Stone']);
 });
@@ -286,7 +287,52 @@ test('copies already in a marked sleeve under an older batch key need marks, not
 	const plan = planSleeveReuse(prism);
 	assert.deepEqual(plan.needsFreshSleeve, []);
 	assert.deepEqual(plan.matches, []);
-	assert.equal(plan.prep.sleevesToBuy, 0);
+	assert.equal(plan.prep.sleevesToGather, 0);
+});
+
+test('a legacy plain mark on a card now multi-batch counts every copy as sleeved', () => {
+	const prism = createPrism('T');
+	prism.decks = [deck('A', 1, [card('Sol Ring', 2)]), deck('B', 2, [card('Sol Ring')])];
+	prism.markedCards = ['Sol Ring']; // from before batch keys: no copy count
+
+	const plan = planSleeveReuse(prism);
+	assert.deepEqual(plan.needsFreshSleeve, []);
+	assert.equal(plan.prep.sleevesToGather, 0);
+});
+
+// A single-batch Done as setCardMarked writes it: plain name plus batch key.
+const markSingle = (prism, name) => {
+	const c = processCards(prism).find((x) => x.name === name);
+	prism.markedCards = [...(prism.markedCards || []), name, c.batches[0].key];
+};
+
+test('a single-batch Done card that gains copies needs a sleeve for the new copy only', () => {
+	const prism = createPrism('T');
+	prism.decks = [deck('A', 1, [card('Sol Ring')])];
+	markSingle(prism, 'Sol Ring');
+	setQuantity(prism, 'A', 'Sol Ring', 2);
+
+	const plan = planSleeveReuse(prism);
+	assert.deepEqual(plan.needsFreshSleeve.map((n) => [n.cardName, n.copyCount]), [['Sol Ring', 1]]);
+	assert.equal(plan.prep.sleevesToGather, 1);
+});
+
+test('a single-batch Done card that gains a deck with more copies needs a sleeve for the new copy only', () => {
+	const prism = createPrism('T');
+	prism.decks = [deck('A', 1, [card('Sol Ring')]), deck('B', 2, [])];
+	markSingle(prism, 'Sol Ring');
+	setQuantity(prism, 'B', 'Sol Ring', 2);
+
+	const plan = planSleeveReuse(prism);
+	assert.equal(plan.needsFreshSleeve.reduce((n, x) => n + x.copyCount, 0), 1);
+	assert.equal(plan.prep.sleevesToGather, 1);
+});
+
+test('a single-batch Done card that did not change needs nothing', () => {
+	const prism = createPrism('T');
+	prism.decks = [deck('A', 1, [card('Sol Ring', 2)])];
+	markSingle(prism, 'Sol Ring');
+	assert.deepEqual(planSleeveReuse(prism).needsFreshSleeve, []);
 });
 
 test('a 2-copy need pools two 1-copy Freed sleeves with identical marks', () => {
@@ -299,7 +345,7 @@ test('a 2-copy need pools two 1-copy Freed sleeves with identical marks', () => 
 
 	const plan = planSleeveReuse(prism);
 	assert.deepEqual(plan.needsFreshSleeve, []);
-	assert.equal(plan.prep.sleevesToBuy, 0);
+	assert.equal(plan.prep.sleevesToGather, 0);
 	const [match] = plan.matches;
 	assert.equal(match.copies, 2);
 	assert.deepEqual(match.freedSleeves.map((s) => [s.cardName, s.copies]), [["Kodama's Reach", 1], ['Rampant Growth', 1]]);

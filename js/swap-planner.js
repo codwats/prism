@@ -668,7 +668,7 @@ function renderSleeveUp() {
     ? `<ul class="queue-pull">${prep.pullList.map((p) => `<li>${escapeHtml(p.cardName)}${p.copies > 1 ? ` × ${p.copies}` : ''}</li>`).join('')}</ul>`
     : 'Nothing leaves the PRISM.';
   $('sleeve-prep').innerHTML = `
-    <dt>Sleeves to buy</dt><dd>${prep.sleevesToBuy}</dd>
+    <dt>Sleeves to gather</dt><dd>${prep.sleevesToGather}</dd>
     <dt>Pens to grab</dt><dd>${pens}</dd>
     <dt>Marks to clear</dt><dd>${prep.marksToClear}</dd>
     <dt>Pull list</dt><dd>${pull}</dd>`;

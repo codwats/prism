@@ -91,7 +91,7 @@ _Avoid_: sleeve recycling, auto-swap, replacement
 _In code_: a match from `planSleeveReuse`, completed by `completeReuse`; the cleared copies are `clearedQuantity` on the `removedCards` rows.
 
 **Sleeve up**:
-The Extra in the Swap Planner for a sleeving session: every Sleeve reuse as an out → in row, the cards that need a fresh sleeve, and a prep card with sleeves to buy, pens to grab, marks to clear and the Pull list. Two words in prose, capitalized as a section name.
+The Extra in the Swap Planner for a sleeving session: every Sleeve reuse as an out → in row, the cards that need a fresh sleeve, and a prep card with sleeves to gather (blank sleeves from the box or the store), pens to grab, marks to clear and the Pull list. Two words in prose, capitalized as a section name.
 _Avoid_: sleeving session (as a name), reuse table
 _In code_: `#sleeve-up` and `renderSleeveUp` (`js/swap-planner.js`), built on `planSleeveReuse`.
 

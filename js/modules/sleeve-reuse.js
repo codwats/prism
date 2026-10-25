@@ -83,7 +83,8 @@ function oneCardPrism(prism, normalizedName, rows = []) {
 // Batch keys (`<name>|#b|<deck ids>|<copies>`, #146) per card name, with the
 // copies each stands for. A marked key that is no longer a current batch key
 // is a sleeve still in hand: the card gained a deck or copies, so it needs
-// marks added, not a fresh sleeve.
+// marks added, not a fresh sleeve. A single-batch Done stores its batch key
+// beside the plain name for this count (#382).
 // shortcut: dead keys are never pruned, so keys from an older layout can
 // overcount sleeves in hand; tie them to removal history if that shows up.
 function sleevedCopiesByCard(markedSet) {
@@ -170,7 +171,7 @@ function prepTotals({ freed, matches, needsFreshSleeve, stayClears }) {
   freed.forEach((s) => pull.set(s.cardName, (pull.get(s.cardName) || 0) + s.copies));
 
   return {
-    sleevesToBuy: Math.max(0, sum(needsFreshSleeve, (n) => n.copyCount) - spares),
+    sleevesToGather: Math.max(0, sum(needsFreshSleeve, (n) => n.copyCount) - spares),
     pens: [...pens.values()]
       .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name)),
     // Unmatched Freed sleeves still carry their marks, like any Marks to Clear row.
@@ -188,16 +189,18 @@ function prepTotals({ freed, matches, needsFreshSleeve, stayClears }) {
  *   freedSleeves: Array<{ id, cardName, label, marks, copies, blank: false, deckIds }>,
  *   spareSleeves: Array<{ id, cardName, label, marks: [], copies, blank: true, deckIds }>,
  *   matches: Array<{ id, freedSleeves, incomingBatch, copies, marksToClear, marksToAdd }>,
- *   needsFreshSleeve: Array<{ cardName, key, copyCount, marks }>,
- *   prep: { sleevesToBuy, pens: Array<{ name, color, count }>, marksToClear, pullList: Array<{ cardName, copies }> },
+ *   needsFreshSleeve: Array<{ cardName, key, batchKey, copyCount, marks }>,
+ *   prep: { sleevesToGather, pens: Array<{ name, color, count }>, marksToClear, pullList: Array<{ cardName, copies }> },
  * }}
  *   Marks are `{ id, side, position, markType, color, deckName }`. A Freed
  *   sleeve's `label` names it ("the A-only sleeve") only when its card had
  *   several batches, so which sleeve is meant is not obvious; otherwise null. A match uses
  *   `copies` (the incoming batch's copyCount) from one or more Freed sleeves
  *   with identical marks; each `freedSleeves` entry's `copies` is how many of
- *   that sleeve it uses. `prep` counts copies: sleeves to buy (fresh-sleeve
- *   copies minus spares), marks to paint per pen (product name, or "Custom
+ *   that sleeve it uses. A need's `key` is the markedCards key that makes it
+ *   Done; `batchKey` is its batch key, the same unless the card is
+ *   single-batch. `prep` counts copies: sleeves to gather from the box or the
+ *   store (fresh-sleeve copies minus spares), marks to paint per pen (product name, or "Custom
  *   color" with its hex for a swatch), marks to clear, and the copies leaving
  *   the PRISM.
  */
@@ -221,17 +224,23 @@ export function planSleeveReuse(prism) {
   const oldKeys = sleevedCopiesByCard(markedSet);
   const needs = current
     .flatMap((card) => {
-      const currentKeys = new Set(card.batches.map((b) => doneKey(card, b)));
-      let sleeved = (oldKeys.get(card.name) || [])
+      const keys = oldKeys.get(card.name) || [];
+      const currentKeys = new Set(card.batches.map((b) => b.key));
+      const plain = markedSet.has(card.name);
+      // A plain mark with no batch key predates them and never said how many
+      // copies it covered: every copy is in a sleeve.
+      let sleeved = plain && !keys.length ? Infinity : keys
         .filter(([key]) => !currentKeys.has(key))
         .reduce((n, [, copies]) => n + copies, 0);
+      // A single-batch Done whose batch key went stale: the card gained copies.
+      const gained = plain && keys.length > 0 && card.batches.length === 1 && !markedSet.has(card.batches[0].key);
       return card.batches
-        .filter((b) => !batchDone(card, b, markedSet))
+        .filter((b) => gained || !batchDone(card, b, markedSet))
         .flatMap((b) => {
           const covered = Math.min(sleeved, b.copyCount);
           sleeved -= covered;
           return b.copyCount > covered
-            ? [{ cardName: card.name, key: doneKey(card, b), copyCount: b.copyCount - covered, marks: visibleMarks(b.stripes) }]
+            ? [{ cardName: card.name, key: doneKey(card, b), batchKey: b.key, copyCount: b.copyCount - covered, marks: visibleMarks(b.stripes) }]
             : [];
         });
     })
@@ -295,7 +304,8 @@ export function completeReuse(prism, matchId, { now = new Date().toISOString() }
       row.clearedQuantity = (row.clearedQuantity || 0) + Math.min(copies, removalOpenCopies(row));
     }
   }
-  next.markedCards = [...new Set([...(next.markedCards || []), match.incomingBatch.key])];
+  const { key, batchKey } = match.incomingBatch;
+  next.markedCards = [...new Set([...(next.markedCards || []), key, batchKey])];
   next.markedCardsUpdatedAt = now;
   next.updatedAt = now;
   return { prism: next, unmarkedKeys: [] };

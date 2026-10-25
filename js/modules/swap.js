@@ -276,7 +276,10 @@ export function applySwap(prism, { outgoing, incoming, deckIds, copies = 1, slee
     );
     if (match) {
       carriedKey = incomingAfter.batches.length === 1 ? incomingAfter.name : match.key;
-      if (!next.markedCards.includes(carriedKey)) next.markedCards.push(carriedKey);
+      // A single-batch Done keeps its batch key beside the name (#382).
+      for (const key of new Set([carriedKey, match.key])) {
+        if (!next.markedCards.includes(key)) next.markedCards.push(key);
+      }
       next.markedCardsUpdatedAt = now;
     }
   }
