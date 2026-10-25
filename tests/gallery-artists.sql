@@ -1294,7 +1294,7 @@ BEGIN
     'the uploader must be able to turn downloads on';
   -- And upload a new Alter with downloads on: their own row, still pending.
   INSERT INTO public.gallery_artworks (title, type, artist_name, uploader_id, image_path, downloads_enabled)
-  VALUES ('Second', 'alter', 'Alterist', '34200000-0000-0000-0000-00000000000a', 'a/2.png', true);
+  VALUES ('Second', 'alter', 'Alterist', '34200000-0000-0000-0000-00000000000a', '34200000-0000-0000-0000-00000000000a/2.png', true);
   BEGIN
     INSERT INTO public.gallery_artworks (title, type, artist_name, uploader_id, image_path, downloads_enabled)
     VALUES ('Forged', 'alter', 'Other', '34200000-0000-0000-0000-00000000000b', 'b/1.png', true);
@@ -1371,6 +1371,41 @@ BEGIN
     RAISE EXCEPTION 'a client called gallery_likes_counter() directly';
   EXCEPTION WHEN insufficient_privilege THEN NULL;
   END;
+END $$;
+RESET ROLE;
+
+-- ---- image_path must sit in the uploader's own folder ----
+-- An admin delete removes the row's image, so a borrowed path would delete
+-- another uploader's file.
+INSERT INTO auth.users (id, email, email_confirmed_at) VALUES
+  ('38600000-0000-0000-0000-000000000001', 'path-owner@example.invalid', now());
+INSERT INTO public.gallery_artworks (id, title, type, artist_name, uploader_id, image_path, status) VALUES
+  ('38600000-0000-0000-0001-000000000001', 'Rejected', 'proxy', 'Path Owner',
+   '38600000-0000-0000-0000-000000000001', '38600000-0000-0000-0000-000000000001/r.png', 'rejected');
+
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', '38600000-0000-0000-0000-000000000001', true);
+DO $$
+BEGIN
+  BEGIN
+    INSERT INTO public.gallery_artworks (title, type, artist_name, uploader_id, image_path)
+    VALUES ('Borrowed', 'proxy', 'Path Owner',
+            '38600000-0000-0000-0000-000000000001', 'someone-else/victim.png');
+    RAISE EXCEPTION 'an upload pointing at another folder was accepted';
+  EXCEPTION WHEN insufficient_privilege THEN NULL;
+  END;
+
+  BEGIN
+    UPDATE public.gallery_artworks SET status = 'pending', image_path = 'someone-else/victim.png'
+    WHERE id = '38600000-0000-0000-0001-000000000001';
+    RAISE EXCEPTION 'a resubmit pointing at another folder was accepted';
+  EXCEPTION WHEN insufficient_privilege THEN NULL;
+  END;
+
+  UPDATE public.gallery_artworks SET status = 'pending'
+  WHERE id = '38600000-0000-0000-0001-000000000001';
+  ASSERT (SELECT status FROM public.gallery_artworks WHERE id = '38600000-0000-0000-0001-000000000001') = 'pending',
+    'a resubmit keeping its own path must still work';
 END $$;
 RESET ROLE;
 

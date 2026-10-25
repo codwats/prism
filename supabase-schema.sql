@@ -654,6 +654,9 @@ CREATE POLICY "Users submit artworks for review"
     AND downloads_count = 0
     AND reviewed_at IS NULL
     AND reviewed_by IS NULL
+    -- The image must sit in the caller's own folder: an admin deleting the row
+    -- also removes its image, so a borrowed path would delete someone else's.
+    AND (storage.foldername(image_path))[1] = auth.uid()::text
   );
 
 DROP POLICY IF EXISTS "Admins moderate artworks" ON gallery_artworks;
@@ -678,6 +681,9 @@ CREATE POLICY "Owners resubmit rejected artworks"
     AND downloads_count = 0
     AND reviewed_at IS NULL
     AND reviewed_by IS NULL
+    -- The image must sit in the caller's own folder: an admin deleting the row
+    -- also removes its image, so a borrowed path would delete someone else's.
+    AND (storage.foldername(image_path))[1] = auth.uid()::text
   );
 
 DROP POLICY IF EXISTS "Owners withdraw own artworks" ON gallery_artworks;

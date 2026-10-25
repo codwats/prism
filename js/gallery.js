@@ -1758,7 +1758,8 @@ function confirmDeleteArtwork(artwork) {
         showError('Could not delete the artwork — try again.');
         return;
       }
-      if (artwork.imagePath) sb.storage.from('gallery-art').remove([artwork.imagePath]); // best-effort
+      // Only the uploader's own folder: a row may predate the RLS check on image_path.
+      if (artwork.imagePath?.split('/')[0] === artwork.uploaderId) sb.storage.from('gallery-art').remove([artwork.imagePath]); // best-effort
       deleted = true;
       showToast('Artwork deleted', 'danger', 'trash');
       dialog.removeAttribute('open');
