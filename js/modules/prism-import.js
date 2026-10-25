@@ -88,6 +88,23 @@ export function buildPrismFromJson(jsonData, { preserveId = true } = {}) {
     })
     .filter(Boolean);
 
+  // Untrusted file: keep only Planned swaps shaped like queueSwap writes them,
+  // on a deck that came with the backup.
+  const isText = (v) => typeof v === 'string' && v.length > 0;
+  const isDate = (v) => isText(v) && !Number.isNaN(Date.parse(v));
+  newPrism.plannedSwaps = (Array.isArray(prismData.plannedSwaps) ? prismData.plannedSwaps : [])
+    .filter(swap => swap && isText(swap.id) && isText(swap.incoming) && deckIds.has(swap.deckId))
+    .map(swap => ({
+      id: swap.id,
+      incoming: swap.incoming,
+      deckId: swap.deckId,
+      copies: Number.isInteger(swap.copies) && swap.copies > 0 ? swap.copies : 1,
+      ...(isText(swap.outgoing) ? { outgoing: swap.outgoing } : {}),
+      ...(isText(swap.note) ? { note: swap.note } : {}),
+      createdAt: isDate(swap.createdAt) ? swap.createdAt : newPrism.updatedAt,
+      updatedAt: isDate(swap.updatedAt) ? swap.updatedAt : newPrism.updatedAt
+    }));
+
   const validGroupIds = new Set(newPrism.splitGroups.map(g => g.id));
   for (const deck of newPrism.decks) {
     if (deck.splitGroupId && !validGroupIds.has(deck.splitGroupId)) {

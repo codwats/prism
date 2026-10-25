@@ -308,7 +308,8 @@ BEGIN
   BEGIN
     PERFORM public.update_own_gallery_artist('bio', '[]'::jsonb, 'http://p.example/me.png', false, '', '');
     RAISE EXCEPTION 'accepted a non-https avatar';
-  EXCEPTION WHEN check_violation THEN NULL;
+  EXCEPTION WHEN check_violation THEN
+    ASSERT SQLERRM = 'Avatar must be an https:// address', 'avatar message changed: ' || SQLERRM;
   END;
   BEGIN
     PERFORM public.update_own_gallery_artist('bio', '[]'::jsonb, 'javascript:alert(1)', false, '', '');
@@ -324,7 +325,8 @@ BEGIN
   BEGIN
     PERFORM public.update_own_gallery_artist('bio', '[{"label":"Plain","href":"http://p.example"}]'::jsonb, NULL, false, '', '');
     RAISE EXCEPTION 'accepted a non-https link';
-  EXCEPTION WHEN check_violation THEN NULL;
+  EXCEPTION WHEN check_violation THEN
+    ASSERT SQLERRM = 'Every link must be an https:// address', 'link message changed: ' || SQLERRM;
   END;
   BEGIN
     PERFORM public.update_own_gallery_artist('bio', '[{"label":"No href"}]'::jsonb, NULL, false, '', '');
@@ -334,7 +336,8 @@ BEGIN
   BEGIN
     PERFORM public.update_own_gallery_artist('bio', '{"href":"https://p.example"}'::jsonb, NULL, false, '', '');
     RAISE EXCEPTION 'accepted links that are not an array';
-  EXCEPTION WHEN check_violation THEN NULL;
+  EXCEPTION WHEN check_violation THEN
+    ASSERT SQLERRM = 'Every link must be an https:// address', 'non-array message changed: ' || SQLERRM;
   END;
   ASSERT (SELECT bio FROM public.gallery_artists WHERE id = '32400000-0000-0000-0001-000000000001') = '',
     'a refused update must change nothing';
@@ -410,6 +413,35 @@ BEGIN
     WHERE id = '32400000-0000-0000-0001-000000000002';
   ASSERT (SELECT bio FROM public.gallery_artists WHERE id = '32400000-0000-0000-0001-000000000002') = 'fixed by admin';
   ASSERT (SELECT is_partner FROM public.gallery_artists WHERE id = '32400000-0000-0000-0001-000000000002') = true;
+
+  -- ...but the https-only rule binds them too (#394): the table refuses it, not just the browser.
+  BEGIN
+    UPDATE public.gallery_artists SET avatar_url = 'http://q.example/me.png'
+      WHERE id = '32400000-0000-0000-0001-000000000002';
+    RAISE EXCEPTION 'an admin set a non-https avatar';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+  BEGIN
+    UPDATE public.gallery_artists SET links = '[{"label":"Plain","href":"http://q.example"}]'::jsonb
+      WHERE id = '32400000-0000-0000-0001-000000000002';
+    RAISE EXCEPTION 'an admin set a non-https link';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+  BEGIN
+    UPDATE public.gallery_artists SET links = '{"href":"https://q.example"}'::jsonb
+      WHERE id = '32400000-0000-0000-0001-000000000002';
+    RAISE EXCEPTION 'an admin set links that are not an array';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+  BEGIN
+    INSERT INTO public.gallery_artists (name, avatar_url) VALUES ('Artist R', 'http://r.example/me.png');
+    RAISE EXCEPTION 'an admin inserted a non-https avatar';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+  UPDATE public.gallery_artists SET avatar_url = '', links = '[{"label":"Site","href":"HTTPS://q.example"}]'::jsonb
+    WHERE id = '32400000-0000-0000-0001-000000000002';
+  ASSERT (SELECT avatar_url FROM public.gallery_artists WHERE id = '32400000-0000-0000-0001-000000000002') = '',
+    'a blank avatar and an upper-case HTTPS link must be accepted';
 END $$;
 RESET ROLE;
 
@@ -505,6 +537,92 @@ BEGIN
           WHERE user_id = '32500000-0000-0000-0000-00000000000a') = 1,
     'a requester must not clear their own rate-limit ledger';
 END $$;
+ROLLBACK;
+
+-- ============================================
+-- Commission claim RPC (#391): both limits, record before send, service role only
+-- ============================================
+BEGIN;
+
+INSERT INTO auth.users (id, email, email_confirmed_at) VALUES
+  ('39100000-0000-0000-0000-00000000000a', 'claim-requester@example.invalid', now()),
+  ('39100000-0000-0000-0000-00000000000b', 'claim-other@example.invalid', now());
+INSERT INTO public.gallery_artists (id, name, commissions_open) VALUES
+  ('39100000-0000-0000-0001-000000000001', 'Claim Artist 1', true),
+  ('39100000-0000-0000-0001-000000000002', 'Claim Artist 2', true),
+  ('39100000-0000-0000-0001-000000000003', 'Claim Artist 3', true),
+  ('39100000-0000-0000-0001-000000000004', 'Claim Artist 4', true);
+
+-- postgres stands in for the service role (the edge function).
+DO $$
+DECLARE
+  u UUID := '39100000-0000-0000-0000-00000000000a';
+  v_id UUID;
+BEGIN
+  v_id := public.claim_gallery_commission_send(u, '39100000-0000-0000-0001-000000000001', NULL);
+  ASSERT v_id IS NOT NULL, 'a first send must be recorded';
+  ASSERT EXISTS (SELECT 1 FROM public.gallery_commission_sends WHERE id = v_id AND user_id = u
+                   AND artist_id = '39100000-0000-0000-0001-000000000001'),
+    'the returned id must be the new ledger row';
+
+  ASSERT public.claim_gallery_commission_send(u, '39100000-0000-0000-0001-000000000001', NULL) IS NULL,
+    'a second send to the same Artist within 24 hours must be refused';
+
+  ASSERT public.claim_gallery_commission_send(u, '39100000-0000-0000-0001-000000000002', NULL) IS NOT NULL,
+    'a second Artist must be allowed';
+  ASSERT public.claim_gallery_commission_send(u, '39100000-0000-0000-0001-000000000003', NULL) IS NOT NULL,
+    'a third Artist must be allowed';
+  ASSERT public.claim_gallery_commission_send(u, '39100000-0000-0000-0001-000000000004', NULL) IS NULL,
+    'the fourth send in 24 hours (MAX_SENDS_PER_DAY + 1) must be refused';
+  ASSERT (SELECT count(*) FROM public.gallery_commission_sends WHERE user_id = u) = 3,
+    'a refused send must write no row';
+
+  ASSERT public.claim_gallery_commission_send('39100000-0000-0000-0000-00000000000b',
+           '39100000-0000-0000-0001-000000000001', NULL) IS NOT NULL,
+    'another requester has their own limits';
+
+  -- Sends older than 24 hours don't count, for either limit.
+  UPDATE public.gallery_commission_sends SET created_at = now() - interval '25 hours' WHERE user_id = u;
+  ASSERT public.claim_gallery_commission_send(u, '39100000-0000-0000-0001-000000000001', NULL) IS NOT NULL,
+    'a send older than 24 hours must not count';
+END $$;
+
+-- ---- Only the server can call it ----
+DO $$
+BEGIN
+  ASSERT NOT has_function_privilege('anon', 'public.claim_gallery_commission_send(uuid, uuid, uuid)', 'EXECUTE'),
+    'anon must not execute claim_gallery_commission_send';
+  ASSERT NOT has_function_privilege('authenticated', 'public.claim_gallery_commission_send(uuid, uuid, uuid)', 'EXECUTE'),
+    'authenticated must not execute claim_gallery_commission_send';
+  ASSERT has_function_privilege('service_role', 'public.claim_gallery_commission_send(uuid, uuid, uuid)', 'EXECUTE'),
+    'the service role must execute claim_gallery_commission_send';
+END $$;
+
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', '39100000-0000-0000-0000-00000000000a', true);
+DO $$
+BEGIN
+  BEGIN
+    PERFORM public.claim_gallery_commission_send('39100000-0000-0000-0000-00000000000a',
+      '39100000-0000-0000-0001-000000000002', NULL);
+    RAISE EXCEPTION 'authenticated called claim_gallery_commission_send';
+  EXCEPTION WHEN insufficient_privilege THEN NULL;
+  END;
+END $$;
+RESET ROLE;
+
+SET LOCAL ROLE anon;
+SELECT set_config('request.jwt.claim.sub', '', true);
+DO $$
+BEGIN
+  BEGIN
+    PERFORM public.claim_gallery_commission_send('39100000-0000-0000-0000-00000000000a',
+      '39100000-0000-0000-0001-000000000002', NULL);
+    RAISE EXCEPTION 'anon called claim_gallery_commission_send';
+  EXCEPTION WHEN insufficient_privilege THEN NULL;
+  END;
+END $$;
+RESET ROLE;
 ROLLBACK;
 
 -- ============================================
@@ -1408,5 +1526,104 @@ BEGIN
     'a resubmit keeping its own path must still work';
 END $$;
 RESET ROLE;
+
+ROLLBACK;
+
+-- ============================================
+-- Resubmit RPC (#392): resubmit_own_gallery_artwork changes only the review
+-- fields, only on the caller's own rejected upload
+-- ============================================
+BEGIN;
+
+INSERT INTO auth.users (id, email, email_confirmed_at) VALUES
+  ('39200000-0000-0000-0000-00000000000a', 'resubmitter@example.invalid', now()),
+  ('39200000-0000-0000-0000-00000000000b', 'stranger@example.invalid', now()),
+  ('39200000-0000-0000-0000-00000000000d', 'reviewer@example.invalid', now());
+-- Admin-set fields are non-default so "nothing else changed" is observable.
+INSERT INTO public.gallery_artworks
+  (id, title, type, artist_name, uploader_id, image_path, status, reject_reason,
+   highlighted, store_url, likes_count, downloads_count, created_at, reviewed_at, reviewed_by) VALUES
+  ('39200000-0000-0000-0001-000000000001', 'Rejected Piece', 'proxy', 'Resub Artist',
+   '39200000-0000-0000-0000-00000000000a', '39200000-0000-0000-0000-00000000000a/r.png',
+   'rejected', 'blurry', true, 'https://store.example.invalid/r', 7, 3,
+   '2020-01-01T00:00:00Z', '2020-02-01T00:00:00Z', '39200000-0000-0000-0000-00000000000d'),
+  ('39200000-0000-0000-0001-000000000002', 'Approved Piece', 'proxy', 'Resub Artist',
+   '39200000-0000-0000-0000-00000000000a', '39200000-0000-0000-0000-00000000000a/a.png',
+   'approved', NULL, false, NULL, 0, 0, now(), now(), '39200000-0000-0000-0000-00000000000d');
+
+CREATE TEMP TABLE resubmit_before ON COMMIT DROP AS
+  SELECT to_jsonb(a) - ARRAY['status', 'reject_reason', 'reviewed_at', 'reviewed_by'] AS row
+  FROM public.gallery_artworks a WHERE id = '39200000-0000-0000-0001-000000000001';
+GRANT SELECT ON resubmit_before TO authenticated;
+
+DO $$
+BEGIN
+  ASSERT has_function_privilege('authenticated', 'public.resubmit_own_gallery_artwork(uuid)', 'EXECUTE'),
+    'authenticated must be able to resubmit';
+  ASSERT NOT has_function_privilege('anon', 'public.resubmit_own_gallery_artwork(uuid)', 'EXECUTE'),
+    'anon must not be able to resubmit';
+END $$;
+
+SET LOCAL ROLE anon;
+DO $$
+BEGIN
+  PERFORM public.resubmit_own_gallery_artwork('39200000-0000-0000-0001-000000000001');
+  RAISE EXCEPTION 'anon resubmitted an artwork';
+EXCEPTION WHEN insufficient_privilege THEN NULL;
+END $$;
+RESET ROLE;
+
+-- ---- A stranger can't resubmit someone else's rejected upload ----
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', '39200000-0000-0000-0000-00000000000b', true);
+DO $$
+BEGIN
+  BEGIN
+    PERFORM public.resubmit_own_gallery_artwork('39200000-0000-0000-0001-000000000001');
+    RAISE EXCEPTION 'a non-owner resubmitted an artwork';
+  EXCEPTION WHEN no_data_found THEN NULL;
+  END;
+END $$;
+RESET ROLE;
+DO $$
+BEGIN
+  ASSERT (SELECT status FROM public.gallery_artworks WHERE id = '39200000-0000-0000-0001-000000000001') = 'rejected',
+    'a refused resubmit must leave the row rejected';
+END $$;
+
+-- ---- The owner resubmits: back to pending, review fields cleared, nothing else ----
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', '39200000-0000-0000-0000-00000000000a', true);
+DO $$
+DECLARE r public.gallery_artworks;
+BEGIN
+  BEGIN
+    PERFORM public.resubmit_own_gallery_artwork('39200000-0000-0000-0001-000000000002');
+    RAISE EXCEPTION 'an approved artwork was resubmitted';
+  EXCEPTION WHEN no_data_found THEN NULL;
+  END;
+
+  PERFORM public.resubmit_own_gallery_artwork('39200000-0000-0000-0001-000000000001');
+  SELECT * INTO r FROM public.gallery_artworks WHERE id = '39200000-0000-0000-0001-000000000001';
+  ASSERT r.status = 'pending', 'a resubmit must set pending';
+  ASSERT r.reject_reason IS NULL AND r.reviewed_at IS NULL AND r.reviewed_by IS NULL,
+    'a resubmit must clear the review fields';
+  ASSERT to_jsonb(r) - ARRAY['status', 'reject_reason', 'reviewed_at', 'reviewed_by']
+         = (SELECT row FROM resubmit_before),
+    'a resubmit must change nothing but the review fields';
+
+  BEGIN
+    PERFORM public.resubmit_own_gallery_artwork('39200000-0000-0000-0001-000000000001');
+    RAISE EXCEPTION 'a pending artwork was resubmitted';
+  EXCEPTION WHEN no_data_found THEN NULL;
+  END;
+END $$;
+RESET ROLE;
+
+DO $$
+BEGIN
+  ASSERT (SELECT status FROM public.gallery_artworks WHERE id = '39200000-0000-0000-0001-000000000002') = 'approved',
+    'a refused resubmit must leave an approved row approved';
+END $$;
 
 ROLLBACK;

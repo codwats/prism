@@ -961,14 +961,11 @@ BEGIN;
     IF v_email IS NOT NULL AND v_email !~ '^[^@[:space:]]+@[^@[:space:]]+\.[^@[:space:]]+$' THEN
       RAISE EXCEPTION 'Commission email is not a valid address' USING ERRCODE = 'check_violation';
     END IF;
-    IF nullif(btrim(coalesce(p_avatar_url, '')), '') !~* '^https://' THEN
+    -- Checked one field at a time for the message; the table CHECK (#394) is the backstop.
+    IF NOT gallery_artist_urls_https(p_avatar_url, '[]'::jsonb) THEN
       RAISE EXCEPTION 'Avatar must be an https:// address' USING ERRCODE = 'check_violation';
     END IF;
-    -- CASE, not OR: jsonb_array_elements raises on a non-array, and OR has no evaluation order.
-    -- Parenthesised: PL/pgSQL ends an IF condition at the first bare THEN.
-    IF (CASE WHEN jsonb_typeof(coalesce(p_links, '[]'::jsonb)) <> 'array' THEN true
-             ELSE EXISTS (SELECT 1 FROM jsonb_array_elements(coalesce(p_links, '[]'::jsonb)) l
-                          WHERE coalesce(l->>'href', '') !~* '^https://') END) THEN
+    IF NOT gallery_artist_urls_https(NULL, p_links) THEN
       RAISE EXCEPTION 'Every link must be an https:// address' USING ERRCODE = 'check_violation';
     END IF;
     IF coalesce(p_commissions_open, false) AND v_email IS NULL
@@ -999,8 +996,8 @@ COMMIT;
 -- ============================================
 -- MIGRATION: Commission relay ledger (#325)
 -- ============================================
--- One row per relayed Commission, written by the /api/commission edge function
--- with the service role after Resend accepts the email. It is the rate-limit
+-- One row per relayed Commission, claimed by the /api/commission edge function
+-- through claim_gallery_commission_send (#391) before it emails. It is the rate-limit
 -- ledger (3 per requester per 24 h, 1 per requester per artist per 24 h) and
 -- deliberately keeps no message body or address. Tests: tests/gallery-artists.sql.
 BEGIN;
@@ -1023,8 +1020,9 @@ COMMIT;
 -- MIGRATION: Review notification ledger (#333)
 -- ============================================
 -- One row per upload or claim the admins were emailed about, written by the
--- /api/gallery-notify edge function with the service role after Resend accepts.
--- The primary key is the dedupe: at most one email per item.
+-- /api/gallery-notify edge function with the service role before the email is
+-- sent, and deleted again if Resend refuses it.
+-- The primary key is the dedupe: at most one email per item, even when racing.
 -- Tests: tests/gallery-artists.sql.
 BEGIN;
   CREATE TABLE IF NOT EXISTS gallery_review_notices (
@@ -1291,6 +1289,35 @@ BEGIN;
 COMMIT;
 
 -- ============================================
+-- MIGRATION: Resubmit a rejected artwork through an RPC (#392)
+-- ============================================
+-- Replaces the "Owners resubmit rejected artworks" UPDATE policy, whose WITH
+-- CHECK can't stop other fields (created_at) changing too. Only the review
+-- fields move. The policy is dropped once this client is live (#393).
+-- Errors: P0002 not the caller's rejected upload. Tests: tests/gallery-artists.sql.
+BEGIN;
+  CREATE OR REPLACE FUNCTION resubmit_own_gallery_artwork(p_artwork_id UUID)
+    RETURNS void
+    LANGUAGE plpgsql
+    SECURITY DEFINER
+    SET search_path = public, pg_temp
+  AS $$
+  BEGIN
+    UPDATE gallery_artworks
+      SET status = 'pending', reject_reason = NULL, reviewed_at = NULL, reviewed_by = NULL
+      WHERE id = p_artwork_id AND uploader_id = auth.uid() AND status = 'rejected';
+    IF NOT FOUND THEN
+      RAISE EXCEPTION 'No rejected upload of yours to resubmit' USING ERRCODE = 'no_data_found';
+    END IF;
+  END;
+  $$;
+
+  REVOKE EXECUTE ON FUNCTION resubmit_own_gallery_artwork(UUID) FROM public;
+  REVOKE EXECUTE ON FUNCTION resubmit_own_gallery_artwork(UUID) FROM anon;
+  GRANT EXECUTE ON FUNCTION resubmit_own_gallery_artwork(UUID) TO authenticated;
+COMMIT;
+
+-- ============================================
 -- MIGRATION: Founders and the entitlement predicate
 -- ============================================
 -- Safe to deploy before the cutover: while app_config.payment_enforcement is
@@ -1539,4 +1566,75 @@ BEGIN;
   CREATE POLICY "Users can delete planned swaps in own prisms"
     ON planned_swaps FOR DELETE
     USING (prism_id IN (SELECT id FROM prisms WHERE user_id = auth.uid()));
+COMMIT;
+
+-- ============================================
+-- MIGRATION: Commission relay claims the send before emailing (#391)
+-- ============================================
+-- The /api/commission edge function calls this with the service role before it
+-- emails. It holds a per-requester lock so two racing sends run one at a time,
+-- checks both limits (3 per requester, 1 per requester per Artist, rolling
+-- 24 hours), then records the send. Returns the new ledger row's id, or null
+-- when a limit is hit. On a Resend failure the edge function deletes the row.
+-- The limits live here and nowhere else. Tests: tests/gallery-artists.sql.
+BEGIN;
+  CREATE OR REPLACE FUNCTION claim_gallery_commission_send(p_user_id UUID, p_artist_id UUID, p_artwork_id UUID DEFAULT NULL)
+    RETURNS uuid
+    LANGUAGE plpgsql
+    SECURITY DEFINER
+    SET search_path = public, pg_temp
+  AS $$
+  DECLARE
+    v_id UUID;
+  BEGIN
+    PERFORM pg_advisory_xact_lock(hashtextextended('gallery_commission_send:' || p_user_id::text, 0));
+    IF EXISTS (
+      SELECT 1 FROM gallery_commission_sends
+        WHERE user_id = p_user_id AND created_at >= now() - interval '24 hours'
+        HAVING count(*) >= 3 OR bool_or(artist_id = p_artist_id)
+    ) THEN
+      RETURN NULL;
+    END IF;
+    INSERT INTO gallery_commission_sends (user_id, artist_id, artwork_id)
+      VALUES (p_user_id, p_artist_id, p_artwork_id)
+      RETURNING id INTO v_id;
+    RETURN v_id;
+  END;
+  $$;
+
+  -- Service role only (the edge function): the caller names the requester.
+  REVOKE EXECUTE ON FUNCTION claim_gallery_commission_send(UUID, UUID, UUID) FROM public;
+  REVOKE EXECUTE ON FUNCTION claim_gallery_commission_send(UUID, UUID, UUID) FROM anon;
+  REVOKE EXECUTE ON FUNCTION claim_gallery_commission_send(UUID, UUID, UUID) FROM authenticated;
+  GRANT EXECUTE ON FUNCTION claim_gallery_commission_send(UUID, UUID, UUID) TO service_role;
+COMMIT;
+
+-- ============================================
+-- MIGRATION: https-only artist links on every write (#394)
+-- ============================================
+-- update_own_gallery_artist and the admin-create edge function already refuse
+-- non-https URLs, but an admin Edit is a direct UPDATE under the admin policy.
+-- The CHECK binds every path (23514); the RPC calls the same helper for its messages.
+-- Before the first run on a live database, list the rows that would fail it and fix them:
+--   SELECT id, name, avatar_url, links FROM gallery_artists
+--   WHERE NOT gallery_artist_urls_https(avatar_url, links);
+-- (Create the function below first.) Tests: tests/gallery-artists.sql.
+BEGIN;
+  -- A blank or null avatar is allowed; links must be an array and every href https://.
+  CREATE OR REPLACE FUNCTION gallery_artist_urls_https(p_avatar_url TEXT, p_links JSONB)
+    RETURNS boolean
+    LANGUAGE sql
+    IMMUTABLE
+    SET search_path = public, pg_temp
+  AS $$
+    SELECT coalesce(nullif(btrim(coalesce(p_avatar_url, '')), '') ~* '^https://', true)
+      -- CASE, not AND: jsonb_array_elements raises on a non-array, and AND has no evaluation order.
+      AND CASE WHEN jsonb_typeof(coalesce(p_links, '[]'::jsonb)) <> 'array' THEN false
+               ELSE NOT EXISTS (SELECT 1 FROM jsonb_array_elements(coalesce(p_links, '[]'::jsonb)) l
+                                WHERE coalesce(l->>'href', '') !~* '^https://') END
+  $$;
+
+  ALTER TABLE gallery_artists DROP CONSTRAINT IF EXISTS gallery_artists_urls_https;
+  ALTER TABLE gallery_artists ADD CONSTRAINT gallery_artists_urls_https
+    CHECK (gallery_artist_urls_https(avatar_url, links));
 COMMIT;

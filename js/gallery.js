@@ -1467,10 +1467,11 @@ async function renderMyUploads(root) {
     </wa-tab-group>`;
 
   root.querySelectorAll('[data-resubmit]').forEach(btn => btn.addEventListener('click', async () => {
-    const { error: err } = await sb.from('gallery_artworks')
-      .update({ status: 'pending', reject_reason: null, reviewed_at: null, reviewed_by: null })
-      .eq('id', btn.dataset.resubmit);
-    if (err) { showError('Could not resubmit — try again.'); return; }
+    // A second click would hit the RPC after the row is already pending and report a false failure.
+    btn.setAttribute('loading', '');
+    btn.setAttribute('disabled', '');
+    const { error: err } = await sb.rpc('resubmit_own_gallery_artwork', { p_artwork_id: btn.dataset.resubmit });
+    if (err) { btn.removeAttribute('loading'); btn.removeAttribute('disabled'); showError('Could not resubmit — try again.'); return; }
     showSuccess('Resubmitted for review');
     render();
   }));

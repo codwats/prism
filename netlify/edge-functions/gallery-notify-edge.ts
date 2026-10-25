@@ -120,9 +120,13 @@ export default async function handler(request: Request): Promise<Response> {
         text: `${what} is waiting for review.\n\nReview it in the Admin view: ${ADMIN_LINK}`,
         html: `<p>${whatHtml} is waiting for review.</p>\n<p><a href="${ADMIN_LINK}">Open the Admin view</a></p>`,
       }))),
+    }).catch(error => {
+      // A network throw must release the claim below, same as a non-2xx.
+      console.error('Gallery notify: Resend unreachable', error);
+      return null;
     });
-    if (!sendRes.ok) {
-      console.error('Gallery notify: Resend error', sendRes.status, await sendRes.text());
+    if (!sendRes?.ok) {
+      if (sendRes) console.error('Gallery notify: Resend error', sendRes.status, await sendRes.text());
       // Release the claim so a retry can send; no email went out.
       const undo = await fetch(`${supabaseUrl}/rest/v1/gallery_review_notices?kind=eq.${kind}&item_id=eq.${id}`, { method: 'DELETE', headers: service });
       if (!undo.ok) console.error('Gallery notify: ledger release failed', undo.status);
