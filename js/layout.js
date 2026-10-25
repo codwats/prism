@@ -23,6 +23,7 @@ import {
 } from './modules/storage.js';
 import { applyColorScheme } from './modules/theme.js';
 import { initGlobalErrorReporting } from './core/telemetry.js';
+import { debounce } from './core/utils.js';
 
 // Re-apply when the OS theme changes, but only while preference is 'auto'
 window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
@@ -73,6 +74,8 @@ export function initLayout(options = {}) {
   startAuth();
   onAuthChange(updateNavExtras);
   updateNavExtras();
+  // Debounced: a mark toggle saves too, and the count runs processCards
+  window.addEventListener('prism:saved', debounce(updateNavExtras, 300));
 }
 
 // Extras follow entitlement, not the enforcement flag: with the flag off every
@@ -86,10 +89,13 @@ async function updateNavExtras() {
   group.hidden = !entitled;
   if (!entitled) return;
 
-  // shortcut: counted once per auth change, so a reuse ticked on this page shows on the next load
   const badge = document.getElementById('nav-extras-reuse');
   const prism = getCurrentPrism();
-  if (!badge || !prism?.decks?.length) return;
+  if (!badge) return;
+  if (!prism?.decks?.length) {
+    badge.hidden = true;
+    return;
+  }
   const { planSleeveReuse } = await import('./modules/sleeve-reuse.js');
   const reuse = planSleeveReuse(prism).matches.length;
   badge.textContent = reuse;
