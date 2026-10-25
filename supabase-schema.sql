@@ -1291,6 +1291,35 @@ BEGIN;
 COMMIT;
 
 -- ============================================
+-- MIGRATION: Resubmit a rejected artwork through an RPC (#392)
+-- ============================================
+-- Replaces the "Owners resubmit rejected artworks" UPDATE policy, whose WITH
+-- CHECK can't stop other fields (created_at) changing too. Only the review
+-- fields move. The policy is dropped once this client is live (#393).
+-- Errors: P0002 not the caller's rejected upload. Tests: tests/gallery-artists.sql.
+BEGIN;
+  CREATE OR REPLACE FUNCTION resubmit_own_gallery_artwork(p_artwork_id UUID)
+    RETURNS void
+    LANGUAGE plpgsql
+    SECURITY DEFINER
+    SET search_path = public, pg_temp
+  AS $$
+  BEGIN
+    UPDATE gallery_artworks
+      SET status = 'pending', reject_reason = NULL, reviewed_at = NULL, reviewed_by = NULL
+      WHERE id = p_artwork_id AND uploader_id = auth.uid() AND status = 'rejected';
+    IF NOT FOUND THEN
+      RAISE EXCEPTION 'No rejected upload of yours to resubmit' USING ERRCODE = 'no_data_found';
+    END IF;
+  END;
+  $$;
+
+  REVOKE EXECUTE ON FUNCTION resubmit_own_gallery_artwork(UUID) FROM public;
+  REVOKE EXECUTE ON FUNCTION resubmit_own_gallery_artwork(UUID) FROM anon;
+  GRANT EXECUTE ON FUNCTION resubmit_own_gallery_artwork(UUID) TO authenticated;
+COMMIT;
+
+-- ============================================
 -- MIGRATION: Founders and the entitlement predicate
 -- ============================================
 -- Safe to deploy before the cutover: while app_config.payment_enforcement is

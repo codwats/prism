@@ -1410,3 +1410,102 @@ END $$;
 RESET ROLE;
 
 ROLLBACK;
+
+-- ============================================
+-- Resubmit RPC (#392): resubmit_own_gallery_artwork changes only the review
+-- fields, only on the caller's own rejected upload
+-- ============================================
+BEGIN;
+
+INSERT INTO auth.users (id, email, email_confirmed_at) VALUES
+  ('39200000-0000-0000-0000-00000000000a', 'resubmitter@example.invalid', now()),
+  ('39200000-0000-0000-0000-00000000000b', 'stranger@example.invalid', now()),
+  ('39200000-0000-0000-0000-00000000000d', 'reviewer@example.invalid', now());
+-- Admin-set fields are non-default so "nothing else changed" is observable.
+INSERT INTO public.gallery_artworks
+  (id, title, type, artist_name, uploader_id, image_path, status, reject_reason,
+   highlighted, store_url, likes_count, downloads_count, created_at, reviewed_at, reviewed_by) VALUES
+  ('39200000-0000-0000-0001-000000000001', 'Rejected Piece', 'proxy', 'Resub Artist',
+   '39200000-0000-0000-0000-00000000000a', '39200000-0000-0000-0000-00000000000a/r.png',
+   'rejected', 'blurry', true, 'https://store.example.invalid/r', 7, 3,
+   '2020-01-01T00:00:00Z', '2020-02-01T00:00:00Z', '39200000-0000-0000-0000-00000000000d'),
+  ('39200000-0000-0000-0001-000000000002', 'Approved Piece', 'proxy', 'Resub Artist',
+   '39200000-0000-0000-0000-00000000000a', '39200000-0000-0000-0000-00000000000a/a.png',
+   'approved', NULL, false, NULL, 0, 0, now(), now(), '39200000-0000-0000-0000-00000000000d');
+
+CREATE TEMP TABLE resubmit_before ON COMMIT DROP AS
+  SELECT to_jsonb(a) - ARRAY['status', 'reject_reason', 'reviewed_at', 'reviewed_by'] AS row
+  FROM public.gallery_artworks a WHERE id = '39200000-0000-0000-0001-000000000001';
+GRANT SELECT ON resubmit_before TO authenticated;
+
+DO $$
+BEGIN
+  ASSERT has_function_privilege('authenticated', 'public.resubmit_own_gallery_artwork(uuid)', 'EXECUTE'),
+    'authenticated must be able to resubmit';
+  ASSERT NOT has_function_privilege('anon', 'public.resubmit_own_gallery_artwork(uuid)', 'EXECUTE'),
+    'anon must not be able to resubmit';
+END $$;
+
+SET LOCAL ROLE anon;
+DO $$
+BEGIN
+  PERFORM public.resubmit_own_gallery_artwork('39200000-0000-0000-0001-000000000001');
+  RAISE EXCEPTION 'anon resubmitted an artwork';
+EXCEPTION WHEN insufficient_privilege THEN NULL;
+END $$;
+RESET ROLE;
+
+-- ---- A stranger can't resubmit someone else's rejected upload ----
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', '39200000-0000-0000-0000-00000000000b', true);
+DO $$
+BEGIN
+  BEGIN
+    PERFORM public.resubmit_own_gallery_artwork('39200000-0000-0000-0001-000000000001');
+    RAISE EXCEPTION 'a non-owner resubmitted an artwork';
+  EXCEPTION WHEN no_data_found THEN NULL;
+  END;
+END $$;
+RESET ROLE;
+DO $$
+BEGIN
+  ASSERT (SELECT status FROM public.gallery_artworks WHERE id = '39200000-0000-0000-0001-000000000001') = 'rejected',
+    'a refused resubmit must leave the row rejected';
+END $$;
+
+-- ---- The owner resubmits: back to pending, review fields cleared, nothing else ----
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', '39200000-0000-0000-0000-00000000000a', true);
+DO $$
+DECLARE r public.gallery_artworks;
+BEGIN
+  BEGIN
+    PERFORM public.resubmit_own_gallery_artwork('39200000-0000-0000-0001-000000000002');
+    RAISE EXCEPTION 'an approved artwork was resubmitted';
+  EXCEPTION WHEN no_data_found THEN NULL;
+  END;
+
+  PERFORM public.resubmit_own_gallery_artwork('39200000-0000-0000-0001-000000000001');
+  SELECT * INTO r FROM public.gallery_artworks WHERE id = '39200000-0000-0000-0001-000000000001';
+  ASSERT r.status = 'pending', 'a resubmit must set pending';
+  ASSERT r.reject_reason IS NULL AND r.reviewed_at IS NULL AND r.reviewed_by IS NULL,
+    'a resubmit must clear the review fields';
+  ASSERT to_jsonb(r) - ARRAY['status', 'reject_reason', 'reviewed_at', 'reviewed_by']
+         = (SELECT row FROM resubmit_before),
+    'a resubmit must change nothing but the review fields';
+
+  BEGIN
+    PERFORM public.resubmit_own_gallery_artwork('39200000-0000-0000-0001-000000000001');
+    RAISE EXCEPTION 'a pending artwork was resubmitted';
+  EXCEPTION WHEN no_data_found THEN NULL;
+  END;
+END $$;
+RESET ROLE;
+
+DO $$
+BEGIN
+  ASSERT (SELECT status FROM public.gallery_artworks WHERE id = '39200000-0000-0000-0001-000000000002') = 'approved',
+    'a refused resubmit must leave an approved row approved';
+END $$;
+
+ROLLBACK;
