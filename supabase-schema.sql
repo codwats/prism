@@ -1020,8 +1020,9 @@ COMMIT;
 -- MIGRATION: Review notification ledger (#333)
 -- ============================================
 -- One row per upload or claim the admins were emailed about, written by the
--- /api/gallery-notify edge function with the service role after Resend accepts.
--- The primary key is the dedupe: at most one email per item.
+-- /api/gallery-notify edge function with the service role before the email is
+-- sent, and deleted again if Resend refuses it.
+-- The primary key is the dedupe: at most one email per item, even when racing.
 -- Tests: tests/gallery-artists.sql.
 BEGIN;
   CREATE TABLE IF NOT EXISTS gallery_review_notices (
