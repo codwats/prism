@@ -50,7 +50,10 @@ async function send(t, body, w = world(), { method = 'POST', token = 'user-token
     }
     if (url === 'https://db.example/rest/v1/rpc/claim_gallery_commission_send') return Response.json(w.claimId);
     if (url.startsWith('https://db.example/rest/v1/gallery_commission_sends?')) return new Response(null, { status: 204 });
-    if (url === 'https://api.resend.com/emails') return w.resendOk ? Response.json({ id: 'em_1' }) : new Response('{"message":"nope"}', { status: 500 });
+    if (url === 'https://api.resend.com/emails') {
+      if (w.resendThrows) throw new TypeError('network down');
+      return w.resendOk ? Response.json({ id: 'em_1' }) : new Response('{"message":"nope"}', { status: 500 });
+    }
     throw new Error(`Unexpected request: ${url}`);
   });
   globalThis.Deno = { env: { get: key => w.env[key] } };
@@ -196,6 +199,14 @@ endpointTest('a refused claim (a limit hit) is a 429 that sends no email', async
 
 endpointTest('a Resend failure releases the claimed row and is a 502', async t => {
   const res = await send(t, valid(), world({ resendOk: false }));
+  assert.equal(res.status, 502);
+  assert.equal(res.releases.length, 1);
+  assert.match(res.releases[0].url, /gallery_commission_sends\?id=eq\.cs-1$/);
+});
+
+endpointTest('a Resend fetch that throws still releases the claimed row and is a 502', async t => {
+  t.mock.method(console, 'error', () => {});
+  const res = await send(t, valid(), world({ resendThrows: true }));
   assert.equal(res.status, 502);
   assert.equal(res.releases.length, 1);
   assert.match(res.releases[0].url, /gallery_commission_sends\?id=eq\.cs-1$/);
