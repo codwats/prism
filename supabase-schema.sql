@@ -665,26 +665,9 @@ CREATE POLICY "Admins moderate artworks"
   USING (is_gallery_admin())
   WITH CHECK (is_gallery_admin());
 
--- Owners may resubmit a rejected upload — it must go back to pending and
--- can't pick up privileges on the way.
+-- Owners resubmit a rejected upload through resubmit_own_gallery_artwork
+-- (#392); the owner-UPDATE policy that used to allow it is gone (#393).
 DROP POLICY IF EXISTS "Owners resubmit rejected artworks" ON gallery_artworks;
-CREATE POLICY "Owners resubmit rejected artworks"
-  ON gallery_artworks FOR UPDATE
-  USING (uploader_id = auth.uid() AND status = 'rejected')
-  WITH CHECK (
-    uploader_id = auth.uid()
-    AND status = 'pending'
-    AND highlighted = false
-    AND store_url IS NULL
-    AND artist_id IS NULL
-    AND likes_count = 0
-    AND downloads_count = 0
-    AND reviewed_at IS NULL
-    AND reviewed_by IS NULL
-    -- The image must sit in the caller's own folder: an admin deleting the row
-    -- also removes its image, so a borrowed path would delete someone else's.
-    AND (storage.foldername(image_path))[1] = auth.uid()::text
-  );
 
 DROP POLICY IF EXISTS "Owners withdraw own artworks" ON gallery_artworks;
 CREATE POLICY "Owners withdraw own artworks"
@@ -1293,7 +1276,7 @@ COMMIT;
 -- ============================================
 -- Replaces the "Owners resubmit rejected artworks" UPDATE policy, whose WITH
 -- CHECK can't stop other fields (created_at) changing too. Only the review
--- fields move. The policy is dropped once this client is live (#393).
+-- fields move. The policy was dropped once this client was live (#393).
 -- Errors: P0002 not the caller's rejected upload. Tests: tests/gallery-artists.sql.
 BEGIN;
   CREATE OR REPLACE FUNCTION resubmit_own_gallery_artwork(p_artwork_id UUID)
