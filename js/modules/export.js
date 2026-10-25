@@ -166,7 +166,9 @@ export function exportToJSON(prism) {
         cardCount: deck.cards.length,
         cards: deck.cards, // Include full cards for re-import
         createdAt: deck.createdAt,
-        updatedAt: deck.updatedAt
+        updatedAt: deck.updatedAt,
+        cardsUpdatedAt: deck.cardsUpdatedAt,
+        sourceUrl: deck.sourceUrl || null
       })),
       cards: processedCards.map(card => ({
         name: card.name,
@@ -188,6 +190,7 @@ export function exportToJSON(prism) {
       })),
       markedCards: prism.markedCards || [],
       removedCards: prism.removedCards || [],
+      plannedSwaps: prism.plannedSwaps || [],
       useDedicatedCommanderCopies: prism.useDedicatedCommanderCopies || false,
       statistics: {
         totalUniqueCards: processedCards.length,
