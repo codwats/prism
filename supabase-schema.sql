@@ -999,8 +999,8 @@ COMMIT;
 -- ============================================
 -- MIGRATION: Commission relay ledger (#325)
 -- ============================================
--- One row per relayed Commission, written by the /api/commission edge function
--- with the service role after Resend accepts the email. It is the rate-limit
+-- One row per relayed Commission, claimed by the /api/commission edge function
+-- through claim_gallery_commission_send (#391) before it emails. It is the rate-limit
 -- ledger (3 per requester per 24 h, 1 per requester per artist per 24 h) and
 -- deliberately keeps no message body or address. Tests: tests/gallery-artists.sql.
 BEGIN;
@@ -1569,4 +1569,45 @@ BEGIN;
   CREATE POLICY "Users can delete planned swaps in own prisms"
     ON planned_swaps FOR DELETE
     USING (prism_id IN (SELECT id FROM prisms WHERE user_id = auth.uid()));
+COMMIT;
+
+-- ============================================
+-- MIGRATION: Commission relay claims the send before emailing (#391)
+-- ============================================
+-- The /api/commission edge function calls this with the service role before it
+-- emails. It holds a per-requester lock so two racing sends run one at a time,
+-- checks both limits (3 per requester, 1 per requester per Artist, rolling
+-- 24 hours), then records the send. Returns the new ledger row's id, or null
+-- when a limit is hit. On a Resend failure the edge function deletes the row.
+-- The limits live here and nowhere else. Tests: tests/gallery-artists.sql.
+BEGIN;
+  CREATE OR REPLACE FUNCTION claim_gallery_commission_send(p_user_id UUID, p_artist_id UUID, p_artwork_id UUID DEFAULT NULL)
+    RETURNS uuid
+    LANGUAGE plpgsql
+    SECURITY DEFINER
+    SET search_path = public, pg_temp
+  AS $$
+  DECLARE
+    v_id UUID;
+  BEGIN
+    PERFORM pg_advisory_xact_lock(hashtextextended('gallery_commission_send:' || p_user_id::text, 0));
+    IF EXISTS (
+      SELECT 1 FROM gallery_commission_sends
+        WHERE user_id = p_user_id AND created_at >= now() - interval '24 hours'
+        HAVING count(*) >= 3 OR bool_or(artist_id = p_artist_id)
+    ) THEN
+      RETURN NULL;
+    END IF;
+    INSERT INTO gallery_commission_sends (user_id, artist_id, artwork_id)
+      VALUES (p_user_id, p_artist_id, p_artwork_id)
+      RETURNING id INTO v_id;
+    RETURN v_id;
+  END;
+  $$;
+
+  -- Service role only (the edge function): the caller names the requester.
+  REVOKE EXECUTE ON FUNCTION claim_gallery_commission_send(UUID, UUID, UUID) FROM public;
+  REVOKE EXECUTE ON FUNCTION claim_gallery_commission_send(UUID, UUID, UUID) FROM anon;
+  REVOKE EXECUTE ON FUNCTION claim_gallery_commission_send(UUID, UUID, UUID) FROM authenticated;
+  GRANT EXECUTE ON FUNCTION claim_gallery_commission_send(UUID, UUID, UUID) TO service_role;
 COMMIT;
