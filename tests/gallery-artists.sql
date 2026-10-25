@@ -1513,17 +1513,16 @@ BEGIN
   EXCEPTION WHEN insufficient_privilege THEN NULL;
   END;
 
-  BEGIN
-    UPDATE public.gallery_artworks SET status = 'pending', image_path = 'someone-else/victim.png'
-    WHERE id = '38600000-0000-0000-0001-000000000001';
-    RAISE EXCEPTION 'a resubmit pointing at another folder was accepted';
-  EXCEPTION WHEN insufficient_privilege THEN NULL;
-  END;
-
-  UPDATE public.gallery_artworks SET status = 'pending'
+  -- #393: no owner UPDATE policy, so a direct resubmit matches no row.
+  UPDATE public.gallery_artworks SET status = 'pending', image_path = 'someone-else/victim.png'
   WHERE id = '38600000-0000-0000-0001-000000000001';
-  ASSERT (SELECT status FROM public.gallery_artworks WHERE id = '38600000-0000-0000-0001-000000000001') = 'pending',
-    'a resubmit keeping its own path must still work';
+  ASSERT (SELECT status FROM public.gallery_artworks WHERE id = '38600000-0000-0000-0001-000000000001') = 'rejected',
+    'an owner''s direct UPDATE of a rejected upload must be refused';
+
+  -- The RPC moves only review fields, so the path can't be borrowed on the way back.
+  PERFORM public.resubmit_own_gallery_artwork('38600000-0000-0000-0001-000000000001');
+  ASSERT (SELECT image_path FROM public.gallery_artworks WHERE id = '38600000-0000-0000-0001-000000000001')
+    = '38600000-0000-0000-0000-000000000001/r.png', 'a resubmit must keep its own path';
 END $$;
 RESET ROLE;
 
