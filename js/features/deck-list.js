@@ -4,7 +4,7 @@
 
 import { state } from "../core/state.js";
 import { showError, showSuccess } from "../core/notifications.js";
-import { escapeHtml, debugLog, countVisibleMarks } from "../core/utils.js";
+import { escapeHtml, debugLog, countVisibleMarks, markSingleBatchDone } from "../core/utils.js";
 import { parseDecklist, validateDecklist, cardsToDecklistText, normalizeCardName } from "../modules/parser.js";
 import {
   processCards,
@@ -139,18 +139,26 @@ export function setCardMarked(cardKey, marked) {
   if (!cardKey || !state.currentPrism) return;
   if (!state.currentPrism.markedCards) state.currentPrism.markedCards = [];
 
+  const single = state.processedCards?.find((c) => c.name === cardKey && c.batches?.length === 1);
+  const keys = single ? [cardKey, single.batches[0].key] : [cardKey];
   if (marked) {
     if (!state.currentPrism.markedCards.includes(cardKey)) {
-      state.currentPrism.markedCards.push(cardKey);
       // GA-only funnel step (visit → deck → first mark → export); too chatty
       // for app_logs rows.
       trackEvent('card_marked');
     }
+    if (single) {
+      const done = markSingleBatchDone(state.currentPrism.markedCards, cardKey, single.batches[0].key);
+      state.currentPrism.markedCards = done.markedCards;
+      if (done.unmarkedKeys.length) recordUnmarkedCards(state.currentPrism.id, done.unmarkedKeys);
+    } else if (!state.currentPrism.markedCards.includes(cardKey)) {
+      state.currentPrism.markedCards.push(cardKey);
+    }
   } else {
     state.currentPrism.markedCards = state.currentPrism.markedCards.filter(
-      (c) => c !== cardKey,
+      (c) => !keys.includes(c),
     );
-    recordUnmarkedCards(state.currentPrism.id, [cardKey]);
+    recordUnmarkedCards(state.currentPrism.id, keys);
   }
 
   const now = new Date().toISOString();

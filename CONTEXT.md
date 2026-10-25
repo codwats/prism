@@ -91,7 +91,7 @@ _Avoid_: sleeve recycling, auto-swap, replacement
 _In code_: a match from `planSleeveReuse`, completed by `completeReuse`; the cleared copies are `clearedQuantity` on the `removedCards` rows.
 
 **Sleeve up**:
-The Extra in the Swap Planner for a sleeving session: every Sleeve reuse as an out → in row, the cards that need a fresh sleeve, and a prep card with sleeves to buy, pens to grab, marks to clear and the Pull list. Two words in prose, capitalized as a section name.
+The Extra in the Swap Planner for a sleeving session: every Sleeve reuse as an out → in row, the cards that need a fresh sleeve, and a prep card with sleeves to gather (blank sleeves from the box or the store), pens to grab, marks to clear and the Pull list. Two words in prose, capitalized as a section name.
 _Avoid_: sleeving session (as a name), reuse table
 _In code_: `#sleeve-up` and `renderSleeveUp` (`js/swap-planner.js`), built on `planSleeveReuse`.
 
@@ -100,7 +100,7 @@ A Sleeve reuse with no marks to clear: the Freed sleeve already carries every ma
 _Avoid_: exact match, perfect match
 
 **Needs a fresh sleeve**:
-A copy that needs a sleeve and marks, with no Freed sleeve to take it. Copies already in a marked sleeve (the card gained a deck or copies) need marks added, not a fresh sleeve. Fresh-sleeve copies minus spare blank sleeves is the sleeves-to-buy count.
+A copy that needs a sleeve and marks, with no Freed sleeve to take it. When a marked card gains a deck or copies, the copies it already had keep their sleeves and need only marks added; each copy it gained needs a fresh sleeve and marks. Counted per copy: fresh-sleeve copies minus spare blank sleeves is **Sleeves to gather** on the Sleeve up prep card.
 _Avoid_: new sleeve, unmatched card
 _In code_: `planSleeveReuse(prism).needsFreshSleeve`.
 
