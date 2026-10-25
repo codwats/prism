@@ -5,13 +5,15 @@
  * alone; the full list is the paste fallback.
  */
 
-import { cardsToDecklistText, normalizeCardName } from './parser.js';
+import { normalizeCardName } from './parser.js';
 import { deckSourceSite, resolveDeckSource } from './deck-source.js';
 
 export const SITE_NAMES = { moxfield: 'Moxfield', archidekt: 'Archidekt' };
 
+// Moxfield's Bulk Edit has no commander board (docs/agents/deck-export.md), so
+// its list leaves commanders out; the panel hint says to set them by hand.
 function fullListText(cards, site) {
-  if (site === 'moxfield') return cardsToDecklistText(cards);
+  if (site === 'moxfield') return cards.filter(c => !c.isCommander).map(c => `${c.quantity} ${c.name}`).join('\n');
   const ordered = [...cards.filter(c => c.isCommander), ...cards.filter(c => !c.isCommander)];
   return ordered.map(c => `${c.quantity}x ${c.name}${c.isCommander ? ' [Commander]' : ''}`).join('\n');
 }

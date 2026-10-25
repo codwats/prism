@@ -73,9 +73,9 @@ test('Archidekt: only included categories count, and a matching deck has no chan
 	assert.deepEqual(deckExport(prismDeck, site, 'archidekt').changes, { commander: [], deck: [] });
 });
 
-test('the full list follows the site format', () => {
+test('the full list follows the site format; Moxfield Bulk Edit has no commander board, so commanders stay out (#381)', () => {
 	assert.equal(deckExport(prismDeck, null, 'moxfield').fullList,
-		'Commander\n1 Ayula, Queen Among Bears\n\nDeck\n1 Cultivate\n30 Forest\n1 Sol Ring');
+		'1 Cultivate\n30 Forest\n1 Sol Ring');
 	assert.equal(deckExport(prismDeck, null, 'archidekt').fullList,
 		'1x Ayula, Queen Among Bears [Commander]\n1x Cultivate\n30x Forest\n1x Sol Ring');
 });

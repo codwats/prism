@@ -6,14 +6,19 @@
 
 import { exportDeck, changesText, SITE_NAMES } from './deck-export.js';
 import { deckSourceSite } from './deck-source.js';
+import { commanderNames } from './processor.js';
 import { escapeHtml } from '../core/utils.js';
 
 let nextId = 0;
 
-const PASTE_HINT = {
-  moxfield: "Paste into the deck's Bulk Edit on Moxfield. It replaces the list there.",
-  archidekt: "Paste into Import cards on Archidekt. Import adds to a deck, so use it on a new or emptied deck."
-};
+function pasteHint(deck, site) {
+  if (site === 'archidekt') return 'Paste into Import cards on Archidekt. Import adds to a deck, so use it on a new or emptied deck.';
+  const commanders = commanderNames(deck);
+  const setCommander = commanders.length
+    ? ` Commanders aren't in the list, since Bulk Edit has no commander board: if the Moxfield deck doesn't have ${commanders.join(' and ')} as ${commanders.length > 1 ? 'commanders' : 'commander'} yet, add ${commanders.length > 1 ? 'them' : 'it'} and use Set as Commander from the card menu.`
+    : '';
+  return `Paste into the Main Deck tab of the deck's Bulk Edit on Moxfield. It replaces the list there.${setCommander}`;
+}
 
 function listBlock(id, label, hint, copyLabel) {
   return `<div class="wa-stack wa-gap-xs">
@@ -31,7 +36,7 @@ function view(deck, result, sourced, uid) {
   const notice = result.notice
     ? `<wa-callout variant="warning" size="s"><wa-icon slot="icon" name="triangle-exclamation"></wa-icon>${escapeHtml(result.notice)}</wa-callout>`
     : '';
-  const full = listBlock(`${uid}-full`, 'Full list', PASTE_HINT[result.site], 'Copy full list');
+  const full = listBlock(`${uid}-full`, 'Full list', pasteHint(deck, result.site), 'Copy full list');
 
   if (!result.changes) return `<div class="wa-stack wa-gap-m">${picker}${notice}${full}</div>`;
 
