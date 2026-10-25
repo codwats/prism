@@ -7,7 +7,7 @@
 
 import { processCards } from "./processor.js";
 import { normalizeCardName } from "./parser.js";
-import { isCardDone, countVisibleMarks } from "../core/utils.js";
+import { isCardDone, countVisibleMarks, markSingleBatchDone } from "../core/utils.js";
 
 const sameName = (a, b) => normalizeCardName(a) === normalizeCardName(b);
 const findCard = (processed, name) => processed.find((c) => sameName(c.name, name));
@@ -276,9 +276,12 @@ export function applySwap(prism, { outgoing, incoming, deckIds, copies = 1, slee
     );
     if (match) {
       carriedKey = incomingAfter.batches.length === 1 ? incomingAfter.name : match.key;
-      // A single-batch Done keeps its batch key beside the name (#382).
-      for (const key of new Set([carriedKey, match.key])) {
-        if (!next.markedCards.includes(key)) next.markedCards.push(key);
+      if (carriedKey === match.key) {
+        if (!next.markedCards.includes(carriedKey)) next.markedCards.push(carriedKey);
+      } else {
+        const done = markSingleBatchDone(next.markedCards, carriedKey, match.key);
+        next.markedCards = done.markedCards;
+        unmarkedKeys.push(...done.unmarkedKeys);
       }
       next.markedCardsUpdatedAt = now;
     }

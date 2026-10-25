@@ -145,6 +145,21 @@ export function isCardDone(card, markedSet) {
   return false;
 }
 
+/**
+ * Mark a single-batch card Done: its plain name plus its batch key (#382), so
+ * Sleeve up can tell when the card later gains copies. The card's other batch
+ * keys are dropped: they would count as sleeves in hand on top of this one.
+ * @returns {{ markedCards: string[], unmarkedKeys: string[] }} The caller
+ *   passes unmarkedKeys to recordUnmarkedCards before savePrism.
+ */
+export function markSingleBatchDone(markedCards, name, batchKey) {
+  const stale = (k) => k.startsWith(`${name}|#b|`) && k !== batchKey;
+  return {
+    markedCards: [...new Set([...markedCards.filter((k) => !stale(k)), name, batchKey])],
+    unmarkedKeys: markedCards.filter(stale),
+  };
+}
+
 export function escapeHtml(text) {
   const div = document.createElement('div');
   div.textContent = text;

@@ -328,6 +328,24 @@ test('a single-batch Done card that gains a deck with more copies needs a sleeve
 	assert.equal(plan.prep.sleevesToGather, 1);
 });
 
+test('completing a reuse into a single-batch card replaces its stale batch key', () => {
+	const prism = createPrism('T');
+	prism.decks = [deck('A', 1, [card("Kodama's Reach"), card('Cultivate')])];
+	prism.markedCards = ["Kodama's Reach"];
+	markSingle(prism, 'Cultivate');
+	const [staleKey] = prism.markedCards.filter((k) => k.startsWith('Cultivate|#b|'));
+	setQuantity(prism, 'A', "Kodama's Reach", 0); // a Freed sleeve marked A
+	setQuantity(prism, 'A', 'Cultivate', 2); // one new copy needs a sleeve
+
+	const [match] = planSleeveReuse(prism).matches;
+	assert.equal(match.incomingBatch.cardName, 'Cultivate');
+	const { prism: next, unmarkedKeys } = completeReuse(prism, match.id, { now: NOW });
+	assert.deepEqual(unmarkedKeys, [staleKey]);
+	assert.ok(!next.markedCards.includes(staleKey));
+	assert.ok(next.markedCards.includes('Cultivate') && next.markedCards.includes(match.incomingBatch.batchKey));
+	assert.ok(next.markedCards.includes("Kodama's Reach"), 'other cards keep their marks');
+});
+
 test('a single-batch Done card that did not change needs nothing', () => {
 	const prism = createPrism('T');
 	prism.decks = [deck('A', 1, [card('Sol Ring', 2)])];

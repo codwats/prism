@@ -13,7 +13,7 @@
 import { processCards, getColorName } from "./processor.js";
 import { normalizeCardName } from "./parser.js";
 import { removalOpenCopies, markId } from "./swap.js";
-import { isCardDone } from "../core/utils.js";
+import { isCardDone, markSingleBatchDone } from "../core/utils.js";
 
 export const MAX_MARKS_TO_CLEAR = 2;
 
@@ -290,8 +290,8 @@ export function planSleeveReuse(prism) {
  * sleeve covers count the copies as cleared, and the incoming batch is Done.
  * No undo here — the player unticks Done in Results like anywhere else.
  * @returns {{ prism: Object, unmarkedKeys: string[] }} The caller passes
- *   unmarkedKeys to recordUnmarkedCards before savePrism. Completing only adds
- *   marks, so it is empty today; the contract matches every other mark write.
+ *   unmarkedKeys to recordUnmarkedCards before savePrism: the stale batch
+ *   keys a single-batch Done replaces.
  */
 export function completeReuse(prism, matchId, { now = new Date().toISOString() } = {}) {
   const match = planSleeveReuse(prism).matches.find((m) => m.id === matchId);
@@ -304,9 +304,11 @@ export function completeReuse(prism, matchId, { now = new Date().toISOString() }
       row.clearedQuantity = (row.clearedQuantity || 0) + Math.min(copies, removalOpenCopies(row));
     }
   }
-  const { key, batchKey } = match.incomingBatch;
-  next.markedCards = [...new Set([...(next.markedCards || []), key, batchKey])];
+  const { cardName, key, batchKey } = match.incomingBatch;
+  let unmarkedKeys = [];
+  if (key === batchKey) next.markedCards = [...new Set([...(next.markedCards || []), key])];
+  else ({ markedCards: next.markedCards, unmarkedKeys } = markSingleBatchDone(next.markedCards || [], cardName, batchKey));
   next.markedCardsUpdatedAt = now;
   next.updatedAt = now;
-  return { prism: next, unmarkedKeys: [] };
+  return { prism: next, unmarkedKeys };
 }

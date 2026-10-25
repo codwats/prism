@@ -100,7 +100,7 @@ A Sleeve reuse with no marks to clear: the Freed sleeve already carries every ma
 _Avoid_: exact match, perfect match
 
 **Needs a fresh sleeve**:
-A copy that needs a sleeve and marks, with no Freed sleeve to take it. Copies already in a marked sleeve (the card gained a deck or copies) need marks added, not a fresh sleeve. Fresh-sleeve copies minus spare blank sleeves is the sleeves-to-buy count.
+A copy that needs a sleeve and marks, with no Freed sleeve to take it. When a marked card gains a deck or copies, the copies it already had keep their sleeves and need only marks added; each copy it gained needs a fresh sleeve and marks. Counted per copy: fresh-sleeve copies minus spare blank sleeves is **Sleeves to gather** on the Sleeve up prep card.
 _Avoid_: new sleeve, unmatched card
 _In code_: `planSleeveReuse(prism).needsFreshSleeve`.
 

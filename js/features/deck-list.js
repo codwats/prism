@@ -4,7 +4,7 @@
 
 import { state } from "../core/state.js";
 import { showError, showSuccess } from "../core/notifications.js";
-import { escapeHtml, debugLog, countVisibleMarks } from "../core/utils.js";
+import { escapeHtml, debugLog, countVisibleMarks, markSingleBatchDone } from "../core/utils.js";
 import { parseDecklist, validateDecklist, cardsToDecklistText, normalizeCardName } from "../modules/parser.js";
 import {
   processCards,
@@ -139,8 +139,6 @@ export function setCardMarked(cardKey, marked) {
   if (!cardKey || !state.currentPrism) return;
   if (!state.currentPrism.markedCards) state.currentPrism.markedCards = [];
 
-  // A single-batch Done also stores its batch key, so Sleeve up can tell when
-  // the card later gains copies (#382).
   const single = state.processedCards?.find((c) => c.name === cardKey && c.batches?.length === 1);
   const keys = single ? [cardKey, single.batches[0].key] : [cardKey];
   if (marked) {
@@ -149,7 +147,13 @@ export function setCardMarked(cardKey, marked) {
       // for app_logs rows.
       trackEvent('card_marked');
     }
-    state.currentPrism.markedCards = [...new Set([...state.currentPrism.markedCards, ...keys])];
+    if (single) {
+      const done = markSingleBatchDone(state.currentPrism.markedCards, cardKey, single.batches[0].key);
+      state.currentPrism.markedCards = done.markedCards;
+      if (done.unmarkedKeys.length) recordUnmarkedCards(state.currentPrism.id, done.unmarkedKeys);
+    } else if (!state.currentPrism.markedCards.includes(cardKey)) {
+      state.currentPrism.markedCards.push(cardKey);
+    }
   } else {
     state.currentPrism.markedCards = state.currentPrism.markedCards.filter(
       (c) => !keys.includes(c),
