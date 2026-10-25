@@ -27,7 +27,7 @@ function world(overrides = {}) {
     artist: { id: ARTIST, name: 'A. Okafor', user_id: '55555555-5555-4555-8555-555555555555', commissions_open: true },
     contact: { commission_email: ARTIST_EMAIL },
     artwork: { id: ARTWORK, title: 'Sol Ring — Night Market', image_path: 'u1/sol.png', artist_id: ARTIST, status: 'approved' },
-    sends: [],
+    claimId: 'cs-1', // the claim RPC's answer: a ledger row id, or null at a limit
     resendOk: true,
     env,
     ...overrides
@@ -48,8 +48,8 @@ async function send(t, body, w = world(), { method = 'POST', token = 'user-token
       const match = a && url.includes(`id=eq.${a.id}`) && url.includes(`artist_id=eq.${a.artist_id}`) && a.status === 'approved';
       return Response.json(match ? [a] : []);
     }
-    if (url.startsWith('https://db.example/rest/v1/gallery_commission_sends?')) return Response.json(w.sends);
-    if (url === 'https://db.example/rest/v1/gallery_commission_sends') return new Response(null, { status: 201 });
+    if (url === 'https://db.example/rest/v1/rpc/claim_gallery_commission_send') return Response.json(w.claimId);
+    if (url.startsWith('https://db.example/rest/v1/gallery_commission_sends?')) return new Response(null, { status: 204 });
     if (url === 'https://api.resend.com/emails') return w.resendOk ? Response.json({ id: 'em_1' }) : new Response('{"message":"nope"}', { status: 500 });
     throw new Error(`Unexpected request: ${url}`);
   });
@@ -67,7 +67,9 @@ async function send(t, body, w = world(), { method = 'POST', token = 'user-token
   return {
     status: response.status, text, json: text ? JSON.parse(text) : null, requests,
     resend: called('https://api.resend.com/'),
-    ledgerWrites: requests.filter(r => r.url === 'https://db.example/rest/v1/gallery_commission_sends' && r.options.method === 'POST')
+    claims: called('https://db.example/rest/v1/rpc/claim_gallery_commission_send'),
+    releases: requests.filter(r => r.url.startsWith('https://db.example/rest/v1/gallery_commission_sends?') && r.options.method === 'DELETE'),
+    index: prefix => requests.findIndex(r => r.url.startsWith(prefix))
   };
 }
 
@@ -75,7 +77,7 @@ const originalDeno = globalThis.Deno;
 const valid = (extra = {}) => ({ artistId: ARTIST, message: MESSAGE, turnstileToken: 'ts-token', ...extra });
 
 
-endpointTest('a valid request is relayed once with reply_to the requester and a ledger row', async t => {
+endpointTest('a valid request claims a ledger row, then relays once with reply_to the requester', async t => {
   const res = await send(t, valid());
   assert.equal(res.status, 200);
   assert.deepEqual(res.json, { ok: true });
@@ -87,8 +89,11 @@ endpointTest('a valid request is relayed once with reply_to the requester and a 
   assert.equal(email.subject, 'Commission request via PRISM');
   assert.ok(email.text.includes(MESSAGE));
   assert.equal(res.resend[0].options.headers.Authorization, 'Bearer test-resend-key');
-  assert.equal(res.ledgerWrites.length, 1);
-  assert.deepEqual(JSON.parse(res.ledgerWrites[0].options.body), { user_id: USER, artist_id: ARTIST, artwork_id: null });
+  assert.equal(res.claims.length, 1);
+  assert.deepEqual(JSON.parse(res.claims[0].options.body), { p_user_id: USER, p_artist_id: ARTIST, p_artwork_id: null });
+  assert.ok(res.index('https://db.example/rest/v1/rpc/claim_gallery_commission_send') < res.index('https://api.resend.com/'),
+    'the send must be claimed before it is emailed');
+  assert.equal(res.releases.length, 0);
 });
 
 endpointTest('an artwork reference adds its database title, thumbnail and gallery link', async t => {
@@ -100,7 +105,7 @@ endpointTest('an artwork reference adds its database title, thumbnail and galler
     assert.ok(body.includes('https://db.example/storage/v1/object/public/gallery-art/u1/sol.png'));
     assert.ok(body.includes(`https://prismmtg.com/gallery.html?art=${ARTWORK}`));
   }
-  assert.equal(JSON.parse(res.ledgerWrites[0].options.body).artwork_id, ARTWORK);
+  assert.equal(JSON.parse(res.claims[0].options.body).p_artwork_id, ARTWORK);
 });
 
 endpointTest('requester text is HTML-escaped in the HTML body', async t => {
@@ -181,31 +186,19 @@ endpointTest('an artwork belonging to another artist, or not approved, is reject
   }
 });
 
-endpointTest('three sends in 24 h is the overall limit', async t => {
-  const sends = [OTHER_ARTIST, OTHER_ARTIST, OTHER_ARTIST].map(artist_id => ({ artist_id }));
-  const res = await send(t, valid(), world({ sends }));
+endpointTest('a refused claim (a limit hit) is a 429 that sends no email', async t => {
+  const res = await send(t, valid(), world({ claimId: null }));
   assert.equal(res.status, 429);
+  assert.equal(res.json.error, 'You’ve reached today’s commission limit. Try again tomorrow.');
   assert.equal(res.resend.length, 0);
-  const lookup = res.requests.find(r => r.url.startsWith('https://db.example/rest/v1/gallery_commission_sends?'));
-  assert.match(lookup.url, new RegExp(`user_id=eq\\.${USER}`));
-  assert.match(lookup.url, /created_at=gte\./);
+  assert.equal(res.releases.length, 0);
 });
 
-endpointTest('one send per artist in 24 h', async t => {
-  const res = await send(t, valid(), world({ sends: [{ artist_id: ARTIST }] }));
-  assert.equal(res.status, 429);
-  assert.equal(res.resend.length, 0);
-});
-
-endpointTest('two earlier sends to other artists still allow a third', async t => {
-  const res = await send(t, valid(), world({ sends: [{ artist_id: OTHER_ARTIST }, { artist_id: OTHER_ARTIST }] }));
-  assert.equal(res.status, 200);
-});
-
-endpointTest('a Resend failure is a 502 and writes no ledger row', async t => {
+endpointTest('a Resend failure releases the claimed row and is a 502', async t => {
   const res = await send(t, valid(), world({ resendOk: false }));
   assert.equal(res.status, 502);
-  assert.equal(res.ledgerWrites.length, 0);
+  assert.equal(res.releases.length, 1);
+  assert.match(res.releases[0].url, /gallery_commission_sends\?id=eq\.cs-1$/);
 });
 
 endpointTest('missing env is a 503 that names the variables in the log only', async t => {

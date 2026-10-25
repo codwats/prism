@@ -8,8 +8,11 @@
  * Artist's Reply reaches them directly. No address is ever echoed back.
  *
  * Order of checks: method → body → Turnstile → session → artist (claimed,
- * open, contacts row) → artwork (approved, this artist's) → rate limits →
- * Resend → ledger row. The ledger is written only after Resend accepts.
+ * open, contacts row) → artwork (approved, this artist's) → claim → Resend.
+ * The claim_gallery_commission_send RPC enforces both rate limits under a
+ * per-requester lock and inserts the ledger row before the email goes out, so
+ * two racing requests send at most one; null is a 429. A Resend failure
+ * deletes the claimed row (the requester can retry today) and is a 502.
  *
  * Env (Netlify dashboard, see scripts/setup-commission-relay.sh):
  * RESEND_API_KEY, TURNSTILE_SECRET_KEY, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY.
@@ -21,7 +24,6 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 const SITE = 'https://prismmtg.com';
 const FROM = 'PRISM Commissions <commissions@relay.prismmtg.com>';
 const SUBJECT = 'Commission request via PRISM';
-const MAX_SENDS_PER_DAY = 3;
 
 function getCorsHeaders(request: Request): Record<string, string> {
   const origin = request.headers.get('origin') || SITE;
@@ -124,14 +126,6 @@ export default async function handler(request: Request): Promise<Response> {
       if (!artwork) return jsonResponse(request, 404, { error: 'Artwork not found for this artist' });
     }
 
-    const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-    const sends: { artist_id: string }[] = await rest(
-      `gallery_commission_sends?user_id=eq.${user.id}&created_at=gte.${encodeURIComponent(since)}&select=artist_id`
-    );
-    if (sends.length >= MAX_SENDS_PER_DAY || sends.some(s => s.artist_id === body.artistId)) {
-      return jsonResponse(request, 429, { error: 'You’ve reached today’s commission limit. Try again tomorrow.' });
-    }
-
     // The title comes from the database, never the requester; newlines stripped anyway.
     const title = artwork ? String(artwork.title).replace(/[\r\n]+/g, ' ') : '';
     const thumb = artwork ? `${supabaseUrl}/storage/v1/object/public/gallery-art/${artwork.image_path}` : '';
@@ -149,6 +143,18 @@ export default async function handler(request: Request): Promise<Response> {
 ${artwork ? `<p>Regarding: <a href="${escapeHtml(link)}">${escapeHtml(title)}</a><br><img src="${escapeHtml(thumb)}" alt="${escapeHtml(title)}" width="240"></p>` : ''}
 <p>Reply to this email to answer them directly. PRISM relays one message and keeps no copy.</p>`;
 
+    // Claim first: the RPC returns the new ledger row's id, or null at a limit.
+    const claimRes = await fetch(`${supabaseUrl}/rest/v1/rpc/claim_gallery_commission_send`, {
+      method: 'POST',
+      headers: service,
+      body: JSON.stringify({ p_user_id: user.id, p_artist_id: body.artistId, p_artwork_id: artwork?.id ?? null }),
+    });
+    if (!claimRes.ok) throw new Error(`Supabase claim_gallery_commission_send failed: ${claimRes.status}`);
+    const claimId = await claimRes.json();
+    if (!claimId) {
+      return jsonResponse(request, 429, { error: 'You’ve reached today’s commission limit. Try again tomorrow.' });
+    }
+
     const sendRes = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${Deno.env.get('RESEND_API_KEY')}`, 'Content-Type': 'application/json' },
@@ -163,16 +169,11 @@ ${artwork ? `<p>Regarding: <a href="${escapeHtml(link)}">${escapeHtml(title)}</a
     });
     if (!sendRes.ok) {
       console.error('Commission relay: Resend error', sendRes.status, await sendRes.text());
+      // Release the claim so the requester can retry today; no email went out.
+      const undo = await fetch(`${supabaseUrl}/rest/v1/gallery_commission_sends?id=eq.${encodeURIComponent(claimId)}`, { method: 'DELETE', headers: service });
+      if (!undo.ok) console.error('Commission relay: ledger release failed', undo.status);
       return jsonResponse(request, 502, { error: 'Your request couldn’t be sent. Try again later.' });
     }
-
-    const ledgerRes = await fetch(`${supabaseUrl}/rest/v1/gallery_commission_sends`, {
-      method: 'POST',
-      headers: { ...service, 'Prefer': 'return=minimal' },
-      body: JSON.stringify({ user_id: user.id, artist_id: body.artistId, artwork_id: artwork?.id ?? null }),
-    });
-    // The email already went out; a lost ledger row only loosens the rate limit.
-    if (!ledgerRes.ok) console.error('Commission relay: ledger insert failed', ledgerRes.status, await ledgerRes.text());
 
     return jsonResponse(request, 200, { ok: true });
   } catch (error) {

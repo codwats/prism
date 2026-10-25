@@ -508,6 +508,92 @@ END $$;
 ROLLBACK;
 
 -- ============================================
+-- Commission claim RPC (#391): both limits, record before send, service role only
+-- ============================================
+BEGIN;
+
+INSERT INTO auth.users (id, email, email_confirmed_at) VALUES
+  ('39100000-0000-0000-0000-00000000000a', 'claim-requester@example.invalid', now()),
+  ('39100000-0000-0000-0000-00000000000b', 'claim-other@example.invalid', now());
+INSERT INTO public.gallery_artists (id, name, commissions_open) VALUES
+  ('39100000-0000-0000-0001-000000000001', 'Claim Artist 1', true),
+  ('39100000-0000-0000-0001-000000000002', 'Claim Artist 2', true),
+  ('39100000-0000-0000-0001-000000000003', 'Claim Artist 3', true),
+  ('39100000-0000-0000-0001-000000000004', 'Claim Artist 4', true);
+
+-- postgres stands in for the service role (the edge function).
+DO $$
+DECLARE
+  u UUID := '39100000-0000-0000-0000-00000000000a';
+  v_id UUID;
+BEGIN
+  v_id := public.claim_gallery_commission_send(u, '39100000-0000-0000-0001-000000000001', NULL);
+  ASSERT v_id IS NOT NULL, 'a first send must be recorded';
+  ASSERT EXISTS (SELECT 1 FROM public.gallery_commission_sends WHERE id = v_id AND user_id = u
+                   AND artist_id = '39100000-0000-0000-0001-000000000001'),
+    'the returned id must be the new ledger row';
+
+  ASSERT public.claim_gallery_commission_send(u, '39100000-0000-0000-0001-000000000001', NULL) IS NULL,
+    'a second send to the same Artist within 24 hours must be refused';
+
+  ASSERT public.claim_gallery_commission_send(u, '39100000-0000-0000-0001-000000000002', NULL) IS NOT NULL,
+    'a second Artist must be allowed';
+  ASSERT public.claim_gallery_commission_send(u, '39100000-0000-0000-0001-000000000003', NULL) IS NOT NULL,
+    'a third Artist must be allowed';
+  ASSERT public.claim_gallery_commission_send(u, '39100000-0000-0000-0001-000000000004', NULL) IS NULL,
+    'the fourth send in 24 hours (MAX_SENDS_PER_DAY + 1) must be refused';
+  ASSERT (SELECT count(*) FROM public.gallery_commission_sends WHERE user_id = u) = 3,
+    'a refused send must write no row';
+
+  ASSERT public.claim_gallery_commission_send('39100000-0000-0000-0000-00000000000b',
+           '39100000-0000-0000-0001-000000000001', NULL) IS NOT NULL,
+    'another requester has their own limits';
+
+  -- Sends older than 24 hours don't count, for either limit.
+  UPDATE public.gallery_commission_sends SET created_at = now() - interval '25 hours' WHERE user_id = u;
+  ASSERT public.claim_gallery_commission_send(u, '39100000-0000-0000-0001-000000000001', NULL) IS NOT NULL,
+    'a send older than 24 hours must not count';
+END $$;
+
+-- ---- Only the server can call it ----
+DO $$
+BEGIN
+  ASSERT NOT has_function_privilege('anon', 'public.claim_gallery_commission_send(uuid, uuid, uuid)', 'EXECUTE'),
+    'anon must not execute claim_gallery_commission_send';
+  ASSERT NOT has_function_privilege('authenticated', 'public.claim_gallery_commission_send(uuid, uuid, uuid)', 'EXECUTE'),
+    'authenticated must not execute claim_gallery_commission_send';
+  ASSERT has_function_privilege('service_role', 'public.claim_gallery_commission_send(uuid, uuid, uuid)', 'EXECUTE'),
+    'the service role must execute claim_gallery_commission_send';
+END $$;
+
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', '39100000-0000-0000-0000-00000000000a', true);
+DO $$
+BEGIN
+  BEGIN
+    PERFORM public.claim_gallery_commission_send('39100000-0000-0000-0000-00000000000a',
+      '39100000-0000-0000-0001-000000000002', NULL);
+    RAISE EXCEPTION 'authenticated called claim_gallery_commission_send';
+  EXCEPTION WHEN insufficient_privilege THEN NULL;
+  END;
+END $$;
+RESET ROLE;
+
+SET LOCAL ROLE anon;
+SELECT set_config('request.jwt.claim.sub', '', true);
+DO $$
+BEGIN
+  BEGIN
+    PERFORM public.claim_gallery_commission_send('39100000-0000-0000-0000-00000000000a',
+      '39100000-0000-0000-0001-000000000002', NULL);
+    RAISE EXCEPTION 'anon called claim_gallery_commission_send';
+  EXCEPTION WHEN insufficient_privilege THEN NULL;
+  END;
+END $$;
+RESET ROLE;
+ROLLBACK;
+
+-- ============================================
 -- Review notification ledger (#333): service role only
 -- ============================================
 BEGIN;
