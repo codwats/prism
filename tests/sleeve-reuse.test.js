@@ -10,7 +10,7 @@ globalThis.localStorage = {
 };
 
 const { createPrism, createDeck, createSplitGroup, processCards, removeSplitChild, DEFAULT_COLORS } = await import('../js/modules/processor.js');
-const { trackRemovedCard, getRemovalStripePosition, removalOpenCopies } = await import('../js/modules/swap.js');
+const { trackRemovedCard, getRemovalStripePosition, removalOpenCopies, applySwap, clearReturnedRemovals } = await import('../js/modules/swap.js');
 const { planSleeveReuse, completeReuse } = await import('../js/modules/sleeve-reuse.js');
 const { mergeRemovedCards } = await import('../js/modules/storage.js');
 
@@ -225,6 +225,58 @@ test('clearedQuantity merges by max on both sides and survives re-removal', () =
 	trackRemovedCard(prism, { cardName: 'Forest', deckId: 'd1', previousQuantity: 1, newQuantity: 0, removedAt: NOW });
 	assert.deepEqual([prism.removedCards[0].previousQuantity, prism.removedCards[0].clearedQuantity], [3, 2]);
 	assert.equal(removalOpenCopies(prism.removedCards[0]), 1);
+});
+
+// A Sleeve swap of the card's only batch: the incoming card takes its sleeve.
+function sleeveSwapOut(prism, outgoing, incoming) {
+	const [batch] = processCards(prism).find((c) => c.name === outgoing).batches;
+	return applySwap(prism, { outgoing, incoming, deckIds: batch.participantIds, copies: batch.copyCount, sleeve: true, now: NOW }).prism;
+}
+
+test('a Sleeve swap of the copies left after a cut frees nothing: the incoming card holds that sleeve (#401)', () => {
+	const prism = fiveDecks();
+	setQuantity(prism, 'E', "Kodama's Reach", 0);
+	setQuantity(prism, 'E', 'Cultivate', 1);
+
+	const next = sleeveSwapOut(prism, "Kodama's Reach", 'Rampant Growth');
+	const plan = planSleeveReuse(next);
+	assert.deepEqual([plan.freedSleeves, plan.spareSleeves, plan.matches], [[], [], []]);
+	assert.deepEqual(plan.needsFreshSleeve.map((n) => n.cardName), ['Cultivate']);
+	const [row] = next.removedCards;
+	assert.equal(removalOpenCopies(row), 1, 'the E mark is still on the sleeve, now under Rampant Growth');
+	assert.equal(row.sleeveSwappedQuantity, 1);
+});
+
+test('a Sleeve swap after a quantity cut leaves only the cut copy freed (#401)', () => {
+	const prism = createPrism('T');
+	prism.decks = [deck('A', 1, [card('Forest', 2)])];
+	prism.markedCards = ['Forest'];
+	setQuantity(prism, 'A', 'Forest', 1);
+
+	const next = sleeveSwapOut(prism, 'Forest', 'Cultivate');
+	assert.deepEqual(planSleeveReuse(next).freedSleeves.map((s) => s.copies), [1]);
+});
+
+test('a card back in the deck after a Sleeve swap took its sleeve is not still painted (#401)', () => {
+	const next = sleeveSwapOut((() => {
+		const prism = fiveDecks();
+		setQuantity(prism, 'E', "Kodama's Reach", 0);
+		return prism;
+	})(), "Kodama's Reach", 'Rampant Growth');
+	setQuantity(next, 'E', "Kodama's Reach", 1);
+	assert.deepEqual(clearReturnedRemovals(next, byName(next, 'E')), []);
+});
+
+test('sleeveSwappedQuantity merges by max on both sides and survives re-removal (#401)', () => {
+	const swapped = { cardName: 'Forest', deckId: 'd1', previousQuantity: 3, newQuantity: 1, sleeveSwappedQuantity: 1, removedAt: '2026-01-01T00:00:00Z' };
+	const newer = { cardName: 'Forest', deckId: 'd1', previousQuantity: 3, newQuantity: 1, removedAt: '2026-01-02T00:00:00Z' };
+	assert.equal(mergeRemovedCards([swapped], [newer])[0].sleeveSwappedQuantity, 1);
+	assert.equal(mergeRemovedCards([newer], [swapped])[0].sleeveSwappedQuantity, 1);
+
+	const prism = createPrism('T');
+	prism.removedCards = [swapped];
+	trackRemovedCard(prism, { cardName: 'Forest', deckId: 'd1', previousQuantity: 1, newQuantity: 0, removedAt: NOW });
+	assert.equal(prism.removedCards[0].sleeveSwappedQuantity, 1);
 });
 
 // Six decks in palette colors: A Yellow, B Blue, C Purple, D Red, E Green, F White.
