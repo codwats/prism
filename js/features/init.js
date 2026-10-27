@@ -185,6 +185,19 @@ function getElements() {
 // Initialization
 // ============================================================================
 
+/**
+ * Move build.html's per-PRISM settings into the global settings drawer, above
+ * its Profile footnote, so only the build page's drawer gets them (#398).
+ * initLayout injects the drawer synchronously before app.js runs.
+ */
+function mountPrismSettings() {
+  const template = document.getElementById('prism-settings-template');
+  const footnote = document.querySelector('#settings-drawer > .wa-stack > p:last-child');
+  if (!template || !footnote) return;
+  footnote.before(template.content);
+  template.remove();
+}
+
 export async function init() {
   debugLog('PRISM: Initializing...');
 
@@ -199,6 +212,9 @@ export async function init() {
   await startAuth();
 
   logToSupabase('info', 'app_loaded', { page: 'build', url: window.location.pathname });
+
+  // Before getElements(), so the toggle is cached at its drawer location
+  mountPrismSettings();
 
   // Get element references
   state.elements = getElements();
@@ -233,6 +249,9 @@ export async function init() {
   // Initialize UI
   initColorSwatches();
   renderAll();
+
+  // Deep link (#400): Swap Planner's back button lands on Results.
+  if (window.location.hash === '#results') state.elements.mainTabs?.setAttribute('active', 'results');
 
   // Set up event listeners
   setupEventListeners();

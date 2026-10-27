@@ -181,14 +181,6 @@
                 </div>
               </wa-card>
 
-              <!-- Per-PRISM marking settings -->
-              <div class="wa-stack wa-gap-2xs">
-                <wa-switch id="dedicated-commander-copies" size="s">Dedicated commander copies</wa-switch>
-                <p class="wa-caption-s" style="color: var(--wa-color-neutral-text-subtle); margin: 0;">
-                  Sleeve a dedicated copy of each commander instead of sharing it with other decks. Synced with this PRISM.
-                </p>
-              </div>
-
               <!-- Existing Decks List -->
               <h2 class="visually-hidden">Your Decks</h2>
               <section id="decks-list" class="wa-stack wa-gap-m" aria-label="Your decks">
@@ -767,6 +759,24 @@
       <div data-membership-content></div>
       <wa-button slot="footer" appearance="plain" data-drawer="close">Close</wa-button>
     </wa-drawer>
+
+    <!-- Per-PRISM settings, moved into the global settings drawer by
+         mountPrismSettings() in js/features/init.js (build page only, #398) -->
+    <template id="prism-settings-template">
+      <div class="wa-stack wa-gap-m">
+        <div class="wa-cluster wa-gap-s wa-align-items-center">
+          <wa-icon name="layer-group" style="color: var(--wa-color-brand-fill);"></wa-icon>
+          <span class="wa-heading-s">This PRISM</span>
+        </div>
+        <div class="wa-stack wa-gap-2xs">
+          <wa-switch id="dedicated-commander-copies" size="s">Dedicated commander copies</wa-switch>
+          <p class="wa-caption-s" style="color: var(--wa-color-neutral-text-subtle); margin: 0;">
+            Sleeve a dedicated copy of each commander instead of sharing it with other decks. Synced with this PRISM.
+          </p>
+        </div>
+      </div>
+      <wa-divider></wa-divider>
+    </template>
 
     <script type="module">
       import { initLayout } from './js/layout.js';
