@@ -8,6 +8,15 @@
         "value": "2.5rem",
         "createdAt": "2026-09-17T21:55:03.378Z",
         "reason": "Agent review: existing wa-icon empty-state graphic size, not text typography; unchanged by issue #252"
+      },
+      {
+        "rule": "broken-image",
+        "value": "*",
+        "files": [
+          "swap-planner.html"
+        ],
+        "createdAt": "2026-10-27T03:02:43.497Z",
+        "reason": "agent: #swap-incoming-image src is set at runtime by js/swap-planner.js"
       }
     ]
   }

@@ -234,6 +234,9 @@ export async function init() {
   initColorSwatches();
   renderAll();
 
+  // Deep link (#400): Swap Planner's back button lands on Results.
+  if (window.location.hash === '#results') state.elements.mainTabs?.setAttribute('active', 'results');
+
   // Set up event listeners
   setupEventListeners();
   setupStripeReorderDialog();
