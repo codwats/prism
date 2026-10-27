@@ -13,3 +13,6 @@ docs/research/paywall-dossier.html
 
 # Local Netlify folder
 .netlify
+
+# Stale local CLI build output, never deployed
+dist/
