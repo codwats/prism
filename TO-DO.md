@@ -223,10 +223,11 @@ is why a scan of the `.html` files misses them.
 
 ### First-run and flow (P2, from the persona walk)
 
-- [ ] **The first control a beginner meets is the most advanced one.**
-  "Dedicated commander copies" sits at the top of the Decks tab. It is a
+- [x] **The first control a beginner meets is the most advanced one.**
+  "Dedicated commander copies" sat at the top of the Decks tab. It is a
   per-PRISM setting that changes the whole batch derivation and that nobody on
-  run one can evaluate.
+  run one can evaluate. Moved into the settings drawer's build-page-only
+  "This PRISM" section (#398).
 - [ ] **The Decks empty state offers no next step.** `js/features/deck-list.js`
   renders "No decks yet." with no call to action, while the Results empty state
   does have an Add Deck button.
