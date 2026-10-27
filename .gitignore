@@ -10,3 +10,9 @@ docs/research/paywall-dossier.html
 # Impeccable design-hook state, rewritten every session
 .impeccable/hook.cache.json
 .codex/
+
+# Local Netlify folder
+.netlify
+
+# Stale local CLI build output, never deployed
+dist/

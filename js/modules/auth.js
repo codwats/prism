@@ -125,7 +125,11 @@ function initAuth() {
 
     const supabase = getSupabase();
     if (!supabase) {
-      authInitPromise = null;
+      // Deferred: with no await above (anonymous visitor, SDK never requested)
+      // this body runs synchronously, so a direct reset is overwritten by the
+      // outer assignment and the login click reuses a dead init — SIGNED_IN
+      // then fires with no listener and the nav stays on Log In.
+      queueMicrotask(() => { authInitPromise = null; });
       return null;
     }
 
