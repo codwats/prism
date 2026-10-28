@@ -406,7 +406,7 @@ All components are Web Awesome 3.8.0 elements (`<wa-button>`, `<wa-card>`, `<wa-
 
 ### Icons
 
-Web Awesome's Font Awesome set via `<wa-icon name="...">`, outline-first FA6 names: `wand-magic-sparkles`, `layer-group`, `table`, `download`, `upload`, `plus`, `xmark`, `filter`, `search`, `palette`, `paintbrush`, `file-import`, `file-csv`, `print`, `clipboard`, `arrows-rotate`, `circle-info`, `triangle-exclamation`, `right-to-bracket`, `circle-user`, `bars`, `expand`, `inbox`, `box-open`, `object-group`, `code-branch`, plus `github` / `discord` from the brands family.
+Web Awesome's Font Awesome set via `<wa-icon name="...">`, outline-first FA6 names: `wand-magic-sparkles`, `layer-group`, `table`, `download`, `upload`, `plus`, `xmark`, `filter`, `search`, `palette`, `paintbrush`, `file-import`, `file-csv`, `print`, `clipboard`, `arrows-rotate`, `circle-info`, `triangle-exclamation`, `right-to-bracket`, `circle-user`, `bars`, `expand`, `inbox`, `box-open`, `object-group`, `code-branch`, plus `kickstarter-k` / `discord` from the brands family.
 No emoji. No unicode-as-icons. Oversized numerals (1/2/3) act as step markers on the marketing site.
 
 ---
