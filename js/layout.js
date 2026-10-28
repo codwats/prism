@@ -561,9 +561,6 @@ function injectFooter() {
                 <span style="color: var(--wa-color-neutral-text-subtle);">Made for Commander players, by Commander players</span>
               </div>
               <div class="wa-cluster wa-gap-m" style="color: var(--wa-color-neutral-text-subtle);">
-                <a href="https://github.com/codwats/prism" target="_blank" rel="noopener" title="PRISM on GitHub" aria-label="PRISM on GitHub">
-                  <wa-icon name="github" family="brands"></wa-icon>
-                </a>
                 <a href="https://www.kickstarter.com/projects/prismmtg/prism-one-card-every-deck" target="_blank" rel="noopener" title="PRISM on Kickstarter" aria-label="PRISM on Kickstarter">
                   <wa-icon name="kickstarter-k" family="brands"></wa-icon>
                 </a>
