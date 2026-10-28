@@ -224,18 +224,19 @@
 
       /* ---------------------------------------------------------------
          Stripe rule. The page's divider is the product's own mark system:
-         the 22 deck colors (processor.js DEFAULT_COLORS) laid out as a
-         sleeve edge seen end-on. The blocks flex to fill, so it fits any
-         width exactly and never clips or wraps.
+         the first five deck colors (processor.js DEFAULT_COLORS), spaced as on
+         the share card (assets/og-card.png). The bars shrink on narrow
+         screens, so the rule never clips or wraps.
          --------------------------------------------------------------- */
       .stripe-rule {
         display: flex;
-        gap: var(--space-2xs);
+        justify-content: center;
+        gap: 1.25rem;
         margin: var(--space-2xl) 0;
       }
 
       .stripe-rule span {
-        flex: 1 1 0;
+        flex: 0 1 8.75rem;
         min-width: 0;
         height: 10px;
         border-radius: var(--radius-s);
@@ -536,23 +537,6 @@
         <span style="background: #8662d2"></span>
         <span style="background: #e2484b"></span>
         <span style="background: #4fab33"></span>
-        <span style="background: #eeeeee"></span>
-        <span style="background: #7a5e68"></span>
-        <span style="background: #3c5890"></span>
-        <span style="background: #c76b61"></span>
-        <span style="background: #a3c569"></span>
-        <span style="background: #d69f5d"></span>
-        <span style="background: #5a9fd7"></span>
-        <span style="background: #f5f4cf"></span>
-        <span style="background: #ac638c"></span>
-        <span style="background: #cfd964"></span>
-        <span style="background: #746ba9"></span>
-        <span style="background: #d388b2"></span>
-        <span style="background: #d4bc2e"></span>
-        <span style="background: #569899"></span>
-        <span style="background: #eccad7"></span>
-        <span style="background: #cca427"></span>
-        <span style="background: #c2ccd2"></span>
       </div>
 
       <section class="flank flank--media">
@@ -588,23 +572,6 @@
         <span style="background: #8662d2"></span>
         <span style="background: #e2484b"></span>
         <span style="background: #4fab33"></span>
-        <span style="background: #eeeeee"></span>
-        <span style="background: #7a5e68"></span>
-        <span style="background: #3c5890"></span>
-        <span style="background: #c76b61"></span>
-        <span style="background: #a3c569"></span>
-        <span style="background: #d69f5d"></span>
-        <span style="background: #5a9fd7"></span>
-        <span style="background: #f5f4cf"></span>
-        <span style="background: #ac638c"></span>
-        <span style="background: #cfd964"></span>
-        <span style="background: #746ba9"></span>
-        <span style="background: #d388b2"></span>
-        <span style="background: #d4bc2e"></span>
-        <span style="background: #569899"></span>
-        <span style="background: #eccad7"></span>
-        <span style="background: #cca427"></span>
-        <span style="background: #c2ccd2"></span>
       </div>
 
       <section class="flank flank--reverse flank--raised">
