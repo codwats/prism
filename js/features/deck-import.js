@@ -262,6 +262,7 @@ export async function handleMoxfieldImport() {
     const { serviceName, deckData } = await resolveDeckSource(urlOrId);
 
     if (state.elements.deckName) state.elements.deckName.value = deckData.name || '';
+    if (deckData.bracket && state.elements.deckBracket) state.elements.deckBracket.value = String(deckData.bracket);
     if (state.elements.deckList) state.elements.deckList.value = toDecklistText(deckData);
     state.addSourceUrl = deckData.sourceUrl || null;
     // Commander fields auto-fill from the text's Commander section (#147)
