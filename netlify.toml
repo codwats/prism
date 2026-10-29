@@ -19,6 +19,10 @@
   function = "archidekt-edge"
 
 [[edge_functions]]
+  path = "/api/deckcheck-edge"
+  function = "deckcheck-edge"
+
+[[edge_functions]]
   path = "/api/stripe-checkout"
   function = "stripe-checkout-edge"
 
