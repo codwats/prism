@@ -323,6 +323,10 @@ export function handleEditClick(deckId) {
   if (state.elements.editImportUrl) state.elements.editImportUrl.value = "";
   if (state.elements.editImportSection)
     state.elements.editImportSection.open = false;
+  if (state.elements.btnEditRefreshSource) {
+    state.elements.btnEditRefreshSource.hidden = !deck.sourceUrl;
+    state.elements.btnEditRefreshSource.title = deck.sourceUrl || "";
+  }
 
   state.elements.editDialog.setAttribute('open', '');
 }

@@ -633,6 +633,11 @@
           <input type="color" id="edit-deck-color" style="width: 60px; height: 40px; border: none; border-radius: var(--wa-border-radius-m); cursor: pointer;" />
         </div>
 
+        <wa-button type="button" id="btn-edit-refresh-source" variant="neutral" appearance="outlined" hidden>
+          <wa-icon slot="start" name="rotate"></wa-icon>
+          Refresh from saved link
+        </wa-button>
+
         <wa-details id="edit-import-section">
           <span slot="summary" class="wa-caption-m">
             <wa-icon name="link" style="margin-right: 0.5em;"></wa-icon>
@@ -651,14 +656,14 @@
                 Import
               </wa-button>
             </div>
-            <div id="edit-import-error" hidden class="wa-caption-s" style="color: var(--wa-color-danger-text);"></div>
-            <div id="edit-import-success" hidden class="wa-caption-s" style="color: var(--wa-color-success-text);"></div>
             <wa-callout variant="neutral">
               <wa-icon slot="icon" name="circle-info"></wa-icon>
               Paste a deck URL from <strong>Moxfield</strong>, <strong>Archidekt</strong> or <strong>DeckCheck</strong> to replace the current decklist. The card list will be updated but name, commander, and color will be kept.
             </wa-callout>
           </div>
         </wa-details>
+        <div id="edit-import-error" hidden class="wa-caption-s" style="color: var(--wa-color-danger-text);"></div>
+        <div id="edit-import-success" hidden class="wa-caption-s" style="color: var(--wa-color-success-text);"></div>
 
         <wa-file-input id="edit-deck-file-input" accept=".txt,.dec,.dek,.mwDeck" label="Decklist file" hint="Drag & drop or click to upload a .txt, .dec, .dek, or .mwDeck file" size="s"></wa-file-input>
 

@@ -284,15 +284,14 @@ export async function handleMoxfieldImport() {
 }
 
 // Edit dialog URL import
-export async function handleEditUrlImport() {
-  const urlOrId = state.elements.editImportUrl?.value?.trim();
+// Also the edit dialog's "Refresh from saved link", passing deck.sourceUrl
+export async function handleEditUrlImport(urlOrId = state.elements.editImportUrl?.value?.trim(), btn = state.elements.btnEditImportUrl) {
   if (!urlOrId) {
     showEditImportError('Please enter a deck URL.');
     return;
   }
 
   hideEditImportMessages();
-  const btn = state.elements.btnEditImportUrl;
   if (btn) btn.loading = true;
 
   try {

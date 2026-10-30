@@ -265,7 +265,13 @@ export function setupEventListeners() {
 
   // Edit dialog URL import
   if (state.elements.btnEditImportUrl) {
-    state.elements.btnEditImportUrl.addEventListener('click', handleEditUrlImport);
+    state.elements.btnEditImportUrl.addEventListener('click', () => handleEditUrlImport());
+  }
+  if (state.elements.btnEditRefreshSource) {
+    state.elements.btnEditRefreshSource.addEventListener('click', () => {
+      const deck = state.currentPrism.decks.find((d) => d.id === state.deckToEdit);
+      if (deck?.sourceUrl) handleEditUrlImport(deck.sourceUrl, state.elements.btnEditRefreshSource);
+    });
   }
   if (state.elements.editImportUrl) {
     state.elements.editImportUrl.addEventListener('keydown', (e) => {
