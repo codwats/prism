@@ -141,6 +141,7 @@ function getElements() {
     editImportSection: document.getElementById('edit-import-section'),
     editImportUrl: document.getElementById('edit-import-url'),
     btnEditImportUrl: document.getElementById('btn-edit-import-url'),
+    btnEditRefreshSource: document.getElementById('btn-edit-refresh-source'),
     editImportError: document.getElementById('edit-import-error'),
     editImportSuccess: document.getElementById('edit-import-success'),
 

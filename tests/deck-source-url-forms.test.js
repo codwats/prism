@@ -83,3 +83,15 @@ test('URL add sets sourceUrl, URL re-import repoints it, a manual edit keeps it'
 	assert.equal(JSON.parse(store.get('prism_data')).prisms[state.currentPrism.id].decks[0].sourceUrl,
 		'https://moxfield.com/decks/second', 'saved to storage');
 });
+
+test('an edit import still in flight when the dialog reopens is ignored', async () => {
+	const [deck] = state.currentPrism.decks;
+	handleEditClick(deck.id);
+	const pending = handleEditUrlImport('https://moxfield.com/decks/first');
+	handleEditClick(deck.id); // new edit session before the fetch resolves
+	state.editSourceUrl = null;
+	elements.editDeckList.value = 'unchanged';
+	await pending;
+	assert.equal(elements.editDeckList.value, 'unchanged', 'stale list not written');
+	assert.equal(state.editSourceUrl, null, 'stale sourceUrl not pending');
+});
