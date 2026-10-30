@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Rukarumel64 · PRISM</title>
+    <meta name="robots" content="noindex,nofollow" />
+
+    <!--
+      VIDEO VARIANT of rukarumel64.html: one 16:9 screen, almost no copy.
+      Left: cartridge rack, logo, commander, console. Right: cartridge + core grids.
+      The script is a trimmed copy of rukarumel64.html's; a data or stripe fix there belongs here too.
+    -->
+
+    <link rel="icon" type="image/svg+xml" href="./assets/Prism-Small-Icon-Invert.svg" />
+    <link rel="apple-touch-icon" href="./assets/apple-touch-icon.png" />
+    <meta name="theme-color" content="#121218" />
+
+    <link rel="preconnect" href="https://use.typekit.net" crossorigin />
+    <link rel="preconnect" href="https://api.scryfall.com" crossorigin />
+    <link rel="stylesheet" href="https://use.typekit.net/gbw6ibc.css" />
+
+    <style>
+      /* Dark-mode values of the PRISM design-system tokens; only what this page uses. */
+      :root {
+        color-scheme: dark;
+
+        --prism-brand-80: #cec2f2;
+        --prism-neutral-05: #121218;
+
+        --prism-surface-page: #121218;
+        --prism-surface-sunken: #34353c;
+        --prism-surface-border: #34353c;
+        --prism-surface-border-strong: #47474f;
+        --prism-text-strong: #f2f2fc;
+        --prism-text-body: #e5e5ef;
+        --prism-text-subtle: #9797a0;
+
+        --prism-font-sans: "halyard-micro", system-ui, -apple-system, sans-serif;
+        --prism-font-heading: "adobe-aldine", Georgia, "Times New Roman", serif;
+        --prism-font-mono: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+
+        --prism-text-2xs: 0.6875rem;
+        --prism-text-s: 0.8125rem;
+        --prism-text-xl: 1.375rem;
+
+        --prism-radius-s: 0.1875rem;
+        --prism-radius-m: 0.25rem;
+        --prism-shadow-m: 0 2px 8px rgba(0, 0, 0, 0.5);
+        --prism-focus-ring: 0 0 0 3px var(--prism-brand-80);
+        --ease: cubic-bezier(0.2, 0, 0, 1);
+
+        /* Sized off the viewport height so the whole page fits one 16:9 frame. */
+        --gutter: 32px;
+        --cw: 26vh; /* console width */
+        --rw: 12vh; /* cartridge rack width */
+        --cmd-w: 22vh; /* commander card width */
+        --logo-h: 6.5vh;
+        --cols: 13; /* 23 cartridge + 76 core cards = 2 + 6 rows */
+      }
+      @media (max-width: 900px) {
+        :root { --gutter: 16px; --cw: 34vw; --rw: 15vw; --cmd-w: 34vw; --logo-h: 8vw; --cols: 5; }
+        .page { grid-template-columns: minmax(0, 1fr) !important; }
+        .rack { gap: 12px !important; }
+        .stage { flex-wrap: wrap; }
+      }
+
+      *, *::before, *::after { box-sizing: border-box; }
+      html, body { margin: 0; background: var(--prism-surface-page); }
+      body {
+        color: var(--prism-text-body);
+        font-family: var(--prism-font-sans);
+        -webkit-font-smoothing: antialiased;
+      }
+      :where(button, [role="button"]):focus-visible { outline: none; box-shadow: var(--prism-focus-ring); }
+      [hidden] { display: none !important; }
+
+      .heading { margin: 0; font-family: var(--prism-font-heading); font-weight: 600; color: var(--prism-text-strong); }
+      .swatch { flex: none; width: 12px; height: 12px; border-radius: var(--prism-radius-s); transition: background-color 0.2s; }
+
+      .page {
+        display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--gutter);
+        min-height: 100vh; padding: var(--gutter);
+      }
+      .left { display: flex; flex-direction: column; gap: 6vh; min-height: 0; }
+      .right { display: flex; flex-direction: column; gap: 24px; }
+
+      .rack { display: flex; justify-content: center; gap: 24px; }
+      .rack-slot { width: var(--rw); aspect-ratio: 515 / 718; position: relative; }
+      .rack-cart {
+        position: absolute; inset: 0; background: none; border: 0; padding: 0; cursor: pointer;
+        border-radius: var(--prism-radius-m); transition: transform 0.12s var(--ease);
+      }
+      .rack-cart:hover { transform: translateY(-5px); }
+      .rack-cart:active { transform: translateY(-2px) scale(0.99); }
+      .rack-cart img { width: 100%; height: 100%; display: block; }
+
+      .stage {
+        display: flex; align-items: center; justify-content: center; gap: 4vh 4vw;
+        padding-top: calc(var(--cw) * 0.2881);
+      }
+      .side { min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 3vh; }
+      .side img.logo { display: block; height: var(--logo-h); width: auto; max-width: 100%; }
+      .info-cmd { width: var(--cmd-w); }
+      .console { flex: none; width: var(--cw); position: relative; z-index: 3; }
+      .console-cart {
+        position: absolute; left: 19%; width: 62%; top: calc(var(--cw) * -0.2881); z-index: 1;
+        transform-origin: 0 0; display: block; visibility: hidden; cursor: pointer;
+      }
+      .console-body { position: relative; z-index: 2; width: 100%; display: block; }
+      .placeholder-card {
+        aspect-ratio: 244 / 340; border: 1px dashed var(--prism-surface-border-strong); border-radius: 4.5% / 3.3%;
+        display: flex; align-items: center; justify-content: center; font-size: var(--prism-text-s); color: var(--prism-text-subtle);
+      }
+
+      /* Deck list */
+      .section { display: flex; flex-direction: column; gap: 10px; }
+      .section-head {
+        display: flex; align-items: baseline; flex-wrap: wrap; gap: 10px;
+        padding-bottom: 8px; border-bottom: 1px solid var(--prism-surface-border);
+      }
+      .grid { display: grid; grid-template-columns: repeat(var(--cols), minmax(0, 1fr)); gap: 6px; }
+
+      .card {
+        position: relative; aspect-ratio: 244 / 340; border-radius: 4.5% / 3.3%; background: var(--prism-surface-sunken);
+        transition: transform 0.15s var(--ease), box-shadow 0.15s var(--ease);
+      }
+      .grid .card:hover { transform: translateY(-3px); box-shadow: var(--prism-shadow-m); }
+      .card-name {
+        position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; overflow: hidden;
+        padding: 4px; text-align: center; font-size: var(--prism-text-2xs); color: var(--prism-text-subtle);
+      }
+      .card img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; border-radius: 4.5% / 3.3%; display: block; }
+      /* Slot positions follow card-preview.js; the mark itself is drawn ~1.5x (34x7.5 of a 244x340 card)
+         so it reads on this showcase. translateY keeps it centred on the real slot line. */
+      .stripe {
+        position: absolute; width: 13.92%; height: 2.2%; min-height: 4px; border-radius: 2px;
+        transform: translateY(-16.5%); box-shadow: 0 0 3px rgba(1, 1, 1, 0.8);
+      }
+      .qty {
+        position: absolute; top: 13%; left: 6%; font-family: var(--prism-font-mono); font-size: var(--prism-text-2xs);
+        padding: 1px 4px; background: var(--prism-neutral-05); color: var(--prism-text-strong);
+        border: 1px solid var(--prism-surface-border-strong); border-radius: var(--prism-radius-s);
+      }
+
+      /* Swap pile: outgoing cartridge cards sink behind the console (z 3), incoming ones deal out from it. */
+      #pile { position: fixed; inset: 0; pointer-events: none; z-index: 2; }
+    </style>
+  </head>
+  <body>
+    <div class="page">
+      <div class="left">
+        <div class="rack" id="rack"></div>
+
+        <div class="stage">
+          <div class="side">
+            <h1 class="heading"><img class="logo" src="assets/ruka/RukaLogo.svg" alt="Rukarumel64" /></h1>
+            <div class="info-cmd" id="info-cmd"><div class="placeholder-card">Commander</div></div>
+          </div>
+
+          <div class="console">
+            <img class="console-cart" id="console-cart" src="assets/ruka/RukarumelCartridgeMerc.avif" alt="" role="button" tabindex="0" aria-label="Eject cartridge" />
+            <img class="console-body" id="console" src="assets/ruka/PrismBoyColorCrop.avif" alt="PrismBoy console" />
+          </div>
+        </div>
+      </div>
+
+      <main class="right">
+        <section class="section" id="swap-section" hidden>
+          <div class="section-head">
+            <h2 class="heading" style="font-size: var(--prism-text-xl)">Cartridge</h2>
+            <span style="display: flex; align-items: center; gap: 8px; font-size: var(--prism-text-s)">
+              <span class="swatch" id="shown-color"></span><span id="shown-name"></span>
+            </span>
+          </div>
+          <div class="grid" id="swap-grid"></div>
+        </section>
+
+        <section class="section" id="core-section" hidden>
+          <div class="section-head">
+            <h2 class="heading" style="font-size: var(--prism-text-xl)">Core</h2>
+          </div>
+          <div class="grid" id="core-grid"></div>
+        </section>
+      </main>
+    </div>
+
+    <div id="pile" aria-hidden="true"></div>
+
+    <script type="module">
+      const DECK_META = [
+        { match: 'Mercenary', name: 'Mercenaries', img: 'assets/ruka/RukarumelCartridgeMerc.avif' },
+        { match: 'Goblin', name: 'Goblins', img: 'assets/ruka/RukarumelCartridgeGoblin.avif' },
+        { match: 'Elf', name: 'Elves', img: 'assets/ruka/RukarumelCartridgeElf.avif' },
+        { match: 'Artifact', name: 'Artifacts', img: 'assets/ruka/RukarumelCartridgeArtifact.avif' },
+        { match: 'Elemental', name: 'Elementals', img: 'assets/ruka/RukarumelCartridge.avif' },
+      ];
+      const slotLabel = (side, pos) => `Side ${side} · Slot ${pos}`;
+      const CACHE_KEY = 'rk64_scryfall_v1';
+      const EASE = 'cubic-bezier(0.2, 0, 0, 1)';
+      const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+      const lc = (n) => n.toLowerCase().trim();
+      const front = (n) => n.split(' // ')[0];
+      const $ = (id) => document.getElementById(id);
+      const T = (ms) => (matchMedia('(prefers-reduced-motion: reduce)').matches ? 1 : ms);
+      function el(tag, className, props) {
+        return Object.assign(document.createElement(tag), { className: className || '' }, props);
+      }
+
+      // card-preview.js geometry: 244x340 display card, 24 slots/side from y=28, 12px apart
+      function stripeGeom(position, corner) {
+        const c = corner || 'top-right';
+        const sideARight = c.includes('right'), topDown = c.includes('top');
+        const idx = position <= 24 ? position - 1 : position - 25;
+        const y = topDown ? 28 + idx * 12 : 28 + (23 - idx) * 12;
+        const onRight = position <= 24 ? sideARight : !sideARight;
+        return { top: ((y / 340) * 100).toFixed(3) + '%', left: onRight ? 'auto' : '0', right: onRight ? '0' : 'auto' };
+      }
+
+      const st = { inserted: null, swapSlots: [], showList: false, imgs: {} };
+      let data = null;
+      let busy = false;
+      let pending = null;
+      const preloaded = new Map();
+
+      // --- Static chrome: rack -------------------------------------------------
+      const rackBtns = [];
+      DECK_META.forEach((m, i) => {
+        const slot = el('div', 'rack-slot');
+        slot.dataset.cartSlot = i;
+        const btn = el('button', 'rack-cart', { type: 'button', ariaLabel: `Insert ${m.name} cartridge` });
+        btn.append(el('img', '', { src: m.img, alt: '' }));
+        btn.addEventListener('click', () => select(i));
+        slot.append(btn);
+        $('rack').append(slot);
+        rackBtns.push(btn);
+      });
+      $('console-cart').addEventListener('click', () => eject());
+      $('console-cart').addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); eject(); }
+      });
+
+      // --- Rendering -----------------------------------------------------------
+
+      function renderChrome() {
+        const { inserted } = st;
+        if (!data) return;
+        rackBtns.forEach((b, i) => (b.hidden = inserted === i));
+        const deck = inserted != null ? data.decks[inserted] : null;
+        $('console-cart').style.visibility = deck ? 'visible' : 'hidden';
+        if (!deck) return;
+        $('console-cart').src = deck.img;
+      }
+
+      function stripeEl(pos, color, title) {
+        const s = el('span', 'stripe', { title: title || '' });
+        Object.assign(s.style, stripeGeom(pos, data.corner), { background: color });
+        return s;
+      }
+
+      function cardEl(c, id, withB) {
+        const d = el('div', 'card', { title: c.name });
+        d.dataset.card = id;
+        d.dataset.key = c.name + '|' + c.qty;
+        d.append(el('div', 'card-name', { textContent: c.name }));
+        const src = imgOf(c.name);
+        if (src) d.append(el('img', '', { src, alt: c.name }));
+        d.append(stripeEl(data.sideA.pos, data.sideA.color));
+        if (withB) {
+          data.decks
+            .filter((x) => x.swap.some((s) => s.name === c.name))
+            .forEach((x) => d.append(stripeEl(x.pos, x.color, `${x.name} (${slotLabel('B', x.pos)})`)));
+        }
+        if (c.qty > 1) d.append(el('span', 'qty', { textContent: 'x' + c.qty }));
+        return d;
+      }
+
+      // Late Scryfall answers: drop art into cards rendered with just a name.
+      function fillImages() {
+        document.querySelectorAll('[data-card]').forEach((d) => {
+          const src = !d.querySelector('img') && imgOf(d.title);
+          if (src) d.firstChild.after(el('img', '', { src, alt: d.title }));
+        });
+      }
+
+      function showDeckHead(deck) {
+        $('shown-color').style.background = deck.color;
+        $('shown-name').textContent = deck.name;
+      }
+
+      // Returns ids of slots whose element was (re)built.
+      function renderSwapSlots(slots) {
+        const grid = $('swap-grid');
+        const built = [];
+        slots.forEach((c, k) => {
+          const old = grid.querySelector(`[data-card="s${k}"]`);
+          if (old && old.dataset.key === c.name + '|' + c.qty) return;
+          const fresh = cardEl(c, 's' + k, true);
+          if (old) old.replaceWith(fresh);
+          else grid.append(fresh);
+          built.push('s' + k);
+        });
+        [...grid.children].slice(slots.length).forEach((n) => n.remove());
+        return built;
+      }
+
+      function showList() {
+        $('core-grid').replaceChildren(...data.core.map((c, k) => cardEl(c, 'c' + k, false)));
+        $('swap-section').hidden = false;
+        $('core-section').hidden = false;
+      }
+
+      function hideList() {
+        $('swap-grid').replaceChildren();
+        $('core-grid').replaceChildren();
+        $('swap-section').hidden = true;
+        $('core-section').hidden = true;
+      }
+
+      // --- Data ----------------------------------------------------------------
+      async function load() {
+        const res = await fetch('assets/ruka/prism_rukarumel64.json');
+        const { prism } = await res.json();
+        const group = prism.splitGroups[0];
+        const decks = DECK_META.map((m) => {
+          const d = prism.decks.find((x) => x.name.includes(m.match));
+          return { ...m, color: d.color, pos: d.stripePosition, cards: d.cards };
+        });
+        const cmdName = decks[0].cards.find((c) => c.isCommander).name;
+        const sets = decks.map((d) => new Set(d.cards.map((c) => c.name)));
+        const inAll = (c) => sets.every((s) => s.has(c.name));
+        const pick = (c) => ({ name: c.name, qty: c.quantity });
+        const byName = (a, b) => a.name.localeCompare(b.name);
+        const core = decks[0].cards.filter((c) => !c.isCommander && inAll(c)).map(pick).sort(byName);
+        decks.forEach((d) => (d.swap = d.cards.filter((c) => !c.isCommander && !inAll(c)).map(pick).sort(byName)));
+        data = {
+          decks, core, cmdName,
+          corner: prism.preferences && prism.preferences.stripeStartCorner,
+          sideA: { color: group.sideAColor, pos: group.sideAPosition },
+        };
+        $('info-cmd').replaceChildren(cardEl({ name: cmdName, qty: 1 }, 'cmd', false));
+        renderChrome();
+
+        const all = [cmdName, ...core.map((c) => c.name), ...decks.flatMap((d) => d.swap.map((c) => c.name))];
+        st.imgs = await fetchImages([...new Set(all)]);
+        fillImages();
+        // warm the browser cache quietly: commander + core first, then every cartridge
+        preload([cmdName, ...core.map((c) => c.name)].map(imgOf));
+        setTimeout(() => preload(decks.flatMap((d) => d.swap.map((c) => imgOf(c.name)))), 1200);
+      }
+
+      // Scryfall /cards/collection, 75 names per POST, 500ms apart (Scryfall's 2/s limit).
+      async function fetchImages(names) {
+        let cache = {};
+        try { cache = JSON.parse(localStorage.getItem(CACHE_KEY) || '{}'); } catch { /* private mode */ }
+        const need = names.filter((n) => !cache[lc(n)] && !cache[lc(front(n))]);
+        for (let i = 0; i < need.length; i += 75) {
+          if (i) await sleep(500);
+          const chunk = need.slice(i, i + 75);
+          try {
+            const r = await fetch('https://api.scryfall.com/cards/collection', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ identifiers: chunk.map((n) => ({ name: front(n) })) }),
+            });
+            const j = await r.json();
+            for (const c of j.data || []) {
+              const img = c.image_uris?.normal || c.card_faces?.[0]?.image_uris?.normal;
+              if (!img) continue;
+              cache[lc(c.name)] = img;
+              cache[lc(front(c.name))] = img;
+            }
+          } catch (e) {
+            console.warn('Scryfall batch failed', e);
+          }
+        }
+        try { localStorage.setItem(CACHE_KEY, JSON.stringify(cache)); } catch { /* quota */ }
+        return cache;
+      }
+      const imgOf = (name) => st.imgs[lc(name)] || st.imgs[lc(front(name))] || null;
+
+      function preload(urls, timeout) {
+        const ps = urls.filter(Boolean).map((u) => {
+          if (!preloaded.has(u)) {
+            preloaded.set(u, new Promise((res) => {
+              const im = new Image();
+              im.onload = im.onerror = () => res();
+              im.src = u;
+            }));
+          }
+          return preloaded.get(u);
+        });
+        const all = Promise.all(ps);
+        return timeout ? Promise.race([all, sleep(timeout)]) : all;
+      }
+
+      // --- Motion --------------------------------------------------------------
+      const cardEls = (ids) => ids.map((id) => document.querySelector(`[data-card="${id}"]`)).filter(Boolean);
+
+      function animateOut(els) {
+        return Promise.all(els.map((e, i) => e.animate(
+          [{ opacity: 1, transform: 'none' }, { opacity: 0, transform: 'scale(0.9) translateY(6px)' }],
+          { duration: T(130), delay: T(Math.min(i * 6, 90)), easing: 'cubic-bezier(0.4, 0, 1, 1)', fill: 'forwards' },
+        ).finished.catch(() => {})));
+      }
+      function animateIn(els) {
+        els.forEach((e) => e.getAnimations().forEach((a) => a.cancel()));
+        const step = els.length > 30 ? 4 : 14;
+        return Promise.all(els.map((e, i) => e.animate(
+          [{ opacity: 0, transform: 'scale(0.92) translateY(-10px)' }, { opacity: 1, transform: 'none' }],
+          { duration: T(200), delay: T(Math.min(i * step, 320)), easing: EASE, fill: 'backwards' },
+        ).finished.catch(() => {})));
+      }
+
+      // --- Swap: gather outgoing cards into a pile, deal incoming ones out of it ---
+      const PILE_W = 48;
+      const tilt = (i) => ((i * 37) % 17) - 8;
+
+      // Centre of the console: the pile layer (z 2) sits under it (z 3), so the pile is never seen.
+      function pilePoint() {
+        const r = $('console').getBoundingClientRect();
+        return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+      }
+      function toPile(r, p, i) {
+        return `translate(${p.x - r.left - r.width / 2 + ((i % 5) - 2) * 3}px, ${p.y - r.top - r.height / 2}px) scale(${PILE_W / r.width}) rotate(${tilt(i)}deg)`;
+      }
+
+      async function gather(els) {
+        const p = pilePoint();
+        const clones = els.map((e) => {
+          const r = e.getBoundingClientRect();
+          const c = e.cloneNode(true);
+          c.removeAttribute('data-card');
+          Object.assign(c.style, { position: 'fixed', left: r.left + 'px', top: r.top + 'px', width: r.width + 'px' });
+          $('pile').append(c);
+          e.style.visibility = 'hidden';
+          return { c, r };
+        });
+        await Promise.all(clones.map(({ c, r }, i) => c.animate(
+          [{ transform: 'none' }, { transform: toPile(r, p, i) }],
+          { duration: T(420), delay: T(Math.min(i * 30, 600)), easing: 'cubic-bezier(0.4, 0, 0.2, 1)', fill: 'forwards' },
+        ).finished.catch(() => {})));
+        return clones.map(({ c }) => c);
+      }
+
+      async function deal(els, pile) {
+        const p = pilePoint();
+        pile.forEach((c, i) => c.animate([{ opacity: 1 }, { opacity: 0 }], { duration: T(200), delay: T(Math.min(i * 30, 600)), fill: 'forwards' }));
+        await Promise.all(els.map((e, i) => e.animate(
+          [{ transform: toPile(e.getBoundingClientRect(), p, i + 3), zIndex: 2 }, { transform: 'none', zIndex: 2 }],
+          { duration: T(460), delay: T(Math.min(i * 30, 600)), easing: EASE, fill: 'backwards' },
+        ).finished.catch(() => {})));
+        pile.forEach((c) => c.remove());
+      }
+
+      // Cards in both cartridges never left the deck box: ring them so the eye catches it.
+      function flash(els) {
+        els.forEach((e) => e.animate(
+          [{ boxShadow: '0 0 0 3px #cec2f2' }, { boxShadow: '0 0 0 3px #cec2f2', offset: 0.6 }, { boxShadow: '0 0 0 3px rgba(206, 194, 242, 0)' }],
+          { duration: T(1600), easing: 'ease-out' },
+        ));
+      }
+
+      function flightDelta(i) {
+        const a = document.querySelector(`[data-cart-slot="${i}"]`).getBoundingClientRect();
+        const b = $('console-cart').getBoundingClientRect();
+        return { dx: a.left - b.left, dy: a.top - b.top, s: a.width / b.width, lift: b.height * 0.45 };
+      }
+
+      function insertCart(i) {
+        st.inserted = i;
+        renderChrome();
+        const { dx, dy, s, lift } = flightDelta(i);
+        const dur = T(300);
+        const anim = $('console-cart').animate([
+          { transform: `translate(${dx}px, ${dy}px) scale(${s})`, easing: EASE },
+          { transform: `translate(0px, ${-lift}px) scale(1)`, offset: 0.55, easing: 'cubic-bezier(0.5, 0, 0.9, 0.4)' },
+          { transform: 'translate(0px, 0px) scale(1)' },
+        ], { duration: dur });
+        anim.finished.then(() => {
+          $('console').animate([{ transform: 'none' }, { transform: 'translateY(3px)' }, { transform: 'none' }], { duration: T(110), easing: EASE });
+        }).catch(() => {});
+        return dur;
+      }
+
+      async function ejectCart(i) {
+        const { dx, dy, s, lift } = flightDelta(i);
+        const anim = $('console-cart').animate([
+          { transform: 'translate(0px, 0px) scale(1)', easing: EASE },
+          { transform: `translate(0px, ${-lift}px) scale(1)`, offset: 0.4, easing: EASE },
+          { transform: `translate(${dx}px, ${dy}px) scale(${s})` },
+        ], { duration: T(230), fill: 'forwards' });
+        await anim.finished.catch(() => {});
+        st.inserted = null;
+        renderChrome();
+        anim.cancel();
+      }
+
+      // Keep cards that both cartridges share in their grid slot; fill freed slots with new ones.
+      function nextSlots(prevSlots, incoming) {
+        const want = new Map(incoming.map((c) => [c.name, c]));
+        const slots = prevSlots.map((c) => (want.has(c.name) ? want.get(c.name) : null));
+        const kept = new Set(slots.filter(Boolean).map((c) => c.name));
+        const fresh = incoming.filter((c) => !kept.has(c.name));
+        slots.forEach((c, k) => { if (!c && fresh.length) slots[k] = fresh.shift(); });
+        slots.push(...fresh);
+        return slots.filter(Boolean);
+      }
+
+      // --- Actions -------------------------------------------------------------
+      async function select(i) {
+        if (!data) return;
+        if (busy) { pending = i; return; }
+        const prev = st.inserted;
+        if (prev === i) return eject();
+        busy = true;
+        const deck = data.decks[i];
+        const first = !st.showList;
+        const prevSlots = st.swapSlots;
+        const slots = first ? deck.swap.slice() : nextSlots(prevSlots, deck.swap);
+        const removed = first ? [] : prevSlots.map((_, k) => k).filter((k) => !slots[k] || slots[k].name !== prevSlots[k].name);
+        const needImgs = (first ? [data.cmdName, ...data.core.map((c) => c.name)] : []).concat(slots.map((c) => c.name));
+        const ready = preload(needImgs.map(imgOf), 1500);
+
+        const pile = await gather(cardEls(removed.map((k) => 's' + k)));
+        if (prev != null) await ejectCart(prev);
+        const dur = insertCart(i);
+        await Promise.all([ready, sleep(dur * 0.6)]);
+
+        st.swapSlots = slots;
+        st.showList = true;
+        showDeckHead(deck);
+        if (first) showList();
+        const built = renderSwapSlots(slots);
+        if (first) {
+          await animateIn(cardEls([...built, ...data.core.map((_, k) => 'c' + k)]));
+        } else {
+          await deal(cardEls(built), pile);
+          flash(cardEls(slots.map((_, k) => 's' + k).filter((id) => !built.includes(id))));
+        }
+        done();
+      }
+
+      async function eject() {
+        if (busy || st.inserted == null) return;
+        busy = true;
+        const els = cardEls([...st.swapSlots.map((_, k) => 's' + k), ...data.core.map((_, k) => 'c' + k)]);
+        await Promise.all([animateOut(els), ejectCart(st.inserted)]);
+        st.swapSlots = [];
+        st.showList = false;
+        hideList();
+        done();
+      }
+
+      function done() {
+        busy = false;
+        if (pending != null) {
+          const p = pending;
+          pending = null;
+          if (p !== st.inserted) select(p);
+        }
+      }
+
+      load().catch((e) => {
+        console.error('Rukarumel64 load failed', e);
+        $('info-cmd').firstChild.textContent = 'Couldn’t load. Refresh.';
+      });
+    </script>
+  </body>
+</html>
