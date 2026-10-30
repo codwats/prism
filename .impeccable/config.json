@@ -17,6 +17,18 @@
         ],
         "createdAt": "2026-10-27T03:02:43.497Z",
         "reason": "agent: #swap-incoming-image src is set at runtime by js/swap-planner.js"
+      },
+      {
+        "rule": "design-system-radius",
+        "value": "2px",
+        "createdAt": "2026-10-30T19:24:18.775Z",
+        "reason": "User confirmed 2px is intentional: paint-stripe swatches on rukarumel64.html"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "rgba(1, 1, 1, 0.8)",
+        "createdAt": "2026-10-30T19:24:18.889Z",
+        "reason": "User confirmed rgba(1, 1, 1, 0.8) is intentional: stripe-mark shadow on rukarumel64.html"
       }
     ]
   }
