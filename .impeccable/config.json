@@ -17,6 +17,15 @@
         ],
         "createdAt": "2026-10-27T03:02:43.497Z",
         "reason": "agent: #swap-incoming-image src is set at runtime by js/swap-planner.js"
+      },
+      {
+        "rule": "hero-eyebrow-chip",
+        "value": "*",
+        "files": [
+          "rukarumel64.html"
+        ],
+        "createdAt": "2026-10-30T02:55:31.553Z",
+        "reason": "agent: eyebrow 'PRISM use case · variant deck' is copied verbatim from the user's Claude Design file rukarumel64.dc.html"
       }
     ]
   }

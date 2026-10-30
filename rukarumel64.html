@@ -1,0 +1,685 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Rukarumel64 · PRISM</title>
+    <meta
+      name="description"
+      content="One commander, five cartridges: how PRISM marks a 77-card core and five 23-card swap packages for Rukarumel, Biologist."
+    />
+
+    <!--
+      USE-CASE PAGE: the Rukarumel64 variant deck (split group, 5 stripe variants).
+      Standalone like links.html: no js/layout.js, no nav, own inlined tokens.
+      Implemented from the Claude Design file rukarumel64.dc.html. Data is the
+      exported PRISM in assets/ruka/prism_rukarumel64.json; card art from Scryfall.
+    -->
+
+    <link rel="canonical" href="https://prismmtg.com/rukarumel64.html" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="PRISM" />
+    <meta property="og:title" content="Rukarumel64 · PRISM" />
+    <meta
+      property="og:description"
+      content="One commander, five cartridges: how PRISM marks a 77-card core and five 23-card swap packages for Rukarumel, Biologist."
+    />
+    <meta property="og:url" content="https://prismmtg.com/rukarumel64.html" />
+    <meta property="og:image" content="https://prismmtg.com/assets/og-card.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="The PRISM wordmark under the tagline “One Card. Every Deck.”, above five colored stripes" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Rukarumel64 · PRISM" />
+    <meta
+      name="twitter:description"
+      content="One commander, five cartridges: how PRISM marks a 77-card core and five 23-card swap packages for Rukarumel, Biologist."
+    />
+    <meta name="twitter:image" content="https://prismmtg.com/assets/og-card.png" />
+
+    <link rel="icon" type="image/svg+xml" href="./assets/Prism-Small-Icon-Invert.svg" />
+    <link rel="apple-touch-icon" href="./assets/apple-touch-icon.png" />
+    <meta name="theme-color" content="#121218" />
+
+    <link rel="preconnect" href="https://use.typekit.net" crossorigin />
+    <link rel="preconnect" href="https://api.scryfall.com" crossorigin />
+    <link rel="stylesheet" href="https://use.typekit.net/gbw6ibc.css" />
+
+    <!-- WA loader for <wa-icon> only; theme stylesheets deliberately not loaded (see links.html). -->
+    <script
+      type="module"
+      src="https://ka-p.webawesome.com/kit/da021fed1e5141f2/webawesome@3.14.0/webawesome.loader.js"
+    ></script>
+
+    <style>
+      /* Dark-mode values of the PRISM design-system tokens; only what this page uses. */
+      :root {
+        color-scheme: dark;
+
+        --prism-brand-80: #cec2f2;
+        --prism-brand-90: #eadeff;
+        --prism-neutral-05: #121218;
+
+        --prism-surface-page: #121218;
+        --prism-surface-card: #1e1e25;
+        --prism-surface-sunken: #34353c;
+        --prism-surface-border: #34353c;
+        --prism-surface-border-strong: #47474f;
+        --prism-text-strong: #f2f2fc;
+        --prism-text-body: #e5e5ef;
+        --prism-text-subtle: #9797a0;
+
+        --prism-font-sans: "halyard-micro", system-ui, -apple-system, sans-serif;
+        --prism-font-heading: "adobe-aldine", Georgia, "Times New Roman", serif;
+        --prism-font-mono: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+
+        --prism-text-2xs: 0.6875rem;
+        --prism-text-xs: 0.75rem;
+        --prism-text-s: 0.8125rem;
+        --prism-text-m: 0.9375rem;
+        --prism-text-l: 1.0625rem;
+        --prism-text-xl: 1.375rem;
+        --prism-text-2xl: 1.75rem;
+        --prism-text-4xl: 3rem;
+        --prism-leading-tight: 1.12;
+        --prism-leading-snug: 1.3;
+        --prism-leading-normal: 1.5;
+        --prism-tracking-caps: 0.08em;
+
+        --prism-radius-s: 0.1875rem;
+        --prism-radius-m: 0.25rem;
+        --prism-radius-l: 0.375rem;
+        --prism-shadow-m: 0 2px 8px rgba(0, 0, 0, 0.5);
+        --prism-focus-ring: 0 0 0 3px var(--prism-brand-80);
+        --ease: cubic-bezier(0.2, 0, 0, 1);
+
+        --gutter: 32px;
+        --cw: clamp(150px, 12.5vw, 210px); /* console width */
+        --rw: clamp(64px, 6.4vw, 96px); /* cartridge rack width */
+        --card-w: 150px;
+      }
+      @media (max-width: 600px) {
+        :root { --gutter: 16px; }
+      }
+
+      *, *::before, *::after { box-sizing: border-box; }
+      html, body { margin: 0; background: var(--prism-surface-page); }
+      body {
+        min-height: 100vh;
+        color: var(--prism-text-body);
+        font-family: var(--prism-font-sans);
+        -webkit-font-smoothing: antialiased;
+      }
+      a { color: var(--prism-brand-80); }
+      a:hover { color: var(--prism-brand-90); }
+      :where(a, button):focus-visible { outline: none; box-shadow: var(--prism-focus-ring); }
+      [hidden] { display: none !important; }
+
+      .wrap { max-width: 1280px; margin: 0 auto; padding-left: var(--gutter); padding-right: var(--gutter); }
+      .heading { margin: 0; font-family: var(--prism-font-heading); font-weight: 600; color: var(--prism-text-strong); }
+      .eyebrow { font-size: var(--prism-text-xs); letter-spacing: var(--prism-tracking-caps); text-transform: uppercase; color: var(--prism-text-subtle); }
+      .mono { font-family: var(--prism-font-mono); color: var(--prism-text-subtle); }
+      .subtle { color: var(--prism-text-subtle); }
+      .swatch { flex: none; width: 12px; height: 12px; border-radius: var(--prism-radius-s); transition: background-color 0.2s; }
+
+      .btn {
+        display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 12px;
+        font: inherit; font-size: var(--prism-text-s); text-decoration: none; cursor: pointer;
+        border-radius: var(--prism-radius-m); border: 1px solid var(--prism-surface-border-strong);
+        background: none; color: var(--prism-text-strong); transition: background-color 0.15s var(--ease);
+      }
+      .btn:hover { background: var(--prism-surface-sunken); color: var(--prism-text-strong); }
+      .btn-plain { border-color: transparent; color: var(--prism-brand-80); }
+      .btn-plain:hover { color: var(--prism-brand-90); }
+      .btn wa-icon { width: 1em; height: 1em; font-size: 0.9em; }
+
+      /* Dock: slides in once the hero scrolls away. */
+      .dock {
+        position: fixed; top: 0; left: 0; right: 0; z-index: 50;
+        background: var(--prism-surface-card); border-bottom: 1px solid var(--prism-surface-border);
+        transform: translateY(-110%); transition: transform 0.18s var(--ease);
+      }
+      .dock.is-docked { transform: none; }
+      .dock .wrap { padding-top: 8px; padding-bottom: 8px; display: flex; align-items: center; gap: 24px; flex-wrap: wrap; }
+      .dock-carts { flex: 1; display: flex; justify-content: center; gap: 12px; }
+      .dock-cart {
+        background: none; border: 0; padding: 0 0 4px; cursor: pointer; display: flex; flex-direction: column;
+        align-items: center; gap: 4px; border-radius: var(--prism-radius-s); transition: transform 0.12s var(--ease);
+      }
+      .dock-cart:hover { transform: translateY(-2px); }
+      .dock-cart img { height: 44px; display: block; }
+      .dock-cart span { width: 20px; height: 3px; border-radius: 2px; }
+      .dock-deck { display: flex; align-items: center; gap: 12px; font-size: var(--prism-text-m); color: var(--prism-text-strong); }
+
+      /* Hero */
+      .hero { padding-top: 48px; padding-bottom: 64px; }
+      .rack { display: flex; justify-content: center; flex-wrap: wrap; gap: 24px; }
+      .rack-item { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+      .rack-slot { width: var(--rw); aspect-ratio: 515 / 718; position: relative; }
+      .rack-cart {
+        position: absolute; inset: 0; background: none; border: 0; padding: 0; cursor: pointer;
+        border-radius: var(--prism-radius-m); transition: transform 0.12s var(--ease);
+      }
+      .rack-cart:hover { transform: translateY(-5px); }
+      .rack-cart:active { transform: translateY(-2px) scale(0.99); }
+      .rack-cart img { width: 100%; height: 100%; display: block; }
+      .rack-label { display: flex; align-items: center; gap: 6px; font-size: var(--prism-text-2xs); }
+      .rack-label span:first-child { width: 16px; height: 4px; border-radius: 2px; }
+
+      .stage {
+        display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 48px 56px;
+        padding-top: calc(var(--cw) * 0.2881 + 40px);
+      }
+      .copy { flex: 1 1 300px; max-width: 440px; display: flex; flex-direction: column; gap: 12px; }
+      .copy p { margin: 0; font-size: var(--prism-text-m); line-height: var(--prism-leading-normal); text-wrap: pretty; }
+      .console { flex: none; width: var(--cw); position: relative; z-index: 3; }
+      .console-cart {
+        position: absolute; left: 19%; width: 62%; top: calc(var(--cw) * -0.2881); z-index: 1;
+        transform-origin: 0 0; display: block; visibility: hidden;
+      }
+      .console-body { position: relative; z-index: 2; width: 100%; display: block; }
+      .info { flex: 1 1 300px; max-width: 440px; display: flex; align-items: center; gap: 20px; }
+      .info-cmd { flex: none; width: 150px; }
+      .info-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 10px; }
+      .placeholder-card {
+        aspect-ratio: 244 / 340; border: 1px dashed var(--prism-surface-border-strong); border-radius: 4.5% / 3.3%;
+        display: flex; align-items: center; justify-content: center; font-size: var(--prism-text-xs); color: var(--prism-text-subtle);
+      }
+
+      /* Deck list */
+      main.wrap { padding-bottom: 96px; display: flex; flex-direction: column; gap: 48px; }
+      .empty {
+        border: 1px dashed var(--prism-surface-border); border-radius: var(--prism-radius-l); min-height: 220px;
+        display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; text-align: center; padding: 32px;
+      }
+      .section { display: flex; flex-direction: column; gap: 16px; }
+      .section-head {
+        display: flex; align-items: baseline; flex-wrap: wrap; gap: 12px;
+        padding-bottom: 12px; border-bottom: 1px solid var(--prism-surface-border);
+      }
+      .section-head .mono { margin-left: auto; font-size: var(--prism-text-s); }
+      .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(var(--card-w), 1fr)); gap: 12px; }
+
+      .card {
+        position: relative; aspect-ratio: 244 / 340; border-radius: 4.5% / 3.3%; background: var(--prism-surface-sunken);
+        transition: transform 0.15s var(--ease), box-shadow 0.15s var(--ease);
+      }
+      .grid .card:hover { transform: translateY(-3px); box-shadow: var(--prism-shadow-m); }
+      .card-name {
+        position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+        padding: 8px; text-align: center; font-size: var(--prism-text-xs); color: var(--prism-text-subtle);
+      }
+      .card img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; border-radius: 4.5% / 3.3%; display: block; }
+      /* card-preview.js geometry: stripe 24px of a 244px card, 5px of 340px */
+      .stripe {
+        position: absolute; width: 9.84%; height: 1.47%; min-height: 3px; border-radius: 2px;
+        box-shadow: 0 0 3px rgba(1, 1, 1, 0.8);
+      }
+      .qty {
+        position: absolute; top: 13%; left: 6%; font-family: var(--prism-font-mono); font-size: var(--prism-text-xs);
+        padding: 2px 6px; background: var(--prism-neutral-05); color: var(--prism-text-strong);
+        border: 1px solid var(--prism-surface-border-strong); border-radius: var(--prism-radius-s);
+      }
+
+      footer { border-top: 1px solid var(--prism-surface-border); }
+      footer .wrap { padding-top: 24px; padding-bottom: 24px; display: flex; align-items: center; flex-wrap: wrap; gap: 16px; }
+    </style>
+  </head>
+  <body>
+    <div class="dock" id="dock">
+      <div class="wrap">
+        <span class="heading" style="font-size: var(--prism-text-xl)">Rukarumel64</span>
+        <div class="dock-carts" id="dock-carts"></div>
+        <div class="dock-deck" id="dock-deck" hidden>
+          <span class="swatch" data-deck-color></span>
+          <span data-deck-name></span>
+          <button type="button" class="btn" data-eject><wa-icon name="eject"></wa-icon>Eject</button>
+        </div>
+      </div>
+    </div>
+
+    <header class="wrap hero" id="hero">
+      <div class="rack" id="rack"></div>
+
+      <div class="stage">
+        <div class="copy">
+          <span class="eyebrow">PRISM use case · variant deck</span>
+          <h1 class="heading" style="font-size: var(--prism-text-4xl); line-height: var(--prism-leading-tight)">Rukarumel64</h1>
+          <p class="heading" style="font-size: var(--prism-text-xl); line-height: var(--prism-leading-snug)">One commander. Five cartridges.</p>
+          <p>Rukarumel, Biologist runs five ways. 77 cards stay sleeved as the console. Each cartridge is a 23-card package that turns it into a different deck.</p>
+          <p>Every card carries the yellow Side A stripe. Cartridge cards add a Side B stripe in their own color, so a swap is fan, pull, play.</p>
+        </div>
+
+        <div class="console">
+          <img class="console-cart" id="console-cart" src="assets/ruka/RukarumelCartridgeMerc.avif" alt="" />
+          <img class="console-body" id="console" src="assets/ruka/PrismBoyColorCrop.avif" alt="PrismBoy console" />
+        </div>
+
+        <div class="info">
+          <div class="info-cmd" id="info-cmd"><div class="placeholder-card">Commander</div></div>
+          <div class="info-text">
+            <div id="info-idle" style="display: flex; flex-direction: column; gap: 10px">
+              <span class="heading" style="font-size: var(--prism-text-l)">No cartridge</span>
+              <span class="subtle" id="idle-hint" style="font-size: var(--prism-text-s); line-height: var(--prism-leading-normal); text-wrap: pretty">Loading decklists…</span>
+            </div>
+            <div id="info-deck" hidden style="display: flex; flex-direction: column; gap: 10px">
+              <span class="eyebrow">Inserted</span>
+              <div style="display: flex; align-items: center; gap: 10px">
+                <span class="swatch" style="width: 14px; height: 14px" data-deck-color></span>
+                <span class="heading" style="font-size: var(--prism-text-xl); line-height: var(--prism-leading-snug)" data-deck-name></span>
+              </div>
+              <span class="mono" style="font-size: var(--prism-text-xs)" id="deck-meta"></span>
+              <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px">
+                <button type="button" class="btn" data-eject><wa-icon name="eject"></wa-icon>Eject</button>
+                <a class="btn btn-plain" id="deck-url" target="_blank" rel="noopener" hidden>Moxfield<wa-icon name="arrow-up-right-from-square"></wa-icon></a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <main class="wrap" id="main">
+      <div class="empty" id="empty">
+        <span class="heading" style="font-size: var(--prism-text-l)">The list loads when you insert a cartridge</span>
+        <span class="subtle" style="font-size: var(--prism-text-s)">100 cards: 77 core, 23 from the cartridge.</span>
+      </div>
+
+      <section class="section" id="swap-section" hidden>
+        <div class="section-head">
+          <h2 class="heading" style="font-size: var(--prism-text-2xl)">Cartridge</h2>
+          <span style="display: flex; align-items: center; gap: 8px; font-size: var(--prism-text-m)">
+            <span class="swatch" id="shown-color"></span><span id="shown-name"></span>
+          </span>
+          <span class="mono" id="shown-meta"></span>
+        </div>
+        <div class="grid" id="swap-grid"></div>
+      </section>
+
+      <section class="section" id="core-section" hidden>
+        <div class="section-head">
+          <h2 class="heading" style="font-size: var(--prism-text-2xl)">Core</h2>
+          <span class="subtle" style="font-size: var(--prism-text-m)">In every cartridge. Never leaves the deck box.</span>
+          <span class="mono" id="core-meta"></span>
+        </div>
+        <div class="grid" id="core-grid"></div>
+      </section>
+    </main>
+
+    <footer>
+      <div class="wrap">
+        <a href="https://prismmtg.com" style="display: flex"><img src="assets/Prism-Logo-Invert.svg" alt="PRISM" style="height: 22px; display: block" /></a>
+        <span class="subtle" style="font-size: var(--prism-text-s)">One card. Every deck.™</span>
+        <span class="subtle" style="margin-left: auto; font-size: var(--prism-text-xs)">Card images from Scryfall.</span>
+      </div>
+    </footer>
+
+    <script type="module">
+      const DECK_META = [
+        { match: 'Mercenary', img: 'assets/ruka/RukarumelCartridgeMerc.avif', label: 'Mercenaries' },
+        { match: 'Goblin', img: 'assets/ruka/RukarumelCartridgeGoblin.avif', label: 'Goblins' },
+        { match: 'Elf', img: 'assets/ruka/RukarumelCartridgeElf.avif', label: 'Elves' },
+        { match: 'Artifact', img: 'assets/ruka/RukarumelCartridgeArtifact.avif', label: 'Artifacts' },
+        { match: 'Elemental', img: 'assets/ruka/RukarumelCartridge.avif', label: 'Elementals' },
+      ];
+      const CACHE_KEY = 'rk64_scryfall_v1';
+      const EASE = 'cubic-bezier(0.2, 0, 0, 1)';
+      const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+      const lc = (n) => n.toLowerCase().trim();
+      const front = (n) => n.split(' // ')[0];
+      const $ = (id) => document.getElementById(id);
+      const T = (ms) => (matchMedia('(prefers-reduced-motion: reduce)').matches ? 1 : ms);
+      function el(tag, className, props) {
+        return Object.assign(document.createElement(tag), { className: className || '' }, props);
+      }
+
+      // card-preview.js geometry: 244x340 display card, 24 slots/side from y=28, 12px apart
+      function stripeGeom(position, corner) {
+        const c = corner || 'top-right';
+        const sideARight = c.includes('right'), topDown = c.includes('top');
+        const idx = position <= 24 ? position - 1 : position - 25;
+        const y = topDown ? 28 + idx * 12 : 28 + (23 - idx) * 12;
+        const onRight = position <= 24 ? sideARight : !sideARight;
+        return { top: ((y / 340) * 100).toFixed(3) + '%', left: onRight ? 'auto' : '0', right: onRight ? '0' : 'auto' };
+      }
+
+      const st = { inserted: null, swapSlots: [], showList: false, imgs: {} };
+      let data = null;
+      let busy = false;
+      let pending = null;
+      const preloaded = new Map();
+
+      // --- Static chrome: rack + dock buttons ----------------------------------
+      const rackBtns = [], dockBtns = [], rackLabels = [];
+      DECK_META.forEach((m, i) => {
+        const item = el('div', 'rack-item');
+        const slot = el('div', 'rack-slot');
+        slot.dataset.cartSlot = i;
+        const btn = el('button', 'rack-cart', { type: 'button', ariaLabel: m.label });
+        btn.append(el('img', '', { src: m.img, alt: '' }));
+        btn.addEventListener('click', () => select(i));
+        slot.append(btn);
+        const label = el('div', 'rack-label');
+        label.append(el('span'), el('span', 'mono'));
+        item.append(slot, label);
+        $('rack').append(item);
+        rackBtns.push(btn);
+        rackLabels.push(label);
+
+        const d = el('button', 'dock-cart', { type: 'button', ariaLabel: m.label });
+        d.append(el('img', '', { src: m.img, alt: '' }), el('span'));
+        d.addEventListener('click', () => select(i));
+        $('dock-carts').append(d);
+        dockBtns.push(d);
+      });
+      document.querySelectorAll('[data-eject]').forEach((b) => b.addEventListener('click', () => eject()));
+
+      // --- Rendering -----------------------------------------------------------
+      const swapCount = (d) => d.swap.reduce((s, c) => s + c.qty, 0);
+
+      function renderChrome() {
+        const { inserted } = st;
+        if (!data) return;
+        data.decks.forEach((d, i) => {
+          const isIn = inserted === i;
+          const aria = `${isIn ? 'Eject' : 'Insert'} ${d.label} cartridge`;
+          rackBtns[i].hidden = isIn;
+          rackBtns[i].ariaLabel = aria;
+          rackLabels[i].children[0].style.background = d.color;
+          rackLabels[i].children[1].textContent = 'B' + d.pos;
+          dockBtns[i].ariaLabel = aria;
+          dockBtns[i].firstChild.style.opacity = inserted == null || isIn ? 1 : 0.6;
+          dockBtns[i].lastChild.style.background = isIn ? d.color : 'transparent';
+        });
+        const deck = inserted != null ? data.decks[inserted] : null;
+        $('console-cart').style.visibility = deck ? 'visible' : 'hidden';
+        if (deck) $('console-cart').src = deck.img;
+        $('dock-deck').hidden = !deck;
+        $('info-deck').hidden = !deck;
+        $('info-idle').hidden = !!deck;
+        if (!deck) return;
+        document.querySelectorAll('[data-deck-color]').forEach((s) => (s.style.background = deck.color));
+        document.querySelectorAll('[data-deck-name]').forEach((s) => (s.textContent = deck.name));
+        $('deck-meta').textContent = `Side B · slot ${deck.pos} · ${swapCount(deck)} cards`;
+        $('deck-url').hidden = !deck.url;
+        if (deck.url) $('deck-url').href = deck.url;
+      }
+
+      function stripeEl(pos, color, title) {
+        const s = el('span', 'stripe', { title: title || '' });
+        Object.assign(s.style, stripeGeom(pos, data.corner), { background: color });
+        return s;
+      }
+
+      function cardEl(c, id, withB) {
+        const d = el('div', 'card', { title: c.name });
+        d.dataset.card = id;
+        d.dataset.key = c.name + '|' + c.qty;
+        d.append(el('div', 'card-name', { textContent: c.name }));
+        const src = imgOf(c.name);
+        if (src) d.append(el('img', '', { src, alt: c.name }));
+        d.append(stripeEl(data.sideA.pos, data.sideA.color));
+        if (withB) {
+          data.decks
+            .filter((x) => x.swap.some((s) => s.name === c.name))
+            .forEach((x) => d.append(stripeEl(x.pos, x.color, `${x.name} (Side B · Slot ${x.pos})`)));
+        }
+        if (c.qty > 1) d.append(el('span', 'qty', { textContent: 'x' + c.qty }));
+        return d;
+      }
+
+      // Late Scryfall answers: drop art into cards rendered with just a name.
+      function fillImages() {
+        document.querySelectorAll('[data-card]').forEach((d) => {
+          const src = !d.querySelector('img') && imgOf(d.title);
+          if (src) d.firstChild.after(el('img', '', { src, alt: d.title }));
+        });
+      }
+
+      function showDeckHead(deck) {
+        $('shown-color').style.background = deck.color;
+        $('shown-name').textContent = deck.name;
+        $('shown-meta').textContent = `${swapCount(deck)} cards · Side A + B${deck.pos}`;
+      }
+
+      // Returns ids of slots whose element was (re)built.
+      function renderSwapSlots(slots) {
+        const grid = $('swap-grid');
+        const built = [];
+        slots.forEach((c, k) => {
+          const old = grid.querySelector(`[data-card="s${k}"]`);
+          if (old && old.dataset.key === c.name + '|' + c.qty) return;
+          const fresh = cardEl(c, 's' + k, true);
+          if (old) old.replaceWith(fresh);
+          else grid.append(fresh);
+          built.push('s' + k);
+        });
+        [...grid.children].slice(slots.length).forEach((n) => n.remove());
+        return built;
+      }
+
+      function showList() {
+        const cmd = $('info-cmd');
+        cmd.replaceChildren(cardEl({ name: data.cmdName, qty: 1 }, 'cmd', false));
+        $('core-grid').replaceChildren(...data.core.map((c, k) => cardEl(c, 'c' + k, false)));
+        $('core-meta').textContent = `${data.core.reduce((s, c) => s + c.qty, 0)} cards + commander · Side A${data.sideA.pos}`;
+        $('empty').hidden = true;
+        $('swap-section').hidden = false;
+        $('core-section').hidden = false;
+      }
+
+      function hideList() {
+        $('info-cmd').replaceChildren(el('div', 'placeholder-card', { textContent: 'Commander' }));
+        $('swap-grid').replaceChildren();
+        $('core-grid').replaceChildren();
+        $('empty').hidden = false;
+        $('swap-section').hidden = true;
+        $('core-section').hidden = true;
+      }
+
+      // --- Data ----------------------------------------------------------------
+      async function load() {
+        const res = await fetch('assets/ruka/prism_rukarumel64.json');
+        const { prism } = await res.json();
+        const group = prism.splitGroups[0];
+        const decks = DECK_META.map((m) => {
+          const d = prism.decks.find((x) => x.name.includes(m.match));
+          return { ...m, name: d.name, color: d.color, pos: d.stripePosition, url: d.sourceUrl || null, cards: d.cards };
+        });
+        const cmdName = decks[0].cards.find((c) => c.isCommander).name;
+        const sets = decks.map((d) => new Set(d.cards.map((c) => c.name)));
+        const inAll = (c) => sets.every((s) => s.has(c.name));
+        const pick = (c) => ({ name: c.name, qty: c.quantity });
+        const byName = (a, b) => a.name.localeCompare(b.name);
+        const core = decks[0].cards.filter((c) => !c.isCommander && inAll(c)).map(pick).sort(byName);
+        decks.forEach((d) => (d.swap = d.cards.filter((c) => !c.isCommander && !inAll(c)).map(pick).sort(byName)));
+        data = {
+          decks, core, cmdName,
+          corner: prism.preferences && prism.preferences.stripeStartCorner,
+          sideA: { color: group.sideAColor, pos: group.sideAPosition },
+        };
+        $('idle-hint').textContent = 'Pick a cartridge above. Click it again, or Eject, to pull it out.';
+        renderChrome();
+
+        const all = [cmdName, ...core.map((c) => c.name), ...decks.flatMap((d) => d.swap.map((c) => c.name))];
+        st.imgs = await fetchImages([...new Set(all)]);
+        fillImages();
+        // warm the browser cache quietly: commander + core first, then every cartridge
+        preload([cmdName, ...core.map((c) => c.name)].map(imgOf));
+        setTimeout(() => preload(decks.flatMap((d) => d.swap.map((c) => imgOf(c.name)))), 1200);
+      }
+
+      // Scryfall /cards/collection, 75 names per POST, 500ms apart (Scryfall's 2/s limit).
+      async function fetchImages(names) {
+        let cache = {};
+        try { cache = JSON.parse(localStorage.getItem(CACHE_KEY) || '{}'); } catch { /* private mode */ }
+        const need = names.filter((n) => !cache[lc(n)] && !cache[lc(front(n))]);
+        for (let i = 0; i < need.length; i += 75) {
+          if (i) await sleep(500);
+          const chunk = need.slice(i, i + 75);
+          try {
+            const r = await fetch('https://api.scryfall.com/cards/collection', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ identifiers: chunk.map((n) => ({ name: front(n) })) }),
+            });
+            const j = await r.json();
+            for (const c of j.data || []) {
+              const img = c.image_uris?.normal || c.card_faces?.[0]?.image_uris?.normal;
+              if (!img) continue;
+              cache[lc(c.name)] = img;
+              cache[lc(front(c.name))] = img;
+            }
+          } catch (e) {
+            console.warn('Scryfall batch failed', e);
+          }
+        }
+        try { localStorage.setItem(CACHE_KEY, JSON.stringify(cache)); } catch { /* quota */ }
+        return cache;
+      }
+      const imgOf = (name) => st.imgs[lc(name)] || st.imgs[lc(front(name))] || null;
+
+      function preload(urls, timeout) {
+        const ps = urls.filter(Boolean).map((u) => {
+          if (!preloaded.has(u)) {
+            preloaded.set(u, new Promise((res) => {
+              const im = new Image();
+              im.onload = im.onerror = () => res();
+              im.src = u;
+            }));
+          }
+          return preloaded.get(u);
+        });
+        const all = Promise.all(ps);
+        return timeout ? Promise.race([all, sleep(timeout)]) : all;
+      }
+
+      // --- Motion --------------------------------------------------------------
+      const cardEls = (ids) => ids.map((id) => document.querySelector(`[data-card="${id}"]`)).filter(Boolean);
+
+      function animateOut(els) {
+        return Promise.all(els.map((e, i) => e.animate(
+          [{ opacity: 1, transform: 'none' }, { opacity: 0, transform: 'scale(0.9) translateY(6px)' }],
+          { duration: T(130), delay: T(Math.min(i * 6, 90)), easing: 'cubic-bezier(0.4, 0, 1, 1)', fill: 'forwards' },
+        ).finished.catch(() => {})));
+      }
+      function animateIn(els) {
+        els.forEach((e) => e.getAnimations().forEach((a) => a.cancel()));
+        const step = els.length > 30 ? 4 : 14;
+        return Promise.all(els.map((e, i) => e.animate(
+          [{ opacity: 0, transform: 'scale(0.92) translateY(-10px)' }, { opacity: 1, transform: 'none' }],
+          { duration: T(200), delay: T(Math.min(i * step, 320)), easing: EASE, fill: 'backwards' },
+        ).finished.catch(() => {})));
+      }
+
+      function flightDelta(i) {
+        const a = document.querySelector(`[data-cart-slot="${i}"]`).getBoundingClientRect();
+        const b = $('console-cart').getBoundingClientRect();
+        return { dx: a.left - b.left, dy: a.top - b.top, s: a.width / b.width, lift: b.height * 0.45 };
+      }
+
+      function insertCart(i) {
+        st.inserted = i;
+        renderChrome();
+        const { dx, dy, s, lift } = flightDelta(i);
+        const dur = T(300);
+        const anim = $('console-cart').animate([
+          { transform: `translate(${dx}px, ${dy}px) scale(${s})`, easing: EASE },
+          { transform: `translate(0px, ${-lift}px) scale(1)`, offset: 0.55, easing: 'cubic-bezier(0.5, 0, 0.9, 0.4)' },
+          { transform: 'translate(0px, 0px) scale(1)' },
+        ], { duration: dur });
+        anim.finished.then(() => {
+          $('console').animate([{ transform: 'none' }, { transform: 'translateY(3px)' }, { transform: 'none' }], { duration: T(110), easing: EASE });
+        }).catch(() => {});
+        return dur;
+      }
+
+      async function ejectCart(i) {
+        const { dx, dy, s, lift } = flightDelta(i);
+        const anim = $('console-cart').animate([
+          { transform: 'translate(0px, 0px) scale(1)', easing: EASE },
+          { transform: `translate(0px, ${-lift}px) scale(1)`, offset: 0.4, easing: EASE },
+          { transform: `translate(${dx}px, ${dy}px) scale(${s})` },
+        ], { duration: T(230), fill: 'forwards' });
+        await anim.finished.catch(() => {});
+        st.inserted = null;
+        renderChrome();
+        anim.cancel();
+      }
+
+      // Keep cards that both cartridges share in their grid slot; fill freed slots with new ones.
+      function nextSlots(prevSlots, incoming) {
+        const want = new Map(incoming.map((c) => [c.name, c]));
+        const slots = prevSlots.map((c) => (want.has(c.name) ? want.get(c.name) : null));
+        const kept = new Set(slots.filter(Boolean).map((c) => c.name));
+        const fresh = incoming.filter((c) => !kept.has(c.name));
+        slots.forEach((c, k) => { if (!c && fresh.length) slots[k] = fresh.shift(); });
+        slots.push(...fresh);
+        return slots.filter(Boolean);
+      }
+
+      // --- Actions -------------------------------------------------------------
+      async function select(i) {
+        if (!data) return;
+        if (busy) { pending = i; return; }
+        const prev = st.inserted;
+        if (prev === i) return eject();
+        busy = true;
+        const deck = data.decks[i];
+        const first = !st.showList;
+        const prevSlots = st.swapSlots;
+        const slots = first ? deck.swap.slice() : nextSlots(prevSlots, deck.swap);
+        const removed = first ? [] : prevSlots.map((_, k) => k).filter((k) => !slots[k] || slots[k].name !== prevSlots[k].name);
+        const needImgs = (first ? [data.cmdName, ...data.core.map((c) => c.name)] : []).concat(slots.map((c) => c.name));
+        const ready = preload(needImgs.map(imgOf), 1500);
+
+        const outP = animateOut(cardEls(removed.map((k) => 's' + k)));
+        if (prev != null) await ejectCart(prev);
+        await outP;
+        const dur = insertCart(i);
+        await Promise.all([ready, sleep(dur * 0.6)]);
+
+        st.swapSlots = slots;
+        st.showList = true;
+        showDeckHead(deck);
+        if (first) showList();
+        const built = renderSwapSlots(slots);
+        await animateIn(cardEls(first ? ['cmd', ...built, ...data.core.map((_, k) => 'c' + k)] : built));
+        done();
+      }
+
+      async function eject() {
+        if (busy || st.inserted == null) return;
+        busy = true;
+        const els = cardEls(['cmd', ...st.swapSlots.map((_, k) => 's' + k), ...data.core.map((_, k) => 'c' + k)]);
+        await Promise.all([animateOut(els), ejectCart(st.inserted)]);
+        st.swapSlots = [];
+        st.showList = false;
+        hideList();
+        done();
+      }
+
+      function done() {
+        busy = false;
+        if (pending != null) {
+          const p = pending;
+          pending = null;
+          if (p !== st.inserted) select(p);
+        }
+      }
+
+      // --- Dock ----------------------------------------------------------------
+      function onScroll() {
+        const docked = window.scrollY > 0 && $('hero').getBoundingClientRect().bottom < 120;
+        $('dock').classList.toggle('is-docked', docked);
+      }
+      window.addEventListener('scroll', onScroll, { passive: true });
+      window.addEventListener('resize', onScroll);
+
+      load().catch((e) => {
+        console.error('Rukarumel64 load failed', e);
+        $('idle-hint').textContent = 'Couldn’t load the decklists. Refresh to try again.';
+      });
+    </script>
+  </body>
+</html>
