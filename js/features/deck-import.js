@@ -74,6 +74,7 @@ export function handleEditFileUpload(e) {
   const reader = new FileReader();
   reader.onload = (event) => {
     const content = event.target.result;
+    cancelEditUrlImport();
     if (state.elements.editDeckList) state.elements.editDeckList.value = content;
     state.editSourceUrl = null;
     syncCommanderFieldsFromText(editCommanderRefs());
@@ -284,6 +285,15 @@ export async function handleMoxfieldImport() {
 }
 
 // Edit dialog URL import
+let editImportGeneration = 0; // a response from an older import or edit session is ignored
+
+/** Drop any in-flight edit import: a new edit session or a file upload supersedes it. */
+export function cancelEditUrlImport() {
+  editImportGeneration++;
+  if (state.elements.btnEditImportUrl) state.elements.btnEditImportUrl.loading = false;
+  if (state.elements.btnEditRefreshSource) state.elements.btnEditRefreshSource.loading = false;
+}
+
 // Also the edit dialog's "Refresh from saved link", passing deck.sourceUrl
 export async function handleEditUrlImport(urlOrId = state.elements.editImportUrl?.value?.trim(), btn = state.elements.btnEditImportUrl) {
   if (!urlOrId) {
@@ -292,10 +302,12 @@ export async function handleEditUrlImport(urlOrId = state.elements.editImportUrl
   }
 
   hideEditImportMessages();
+  const generation = ++editImportGeneration;
   if (btn) btn.loading = true;
 
   try {
     const { serviceName, deckData } = await resolveDeckSource(urlOrId);
+    if (generation !== editImportGeneration) return;
 
     if (state.elements.editDeckList) state.elements.editDeckList.value = toDecklistText(deckData);
     state.editSourceUrl = deckData.sourceUrl || null;
@@ -307,10 +319,11 @@ export async function handleEditUrlImport(urlOrId = state.elements.editImportUrl
     if (state.elements.editImportSection) state.elements.editImportSection.open = false;
 
   } catch (err) {
+    if (generation !== editImportGeneration) return;
     console.error('Edit deck import error:', err);
     showEditImportError(err.message || 'Failed to import deck.');
   } finally {
-    if (btn) btn.loading = false;
+    if (btn && generation === editImportGeneration) btn.loading = false;
   }
 }
 

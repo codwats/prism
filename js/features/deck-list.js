@@ -38,7 +38,7 @@ import { openMembershipDrawer } from "../modules/membership.js";
 import { openDeckExportDialog } from "../modules/deck-export-panel.js";
 import { deckSourceSite } from "../modules/deck-source.js";
 import { canonicalizeCards } from "../modules/scryfall.js";
-import { hideEditImportMessages } from "./deck-import.js";
+import { hideEditImportMessages, cancelEditUrlImport } from "./deck-import.js";
 import {
   initColorSwatches,
   resetDeckForm,
@@ -319,6 +319,7 @@ export function handleEditClick(deckId) {
     state.elements.editParseErrors.innerHTML = "";
   }
 
+  cancelEditUrlImport();
   hideEditImportMessages();
   if (state.elements.editImportUrl) state.elements.editImportUrl.value = "";
   if (state.elements.editImportSection)
