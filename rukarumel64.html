@@ -56,6 +56,7 @@
       :root {
         color-scheme: dark;
 
+        --prism-brand-05: #180a2e;
         --prism-brand-80: #cec2f2;
         --prism-brand-90: #eadeff;
         --prism-neutral-05: #121218;
@@ -95,11 +96,12 @@
 
         --gutter: 32px;
         --cw: clamp(150px, 12.5vw, 210px); /* console width */
-        --rw: clamp(64px, 6.4vw, 96px); /* cartridge rack width */
+        --rw: clamp(72px, 9vw, 132px); /* cartridge rack width */
         --card-w: 150px;
       }
       @media (max-width: 600px) {
         :root { --gutter: 16px; }
+        .rack { gap: 12px; }
       }
 
       *, *::before, *::after { box-sizing: border-box; }
@@ -132,6 +134,17 @@
       .btn-plain { border-color: transparent; color: var(--prism-brand-80); }
       .btn-plain:hover { color: var(--prism-brand-90); }
       .btn wa-icon { width: 1em; height: 1em; font-size: 0.9em; }
+      .btn-loud { height: 40px; padding: 0 18px; font-size: var(--prism-text-m); border: 0; background: var(--prism-brand-80); color: var(--prism-brand-05); }
+      .btn-loud:hover { background: var(--prism-brand-90); color: var(--prism-brand-05); }
+
+      .kickstarter {
+        display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 24px;
+        padding: 32px; border: 1px solid var(--prism-surface-border); border-radius: var(--prism-radius-l);
+        background: var(--prism-surface-card);
+      }
+      .kickstarter > div { flex: 1 1 320px; max-width: 60ch; display: flex; flex-direction: column; gap: 8px; }
+      .kickstarter p { margin: 0; font-size: var(--prism-text-m); line-height: var(--prism-leading-normal); text-wrap: pretty; }
+      @media (max-width: 600px) { .kickstarter { padding: 24px 16px; } }
 
       /* Dock: slides in once the hero scrolls away. */
       .dock {
@@ -147,7 +160,7 @@
         align-items: center; gap: 4px; border-radius: var(--prism-radius-s); transition: transform 0.12s var(--ease);
       }
       .dock-cart:hover { transform: translateY(-2px); }
-      .dock-cart img { height: 44px; display: block; }
+      .dock-cart img { height: 56px; display: block; }
       .dock-cart span { width: 20px; height: 3px; border-radius: 2px; }
       .dock-deck { display: flex; align-items: center; gap: 12px; font-size: var(--prism-text-m); color: var(--prism-text-strong); }
 
@@ -210,16 +223,20 @@
         padding: 8px; text-align: center; font-size: var(--prism-text-xs); color: var(--prism-text-subtle);
       }
       .card img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; border-radius: 4.5% / 3.3%; display: block; }
-      /* card-preview.js geometry: stripe 24px of a 244px card, 5px of 340px */
+      /* Slot positions follow card-preview.js; the mark itself is drawn ~2x (44x10 of a 244x340 card)
+         so it reads on this showcase. translateY keeps it centred on the real slot line. */
       .stripe {
-        position: absolute; width: 9.84%; height: 1.47%; min-height: 3px; border-radius: 2px;
-        box-shadow: 0 0 3px rgba(1, 1, 1, 0.8);
+        position: absolute; width: 18%; height: 2.94%; min-height: 5px; border-radius: 2px;
+        transform: translateY(-25%); box-shadow: 0 0 3px rgba(1, 1, 1, 0.8);
       }
       .qty {
         position: absolute; top: 13%; left: 6%; font-family: var(--prism-font-mono); font-size: var(--prism-text-xs);
         padding: 2px 6px; background: var(--prism-neutral-05); color: var(--prism-text-strong);
         border: 1px solid var(--prism-surface-border-strong); border-radius: var(--prism-radius-s);
       }
+
+      /* Swap pile: outgoing cartridge cards sink behind the console (z 3), incoming ones deal out from it. */
+      #pile { position: fixed; inset: 0; pointer-events: none; z-index: 2; }
 
       footer { border-top: 1px solid var(--prism-surface-border); }
       footer .wrap { padding-top: 24px; padding-bottom: 24px; display: flex; align-items: center; flex-wrap: wrap; gap: 16px; }
@@ -243,10 +260,9 @@
 
       <div class="stage">
         <div class="copy">
-          <span class="eyebrow">PRISM use case · variant deck</span>
           <h1 class="heading" style="font-size: var(--prism-text-4xl); line-height: var(--prism-leading-tight)">Rukarumel64</h1>
           <p class="heading" style="font-size: var(--prism-text-xl); line-height: var(--prism-leading-snug)">One commander. Five cartridges.</p>
-          <p>Rukarumel, Biologist runs five ways. 77 cards stay sleeved as the console. Each cartridge is a 23-card package that turns it into a different deck.</p>
+          <p>Rukarumel, Biologist runs five ways. The commander and 76 core cards stay sleeved as the console. Each cartridge is a 23-card package that turns it into a different deck.</p>
           <p>Every card carries the yellow Side A stripe. Cartridge cards add a Side B stripe in their own color, so a swap is fan, pull, play.</p>
         </div>
 
@@ -282,7 +298,7 @@
     <main class="wrap" id="main">
       <div class="empty" id="empty">
         <span class="heading" style="font-size: var(--prism-text-l)">The list loads when you insert a cartridge</span>
-        <span class="subtle" style="font-size: var(--prism-text-s)">100 cards: 77 core, 23 from the cartridge.</span>
+        <span class="subtle" style="font-size: var(--prism-text-s)">100 cards: the commander, 76 core and 23 from the cartridge.</span>
       </div>
 
       <section class="section" id="swap-section" hidden>
@@ -300,11 +316,22 @@
         <div class="section-head">
           <h2 class="heading" style="font-size: var(--prism-text-2xl)">Core</h2>
           <span class="subtle" style="font-size: var(--prism-text-m)">In every cartridge. Never leaves the deck box.</span>
+          <a class="btn btn-plain" href="https://moxfield.com/decks/-lghAfXctEuqDnRkARdz0g" target="_blank" rel="noopener">Moxfield<wa-icon name="arrow-up-right-from-square"></wa-icon></a>
           <span class="mono" id="core-meta"></span>
         </div>
         <div class="grid" id="core-grid"></div>
       </section>
+
+      <section class="kickstarter">
+        <div>
+          <h2 class="heading" style="font-size: var(--prism-text-2xl)">The Spirit Guide</h2>
+          <p>The alignment tool this marking system is built around launches on Kickstarter November 2, along with paint pens and accessories.</p>
+        </div>
+        <a class="btn btn-loud" href="https://www.kickstarter.com/projects/prismmtg/prism-one-card-every-deck" target="_blank" rel="noopener">See it on Kickstarter<wa-icon name="arrow-up-right-from-square"></wa-icon></a>
+      </section>
     </main>
+
+    <div id="pile" aria-hidden="true"></div>
 
     <footer>
       <div class="wrap">
@@ -316,12 +343,13 @@
 
     <script type="module">
       const DECK_META = [
-        { match: 'Mercenary', img: 'assets/ruka/RukarumelCartridgeMerc.avif', label: 'Mercenaries' },
-        { match: 'Goblin', img: 'assets/ruka/RukarumelCartridgeGoblin.avif', label: 'Goblins' },
-        { match: 'Elf', img: 'assets/ruka/RukarumelCartridgeElf.avif', label: 'Elves' },
-        { match: 'Artifact', img: 'assets/ruka/RukarumelCartridgeArtifact.avif', label: 'Artifacts' },
-        { match: 'Elemental', img: 'assets/ruka/RukarumelCartridge.avif', label: 'Elementals' },
+        { match: 'Mercenary', name: 'Mercenaries', img: 'assets/ruka/RukarumelCartridgeMerc.avif', url: 'https://moxfield.com/decks/iNY6sCKgmkaBWvZDm6fbEQ' },
+        { match: 'Goblin', name: 'Goblins', img: 'assets/ruka/RukarumelCartridgeGoblin.avif', url: 'https://moxfield.com/decks/cgaBfLNwlkSs4JXAKpAeng' },
+        { match: 'Elf', name: 'Elves', img: 'assets/ruka/RukarumelCartridgeElf.avif', url: 'https://moxfield.com/decks/WUqHyFPjKk-YFupCbnSsTw' },
+        { match: 'Artifact', name: 'Artifacts', img: 'assets/ruka/RukarumelCartridgeArtifact.avif', url: 'https://moxfield.com/decks/FLFH_vp02Eu8FEsBQsjdEg' },
+        { match: 'Elemental', name: 'Elementals', img: 'assets/ruka/RukarumelCartridge.avif', url: 'https://moxfield.com/decks/unN-TAKxBk6bYs61TnMz0w' },
       ];
+      const slotLabel = (side, pos) => `Side ${side} · Slot ${pos}`;
       const CACHE_KEY = 'rk64_scryfall_v1';
       const EASE = 'cubic-bezier(0.2, 0, 0, 1)';
       const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -355,7 +383,7 @@
         const item = el('div', 'rack-item');
         const slot = el('div', 'rack-slot');
         slot.dataset.cartSlot = i;
-        const btn = el('button', 'rack-cart', { type: 'button', ariaLabel: m.label });
+        const btn = el('button', 'rack-cart', { type: 'button', ariaLabel: `${m.name} cartridge` });
         btn.append(el('img', '', { src: m.img, alt: '' }));
         btn.addEventListener('click', () => select(i));
         slot.append(btn);
@@ -366,7 +394,7 @@
         rackBtns.push(btn);
         rackLabels.push(label);
 
-        const d = el('button', 'dock-cart', { type: 'button', ariaLabel: m.label });
+        const d = el('button', 'dock-cart', { type: 'button', ariaLabel: `${m.name} cartridge` });
         d.append(el('img', '', { src: m.img, alt: '' }), el('span'));
         d.addEventListener('click', () => select(i));
         $('dock-carts').append(d);
@@ -382,11 +410,11 @@
         if (!data) return;
         data.decks.forEach((d, i) => {
           const isIn = inserted === i;
-          const aria = `${isIn ? 'Eject' : 'Insert'} ${d.label} cartridge`;
+          const aria = `${isIn ? 'Eject' : 'Insert'} ${d.name} cartridge`;
           rackBtns[i].hidden = isIn;
           rackBtns[i].ariaLabel = aria;
           rackLabels[i].children[0].style.background = d.color;
-          rackLabels[i].children[1].textContent = 'B' + d.pos;
+          rackLabels[i].children[1].textContent = 'Slot ' + d.pos;
           dockBtns[i].ariaLabel = aria;
           dockBtns[i].firstChild.style.opacity = inserted == null || isIn ? 1 : 0.6;
           dockBtns[i].lastChild.style.background = isIn ? d.color : 'transparent';
@@ -400,7 +428,7 @@
         if (!deck) return;
         document.querySelectorAll('[data-deck-color]').forEach((s) => (s.style.background = deck.color));
         document.querySelectorAll('[data-deck-name]').forEach((s) => (s.textContent = deck.name));
-        $('deck-meta').textContent = `Side B · slot ${deck.pos} · ${swapCount(deck)} cards`;
+        $('deck-meta').textContent = `${slotLabel('B', deck.pos)} · ${swapCount(deck)} cards`;
         $('deck-url').hidden = !deck.url;
         if (deck.url) $('deck-url').href = deck.url;
       }
@@ -422,7 +450,7 @@
         if (withB) {
           data.decks
             .filter((x) => x.swap.some((s) => s.name === c.name))
-            .forEach((x) => d.append(stripeEl(x.pos, x.color, `${x.name} (Side B · Slot ${x.pos})`)));
+            .forEach((x) => d.append(stripeEl(x.pos, x.color, `${x.name} (${slotLabel('B', x.pos)})`)));
         }
         if (c.qty > 1) d.append(el('span', 'qty', { textContent: 'x' + c.qty }));
         return d;
@@ -439,7 +467,7 @@
       function showDeckHead(deck) {
         $('shown-color').style.background = deck.color;
         $('shown-name').textContent = deck.name;
-        $('shown-meta').textContent = `${swapCount(deck)} cards · Side A + B${deck.pos}`;
+        $('shown-meta').textContent = `${swapCount(deck)} cards · ${slotLabel('B', deck.pos)}`;
       }
 
       // Returns ids of slots whose element was (re)built.
@@ -462,7 +490,7 @@
         const cmd = $('info-cmd');
         cmd.replaceChildren(cardEl({ name: data.cmdName, qty: 1 }, 'cmd', false));
         $('core-grid').replaceChildren(...data.core.map((c, k) => cardEl(c, 'c' + k, false)));
-        $('core-meta').textContent = `${data.core.reduce((s, c) => s + c.qty, 0)} cards + commander · Side A${data.sideA.pos}`;
+        $('core-meta').textContent = `${data.core.reduce((s, c) => s + c.qty, 0)} core + commander · ${slotLabel('A', data.sideA.pos)}`;
         $('empty').hidden = true;
         $('swap-section').hidden = false;
         $('core-section').hidden = false;
@@ -484,7 +512,7 @@
         const group = prism.splitGroups[0];
         const decks = DECK_META.map((m) => {
           const d = prism.decks.find((x) => x.name.includes(m.match));
-          return { ...m, name: d.name, color: d.color, pos: d.stripePosition, url: d.sourceUrl || null, cards: d.cards };
+          return { ...m, color: d.color, pos: d.stripePosition, cards: d.cards };
         });
         const cmdName = decks[0].cards.find((c) => c.isCommander).name;
         const sets = decks.map((d) => new Set(d.cards.map((c) => c.name)));
@@ -572,6 +600,55 @@
         ).finished.catch(() => {})));
       }
 
+      // --- Swap: gather outgoing cards into a pile, deal incoming ones out of it ---
+      const PILE_W = 48;
+      const tilt = (i) => ((i * 37) % 17) - 8;
+
+      // Centre of the console: the pile layer (z 2) sits under it (z 3), so the pile is never seen.
+      function pilePoint() {
+        const r = $('console').getBoundingClientRect();
+        return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+      }
+      function toPile(r, p, i) {
+        return `translate(${p.x - r.left - r.width / 2 + ((i % 5) - 2) * 3}px, ${p.y - r.top - r.height / 2}px) scale(${PILE_W / r.width}) rotate(${tilt(i)}deg)`;
+      }
+
+      async function gather(els) {
+        const p = pilePoint();
+        const clones = els.map((e) => {
+          const r = e.getBoundingClientRect();
+          const c = e.cloneNode(true);
+          c.removeAttribute('data-card');
+          Object.assign(c.style, { position: 'fixed', left: r.left + 'px', top: r.top + 'px', width: r.width + 'px' });
+          $('pile').append(c);
+          e.style.visibility = 'hidden';
+          return { c, r };
+        });
+        await Promise.all(clones.map(({ c, r }, i) => c.animate(
+          [{ transform: 'none' }, { transform: toPile(r, p, i) }],
+          { duration: T(420), delay: T(Math.min(i * 30, 600)), easing: 'cubic-bezier(0.4, 0, 0.2, 1)', fill: 'forwards' },
+        ).finished.catch(() => {})));
+        return clones.map(({ c }) => c);
+      }
+
+      async function deal(els, pile) {
+        const p = pilePoint();
+        pile.forEach((c, i) => c.animate([{ opacity: 1 }, { opacity: 0 }], { duration: T(200), delay: T(Math.min(i * 30, 600)), fill: 'forwards' }));
+        await Promise.all(els.map((e, i) => e.animate(
+          [{ transform: toPile(e.getBoundingClientRect(), p, i + 3), zIndex: 2 }, { transform: 'none', zIndex: 2 }],
+          { duration: T(460), delay: T(Math.min(i * 30, 600)), easing: EASE, fill: 'backwards' },
+        ).finished.catch(() => {})));
+        pile.forEach((c) => c.remove());
+      }
+
+      // Cards in both cartridges never left the deck box: ring them so the eye catches it.
+      function flash(els) {
+        els.forEach((e) => e.animate(
+          [{ boxShadow: '0 0 0 3px #cec2f2' }, { boxShadow: '0 0 0 3px #cec2f2', offset: 0.6 }, { boxShadow: '0 0 0 3px rgba(206, 194, 242, 0)' }],
+          { duration: T(1600), easing: 'ease-out' },
+        ));
+      }
+
       function flightDelta(i) {
         const a = document.querySelector(`[data-cart-slot="${i}"]`).getBoundingClientRect();
         const b = $('console-cart').getBoundingClientRect();
@@ -633,9 +710,8 @@
         const needImgs = (first ? [data.cmdName, ...data.core.map((c) => c.name)] : []).concat(slots.map((c) => c.name));
         const ready = preload(needImgs.map(imgOf), 1500);
 
-        const outP = animateOut(cardEls(removed.map((k) => 's' + k)));
+        const pile = await gather(cardEls(removed.map((k) => 's' + k)));
         if (prev != null) await ejectCart(prev);
-        await outP;
         const dur = insertCart(i);
         await Promise.all([ready, sleep(dur * 0.6)]);
 
@@ -644,7 +720,12 @@
         showDeckHead(deck);
         if (first) showList();
         const built = renderSwapSlots(slots);
-        await animateIn(cardEls(first ? ['cmd', ...built, ...data.core.map((_, k) => 'c' + k)] : built));
+        if (first) {
+          await animateIn(cardEls(['cmd', ...built, ...data.core.map((_, k) => 'c' + k)]));
+        } else {
+          await deal(cardEls(built), pile);
+          flash(cardEls(slots.map((_, k) => 's' + k).filter((id) => !built.includes(id))));
+        }
         done();
       }
 
