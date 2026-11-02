@@ -84,15 +84,32 @@
 
         <p>What to mark with, what to mark on, and where to keep it all. Some links on this page are affiliate links. Buying through them helps cover hosting at no extra cost to you, and buying from your local game store works just as well.</p>
 
-        <!-- CAMPAIGN WINDOW (#222). Delete at campaign close, with the index.html
-             block; see the Campaign Window section of docs/runbooks/enforcement-cutover.md. -->
-        <wa-callout variant="brand" appearance="outlined">
-          <wa-icon slot="icon" name="kickstarter-k" family="brands"></wa-icon>
-          <div class="wa-stack wa-gap-s">
-            <span><strong>Get the marking kit.</strong> The PRISM Kickstarter brings the Spirit Guide along with paint pens, tokens and playmats, with matching sleeves as add-ons.</span>
-            <wa-button href="https://www.kickstarter.com/projects/prismmtg/prism-one-card-every-deck" target="_blank" rel="noopener" appearance="outlined" size="s" style="align-self: start;">See it on Kickstarter</wa-button>
-          </div>
-        </wa-callout>
+        <!-- Spirit Guide -->
+        <section class="wa-stack wa-gap-l" style="padding-block: var(--wa-space-xl);">
+          <h2 class="wa-heading-xl">
+            <wa-icon name="handshake-angle" style="margin-right: var(--wa-space-s);"></wa-icon>
+            PRISM Spirit Guide
+          </h2>
+          <p>The Spirit Guide is an alignment tool with a guide for every slot. Its magnetic hold keeps the sleeve in place, so you can mark one-handed and paint every one of a card's marks in one pass.</p>
+          <!-- Kickstarter's own player; fluid 16:9 instead of the snippet's fixed 800x450. -->
+          <iframe
+            src="https://www.kickstarter.com/projects/prismmtg/prism-one-card-every-deck/widget/video.html"
+            title="PRISM Kickstarter campaign video"
+            allowfullscreen
+            scrolling="no"
+            style="inline-size: 100%; aspect-ratio: 16 / 9; block-size: auto; border: 0; border-radius: var(--wa-border-radius-m); background: var(--wa-color-surface-lowered);"
+          ></iframe>
+          <!-- CAMPAIGN WINDOW (#222). At campaign close, delete this paragraph and
+               the button below and say where to buy the Spirit Guide; see the Campaign
+               Window section of docs/runbooks/enforcement-cutover.md. -->
+          <p>It is on <a href="https://www.kickstarter.com/projects/prismmtg/prism-one-card-every-deck" target="_blank" rel="noopener">Kickstarter</a> now, along with paint pens, tokens and playmats, with matching sleeves as add-ons. After the campaign it comes to the PRISM store. Any straight edge works until it ships.</p>
+          <wa-button href="https://www.kickstarter.com/projects/prismmtg/prism-one-card-every-deck" target="_blank" rel="noopener" appearance="outlined" style="align-self: start;">
+            <wa-icon slot="start" name="kickstarter-k" family="brands"></wa-icon>
+            See it on Kickstarter
+          </wa-button>
+        </section>
+
+        <wa-divider></wa-divider>
 
         <!-- Paint Pens -->
         <section class="wa-stack wa-gap-l" style="padding-block: var(--wa-space-xl);">
@@ -112,16 +129,16 @@
               <div class="wa-stack wa-gap-s">
                 <wa-tag variant="success" style="align-self: start;">Recommended</wa-tag>
                 <h3 class="wa-heading-m">
-                  <a href="https://amzn.to/4t5Ue1i" target="_blank" rel="noopener" style="color: inherit; text-decoration: none;">
-                    Uni Posca Paint Pens
+                  <a href="https://amzn.to/3Q1aO3G" target="_blank" rel="noopener" style="color: inherit; text-decoration: none;">
+                    Oil-Based Paint Pens
                   </a>
                 </h3>
-                <p>What most PRISM users mark with. Water-based acrylic that dries opaque and stays put.</p>
+                <p>What we mark with. Oil-based paint draws clearer, more opaque lines, and once dry it stays on the inner sleeve instead of rubbing off onto the inside of the outer sleeve.</p>
                 <ul style="padding-left: var(--wa-space-m); font-size: var(--wa-font-size-s);">
-                  <li>PC-1M (extra fine) recommended</li>
-                  <li>Wide color range</li>
-                  <li>Touch-dry in about a minute</li>
-                  <li>Does not smear once dry</li>
+                  <li>Extra fine or fine point</li>
+                  <li>Sharper, more opaque lines</li>
+                  <li>Does not transfer to the outer sleeve</li>
+                  <li>Takes longer to dry, with a strong odor when wet</li>
                 </ul>
               </div>
             </wa-card>
@@ -130,16 +147,16 @@
               <div class="wa-stack wa-gap-s">
                 <wa-tag variant="neutral" style="align-self: start;">Alternative</wa-tag>
                 <h3 class="wa-heading-m">
-                  <a href="https://amzn.to/3Q1aO3G" target="_blank" rel="noopener" style="color: inherit; text-decoration: none;">
-                    Oil-Based Paint Pens
+                  <a href="https://amzn.to/4t5Ue1i" target="_blank" rel="noopener" style="color: inherit; text-decoration: none;">
+                    Uni Posca Paint Pens
                   </a>
                 </h3>
-                <p>For glossy sleeves where water-based paint won't stick.</p>
+                <p>Water-based acrylic in a wide range of colors. In our testing it rubbed off onto the inside of outer sleeves, even after it had dried.</p>
                 <ul style="padding-left: var(--wa-space-m); font-size: var(--wa-font-size-s);">
-                  <li>Extra fine or fine point</li>
-                  <li>More limited color selection</li>
-                  <li>Takes longer to dry</li>
-                  <li>Strong odor when wet</li>
+                  <li>PC-1M (extra fine) is the size to get</li>
+                  <li>Wide color range</li>
+                  <li>Touch-dry in about a minute</li>
+                  <li>Can transfer to the outer sleeve with handling</li>
                 </ul>
               </div>
             </wa-card>
@@ -157,6 +174,7 @@
                   <li>Often includes 24+ colors</li>
                   <li>Inconsistent flow</li>
                   <li>May need multiple coats</li>
+                  <li>Water-based, so the same outer-sleeve transfer risk as Posca</li>
                   <li>Good for trying the system cheaply</li>
                 </ul>
               </div>
@@ -174,7 +192,6 @@
                 <ul style="padding-left: var(--wa-space-m); font-size: var(--wa-font-size-s);">
                   <li>Fewer color options</li>
                   <li>More expensive</li>
-                  <li>Easy to wipe off if you make a mistake</li>
                   <li>Can rub off on frequently moved cards</li>
                 </ul>
               </div>
@@ -183,7 +200,7 @@
 
           <wa-callout variant="warning">
             <wa-icon slot="icon" name="hourglass"></wa-icon>
-            <strong>Whichever pen you pick, let the marks dry for 2 to 3 minutes before you sleeve the card.</strong> Touch-dry is not sleeve-ready. Wet paint transfers to the outer sleeve and to the card face. See <a href="guide.html#mark-a-session">Run a marking session</a>.
+            <strong>Whichever pen you pick, let the marks dry fully before you sleeve the card.</strong> Touch-dry is not sleeve-ready, and oil-based paint takes longer than water-based. Wet paint transfers to the outer sleeve and to the card face. See <a href="guide.html#mark-a-session">Run a marking session</a>.
           </wa-callout>
 
           <!-- Neutral, not warning: this is a preference, and stacking two amber
@@ -228,27 +245,6 @@
             <wa-icon slot="icon" name="circle-info"></wa-icon>
             <strong>Mark the inner, then double-sleeve.</strong> Paint the Perfect Fit inner on the card-face side and slide it into an outer sleeve. You can't feel the marks through the outer sleeve.
           </wa-callout>
-        </section>
-
-        <wa-divider></wa-divider>
-
-        <!-- Spirit Guide -->
-        <section class="wa-stack wa-gap-l" style="padding-block: var(--wa-space-xl);">
-          <h2 class="wa-heading-xl">
-            <wa-icon name="handshake-angle" style="margin-right: var(--wa-space-s);"></wa-icon>
-            PRISM Spirit Guide
-          </h2>
-          <p>The Spirit Guide is an alignment tool with a guide for every slot. Its magnetic hold keeps the sleeve in place, so you can mark one-handed and paint every one of a card's marks in one pass.</p>
-          <!-- Kickstarter's own player; fluid 16:9 instead of the snippet's fixed 800x450. -->
-          <iframe
-            src="https://www.kickstarter.com/projects/prismmtg/prism-one-card-every-deck/widget/video.html"
-            title="PRISM Kickstarter campaign video"
-            loading="lazy"
-            allowfullscreen
-            scrolling="no"
-            style="inline-size: 100%; aspect-ratio: 16 / 9; block-size: auto; border: 0; border-radius: var(--wa-border-radius-m); background: var(--wa-color-surface-lowered);"
-          ></iframe>
-          <p>It is on <a href="https://www.kickstarter.com/projects/prismmtg/prism-one-card-every-deck" target="_blank" rel="noopener">Kickstarter</a> now, then comes to the PRISM store. Any straight edge works until it ships.</p>
         </section>
 
         <wa-divider></wa-divider>
