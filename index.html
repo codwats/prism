@@ -158,20 +158,33 @@
              states what the campaign contains and lets the button carry the
              phase.
 
-             Text-only. #221 specifies a flank with a kit-contents photo and no
-             such photo exists yet; the block's job is the link, so it ships
-             without one rather than waiting. Not assets/spiritguide.avif, which
-             shows only the Spirit Guide and would contradict "paint pens, tokens and
-             playmats" sitting beside it. -->
-        <section id="kickstarter" class="wa-stack wa-gap-l wa-align-items-center" style="max-width: 720px; margin: 0 auto;">
-          <h2 class="wa-heading-2xl" style="text-align: center;">The Kickstarter Campaign</h2>
-          <p style="text-align: center; max-width: 60ch;">
-            The Kickstarter campaign brings the Spirit Guide, the alignment tool this marking system is built around, along with paint pens, tokens and playmats, with matching sleeves as add-ons. Backing it includes a lifetime PRISM Membership, attached after the campaign closes from the email you give in the backer survey. PRISM itself stays free to use, with no account.
-          </p>
-          <wa-button href="https://www.kickstarter.com/projects/prismmtg/prism-one-card-every-deck" target="_blank" rel="noopener" appearance="outlined" size="l">
-            <wa-icon slot="start" name="kickstarter-k" family="brands"></wa-icon>
-            See it on Kickstarter
-          </wa-button>
+             The flank's media is Kickstarter's live campaign card (funding
+             progress, days to go), in place of the kit-contents photo #221
+             asked for. It is fixed 220x420 by Kickstarter. Not
+             assets/spiritguide.avif, which shows only the Spirit Guide and would
+             contradict "paint pens, tokens and playmats" sitting beside it.
+             The card's countdown is accepted for the campaign (owner decision,
+             2026-11-02), not a precedent for PRODUCT.md money rule 2. -->
+        <section id="kickstarter" class="wa-flank wa-gap-2xl wa-align-items-center" style="--flank-size: 220px; max-width: 760px; margin: 0 auto;">
+          <iframe
+            src="https://www.kickstarter.com/projects/prismmtg/prism-one-card-every-deck/widget/card.html?v=2"
+            title="PRISM on Kickstarter: live campaign progress"
+            width="220"
+            height="420"
+            loading="lazy"
+            scrolling="no"
+            style="border: 0; flex-grow: 0; max-inline-size: 220px; margin-inline: auto;"
+          ></iframe>
+          <div class="wa-stack wa-gap-l wa-align-items-start">
+            <h2 class="wa-heading-2xl">The Kickstarter Campaign</h2>
+            <p style="max-width: 60ch;">
+              The Kickstarter campaign brings the Spirit Guide, the alignment tool this marking system is built around, along with paint pens, tokens and playmats, with matching sleeves as add-ons. Backing it includes a lifetime PRISM Membership, attached after the campaign closes from the email you give in the backer survey. PRISM itself stays free to use, with no account.
+            </p>
+            <wa-button href="https://www.kickstarter.com/projects/prismmtg/prism-one-card-every-deck" target="_blank" rel="noopener" appearance="outlined" size="l">
+              <wa-icon slot="start" name="kickstarter-k" family="brands"></wa-icon>
+              See it on Kickstarter
+            </wa-button>
+          </div>
         </section>
 
         <wa-divider style="--spacing: var(--wa-space-2xl);"></wa-divider>
