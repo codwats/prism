@@ -564,7 +564,7 @@ function injectFooter() {
                 <a href="https://www.kickstarter.com/projects/prismmtg/prism-one-card-every-deck" target="_blank" rel="noopener" title="PRISM on Kickstarter" aria-label="PRISM on Kickstarter">
                   <wa-icon name="kickstarter-k" family="brands"></wa-icon>
                 </a>
-                <a href="https://discord.gg/Jp84QUPSe" target="_blank" rel="noopener" title="Join the PRISM Discord" aria-label="Join the PRISM Discord">
+                <a href="https://discord.gg/4NUUKGvY7" target="_blank" rel="noopener" title="Join the PRISM Discord" aria-label="Join the PRISM Discord">
                   <wa-icon name="discord" family="brands"></wa-icon>
                 </a>
               </div>
@@ -572,7 +572,7 @@ function injectFooter() {
             <div class="wa-cluster wa-gap-m" style="justify-content: center;">
               <span class="wa-caption-s" style="color: var(--wa-color-neutral-text-subtle);">
                 PRISM is in open beta — found a bug or have feedback?
-                <a href="https://discord.gg/Jp84QUPSe" target="_blank" rel="noopener">Tell us on Discord</a>
+                <a href="https://discord.gg/4NUUKGvY7" target="_blank" rel="noopener">Tell us on Discord</a>
               </span>
             </div>
             <div class="wa-cluster wa-gap-m" style="justify-content: center;">
