@@ -326,6 +326,18 @@
         }
       }
 
+      /* Kickstarter's player, fluid at 16:9 instead of its fixed 800x450 snippet.
+         The aspect ratio reserves the space before the frame loads. */
+      .flank__media--video iframe {
+        display: block;
+        width: 100%;
+        aspect-ratio: 16 / 9;
+        height: auto;
+        border: 0;
+        border-radius: var(--radius-m);
+        background: var(--brand-10);
+      }
+
       @media (min-width: 768px) {
         .flank--media {
           grid-template-columns: 1fr 1fr;
@@ -539,16 +551,18 @@
         <span style="background: #4fab33"></span>
       </div>
 
-      <section class="flank flank--media">
-        <div class="flank__media">
-          <!-- Not lazy: this is the first thing under the masthead, so lazy
-               loading it would defer the one image above the fold. -->
-          <img
-            src="./assets/DarkSpiritGuide.svg"
-            alt="The Spirit Guide over a card sleeve, with a mark drawn through one slot of its comb"
-            width="396"
-            height="440"
-          />
+      <!-- Single column, not flank--media: the campaign video is 16:9, and
+           half of a 720px page would shrink it to ~200px tall. Full width it
+           leads the page and the copy and CTA follow underneath. -->
+      <section class="flank">
+        <div class="flank__media flank__media--video">
+          <!-- Not lazy: this is the first thing under the masthead. -->
+          <iframe
+            src="https://www.kickstarter.com/projects/prismmtg/prism-one-card-every-deck/widget/video.html"
+            title="PRISM Kickstarter campaign video"
+            allow="fullscreen"
+            scrolling="no"
+          ></iframe>
         </div>
         <div class="flank__body">
           <h1>The Kickstarter Campaign</h1>
