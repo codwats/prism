@@ -180,6 +180,18 @@ Payment enforcement is already on (2026-09-25); the changeover does not touch it
    signups reopen (#206), backers reach their Membership
    through the backer survey
    ([#204](https://github.com/codwats/prism/issues/204)), never through the site.
+
+   **Same session, outside the markers:**
+   - **Swap the Discord invite.** `discord.gg/4NUUKGvY7` was made 2026-11-02
+     with a 30-day expiry as an anti-spam measure, so it dies around
+     2026-12-02. Make a permanent invite and replace it everywhere:
+     `grep -rn "discord.gg/" links.html js/layout.js` (the links.html social
+     row, and the footer icon plus "Tell us on Discord" link in layout.js).
+   - **Live-campaign copy with no marker:** `links.html` (Kickstarter section,
+     video, share-card descriptions), `rukarumel64.html` (Spirit Guide
+     section), the `guide.html` "Use the Spirit Guide" callout and the
+     `tools.html` Spirit Guide video all say the campaign is live.
+     `grep -rln "kickstarter" *.html` finds them.
 5. **Collect and load the backer allowlist**
    ([#240](https://github.com/codwats/prism/issues/240)). The Pledge Manager
    survey must carry the PRISM account email as its own field (#204), labelled
