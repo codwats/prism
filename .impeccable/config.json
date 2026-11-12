@@ -29,6 +29,12 @@
         "value": "rgba(1, 1, 1, 0.8)",
         "createdAt": "2026-10-30T19:24:18.889Z",
         "reason": "User confirmed rgba(1, 1, 1, 0.8) is intentional: stripe-mark shadow on rukarumel64.html"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "#ff0000",
+        "createdAt": "2026-11-12T15:54:27.660Z",
+        "reason": "User confirmed: test fixture deck colour in tests/commander-role.test.js, not UI"
       }
     ]
   }
