@@ -49,7 +49,7 @@ Two details worth keeping even with the portal in place:
 
 ## 3. The lapse window needs a panel, not a dialog
 
-The policy recorded in `d0c31d1` is that entitlement spans the billing rail's dunning window: `stripe-webhook-edge.ts` writes `past_due` on `invoice.payment_failed`, and a member must not be cut off on day one of a window Stripe is still retrying. A lapse is `is_entitled()` turning false, not a status string changing.
+The policy recorded in `d0c31d1` is that entitlement spans the billing rail's dunning window: `stripe-webhook-edge.ts` writes `past_due` on `customer.subscription.updated`, and a member must not be cut off on day one of a window Stripe is still retrying. A lapse is `is_entitled()` turning false, not a status string changing.
 
 [Laravel Cloud](https://mobbin.com/screens/c382dd7f-43ff-4f69-ac0e-57c5514e5a9c) is that policy drawn. Cancellation is not a confirmation dialog but a persistent panel: a `Scheduled` chip, "Subscription ends in 27 days", the full sentence "Your subscription will not renew at the end of your billing cycle, in 27 days (on June 4, 2026)", and **Resume subscription** as the primary action. A toast confirms the cancel without being the only record of it.
 
@@ -160,7 +160,7 @@ Where most of the actual build cost hides — and where PRISM’s just-written l
 | --- | --- | --- |
 | **[Rise](https://mobbin.com/screens/89af7d1a-3f7a-47fe-ae25-e037ecfd39cc)** | This is Stripe’s hosted portal | **The highest-leverage screen in the dossier.** `stripe-checkout-edge.ts` already mints and reuses Stripe customers; a Billing Portal session is one more API call against the same secret key. Taking it deletes the build for the four screens below it, along with the card-handling surface and the cancel flow — and it is the reason not to design a billing page at all. |
 | **[Laravel Cloud](https://mobbin.com/screens/c382dd7f-43ff-4f69-ac0e-57c5514e5a9c)** | Cancellation as a dated, reversible state | This is the lapse window from `CONTEXT.md`, drawn. The policy says entitlement spans the billing rail’s dunning window and that a lapse is `is_entitled()` turning false — never an instant wall. A dated “ends in N days” panel with an undo is exactly that policy made visible. |
-| [NordVPN](https://mobbin.com/screens/34b9c144-6807-4a60-94fc-bcebf917c7cc) | The dunning state, visible and fixable | PRISM writes `past_due` on `invoice.payment_failed` while still entitling the member. This is what that interval should look like — visible, dated, one-click fixable, and not a lockout. |
+| [NordVPN](https://mobbin.com/screens/34b9c144-6807-4a60-94fc-bcebf917c7cc) | The dunning state, visible and fixable | PRISM writes `past_due` on `customer.subscription.updated` while still entitling the member. This is what that interval should look like — visible, dated, one-click fixable, and not a lockout. |
 | [Podia](https://mobbin.com/screens/cdd7f5b9-f272-4af9-8211-23977deec37f) | Destructive action, no dedicated button | Keeps cancel genuinely available — no support-email hostage-taking — without giving it real estate on the page. |
 | [PlayAI](https://mobbin.com/screens/dafb1e3d-ad9c-4907-af23-77a22e82765e) | State written on the object | Toasts vanish. Whatever the toast said must also be legible on the thing it happened to. |
 | [Claude](https://mobbin.com/flows/3741833a-44f2-4b89-95dc-67456545df4e) | Billing settings, hand-built | A clean layout — and a complete list of what the Stripe portal above hands over for free. |
