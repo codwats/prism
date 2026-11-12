@@ -21,6 +21,7 @@ import {
   createPrism,
   isDotVariant,
   isNameTaken,
+  nameTakenMessage,
   updateSplitGroupInPrism,
   applyCommanderFallback,
 } from "../modules/processor.js";
@@ -340,7 +341,7 @@ export async function handleEditConfirm() {
   }
 
   if (isNameTaken(state.currentPrism, name, { exceptDeckId: state.deckToEdit })) {
-    showError(`A deck or group named "${name}" already exists.`);
+    showError(nameTakenMessage(name));
     return;
   }
 
@@ -600,7 +601,7 @@ export function handleEditGroupConfirm() {
   }
 
   if (isNameTaken(state.currentPrism, name, { exceptGroupId: groupId })) {
-    showError(`A deck or group named "${name}" already exists.`);
+    showError(nameTakenMessage(name));
     return;
   }
 

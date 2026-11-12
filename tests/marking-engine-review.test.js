@@ -124,6 +124,22 @@ test('isNameTaken: decks and groups share one case-insensitive namespace (#419)'
 	assert.equal(isNameTaken(prism, 'Elves (1)', { exceptDeckId: g.childDeckIds[0] }), false);
 });
 
+test('isNameTaken as the Add, Edit and Rename-group handlers call it (#419)', () => {
+	let prism = createPrism('T');
+	prism.decks = [
+		createDeck({ name: 'Elves', bracket: 3, color: '#111111', stripePosition: 1, cards: [] }),
+		createDeck({ name: 'Goblins', bracket: 3, color: '#222222', stripePosition: 2, cards: [] }),
+	];
+	prism = splitDeck(prism, prism.decks[0].id, 2);
+	const goblins = prism.decks.find((d) => d.name === 'Goblins');
+	const g = prism.splitGroups[0];
+	assert.equal(isNameTaken(prism, 'elves'), true); // Add deck: group name is reserved
+	assert.equal(isNameTaken(prism, 'Elves', { exceptDeckId: goblins.id }), true); // Edit deck
+	assert.equal(isNameTaken(prism, 'Goblins', { exceptDeckId: goblins.id }), false); // Edit, unchanged name
+	assert.equal(isNameTaken(prism, 'Goblins', { exceptGroupId: g.id }), true); // Rename group onto a deck
+	assert.equal(isNameTaken(prism, 'Elves', { exceptGroupId: g.id }), false); // Rename group, unchanged name
+});
+
 test('splitDeck / addSplitToGroup skip variant names already taken (#419)', () => {
 	let prism = createPrism('T');
 	prism.decks = [

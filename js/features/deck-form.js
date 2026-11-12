@@ -19,6 +19,7 @@ import {
   DEFAULT_COLORS,
   getColorName,
   isNameTaken,
+  nameTakenMessage,
 } from "../modules/processor.js";
 import { savePrism, recordUnmarkedCards } from "../modules/storage.js";
 import { canonicalizeCards } from "../modules/scryfall.js";
@@ -260,7 +261,7 @@ export async function handleDeckSubmit(e) {
 
     // Check for duplicate deck name
     if (isNameTaken(state.currentPrism, name)) {
-      showError(`A deck or group named "${name}" already exists.`);
+      showError(nameTakenMessage(name));
       return;
     }
 

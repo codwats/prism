@@ -1000,6 +1000,8 @@ export function isNameTaken(prism, name, { exceptDeckId, exceptGroupId } = {}) {
 	);
 }
 
+export const nameTakenMessage = (name) => `A deck or group named "${name}" already exists.`;
+
 // `<base> (N)` with the first N >= from that no deck or group holds.
 function freeVariantName(prism, base, from = 1) {
 	let n = from;
