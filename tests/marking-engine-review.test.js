@@ -196,3 +196,11 @@ test('backup import: malformed card rows do not reach the batch derivation', BUG
 	assert.equal(visible(forest.stripes).length, 1);
 	assert.deepEqual(find(prism, 'Island').batches.map((b) => b.copyCount), [3]); // no 0-copy batch
 });
+
+test('a card leaving one variant of a group that all shared it lists no child mark to clear: none was painted', BUG(423), () => {
+	const prism = createPrism('T');
+	group(prism, 'G', 1, [[card('Sol Ring')], [card('Sol Ring')], [card('Sol Ring')]]);
+	assert.deepEqual(visible(find(prism, 'Sol Ring').stripes).map((s) => s.deckName), ['G']);
+	const { prism: next } = applySwap(prism, { outgoing: 'Sol Ring', incoming: 'Opt', deckIds: ['G3'] });
+	assert.deepEqual(openRemovals(next).filter((r) => r.cardName === 'Sol Ring'), []);
+});
