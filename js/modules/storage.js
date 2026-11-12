@@ -1060,6 +1060,12 @@ export function mergeRemovedCards(localArr, cloudArr) {
       // successive edits (5→4→3) and cross-device edits must not collapse to
       // the last delta and under-report the surplus copies to clear.
       const newer = new Date(entry.removedAt) > new Date(existing.removedAt) ? entry : existing;
+      // A stillInDeck row (#423) newer than a plain one folded that row's open
+      // copies in when it replaced it: the plain row's fields are not its own.
+      if (newer.stillInDeck && !(newer === entry ? existing : entry).stillInDeck) {
+        map.set(key, newer);
+        continue;
+      }
       const maxPrev = Math.max(entry.previousQuantity || 0, existing.previousQuantity || 0);
       // clearedQuantity (#376) only goes up too, so a Sleeve reuse ticked on
       // one device is never undone by the other's older row.

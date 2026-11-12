@@ -76,7 +76,7 @@ _Avoid_: buylist, trade pile
 A painted indicator on a sleeve edge. Every mark is either a stripe or a dot.
 
 **Mark to clear**:
-A mark on a sleeve for a deck that no longer needs the card. Arises when a card leaves a decklist or its quantity drops. Lowercase in prose; the Results filter reads **Marks to Clear**. Named for the job, not the state: "stale mark" left players and partners asking what it meant.
+A mark on a sleeve for a deck that no longer needs the card. Arises when a card leaves a decklist or its quantity drops, or when a split variant's child mark stops being needed while the variant keeps the card (another variant gained it, so the card is shared by every variant). A card leaving a variant whose child mark was never painted leaves nothing to clear. Lowercase in prose; the Results filter reads **Marks to Clear**. Named for the job, not the state: "stale mark" left players and partners asking what it meant.
 _Avoid_: stale mark, removed card, pending removal
 _In code_: `removedCards`, and the filter value is `removed`.
 
