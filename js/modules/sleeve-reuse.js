@@ -220,7 +220,8 @@ export function planSleeveReuse(prism) {
 
   const rowsByCard = new Map();
   for (const row of prism.removedCards || []) {
-    if (typeof row?.cardName !== 'string' || removalOpenCopies(row) === 0) continue;
+    // A stillInDeck row (#423) is a stale mark on a sleeve still in use: nothing freed.
+    if (typeof row?.cardName !== 'string' || row.stillInDeck || removalOpenCopies(row) === 0) continue;
     const name = normalizeCardName(row.cardName);
     if (!rowsByCard.has(name)) rowsByCard.set(name, []);
     rowsByCard.get(name).push(row);

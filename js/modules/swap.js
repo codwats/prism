@@ -78,6 +78,97 @@ export function getRemovalStripePosition(prism, deck) {
   return group?.sideAPosition ?? null;
 }
 
+// Copies of a card that carry a split variant's child mark (Side B stripe or dot).
+function childMarkCopies(card, deckId) {
+  return (card?.batches || [])
+    .filter((b) => b.stripes.some((s) => s.side === 'b' && s.deckId === deckId && s.markType !== 'membership'))
+    .reduce((n, b) => n + b.copyCount, 0);
+}
+
+const removalRowFor = (prism, cardName, deckId) =>
+  (prism.removedCards || []).find((rc) => sameName(rc.cardName, cardName) && rc.deckId === deckId);
+
+/**
+ * The mark a removedCards row for `cardName` leaving `deck` points at, as
+ * { deckName, deckColor, stripePosition }, or null when there is no row to
+ * write (#423). A split variant's row stands for its child mark. A card every
+ * variant shared had none painted: nothing to list while another variant
+ * still runs as many copies (the parent stripe stays in use), else the row
+ * points at the group's parent stripe. An open stillInDeck row already lists
+ * the variant's stale copies while the variant keeps some. `before` is
+ * processCards of the PRISM before the change; `prism` holds the other decks.
+ */
+export function removalMark(prism, before, deck, cardName, previousQuantity, newQuantity) {
+  const own = { deckName: deck.name, deckColor: deck.color, stripePosition: getRemovalStripePosition(prism, deck) };
+  if (!deck.splitGroupId) return own;
+  const flagged = removalRowFor(prism, cardName, deck.id);
+  if (flagged?.stillInDeck && removalOpenCopies(flagged) > 0) return newQuantity > 0 ? null : own;
+  if (childMarkCopies(findCard(before, cardName), deck.id) > 0) return own;
+  if (prism.decks.some((d) => d.id !== deck.id && d.splitGroupId === deck.splitGroupId
+    && d.cards.some((c) => sameName(c.name, cardName) && (c.quantity || 1) >= previousQuantity))) return null;
+  const group = (prism.splitGroups || []).find((g) => g.id === deck.splitGroupId);
+  return group ? { deckName: group.name, deckColor: group.sideAColor, stripePosition: group.sideAPosition } : own;
+}
+
+/**
+ * #423: a variant's child mark an edit no longer needs on copies the variant
+ * keeps (another variant gained the card, so it is shared) stays painted.
+ * Record it as a stillInDeck row: previousQuantity counts the copies painted
+ * with it, newQuantity the copies that still need it, so the open copies are
+ * the stale ones. An open plain row for the variant (copies that left) folds
+ * in: the row then lists every copy with a stale mark. A stillInDeck row
+ * closes once the mark is needed on every copy it was painted on.
+ * Returns the stillInDeck rows whose mark is painted where the deck now is,
+ * for unmarkCardsWithNewStripes. `before` is processCards before the change.
+ */
+export function trackStaleChildMarks(prism, before, now) {
+  prism.removedCards ??= [];
+  const after = processCards(prism);
+  for (const card of before) {
+    const afterCard = findCard(after, card.name);
+    for (const deck of prism.decks) {
+      const deckCard = deck.splitGroupId && deck.cards.find((c) => sameName(c.name, card.name));
+      if (!deckCard) continue;
+      const needed = childMarkCopies(afterCard, deck.id);
+      // Only copies still in the deck: a copy that left has its own removal row.
+      const stale = Math.min(childMarkCopies(card, deck.id), deckCard.quantity || 1) - needed;
+      if (stale <= 0) continue;
+      const existing = removalRowFor(prism, card.name, deck.id);
+      let left = 0;
+      if (existing && !existing.stillInDeck) {
+        left = removalOpenCopies(existing);
+        prism.removedCards = prism.removedCards.filter((rc) => rc !== existing);
+      }
+      trackRemovedCard(prism, {
+        cardName: card.name,
+        deckId: deck.id,
+        deckName: deck.name,
+        deckColor: deck.color,
+        stripePosition: getRemovalStripePosition(prism, deck),
+        removedAt: now,
+        previousQuantity: needed + stale + left,
+        newQuantity: needed,
+        isCommander: !!deckCard.isCommander,
+        stillInDeck: true,
+      });
+    }
+  }
+  const painted = [];
+  prism.removedCards = prism.removedCards.filter((rc) => {
+    if (!rc.stillInDeck) return true;
+    const deck = prism.decks.find((d) => d.id === rc.deckId);
+    if (!deck || rc.stripePosition !== getRemovalStripePosition(prism, deck) || rc.deckColor !== deck.color) return true;
+    // Without splitGroup, unmarkCardsWithNewStripes reads the row as the deck's
+    // own mark only: it says nothing about the parent stripe.
+    painted.push({ ...rc, splitGroup: undefined });
+    const needed = childMarkCopies(findCard(after, rc.cardName), deck.id);
+    if (needed >= rc.previousQuantity) return false;
+    rc.newQuantity = needed;
+    return true;
+  });
+  return painted;
+}
+
 // Copies per physical mark, per card name: the snapshot unmarkCardsWithNewStripes
 // compares an edit against. 'membership' entries carry no paint and don't count.
 export function markTallies(prism) {
@@ -98,7 +189,9 @@ export function clearReturnedRemovals(prism, deck) {
     // A partly cleared row (#376) gave a copy's sleeve away, so its mark is
     // not all still painted; the quantity auto-clear takes it instead. So did
     // a row whose card's sleeve a Sleeve swap gave to another card (#401).
+    // A stillInDeck row (#423) never left: trackStaleChildMarks closes it.
     const back = rc.deckId === deck.id
+      && !rc.stillInDeck
       && !rc.clearedQuantity
       && !rc.sleeveSwappedQuantity
       && quantity != null
@@ -115,8 +208,8 @@ export function clearReturnedRemovals(prism, deck) {
 // copies than in `before` (markTallies), whether the mark is new or its deck now
 // runs more copies. Drops the plain key and the pass key of each such mark;
 // batch keys carry their own copy count and re-key themselves. A mark a
-// stillPainted row (clearReturnedRemovals) accounts for is already on the
-// sleeve, on the copies the row recorded. Returns the removed keys for
+// stillPainted row accounts for is already on the sleeve, on the copies the
+// row recorded: rows from clearReturnedRemovals and trackStaleChildMarks. Returns the removed keys for
 // recordUnmarkedCards.
 export function unmarkCardsWithNewStripes(prism, before, stillPainted = []) {
   if (!prism?.markedCards?.length) return [];
@@ -263,20 +356,19 @@ export function applySwap(prism, { outgoing, incoming, deckIds, copies = 1, slee
     deck.updatedAt = now;
     deck.cardsUpdatedAt = now;
 
-    if (!sleeveBatch) {
+    const mark = !sleeveBatch && removalMark(next, before, deck, out.name, previousQuantity, out.quantity);
+    if (mark) {
       trackRemovedCard(next, {
         cardName: out.name,
         deckId: deck.id,
-        deckName: deck.name,
-        deckColor: deck.color,
-        stripePosition: getRemovalStripePosition(next, deck),
+        ...mark,
         removedAt: now,
         previousQuantity,
         newQuantity: out.quantity,
         isCommander: !!out.isCommander,
       });
-      returned.push(...clearReturnedRemovals(next, deck));
     }
+    if (!sleeveBatch) returned.push(...clearReturnedRemovals(next, deck));
   }
   // The outgoing card's open rows rebuild its old sleeves in Sleeve reuse, but
   // this swap wrote none: they record the copies whose sleeve the incoming
@@ -293,7 +385,9 @@ export function applySwap(prism, { outgoing, incoming, deckIds, copies = 1, slee
   const beforeTallies = markTallies(prism);
   // A Separate sleeve's marks are on the new sleeve, never the existing ones.
   if (separateSleeve) beforeTallies.set(incomingBefore.name, { get: () => Infinity });
-  const unmarkedKeys = unmarkCardsWithNewStripes(next, beforeTallies, returned);
+  // A Sleeve swap moves the outgoing copies' marks with their sleeve: none goes stale.
+  const stalePainted = sleeveBatch ? [] : trackStaleChildMarks(next, before, now);
+  const unmarkedKeys = unmarkCardsWithNewStripes(next, beforeTallies, [...returned, ...stalePainted]);
 
   const after = processCards(next);
   const outgoingAfter = findCard(after, outgoing);

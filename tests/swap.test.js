@@ -249,7 +249,10 @@ for (const splitStyle of ['stripes', 'dots']) {
 		});
 		assert.equal(one.summary.sleeveSwap, false);
 		assert.ok(one.summary.marksToAdd >= 1);
-		assert.equal(one.prism.removedCards[0].stripePosition, splitStyle === 'dots' ? 1 : 25);
+		// #423: shared by both, Cultivate had no V1 mark to clear; X1, V1's alone, has one.
+		assert.deepEqual(one.prism.removedCards, []);
+		const x1 = applySwap(prism, { outgoing: 'X1', incoming: 'Opt', deckIds: [v1.id], now: NOW });
+		assert.equal(x1.prism.removedCards[0].stripePosition, splitStyle === 'dots' ? 1 : 25);
 	});
 }
 

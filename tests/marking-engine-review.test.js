@@ -187,7 +187,7 @@ test('a card back in its only variant keeps Done: parent and child marks are bot
 	assert.ok(!moved.markedCards.includes('Sol Ring'));
 });
 
-test('a subset card that becomes shared by every variant has stale child marks to deal with', BUG(423), () => {
+test('a subset card that becomes shared by every variant has stale child marks to deal with', () => {
 	const prism = createPrism('T');
 	group(prism, 'G', 1, [[card('Sol Ring')], [card('Sol Ring')], [card('Opt')]]);
 	prism.markedCards = ['Sol Ring'];
@@ -227,7 +227,7 @@ test('backup import: malformed card rows do not reach the batch derivation', BUG
 	assert.deepEqual(find(prism, 'Island').batches.map((b) => b.copyCount), [3]); // no 0-copy batch
 });
 
-test('a card leaving one variant of a group that all shared it lists no child mark to clear: none was painted', BUG(423), () => {
+test('a card leaving one variant of a group that all shared it lists no child mark to clear: none was painted', () => {
 	const prism = createPrism('T');
 	group(prism, 'G', 1, [[card('Sol Ring')], [card('Sol Ring')], [card('Sol Ring')]]);
 	assert.deepEqual(visible(find(prism, 'Sol Ring').stripes).map((s) => s.deckName), ['G']);

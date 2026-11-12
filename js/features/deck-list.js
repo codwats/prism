@@ -25,10 +25,11 @@ import {
 } from "../modules/processor.js";
 import {
   trackRemovedCard,
-  getRemovalStripePosition,
   markTallies,
   unmarkCardsWithNewStripes as unmarkCardsWithNewStripesIn,
   clearReturnedRemovals,
+  removalMark,
+  trackStaleChildMarks,
   keepSeparateSleeves,
   openRemovals,
 } from "../modules/swap.js";
@@ -121,6 +122,7 @@ export function autoClearRemovedCards(newCards) {
   state.currentPrism.removedCards = state.currentPrism.removedCards.filter((rc) => {
     const newCard = newByName.get(normalizeCardName(rc.cardName));
     if (!newCard) return true; // still absent — keep the row
+    if (rc.stillInDeck) return true; // never left (#423): trackStaleChildMarks closes it
     // Quantity-decrease rows (#151) only clear once the quantity is fully
     // restored — otherwise the very save that created the row would clear it.
     // Legacy rows without quantity fields keep the present-in-list rule.
@@ -339,6 +341,7 @@ export async function handleEditConfirm() {
   if (!deck) return;
 
   const beforeTallies = getMarkTallies();
+  const beforeCards = processCards(state.currentPrism);
   const oldCards = [...deck.cards];
 
   // Fields → text once at save entry (idempotent) — see handleDeckSubmit
@@ -416,15 +419,14 @@ export async function handleEditConfirm() {
 
   const now = new Date().toISOString();
   let removedCount = 0;
-  const removalPosition = getRemovalStripePosition(state.currentPrism, deck);
 
   for (const removedCard of removedFromDeck) {
+    const mark = removalMark(state.currentPrism, beforeCards, deck, removedCard.name, removedCard.previousQuantity, removedCard.newQuantity);
+    if (!mark) continue;
     const isNew = trackRemovedCard(state.currentPrism, {
       cardName: removedCard.name,
       deckId: deck.id,
-      deckName: deck.name,
-      deckColor: deck.color,
-      stripePosition: removalPosition,
+      ...mark,
       removedAt: now,
       previousQuantity: removedCard.previousQuantity,
       isCommander: removedCard.isCommander,
@@ -451,7 +453,8 @@ export async function handleEditConfirm() {
   const stillPainted = clearReturnedRemovals(state.currentPrism, deck);
   const autoClearedCount = stillPainted.length + autoClearRemovedCards(parseResult.cards);
 
-  const unmarkedKeys = unmarkCardsWithNewStripes(beforeTallies, stillPainted);
+  const stalePainted = trackStaleChildMarks(state.currentPrism, beforeCards, now);
+  const unmarkedKeys = unmarkCardsWithNewStripes(beforeTallies, [...stillPainted, ...stalePainted]);
   const unmarkedCount = unmarkedKeys.length;
   if (unmarkedKeys.length > 0) {
     recordUnmarkedCards(state.currentPrism.id, unmarkedKeys);
@@ -486,15 +489,15 @@ export function handleDeleteConfirm() {
 
   const now = new Date().toISOString();
   let removedCount = 0;
-  const removalPosition = getRemovalStripePosition(state.currentPrism, deck);
+  const beforeCards = deck.splitGroupId ? processCards(state.currentPrism) : [];
 
   for (const card of deck.cards) {
+    const mark = removalMark(state.currentPrism, beforeCards, deck, card.name, card.quantity || 1, 0);
+    if (!mark) continue;
     const isNew = trackRemovedCard(state.currentPrism, {
       cardName: card.name,
       deckId: deck.id,
-      deckName: deck.name,
-      deckColor: deck.color,
-      stripePosition: removalPosition,
+      ...mark,
       removedAt: now,
       previousQuantity: card.quantity || 1,
       newQuantity: 0,
