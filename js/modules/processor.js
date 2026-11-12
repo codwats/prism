@@ -531,7 +531,8 @@ export function processCards(prism) {
 		pushTiers(parts);
 
 		// Physical total (#146 as amended by #150): the sum of batch quantities —
-		// dedicated batches plus the maximum across the remaining participants.
+		// dedicated and Separate sleeve tiers plus the maximum across the
+		// remaining participants.
 		// With dedication off this equals the plain max across decks. Singleton
 		// cards stay 1; basics and "any number" cards report the real count.
 		const totalQuantity = Math.max(1, batches.reduce((s, b) => s + b.copyCount, 0));
