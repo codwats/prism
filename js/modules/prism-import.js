@@ -4,7 +4,7 @@
  * page's Restore from backup dialog (imports as a new PRISM).
  */
 
-import { createPrism, createDeck, applyCommanderFallback } from './processor.js';
+import { createPrism, createDeck, applyCommanderFallback, generateId } from './processor.js';
 import { normalizeCardName } from './parser.js';
 
 /**
@@ -34,9 +34,20 @@ export function buildPrismFromJson(jsonData, { preserveId = true } = {}) {
   // Untrusted file: clamp colors to strict hex before they reach
   // style="background-color: ${color}" in render code. Invalid → grey fallback.
   const validHex = (c) => (/^#[0-9A-Fa-f]{6}$/.test(c) ? c : '#888888');
+  // Untrusted file (#435): ids reach data-* attributes, slots reach markup.
+  // Valid ids stay exactly (markedCards batch keys embed deck ids); any other
+  // id gets one fresh id per original value, so every reference follows it.
+  const remapped = new Map();
+  const safeId = (id) => {
+    if (typeof id === 'string' && /^[\w-]+$/.test(id)) return id;
+    if (id == null || id === '') return id;
+    if (!remapped.has(id)) remapped.set(id, generateId());
+    return remapped.get(id);
+  };
+  const validSlot = (n) => (Number.isInteger(n) && n >= 1 && n <= 48 ? n : undefined);
 
   const newPrism = createPrism(prismData.name || 'Imported PRISM');
-  if (preserveId) newPrism.id = prismData.id || newPrism.id;
+  if (preserveId) newPrism.id = safeId(prismData.id) || newPrism.id;
   newPrism.createdAt = prismData.createdAt || newPrism.createdAt;
   newPrism.updatedAt = new Date().toISOString();
   newPrism.markedCards = prismData.markedCards || [];
@@ -45,7 +56,14 @@ export function buildPrismFromJson(jsonData, { preserveId = true } = {}) {
   newPrism.useDedicatedCommanderCopies = prismData.useDedicatedCommanderCopies || false;
   newPrism.removedCards = (prismData.removedCards || []).map(removed => ({
     ...removed,
+    deckId: safeId(removed.deckId),
     deckColor: validHex(removed.deckColor),
+    ...(removed.splitGroup ? { splitGroup: {
+      ...removed.splitGroup,
+      id: safeId(removed.splitGroup.id),
+      variants: (Array.isArray(removed.splitGroup.variants) ? removed.splitGroup.variants : [])
+        .map(v => ({ ...v, id: safeId(v?.id) })),
+    } } : {}),
   }));
 
   // Untrusted file: one row per card per deck with a numeric quantity, else
@@ -74,12 +92,12 @@ export function buildPrismFromJson(jsonData, { preserveId = true } = {}) {
   for (const deck of prismData.decks) {
     const deckCards = normalizeCards(deck.cards);
     const newDeck = createDeck({
-      id: deck.id,
+      id: safeId(deck.id),
       name: deck.name,
       bracket: deck.bracket,
       color: validHex(deck.color),
-      stripePosition: deck.stripePosition,
-      splitGroupId: deck.splitGroupId || null,
+      stripePosition: validSlot(deck.stripePosition),
+      splitGroupId: safeId(deck.splitGroupId) || null,
       cards: deckCards,
       createdAt: deck.createdAt,
       updatedAt: deck.updatedAt,
@@ -94,15 +112,16 @@ export function buildPrismFromJson(jsonData, { preserveId = true } = {}) {
   const deckIds = new Set(newPrism.decks.map(d => d.id));
   newPrism.splitGroups = (prismData.splitGroups || [])
     .map(group => {
-      const explicit = (group.childDeckIds || []).filter(id => deckIds.has(id));
+      const groupId = safeId(group.id);
+      const explicit = (group.childDeckIds || []).map(safeId).filter(id => deckIds.has(id));
       const childDeckIds = explicit.length > 0
         ? explicit
-        : newPrism.decks.filter(d => d.splitGroupId === group.id).map(d => d.id);
+        : newPrism.decks.filter(d => d.splitGroupId === groupId).map(d => d.id);
       if (childDeckIds.length === 0) return null;
       return {
-        id: group.id,
+        id: groupId,
         name: group.name,
-        sideAPosition: group.sideAPosition,
+        sideAPosition: validSlot(group.sideAPosition),
         sideAColor: validHex(group.sideAColor),
         splitStyle: group.splitStyle || 'stripes',
         childDeckIds,
@@ -117,11 +136,11 @@ export function buildPrismFromJson(jsonData, { preserveId = true } = {}) {
   const isText = (v) => typeof v === 'string' && v.length > 0;
   const isDate = (v) => isText(v) && !Number.isNaN(Date.parse(v));
   newPrism.plannedSwaps = (Array.isArray(prismData.plannedSwaps) ? prismData.plannedSwaps : [])
-    .filter(swap => swap && isText(swap.id) && isText(swap.incoming) && deckIds.has(swap.deckId))
+    .filter(swap => swap && isText(swap.id) && isText(swap.incoming) && deckIds.has(safeId(swap.deckId)))
     .map(swap => ({
-      id: swap.id,
+      id: safeId(swap.id),
       incoming: swap.incoming,
-      deckId: swap.deckId,
+      deckId: safeId(swap.deckId),
       copies: Number.isInteger(swap.copies) && swap.copies > 0 ? swap.copies : 1,
       ...(isText(swap.outgoing) ? { outgoing: swap.outgoing } : {}),
       ...(isText(swap.note) ? { note: swap.note } : {}),

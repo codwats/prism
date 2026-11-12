@@ -105,3 +105,67 @@ test('the backup keeps its derived fields', () => {
 	assert.equal(json.prism.cards[0].name, 'Mind Stone');
 	assert.equal(json.prism.cards[0].copiesNeeded, 1);
 });
+
+// Untrusted ids and slots (#435): ids land in data-* attributes unescaped.
+const SAFE_ID = /^[\w-]+$/;
+
+test('ids with markup are regenerated and references follow them', () => {
+	const bad = 'd"><img src=x onerror=alert(1)>';
+	const badGroup = 'g <b>';
+	const json = {
+		id: 'p "x"', name: 'P',
+		decks: [
+			{ id: bad, name: 'V1', bracket: 3, color: '#FF0000', stripePosition: 25, splitGroupId: badGroup,
+				cards: [{ name: 'Sol Ring', quantity: 1 }] },
+			{ id: 'v2', name: 'V2', bracket: 3, color: '#00FF00', stripePosition: 26, splitGroupId: badGroup,
+				cards: [{ name: 'Sol Ring', quantity: 1 }] },
+		],
+		splitGroups: [{ id: badGroup, name: 'G', sideAPosition: 1, sideAColor: '#0000FF', childDeckIds: [bad, 'v2'] }],
+		plannedSwaps: [{ id: 's1', incoming: 'Mind Stone', deckId: bad, copies: 1 }],
+		removedCards: [{ cardName: 'Arcane Signet', deckId: bad, deckColor: '#FF0000', previousQuantity: 1, newQuantity: 0,
+			splitGroup: { id: badGroup, variants: [{ id: bad }, { id: 'v2' }] } }],
+	};
+	const restored = buildPrismFromJson(json);
+	const [v1, v2] = restored.decks;
+	const [group] = restored.splitGroups;
+	assert.match(restored.id, SAFE_ID);
+	assert.match(v1.id, SAFE_ID);
+	assert.match(group.id, SAFE_ID);
+	assert.equal(v2.id, 'v2');
+	assert.equal(v1.splitGroupId, group.id);
+	assert.equal(v2.splitGroupId, group.id);
+	assert.deepEqual(group.childDeckIds, [v1.id, 'v2']);
+	assert.equal(restored.plannedSwaps[0].deckId, v1.id);
+	const [row] = restored.removedCards;
+	assert.equal(row.deckId, v1.id);
+	assert.equal(row.splitGroup.id, group.id);
+	assert.deepEqual(row.splitGroup.variants.map((v) => v.id), [v1.id, 'v2']);
+});
+
+test('a normal backup keeps every id and every mark Done', async () => {
+	const { processCards } = await import('../js/modules/processor.js');
+	const { isCardDone } = await import('../js/core/utils.js');
+	const p = prism();
+	p.decks[1].cards[0].quantity = 2; // two batches: keys embed deck ids
+	const before = processCards(p).find((c) => c.name === 'Mind Stone');
+	p.markedCards = before.batches.map((b) => b.key);
+	const restored = buildPrismFromJson(JSON.parse(exportToJSON(p)));
+	assert.equal(restored.id, 'p1');
+	assert.deepEqual(restored.decks.map((d) => d.id), ['d1', 'd2']);
+	assert.equal(restored.plannedSwaps[0].deckId, 'd1');
+	const after = processCards(restored).find((c) => c.name === 'Mind Stone');
+	assert.equal(after.batches.length, 2);
+	assert.equal(isCardDone(after, new Set(restored.markedCards)), true);
+});
+
+test('non-integer or out-of-range slots never reach the PRISM', () => {
+	const deck = (id, stripePosition) => ({ id, name: id, bracket: 3, color: '#FF0000', stripePosition,
+		cards: [{ name: 'Sol Ring', quantity: 1 }] });
+	const restored = buildPrismFromJson({
+		decks: [deck('a', '1" onmouseover="alert(1)'), deck('b', 49), deck('c', 2.5), deck('d', 0), deck('e', 48),
+			{ ...deck('g', 30), splitGroupId: 'grp' }],
+		splitGroups: [{ id: 'grp', name: 'G', sideAPosition: '3"><x', childDeckIds: ['g'] }],
+	});
+	assert.deepEqual(restored.decks.map((d) => d.stripePosition), [undefined, undefined, undefined, undefined, 48, 30]);
+	assert.equal(restored.splitGroups[0].sideAPosition, undefined);
+});

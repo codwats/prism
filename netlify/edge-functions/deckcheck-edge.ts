@@ -70,5 +70,6 @@ export default async function handler(request: Request): Promise<Response> {
 }
 
 export const config = {
-  path: '/api/deckcheck-edge'
+  path: '/api/deckcheck-edge',
+  rateLimit: { windowLimit: 30, windowSize: 60, aggregateBy: ['ip', 'domain'] }
 };
