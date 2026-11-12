@@ -466,14 +466,39 @@ export function processCards(prism) {
 			const deck = decks.find((d) => d.id === deckId);
 			return (deck && groupOf(deck, groupMap)) ? deck.splitGroupId : deckId;
 		};
+		// One batch per distinct quantity tier of `tierParts`, stamped with
+		// `flags`. With equal quantities this is one batch at that quantity.
+		const pushTiers = (tierParts, flags = {}) => {
+			const tiers = [...new Set(tierParts.map((p) => p.qty))].sort((a, b) => a - b);
+			let prevTier = 0;
+			for (const tier of tiers) {
+				const participantIds = tierParts
+					.filter((p) => p.qty >= tier)
+					.map((p) => p.deckId)
+					.sort();
+				const logical = new Set(participantIds.map(logicalIdOf));
+				const copyCount = tier - prevTier;
+				batches.push({
+					copyCount,
+					participantIds,
+					key: `${cardData.name}|#b|${participantIds.join(",")}|${copyCount}`,
+					logicalDeckCount: logical.size,
+					isPool: logical.size > 1,
+					...flags,
+					stripes: marksForParticipants(decks, groupMap, new Set(participantIds), cardData.quantities),
+				});
+				prevTier = tier;
+			}
+		};
 
 		// Dedicated commander copies (#150): one rule per (commander card,
-		// logical deck) — emit a dedicated batch at the logical deck's full
-		// quantity carrying its normal marks, and REMOVE that logical deck from
-		// the remaining threshold derivation (replace, not add on top: a
+		// logical deck) — emit that logical deck's quantity tiers as dedicated
+		// batches carrying their normal marks (#424), and REMOVE that logical
+		// deck from the shared derivation (replace, not add on top: a
 		// commander with no other home still costs exactly one copy). A group
-		// dedicates when the card is flagged in at least one child variant, and
-		// emits ONE batch for the whole group, never one per variant.
+		// dedicates when the card is flagged in at least one child variant, as
+		// a whole group, never per variant. Its tiers span one logical deck, so
+		// they are core by construction.
 		if (prism.useDedicatedCommanderCopies && cardData.commanderDeckIds.size > 0) {
 			const byLogical = new Map(); // logicalId -> parts[]
 			for (const p of parts) {
@@ -483,26 +508,15 @@ export function processCards(prism) {
 			}
 			const dedicatedDeckIds = new Set();
 			for (const [, logicalParts] of byLogical) {
-				const flagged = logicalParts.some((p) => cardData.commanderDeckIds.has(p.deckId));
-				if (!flagged) continue;
-				const participantIds = logicalParts.map((p) => p.deckId).sort();
-				const copyCount = Math.max(...logicalParts.map((p) => p.qty));
-				batches.push({
-					copyCount,
-					participantIds,
-					key: `${cardData.name}|#b|${participantIds.join(",")}|${copyCount}`,
-					logicalDeckCount: 1, // dedicated batches are core by construction
-					isPool: false,
-					isDedicated: true,
-					stripes: marksForParticipants(decks, groupMap, new Set(participantIds), cardData.quantities),
-				});
+				if (!logicalParts.some((p) => cardData.commanderDeckIds.has(p.deckId))) continue;
+				pushTiers(logicalParts, { isDedicated: true });
 				logicalParts.forEach((p) => dedicatedDeckIds.add(p.deckId));
 			}
 			parts = parts.filter((p) => !dedicatedDeckIds.has(p.deckId));
 		}
 
-		// Separate sleeves (#309): rows sharing a sleeve id are one batch at
-		// their highest quantity, and leave the threshold derivation — the same
+		// Separate sleeves (#309): rows sharing a sleeve id get their own
+		// quantity tiers (#424) and leave the shared derivation — the same
 		// replace-not-add rule as dedication, which runs first and wins.
 		const sleeves = new Map(); // sleeve id -> parts[]
 		for (const p of parts) {
@@ -511,44 +525,14 @@ export function processCards(prism) {
 			if (!sleeves.has(id)) sleeves.set(id, []);
 			sleeves.get(id).push(p);
 		}
-		for (const [, sleeveParts] of sleeves) {
-			const participantIds = sleeveParts.map((p) => p.deckId).sort();
-			const copyCount = Math.max(...sleeveParts.map((p) => p.qty));
-			const logical = new Set(participantIds.map(logicalIdOf));
-			batches.push({
-				copyCount,
-				participantIds,
-				key: `${cardData.name}|#b|${participantIds.join(",")}|${copyCount}`,
-				logicalDeckCount: logical.size,
-				isPool: logical.size > 1,
-				isSeparateSleeve: true,
-				stripes: marksForParticipants(decks, groupMap, new Set(participantIds), cardData.quantities),
-			});
-		}
+		for (const [, sleeveParts] of sleeves) pushTiers(sleeveParts, { isSeparateSleeve: true });
 		parts = parts.filter((p) => !sleeves.has(cardData.sleeveOf.get(p.deckId)));
 
-		const tiers = [...new Set(parts.map((p) => p.qty))].sort((a, b) => a - b);
-		let prevTier = 0;
-		for (const tier of tiers) {
-			const participantIds = parts
-				.filter((p) => p.qty >= tier)
-				.map((p) => p.deckId)
-				.sort();
-			const logical = new Set(participantIds.map(logicalIdOf));
-			const copyCount = tier - prevTier;
-			batches.push({
-				copyCount,
-				participantIds,
-				key: `${cardData.name}|#b|${participantIds.join(",")}|${copyCount}`,
-				logicalDeckCount: logical.size,
-				isPool: logical.size > 1,
-				stripes: marksForParticipants(decks, groupMap, new Set(participantIds), cardData.quantities),
-			});
-			prevTier = tier;
-		}
+		pushTiers(parts);
 
 		// Physical total (#146 as amended by #150): the sum of batch quantities —
-		// dedicated batches plus the maximum across the remaining participants.
+		// dedicated and Separate sleeve tiers plus the maximum across the
+		// remaining participants.
 		// With dedication off this equals the plain max across decks. Singleton
 		// cards stay 1; basics and "any number" cards report the real count.
 		const totalQuantity = Math.max(1, batches.reduce((s, b) => s + b.copyCount, 0));
