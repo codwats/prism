@@ -245,6 +245,34 @@ test('Separate sleeve and dedicated batches do not paint a deck mark on more cop
 	assert.ok(krark.batches.some((b) => visible(b.stripes).some((s) => s.deckName === 'G1')));
 });
 
+test('a deck its split group lists but that names no group, or another, is standalone in both group loops (#420)', () => {
+	const prism = createPrism('T');
+	const [g1] = group(prism, 'G', 1, [[card('Sol Ring')], [card('Opt')]]);
+	const h = createSplitGroup({ id: 'H', name: 'H', sideAPosition: 3, sideAColor: '#BBBBBB' });
+	h.childDeckIds = [];
+	prism.splitGroups.push(h);
+	for (const splitGroupId of [null, 'H']) {
+		g1.splitGroupId = splitGroupId;
+		const sol = find(prism, 'Sol Ring');
+		assert.deepEqual(visible(sol.stripes).map((s) => s.deckId), ['G1']);
+		assert.deepEqual(visible(sol.batches[0].stripes), visible(sol.stripes));
+	}
+});
+
+test('backup import: rows naming one card by printing or face merge (#425)', async () => {
+	const { buildPrismFromJson } = await import('../js/modules/prism-import.js');
+	const prism = buildPrismFromJson({ decks: [{ id: 'A', name: 'A', bracket: 3, color: '#111111', stripePosition: 1, cards: [
+		card('Sol Ring', 1), card('Sol Ring (C21) 263', 2),
+		card('Delver of Secrets', 1), card('Delver of Secrets // Insectile Aberration', 1),
+	] }] });
+	assert.equal(prism.decks[0].cards.length, 2);
+	for (const [name, qty] of [['Sol Ring', 3], ['Delver of Secrets', 2]]) {
+		const c = find(prism, name);
+		assert.equal(c.totalQuantity, qty);
+		assert.equal(visible(c.stripes).length, 1);
+	}
+});
+
 test('backup import: malformed card rows do not reach the batch derivation', async () => {
 	const { buildPrismFromJson } = await import('../js/modules/prism-import.js');
 	const backupDeck = (id, pos, cards) => ({ id, name: id, bracket: 3, color: '#111111', stripePosition: pos, cards });

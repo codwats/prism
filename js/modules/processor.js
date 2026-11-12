@@ -225,7 +225,7 @@ function marksForParticipants(decks, groupMap, participantIds, quantities) {
 	for (const group of groupMap.values()) {
 		const variantDecks = group.childDeckIds
 			.map((id) => decks.find((d) => d.id === id))
-			.filter(Boolean);
+			.filter((d) => d && groupOf(d, groupMap) === group);
 		const inBatch = variantDecks.filter((d) => participantIds.has(d.id));
 		if (inBatch.length === 0) continue;
 
@@ -357,7 +357,7 @@ export function processCards(prism) {
 	for (const group of splitGroups) {
 		const variantDecks = group.childDeckIds
 			.map(id => decks.find(d => d.id === id))
-			.filter(Boolean);
+			.filter(d => d && groupOf(d, groupMap) === group);
 		const isDotStyle = (group.splitStyle || 'stripes') === 'dots';
 
 		for (const [, cardData] of cardMap) {
