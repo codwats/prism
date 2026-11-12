@@ -3,6 +3,8 @@
  * Handles importing decks from Archidekt URLs
  */
 
+import { importError } from './import-error.js';
+
 /**
  * Extract deck ID from an Archidekt URL or raw ID
  * @param {string} input - Archidekt URL or deck ID
@@ -37,11 +39,7 @@ export async function fetchArchidektDeck(deckId) {
     body: JSON.stringify({ deckId })
   });
 
-  if (!response.ok) {
-    if (response.status === 429) throw new Error('Import is busy, try again in a moment.');
-    const error = await response.json().catch(() => ({ error: 'Unknown error' }));
-    throw new Error(error.error || `Failed to fetch deck: ${response.status}`);
-  }
+  if (!response.ok) throw await importError(response);
 
   return response.json();
 }
