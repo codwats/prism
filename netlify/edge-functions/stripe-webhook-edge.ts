@@ -106,22 +106,8 @@ async function handleEvent(event: StripeObject): Promise<void> {
       return;
     }
 
-    case 'invoice.payment_failed': {
-      const userId = await findUserByCustomer(obj.customer);
-      if (!userId) {
-        console.error(`No stripe_customers row for ${obj.customer} (event ${event.id}) — skipping`);
-        return;
-      }
-      const updatedAt = new Date(event.created * 1000).toISOString();
-      await restFetch(
-        `subscriptions?user_id=eq.${userId}&updated_at=lt.${encodeURIComponent(updatedAt)}`,
-        { method: 'PATCH', body: JSON.stringify({ status: 'past_due', updated_at: updatedAt }) }
-      );
-      return;
-    }
-
     default:
-      // Not subscribed to anything else, but Stripe may send it anyway.
+      // invoice.payment_failed lands here on purpose (#434): it can't say which subscription failed, and past_due arrives via customer.subscription.updated.
       console.log('Unhandled Stripe event type:', event.type);
   }
 }
