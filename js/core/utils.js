@@ -121,8 +121,8 @@ export function passKeysForCard(card) {
  *   deliberately NOT honored here — the old single checkbox never said which
  *   copies got which pen, so those cards present as undone.
  * - OR every pass key marked (one-mark-at-a-time view)
- * - OR, for basics, every legacy per-deck Side A key marked (pre-batch shape,
- *   retained so existing Forest|DeckName marks keep counting)
+ * - OR, for basics with no pass keys, every legacy per-deck Side A key marked
+ *   (pre-batch shape, retained so existing Forest|DeckName marks keep counting)
  * Shared by the Marked progress stat and the undone-list exports so all
  * surfaces agree on what "done" means.
  * @param {Object} card - Processed card ({ name, isBasicLand, stripes, batches })
@@ -136,7 +136,9 @@ export function isCardDone(card, markedSet) {
   if (multiBatch && batches.every(b => markedSet.has(b.key))) return true;
   const passKeys = passKeysForCard(card);
   if (passKeys.length > 0 && passKeys.every(k => markedSet.has(k))) return true;
-  if (card.isBasicLand) {
+  // Pass keys, when present, already cover every legacy Side A key plus any
+  // child-mark pass the Side A keys would miss (#418).
+  if (card.isBasicLand && passKeys.length === 0) {
     const sideAKeys = (card.stripes || [])
       .filter(s => s.side === 'a')
       .map(s => `${card.name}|${s.deckName}`);

@@ -5,6 +5,7 @@
  */
 
 import { createPrism, createDeck, applyCommanderFallback } from './processor.js';
+import { normalizeCardName } from './parser.js';
 
 /**
  * Validate and construct a PRISM object from parsed backup JSON.
@@ -47,8 +48,31 @@ export function buildPrismFromJson(jsonData, { preserveId = true } = {}) {
     deckColor: validHex(removed.deckColor),
   }));
 
+  // Untrusted file: one row per card per deck with a numeric quantity, else
+  // processCards double-stripes the card or derives a 0-copy batch (#425).
+  // Repeated rows sum, as repeated decklist lines do (#413); any row's
+  // commander flag or sleeve carries onto the merged row.
+  const normalizeCards = (cards) => {
+    const byName = new Map();
+    for (const row of Array.isArray(cards) ? cards : []) {
+      if (!row || typeof row.name !== 'string' || !row.name.trim()) continue;
+      const n = Number(row.quantity);
+      const quantity = Number.isInteger(n) && n > 0 ? n : 1;
+      const key = normalizeCardName(row.name); // processCards' card identity
+      const existing = byName.get(key);
+      if (!existing) {
+        byName.set(key, { ...row, quantity });
+        continue;
+      }
+      existing.quantity += quantity;
+      if (row.isCommander) existing.isCommander = true;
+      if (row.sleeve && !existing.sleeve) existing.sleeve = row.sleeve;
+    }
+    return [...byName.values()];
+  };
+
   for (const deck of prismData.decks) {
-    const deckCards = deck.cards || [];
+    const deckCards = normalizeCards(deck.cards);
     const newDeck = createDeck({
       id: deck.id,
       name: deck.name,

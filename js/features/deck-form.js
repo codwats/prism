@@ -22,7 +22,8 @@ import {
 import { savePrism, recordUnmarkedCards } from "../modules/storage.js";
 import { canonicalizeCards } from "../modules/scryfall.js";
 import {
-  unmarkSharedCards,
+  getMarkTallies,
+  unmarkCardsWithNewStripes,
   autoClearRemovedCards,
 } from "./deck-list.js";
 import { resetFileInput } from "./deck-import.js";
@@ -293,10 +294,9 @@ export async function handleDeckSubmit(e) {
       }
     }
 
-    // Get card names from the new deck (no processCards call)
-    const newCardNames = new Set(
-      parseResult.cards.map((c) => c.name.toLowerCase()),
-    );
+    // Copies per mark before the add: any mark the new deck gives copies to
+    // retires that mark's stale Done keys, even on a card that left the PRISM (#421)
+    const beforeTallies = getMarkTallies();
 
     // Create deck
     const deck = createDeck({
@@ -311,8 +311,7 @@ export async function handleDeckSubmit(e) {
     // Add to PRISM
     state.currentPrism = addDeckToPrism(state.currentPrism, deck);
 
-    // Unmark marked cards that are now shared with this deck
-    const unmarkedKeys = unmarkSharedCards(newCardNames);
+    const unmarkedKeys = unmarkCardsWithNewStripes(beforeTallies);
     const unmarkedCount = unmarkedKeys.length;
     if (unmarkedKeys.length > 0) {
       recordUnmarkedCards(state.currentPrism.id, unmarkedKeys);

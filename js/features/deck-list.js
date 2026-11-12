@@ -4,7 +4,7 @@
 
 import { state } from "../core/state.js";
 import { showError, showSuccess } from "../core/notifications.js";
-import { escapeHtml, debugLog, countVisibleMarks, markSingleBatchDone } from "../core/utils.js";
+import { escapeHtml, debugLog, markSingleBatchDone } from "../core/utils.js";
 import { parseDecklist, validateDecklist, cardsToDecklistText, normalizeCardName } from "../modules/parser.js";
 import {
   processCards,
@@ -79,34 +79,6 @@ function cardListChanged(oldCards, newCards) {
 
 export function unmarkCardsWithNewStripes(before, stillPainted) {
   return unmarkCardsWithNewStripesIn(state.currentPrism, before, stillPainted);
-}
-
-export function unmarkSharedCards(newCardNames) {
-  if (!state.currentPrism?.markedCards?.length) return [];
-
-  const processed = processCards(state.currentPrism);
-  const cardMap = new Map(processed.map((c) => [c.name.toLowerCase(), c]));
-
-  const unmarkedKeys = [];
-
-  state.currentPrism.markedCards = state.currentPrism.markedCards.filter(
-    (cardKey) => {
-      const cardName = (
-        cardKey.includes("|") ? cardKey.split("|")[0] : cardKey
-      ).toLowerCase();
-
-      if (newCardNames.has(cardName)) {
-        const card = cardMap.get(cardName);
-        if (card && countVisibleMarks(card.stripes) > 1) {
-          unmarkedKeys.push(cardKey);
-          return false;
-        }
-      }
-      return true;
-    },
-  );
-
-  return unmarkedKeys;
 }
 
 export function autoClearRemovedCards(newCards) {

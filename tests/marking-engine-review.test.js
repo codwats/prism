@@ -17,7 +17,7 @@ const { isCardDone, passKeysForCard, markSingleBatchDone } = await import('../js
 const { applySwap, markTallies, unmarkCardsWithNewStripes, openRemovals } =
 	await import('../js/modules/swap.js');
 const { state } = await import('../js/core/state.js');
-const { unmarkSharedCards } = await import('../js/features/deck-list.js');
+const { getMarkTallies, unmarkCardsWithNewStripes: unmarkAfterAdd } = await import('../js/features/deck-list.js');
 
 const card = (name, quantity = 1, extra = {}) =>
 	({ name, quantity, isCommander: false, isBasicLand: name === 'Forest', ...extra });
@@ -105,7 +105,7 @@ test('done-keying: turning dedication on retires a plain Done; a quantity change
 
 const BUG = (issue) => ({ todo: `bug #${issue}` });
 
-test('basic land: marking the Side A passes alone must not read Done while a child-mark pass is open', BUG(418), () => {
+test('basic land: marking the Side A passes alone must not read Done while a child-mark pass is open', () => {
 	const prism = createPrism('T');
 	group(prism, 'G', 1, [[card('Forest', 5)], [card('Forest', 2)]]);
 	prism.decks.push(deck('E', 2, [card('Forest', 3)]));
@@ -125,7 +125,7 @@ test('pass keys: a split group and a deck that share a name are two passes', BUG
 	assert.equal(passKeysForCard(forest).length, 2);
 });
 
-test('a variant whose split group is missing still gets a mark on its batch', BUG(420), () => {
+test('a variant whose split group is missing still gets a mark on its batch (#420)', () => {
 	const prism = createPrism('T');
 	prism.decks = [deck('A', 1, [card('Sol Ring')], { splitGroupId: 'gone' })];
 	const sol = find(prism, 'Sol Ring');
@@ -133,14 +133,45 @@ test('a variant whose split group is missing still gets a mark on its batch', BU
 	assert.deepEqual(visible(sol.batches[0].stripes), visible(sol.stripes));
 });
 
-test('add deck: a card that left the PRISM and comes back in a new deck is not Done', BUG(421), () => {
+test('a deck its split group does not list is standalone: own stripe on card and batch (#420)', () => {
+	const prism = createPrism('T');
+	group(prism, 'G', 1, [[card('Opt')], [card('Opt')]]);
+	prism.decks.push(deck('A', 2, [card('Sol Ring')], { splitGroupId: 'G' }));
+	const sol = find(prism, 'Sol Ring');
+	assert.deepEqual(visible(sol.stripes).map((s) => s.deckId), ['A']);
+	assert.deepEqual(visible(sol.batches[0].stripes), visible(sol.stripes));
+});
+
+// Add Deck: snapshot the tallies, add the deck, un-mark (deck-form.js handleAddDeck).
+function addDeck(prism, newDeck) {
+	state.currentPrism = prism;
+	const before = getMarkTallies();
+	prism.decks.push(newDeck);
+	return unmarkAfterAdd(before);
+}
+
+test('add deck: a card that left the PRISM and comes back in a new deck is not Done (#421)', () => {
 	// Sol Ring was Done in deck A; A was deleted (mark keys are never pruned).
 	const prism = createPrism('T');
 	prism.markedCards = ['Sol Ring', 'Sol Ring|#b|A|1'];
-	prism.decks = [deck('B', 2, [card('Sol Ring')])];
-	state.currentPrism = prism;
-	unmarkSharedCards(new Set(['sol ring']));
-	assert.equal(isCardDone(find(state.currentPrism, 'Sol Ring'), new Set(state.currentPrism.markedCards)), false);
+	addDeck(prism, deck('B', 2, [card('Sol Ring')]));
+	assert.equal(isCardDone(find(prism, 'Sol Ring'), new Set(prism.markedCards)), false);
+});
+
+test('add deck: a pass key left by a deleted deck of the same name is un-marked (#421)', () => {
+	const prism = createPrism('T');
+	prism.decks = [deck('K', 1, [card('Forest', 2)])];
+	prism.markedCards = ['Forest|K', 'Forest|A']; // A deleted, its pass key never pruned
+	assert.deepEqual(addDeck(prism, deck('A', 2, [card('Forest', 3)])), ['Forest|A']);
+	assert.deepEqual(prism.markedCards, ['Forest|K']);
+});
+
+test('add deck: a Done card now shared with the new deck is un-marked; its other pass keys stay', () => {
+	const prism = createPrism('T');
+	prism.decks = [deck('A', 1, [card('Sol Ring')])];
+	prism.markedCards = ['Sol Ring', 'Sol Ring|A'];
+	assert.deepEqual(addDeck(prism, deck('B', 2, [card('Sol Ring')])), ['Sol Ring']);
+	assert.deepEqual(prism.markedCards, ['Sol Ring|A']);
 });
 
 test('raising a quantity retires a single-batch or pass Done: the new copies have no marks (#422)', () => {
@@ -214,7 +245,35 @@ test('Separate sleeve and dedicated batches do not paint a deck mark on more cop
 	assert.ok(krark.batches.some((b) => visible(b.stripes).some((s) => s.deckName === 'G1')));
 });
 
-test('backup import: malformed card rows do not reach the batch derivation', BUG(425), async () => {
+test('a deck its split group lists but that names no group, or another, is standalone in both group loops (#420)', () => {
+	const prism = createPrism('T');
+	const [g1] = group(prism, 'G', 1, [[card('Sol Ring')], [card('Opt')]]);
+	const h = createSplitGroup({ id: 'H', name: 'H', sideAPosition: 3, sideAColor: '#BBBBBB' });
+	h.childDeckIds = [];
+	prism.splitGroups.push(h);
+	for (const splitGroupId of [null, 'H']) {
+		g1.splitGroupId = splitGroupId;
+		const sol = find(prism, 'Sol Ring');
+		assert.deepEqual(visible(sol.stripes).map((s) => s.deckId), ['G1']);
+		assert.deepEqual(visible(sol.batches[0].stripes), visible(sol.stripes));
+	}
+});
+
+test('backup import: rows naming one card by printing or face merge (#425)', async () => {
+	const { buildPrismFromJson } = await import('../js/modules/prism-import.js');
+	const prism = buildPrismFromJson({ decks: [{ id: 'A', name: 'A', bracket: 3, color: '#111111', stripePosition: 1, cards: [
+		card('Sol Ring', 1), card('Sol Ring (C21) 263', 2),
+		card('Delver of Secrets', 1), card('Delver of Secrets // Insectile Aberration', 1),
+	] }] });
+	assert.equal(prism.decks[0].cards.length, 2);
+	for (const [name, qty] of [['Sol Ring', 3], ['Delver of Secrets', 2]]) {
+		const c = find(prism, name);
+		assert.equal(c.totalQuantity, qty);
+		assert.equal(visible(c.stripes).length, 1);
+	}
+});
+
+test('backup import: malformed card rows do not reach the batch derivation', async () => {
 	const { buildPrismFromJson } = await import('../js/modules/prism-import.js');
 	const backupDeck = (id, pos, cards) => ({ id, name: id, bracket: 3, color: '#111111', stripePosition: pos, cards });
 	const prism = buildPrismFromJson({ decks: [

@@ -192,16 +192,23 @@ export function createPrism(name = "") {
  * Emits the same stripe entry shapes as processCards, including 'membership'
  * anchors so deck-filtering keeps working on batch rows.
  * @param {Array} decks - prism.decks
- * @param {Array} splitGroups - prism.splitGroups
+ * @param {Map} groupMap - split group id -> group
  * @param {Set} participantIds - deck ids participating in this batch
  * @param {Map} quantities - deckId -> quantity for this card
  * @returns {Array} stripes, Side A first then by position
  */
-function marksForParticipants(decks, splitGroups, participantIds, quantities) {
+// A deck's split group, only if that group exists and lists it; any other
+// deck (including one with an orphaned splitGroupId, #420) is standalone.
+function groupOf(deck, groupMap) {
+	const group = deck.splitGroupId ? groupMap.get(deck.splitGroupId) : null;
+	return group?.childDeckIds.includes(deck.id) ? group : null;
+}
+
+function marksForParticipants(decks, groupMap, participantIds, quantities) {
 	const stripes = [];
 
 	for (const deck of decks) {
-		if (!deck.splitGroupId && participantIds.has(deck.id)) {
+		if (!groupOf(deck, groupMap) && participantIds.has(deck.id)) {
 			stripes.push({
 				position: deck.stripePosition,
 				color: deck.color,
@@ -215,10 +222,10 @@ function marksForParticipants(decks, splitGroups, participantIds, quantities) {
 		}
 	}
 
-	for (const group of splitGroups) {
+	for (const group of groupMap.values()) {
 		const variantDecks = group.childDeckIds
 			.map((id) => decks.find((d) => d.id === id))
-			.filter(Boolean);
+			.filter((d) => d && groupOf(d, groupMap) === group);
 		const inBatch = variantDecks.filter((d) => participantIds.has(d.id));
 		if (inBatch.length === 0) continue;
 
@@ -280,7 +287,7 @@ export function processCards(prism) {
 	const cardMap = new Map();
 
 	for (const deck of decks) {
-		const group = deck.splitGroupId ? groupMap.get(deck.splitGroupId) : null;
+		const group = groupOf(deck, groupMap);
 
 		for (const card of deck.cards) {
 			const normalizedName = normalizeCardName(card.name);
@@ -350,7 +357,7 @@ export function processCards(prism) {
 	for (const group of splitGroups) {
 		const variantDecks = group.childDeckIds
 			.map(id => decks.find(d => d.id === id))
-			.filter(Boolean);
+			.filter(d => d && groupOf(d, groupMap) === group);
 		const isDotStyle = (group.splitStyle || 'stripes') === 'dots';
 
 		for (const [, cardData] of cardMap) {
@@ -457,7 +464,7 @@ export function processCards(prism) {
 		const batches = [];
 		const logicalIdOf = (deckId) => {
 			const deck = decks.find((d) => d.id === deckId);
-			return (deck?.splitGroupId && groupMap.has(deck.splitGroupId)) ? deck.splitGroupId : deckId;
+			return (deck && groupOf(deck, groupMap)) ? deck.splitGroupId : deckId;
 		};
 
 		// Dedicated commander copies (#150): one rule per (commander card,
@@ -487,7 +494,7 @@ export function processCards(prism) {
 					logicalDeckCount: 1, // dedicated batches are core by construction
 					isPool: false,
 					isDedicated: true,
-					stripes: marksForParticipants(decks, splitGroups, new Set(participantIds), cardData.quantities),
+					stripes: marksForParticipants(decks, groupMap, new Set(participantIds), cardData.quantities),
 				});
 				logicalParts.forEach((p) => dedicatedDeckIds.add(p.deckId));
 			}
@@ -515,7 +522,7 @@ export function processCards(prism) {
 				logicalDeckCount: logical.size,
 				isPool: logical.size > 1,
 				isSeparateSleeve: true,
-				stripes: marksForParticipants(decks, splitGroups, new Set(participantIds), cardData.quantities),
+				stripes: marksForParticipants(decks, groupMap, new Set(participantIds), cardData.quantities),
 			});
 		}
 		parts = parts.filter((p) => !sleeves.has(cardData.sleeveOf.get(p.deckId)));
@@ -535,7 +542,7 @@ export function processCards(prism) {
 				key: `${cardData.name}|#b|${participantIds.join(",")}|${copyCount}`,
 				logicalDeckCount: logical.size,
 				isPool: logical.size > 1,
-				stripes: marksForParticipants(decks, splitGroups, new Set(participantIds), cardData.quantities),
+				stripes: marksForParticipants(decks, groupMap, new Set(participantIds), cardData.quantities),
 			});
 			prevTier = tier;
 		}
