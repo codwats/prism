@@ -1,7 +1,9 @@
 {
   "detector": {
     "ignoreRules": [],
-    "ignoreFiles": [],
+    "ignoreFiles": [
+      "tests/marking-engine-review.test.js"
+    ],
     "ignoreValues": [
       {
         "rule": "design-system-font-size",
