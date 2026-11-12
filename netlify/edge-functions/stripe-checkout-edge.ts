@@ -151,6 +151,23 @@ export default async function handler(request: Request): Promise<Response> {
     const returnPath = safeReturnPath(body?.returnUrl) || '/profile.html';
     const siteOrigin = new URL(request.url).origin;
 
+    // Refuse a second subscription (#436): `subscriptions` holds one row per
+    // user, so cancelling either of two would write `canceled` over the row
+    // while the other still bills. Same statuses is_entitled() counts.
+    const subRes = await fetch(
+      `${supabaseUrl}/rest/v1/subscriptions?user_id=eq.${user.id}&select=status`,
+      { headers: serviceHeaders() }
+    );
+    if (!subRes.ok) {
+      // Must not fall through to "no subscription": that starts the second one.
+      console.error('Failed to look up subscription:', subRes.status, await subRes.text());
+      return jsonResponse(request, 500, { error: 'Failed to start checkout' });
+    }
+    const liveStatuses = ['active', 'trialing', 'past_due', 'unpaid'];
+    if (liveStatuses.includes((await subRes.json())[0]?.status)) {
+      return jsonResponse(request, 409, { error: 'You already have a Membership. You can manage it from your profile.' });
+    }
+
     // Reuse the user's Stripe customer, or create one
     const lookupRes = await fetch(
       `${supabaseUrl}/rest/v1/stripe_customers?user_id=eq.${user.id}&select=stripe_customer_id`,
