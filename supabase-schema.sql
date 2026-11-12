@@ -713,12 +713,19 @@ CREATE POLICY "Users upload gallery art to own folder"
     AND (storage.foldername(name))[1] = auth.uid()::text
   );
 
+-- An uploader can't delete an approved artwork's image (#433): with the
+-- own-folder INSERT they could swap unreviewed art in behind the approved row.
 DROP POLICY IF EXISTS "Users or admins delete gallery art" ON storage.objects;
 CREATE POLICY "Users or admins delete gallery art"
   ON storage.objects FOR DELETE TO authenticated
   USING (
     bucket_id = 'gallery-art'
-    AND ((storage.foldername(name))[1] = auth.uid()::text OR is_gallery_admin())
+    AND (
+      is_gallery_admin()
+      OR ((storage.foldername(name))[1] = auth.uid()::text
+          AND NOT EXISTS (SELECT 1 FROM gallery_artworks a
+                          WHERE a.image_path = storage.objects.name AND a.status = 'approved'))
+    )
   );
 
 -- ============================================
