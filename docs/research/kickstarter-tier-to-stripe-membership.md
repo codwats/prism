@@ -111,7 +111,7 @@ On an **annual** price, `duration=once` at `percent_off=100` already means "firs
 
 ### 1.4 Webhook events, mapped onto `stripe-webhook-edge.ts`
 
-PRISM's handler subscribes to four types: `checkout.session.completed`, `customer.subscription.updated`, `customer.subscription.deleted`, `invoice.payment_failed`. Everything else hits the `default:` branch and is logged, not acted on.
+PRISM's handler handles `checkout.session.completed` and the `customer.subscription.*` events (`invoice.payment_failed` is deliberately ignored, #434). Everything else hits the `default:` branch and is logged, not acted on.
 
 | Path | Event | Handled today? |
 | --- | --- | --- |
@@ -120,7 +120,7 @@ PRISM's handler subscribes to four types: `checkout.session.completed`, `custome
 | Trial ends, no card, `end_behavior=cancel` | `customer.subscription.deleted` | **Yes.** "The subscription moves to the `canceled` status and sends this event after a free trial ends without a payment method, and if the subscription's `missing_payment_method` end behavior is set to `cancel`." |
 | Trial ends, no card, `end_behavior=pause` | `customer.subscription.paused` | **No — and this is a live gap.** "The subscription moves to the `paused` status and sends this event after a free trial ends without a payment method and if the subscription's `missing_payment_method` end behavior is set to `pause`." Unhandled, the stored row keeps saying `trialing` and the user keeps access forever. |
 | Paused subscription resumed | `customer.subscription.resumed` | No — same gap in reverse (access would already be granted, so it fails safe). |
-| Trial ends, no card, `end_behavior=create_invoice`; or a lapsed 100 %-off coupon | `invoice.payment_failed` | **Yes** — the handler stamps `past_due`. |
+| Trial ends, no card, `end_behavior=create_invoice`; or a lapsed 100 %-off coupon | `invoice.payment_failed` | **No (since #434)** — ignored; `past_due` arrives via `customer.subscription.updated`. |
 
 Sources: the event table in [Trial offers § Events](https://docs.stripe.com/billing/subscriptions/trials) (which describes the shared trial-end events), the [`payment_status` enum](https://docs.stripe.com/api/checkout/sessions/object#checkout_session_object-payment_status) — "`paid` … For subscriptions with a free trial, this indicates that the $0 trial invoice has been successfully processed" — and the [subscription status table](https://docs.stripe.com/billing/subscriptions/overview#subscription-statuses).
 
