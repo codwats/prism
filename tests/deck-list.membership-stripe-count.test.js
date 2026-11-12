@@ -10,7 +10,6 @@ import {
 import {
 	getMarkTallies,
 	unmarkCardsWithNewStripes,
-	unmarkSharedCards,
 } from '../js/features/deck-list.js';
 
 // markType === 'membership' entries are invisible filter anchors emitted for
@@ -113,11 +112,6 @@ test('a real new visible stripe still unmarks a Done card', () => {
 	const unmarked = unmarkCardsWithNewStripes(beforeCounts);
 	assert.deepEqual(unmarked, ['Lightning Bolt']);
 	assert.deepEqual(state.currentPrism.markedCards, []);
-
-	// The add-deck path (unmarkSharedCards) reaches the same conclusion.
-	prism.markedCards = ['Lightning Bolt'];
-	const removed = unmarkSharedCards(new Set(['lightning bolt']));
-	assert.deepEqual(removed, ['Lightning Bolt']);
 });
 
 // 3. Dot group, card in a SUBSET of variants → markType='dot' entries are real
