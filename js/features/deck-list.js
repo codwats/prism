@@ -26,7 +26,7 @@ import {
 import {
   trackRemovedCard,
   getRemovalStripePosition,
-  stripeCountMap,
+  markTallies,
   unmarkCardsWithNewStripes as unmarkCardsWithNewStripesIn,
   clearReturnedRemovals,
   keepSeparateSleeves,
@@ -52,11 +52,11 @@ import { toggleWhatIfAnalysis } from "./analysis.js";
 import { renderResults, updateRemovedFilterBadge, updateMarkedProgress } from "./results.js";
 
 // ============================================================================
-// Stripe count helpers (for marked cards regression fix)
+// Mark tally helpers (for marked cards regression fix)
 // ============================================================================
 
-export function getStripeCountMap() {
-  return stripeCountMap(state.currentPrism);
+export function getMarkTallies() {
+  return markTallies(state.currentPrism);
 }
 
 // True if the two card lists differ in membership or quantity (order-insensitive).
@@ -76,8 +76,8 @@ function cardListChanged(oldCards, newCards) {
   return false;
 }
 
-export function unmarkCardsWithNewStripes(beforeCounts, stillPainted) {
-  return unmarkCardsWithNewStripesIn(state.currentPrism, beforeCounts, stillPainted);
+export function unmarkCardsWithNewStripes(before, stillPainted) {
+  return unmarkCardsWithNewStripesIn(state.currentPrism, before, stillPainted);
 }
 
 export function unmarkSharedCards(newCardNames) {
@@ -338,7 +338,7 @@ export async function handleEditConfirm() {
   const deck = state.currentPrism.decks.find((d) => d.id === state.deckToEdit);
   if (!deck) return;
 
-  const beforeCounts = getStripeCountMap();
+  const beforeTallies = getMarkTallies();
   const oldCards = [...deck.cards];
 
   // Fields → text once at save entry (idempotent) — see handleDeckSubmit
@@ -451,7 +451,7 @@ export async function handleEditConfirm() {
   const stillPainted = clearReturnedRemovals(state.currentPrism, deck);
   const autoClearedCount = stillPainted.length + autoClearRemovedCards(parseResult.cards);
 
-  const unmarkedKeys = unmarkCardsWithNewStripes(beforeCounts, stillPainted);
+  const unmarkedKeys = unmarkCardsWithNewStripes(beforeTallies, stillPainted);
   const unmarkedCount = unmarkedKeys.length;
   if (unmarkedKeys.length > 0) {
     recordUnmarkedCards(state.currentPrism.id, unmarkedKeys);
@@ -466,7 +466,7 @@ export async function handleEditConfirm() {
 
   let message = `Updated "${name}" with ${parseResult.uniqueCards} cards.`;
   if (unmarkedCount > 0)
-    message += ` ${unmarkedCount} card${unmarkedCount > 1 ? "s" : ""} unchecked (new stripes added).`;
+    message += ` ${unmarkedCount} card${unmarkedCount > 1 ? "s" : ""} unchecked (new marks needed).`;
   if (removedCount > 0)
     message += ` ${removedCount} card${removedCount > 1 ? "s" : ""} marked for removal.`;
   if (autoClearedCount > 0)

@@ -8,7 +8,7 @@ import {
 	addSplitToGroup,
 } from '../js/modules/processor.js';
 import {
-	getStripeCountMap,
+	getMarkTallies,
 	unmarkCardsWithNewStripes,
 	unmarkSharedCards,
 } from '../js/features/deck-list.js';
@@ -63,17 +63,17 @@ test('membership entries do not trigger unmark (card shared across all dot varia
 	state.currentPrism = prism;
 
 	// Card in all variants: exactly ONE visible mark (the Side A stripe).
-	assert.equal(getStripeCountMap().get('Shared'), 1);
+	assert.equal(getMarkTallies().get('Shared').size, 1);
 
 	prism.markedCards = ['Shared'];
-	const beforeCounts = getStripeCountMap(); // visible = 1
+	const beforeCounts = getMarkTallies(); // visible = 1
 
 	// Add another variant to the same group (template copies the Shared card),
 	// so the card is still in ALL variants → still just membership + Side A.
 	state.currentPrism = addSplitToGroup(prism, group.id);
 
 	// Visible count is still 1; old raw-length count would have grown 3 -> 4.
-	assert.equal(getStripeCountMap().get('Shared'), 1);
+	assert.equal(getMarkTallies().get('Shared').size, 1);
 
 	const unmarked = unmarkCardsWithNewStripes(beforeCounts);
 	assert.deepEqual(unmarked, []);
@@ -95,7 +95,7 @@ test('a real new visible stripe still unmarks a Done card', () => {
 	state.currentPrism = prism;
 
 	prism.markedCards = ['Lightning Bolt'];
-	const beforeCounts = getStripeCountMap(); // visible = 1 (single standalone stripe)
+	const beforeCounts = getMarkTallies(); // visible = 1 (single standalone stripe)
 
 	// Edit: a second standalone deck now shares the card → real new stripe.
 	const d2 = createDeck({
@@ -108,7 +108,7 @@ test('a real new visible stripe still unmarks a Done card', () => {
 	});
 	prism.decks.push(d2);
 
-	assert.equal(getStripeCountMap().get('Lightning Bolt'), 2); // genuinely 2 marks
+	assert.equal(getMarkTallies().get('Lightning Bolt').size, 2); // genuinely 2 marks
 
 	const unmarked = unmarkCardsWithNewStripes(beforeCounts);
 	assert.deepEqual(unmarked, ['Lightning Bolt']);
@@ -128,15 +128,15 @@ test('dot entries count as visible marks (subset of dot variants unmarks)', () =
 	state.currentPrism = prism;
 
 	prism.markedCards = ['Swords'];
-	const beforeCounts = getStripeCountMap(); // visible = 1
-	assert.equal(beforeCounts.get('Swords'), 1);
+	const beforeCounts = getMarkTallies(); // visible = 1
+	assert.equal(beforeCounts.get('Swords').size, 1);
 
 	// Edit variant 2 to drop the card → now in a strict SUBSET (1 of 2),
 	// which emits a real Side B dot in addition to the Side A stripe.
 	prism.decks[1].cards = [card('Filler')];
 
-	const after = getStripeCountMap();
-	assert.equal(after.get('Swords'), 2); // Side A stripe + one dot, both visible
+	const after = getMarkTallies();
+	assert.equal(after.get('Swords').size, 2); // Side A stripe + one dot, both visible
 
 	const unmarked = unmarkCardsWithNewStripes(beforeCounts);
 	assert.deepEqual(unmarked, ['Swords']);

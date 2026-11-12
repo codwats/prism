@@ -7,7 +7,7 @@
 
 import { processCards } from "./processor.js";
 import { normalizeCardName } from "./parser.js";
-import { isCardDone, countVisibleMarks, markSingleBatchDone } from "../core/utils.js";
+import { isCardDone, markSingleBatchDone } from "../core/utils.js";
 
 const sameName = (a, b) => normalizeCardName(a) === normalizeCardName(b);
 const findCard = (processed, name) => processed.find((c) => sameName(c.name, name));
@@ -78,11 +78,11 @@ export function getRemovalStripePosition(prism, deck) {
   return group?.sideAPosition ?? null;
 }
 
-// Visible marks per card name. markType 'membership' entries are invisible
-// filter anchors and carry no paint mark, so they don't count.
-export function stripeCountMap(prism) {
+// Copies per physical mark, per card name: the snapshot unmarkCardsWithNewStripes
+// compares an edit against. 'membership' entries carry no paint and don't count.
+export function markTallies(prism) {
   if (!prism?.decks?.length) return new Map();
-  return new Map(processCards(prism).map((c) => [c.name, countVisibleMarks(c.stripes)]));
+  return new Map(processCards(prism).map((c) => [c.name, tallyMarks([c])]));
 }
 
 // Stale-mark rows for cards back in the deck they left, at their full
@@ -111,29 +111,41 @@ export function clearReturnedRemovals(prism, deck) {
   return cleared;
 }
 
-// Drop marks on cards that gained a visible stripe since beforeCounts: the
-// sleeve needs a new mark, so it is no longer done. Stripes a stillPainted row
-// (clearReturnedRemovals) accounts for are already on the sleeve and don't
-// count. Returns the removed keys for recordUnmarkedCards.
-// ponytail: counts stripes, one per returning deck; exact per-mark matching if
-// a returning split variant ever adds more than one visible mark.
-export function unmarkCardsWithNewStripes(prism, beforeCounts, stillPainted = []) {
+// Retire Done on cards an edit gave paint work (#422): a mark is needed on more
+// copies than in `before` (markTallies), whether the mark is new or its deck now
+// runs more copies. Drops the plain key and the pass key of each such mark;
+// batch keys carry their own copy count and re-key themselves. A mark a
+// stillPainted row (clearReturnedRemovals) accounts for is already on the
+// sleeve, on the copies the row recorded. Returns the removed keys for
+// recordUnmarkedCards.
+export function unmarkCardsWithNewStripes(prism, before, stillPainted = []) {
   if (!prism?.markedCards?.length) return [];
-  const afterCounts = stripeCountMap(prism);
-  const painted = new Map();
-  for (const row of stillPainted) {
-    const name = normalizeCardName(row.cardName);
-    painted.set(name, (painted.get(name) || 0) + 1);
+  const gained = new Map(); // card name -> deck names of the marks that gained copies
+  for (const card of processCards(prism)) {
+    const marks = new Map(); // markId -> { copies, stripe }
+    for (const batch of card.batches) {
+      for (const s of batch.stripes) {
+        if (s.markType === 'membership') continue;
+        const mark = marks.get(markId(s)) || { copies: 0, stripe: s };
+        mark.copies += batch.copyCount;
+        marks.set(markId(s), mark);
+      }
+    }
+    const deckNames = new Set();
+    for (const [id, { copies, stripe }] of marks) {
+      const row = stillPainted.find((r) => r.deckId === stripe.deckId && sameName(r.cardName, card.name));
+      const painted = Math.max(before.get(card.name)?.get(id) || 0, row ? row.previousQuantity || 1 : 0);
+      if (copies > painted) deckNames.add(stripe.deckName);
+    }
+    if (deckNames.size) gained.set(card.name, deckNames);
   }
   const unmarkedKeys = [];
   prism.markedCards = prism.markedCards.filter((cardKey) => {
-    const cardName = cardKey.includes("|") ? cardKey.split("|")[0] : cardKey;
-    const gained = (afterCounts.get(cardName) || 0) - (beforeCounts.get(cardName) || 0);
-    if (gained > (painted.get(normalizeCardName(cardName)) || 0)) {
-      unmarkedKeys.push(cardKey);
-      return false;
-    }
-    return true;
+    const bar = cardKey.indexOf("|");
+    const deckNames = gained.get(bar < 0 ? cardKey : cardKey.slice(0, bar));
+    if (!deckNames || (bar >= 0 && !deckNames.has(cardKey.slice(bar + 1)))) return true;
+    unmarkedKeys.push(cardKey);
+    return false;
   });
   return unmarkedKeys;
 }
@@ -272,10 +284,10 @@ export function applySwap(prism, { outgoing, incoming, deckIds, copies = 1, slee
   }
   next.updatedAt = now;
 
-  const beforeCounts = new Map(before.map((c) => [c.name, countVisibleMarks(c.stripes)]));
+  const beforeTallies = markTallies(prism);
   // A Separate sleeve's marks are on the new sleeve, never the existing ones.
-  if (separateSleeve) beforeCounts.set(incomingBefore.name, Infinity);
-  const unmarkedKeys = unmarkCardsWithNewStripes(next, beforeCounts, returned);
+  if (separateSleeve) beforeTallies.set(incomingBefore.name, { get: () => Infinity });
+  const unmarkedKeys = unmarkCardsWithNewStripes(next, beforeTallies, returned);
 
   const after = processCards(next);
   const outgoingAfter = findCard(after, outgoing);
