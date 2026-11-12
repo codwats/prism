@@ -36,8 +36,15 @@ test('search matches title or card name; most downloaded drops display-only alte
     '(or(title.ilike."*Sol Ring*",original_card_name.ilike."*Sol Ring*"))');
   assert.equal(params(artworksQuery({ sort: 'dl' })).get('and'),
     '(or(type.neq.alter,downloads_enabled.is.true))');
+  // LIKE sees a\"b\\c: the backslash is a literal, not an escape of c.
   assert.equal(params(artworksQuery({ q: 'a"b\\c,(d)' })).get('and'),
-    '(or(title.ilike."*a\\"b\\\\c,(d)*",original_card_name.ilike."*a\\"b\\\\c,(d)*"))');
+    '(or(title.ilike."*a\\"b\\\\\\\\c,(d)*",original_card_name.ilike."*a\\"b\\\\\\\\c,(d)*"))');
+});
+
+test('search term % and _ match literally, not as LIKE wildcards', () => {
+  // PostgREST unquotes "*100\\%_x*" to *100\%\_x* — LIKE escapes, so 100%_x matches only itself.
+  assert.equal(params(artworksQuery({ q: '100%_x' })).get('and'),
+    '(or(title.ilike."*100\\\\%\\\\_x*",original_card_name.ilike."*100\\\\%\\\\_x*"))');
 });
 
 test('detail query selects every column', () => {

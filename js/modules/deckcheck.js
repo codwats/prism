@@ -3,6 +3,8 @@
  * Handles importing decks from DeckCheck URLs (deckcheck.co/docs/api#get-deck)
  */
 
+import { importError } from './import-error.js';
+
 /**
  * Extract a DeckCheck deck URL. Bare IDs aren't accepted: they look like
  * Moxfield IDs, so only the deckcheck.co URL says which site it is.
@@ -27,11 +29,7 @@ export async function fetchDeckCheckDeck(deckUrl) {
     body: JSON.stringify({ deckUrl })
   });
 
-  if (!response.ok) {
-    if (response.status === 429) throw new Error('Import is busy, try again in a moment.');
-    const error = await response.json().catch(() => ({ error: 'Unknown error' }));
-    throw new Error(error.error || `Failed to fetch deck: ${response.status}`);
-  }
+  if (!response.ok) throw await importError(response);
 
   return response.json();
 }

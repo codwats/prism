@@ -12,7 +12,7 @@ for (const [name, fn] of Object.entries(fetchers)) {
 		const real = globalThis.fetch;
 		globalThis.fetch = async () => new Response('Too many requests', { status: 429 });
 		try {
-			await assert.rejects(() => fn('https://deckcheck.co/x/1'), /busy.*try again/i);
+			await assert.rejects(() => fn('https://deckcheck.co/x/1'), { message: 'Import is busy, try again in a moment.' });
 		} finally {
 			globalThis.fetch = real;
 		}

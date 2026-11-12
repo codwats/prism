@@ -24,7 +24,8 @@ export function artworksQuery({ type, artistIds, q, sort, featuredFirst, id, col
   if (type && type !== 'all') p.set('type', `eq.${type}`);
   if (artistIds) p.set('artist_id', artistIds.length === 1 ? `eq.${artistIds[0]}` : `in.(${artistIds.join(',')})`);
   const trees = [];
-  const term = (q || '').trim();
+  // LIKE-escape so a typed %, _ or \ matches itself (PostgREST passes them through to ILIKE).
+  const term = (q || '').trim().replace(/[\\%_]/g, c => `\\${c}`);
   if (term) trees.push(`or(title.ilike.${quoted(`*${term}*`)},original_card_name.ilike.${quoted(`*${term}*`)})`);
   if (sort === 'dl') trees.push('or(type.neq.alter,downloads_enabled.is.true)'); // display-only Alters sit out (#342)
   if (trees.length) p.set('and', `(${trees.join(',')})`);
