@@ -20,6 +20,8 @@ import {
   formatSlotLabel,
   createPrism,
   isDotVariant,
+  isNameTaken,
+  nameTakenMessage,
   updateSplitGroupInPrism,
   applyCommanderFallback,
 } from "../modules/processor.js";
@@ -338,12 +340,8 @@ export async function handleEditConfirm() {
     return;
   }
 
-  const existingDeck = state.currentPrism.decks.find(
-    (d) =>
-      d.id !== state.deckToEdit && d.name.toLowerCase() === name.toLowerCase(),
-  );
-  if (existingDeck) {
-    showError(`A deck named "${name}" already exists.`);
+  if (isNameTaken(state.currentPrism, name, { exceptDeckId: state.deckToEdit })) {
+    showError(nameTakenMessage(name));
     return;
   }
 
@@ -599,6 +597,11 @@ export function handleEditGroupConfirm() {
 
   if (!name) {
     showError('Group name is required.');
+    return;
+  }
+
+  if (isNameTaken(state.currentPrism, name, { exceptGroupId: groupId })) {
+    showError(nameTakenMessage(name));
     return;
   }
 

@@ -984,6 +984,32 @@ export function calculateRemovedCards(oldCards, newCards) {
 }
 
 /**
+ * Whether a deck or split group already holds `name` (trimmed, case-insensitive).
+ * Pass keys are `<card>|<name>`, so a deck and a group sharing a name would merge
+ * their passes (#419). Every path that sets a name calls this.
+ * @param {Object} prism
+ * @param {string} name
+ * @param {{ exceptDeckId?: string, exceptGroupId?: string }} [except]
+ * @returns {boolean}
+ */
+export function isNameTaken(prism, name, { exceptDeckId, exceptGroupId } = {}) {
+	const n = String(name).trim().toLowerCase();
+	return (
+		(prism.decks || []).some((d) => d.id !== exceptDeckId && d.name.trim().toLowerCase() === n) ||
+		(prism.splitGroups || []).some((g) => g.id !== exceptGroupId && g.name.trim().toLowerCase() === n)
+	);
+}
+
+export const nameTakenMessage = (name) => `A deck or group named "${name}" already exists.`;
+
+// `<base> (N)` with the first N >= from that no deck or group holds.
+function freeVariantName(prism, base, from = 1) {
+	let n = from;
+	while (isNameTaken(prism, `${base} (${n})`)) n++;
+	return `${base} (${n})`;
+}
+
+/**
  * Update a split group's name and/or sideAColor in a PRISM
  * @param {Object} prism - The PRISM object
  * @param {string} groupId - The split group ID
@@ -1099,7 +1125,10 @@ export function splitDeck(prism, deckId, splitCount, splitStyle = 'stripes') {
 			}
 			const firstChild = {
 				...d,
-				name: `${d.name} (1)`,
+				name: freeVariantName({
+					decks: prism.decks.filter((x) => x.id !== deckId),
+					splitGroups: [...(prism.splitGroups || []), group],
+				}, d.name),
 				stripePosition: isDots ? null : firstPosition,
 				splitGroupId: group.id,
 				updatedAt: now,
@@ -1123,7 +1152,7 @@ export function splitDeck(prism, deckId, splitCount, splitStyle = 'stripes') {
 				}
 				const childColor = getNextColor(tempPrism);
 				const child = createDeck({
-					name: `${deck.name} (${i})`,
+					name: freeVariantName(tempPrism, deck.name, i),
 					bracket: deck.bracket,
 					color: childColor,
 					stripePosition: childPosition,
@@ -1190,7 +1219,7 @@ export function addSplitToGroup(prism, groupId) {
 	const splitNumber = Math.max(group.childDeckIds.length, ...existingNumbers) + 1;
 
 	const newChild = createDeck({
-		name: `${group.name} (${splitNumber})`,
+		name: freeVariantName(prism, group.name, splitNumber),
 		bracket: templateDeck.bracket,
 		color: childColor,
 		stripePosition: childPosition,
