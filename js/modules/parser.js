@@ -143,12 +143,14 @@ export function parseDecklist(decklist) {
       result.isCommander = true;
     }
 
-    // Avoid duplicate cards (e.g. commander listed in both main and commander sections)
     const normalizedName = result.name.toLowerCase().trim();
     const existingCard = cards.find(c => c.name.toLowerCase().trim() === normalizedName);
     if (existingCard) {
-      // If it's already in the list, just update commander flag if needed
-      if (result.isCommander) {
+      // Same section twice = separate printings (e.g. Archidekt basics per set): sum them.
+      // Commander also listed in Deck = one card: flag it, don't double-count.
+      if (!!result.isCommander === !!existingCard.isCommander) {
+        existingCard.quantity += result.quantity;
+      } else if (result.isCommander) {
         existingCard.isCommander = true;
       }
       continue;

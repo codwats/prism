@@ -33,6 +33,26 @@ test('parseDecklist flags every Commander-section line at stated quantity, no na
 	assert.equal(result.cards.length, 3);
 });
 
+test('parseDecklist sums repeated lines of one card (separate printings)', () => {
+	const text = [
+		'Commander',
+		'1 Captain N\'ghathrod',
+		'',
+		'Deck',
+		'1 Island',
+		'2 Island',
+		'1 Swamp',
+		'1 island',
+		'1 Captain N\'ghathrod', // commander repeated in Deck — still one copy
+	].join('\n');
+
+	const { cards } = parseDecklist(text);
+	assert.equal(cards.find((c) => c.name === 'Island').quantity, 4);
+	assert.equal(cards.find((c) => c.name === 'Swamp').quantity, 1);
+	assert.equal(cards.find((c) => c.isCommander).quantity, 1);
+	assert.equal(cards.length, 3);
+});
+
 test('cardsToDecklistText round-trips N commander flags through parseDecklist', () => {
 	const cards = [
 		{ name: 'Krark, the Thumbless', quantity: 1, isCommander: true, isBasicLand: false },
