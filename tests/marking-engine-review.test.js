@@ -231,7 +231,7 @@ test('a subset card that becomes shared by every variant has stale child marks t
 	assert.ok(listed || !isCardDone(sol, new Set(next.markedCards)));
 });
 
-test('Separate sleeve and dedicated batches do not paint a deck mark on more copies than the deck runs', BUG(424), () => {
+test('Separate sleeve and dedicated batches do not paint a deck mark on more copies than the deck runs (#424)', () => {
 	const sleeved = createPrism('T');
 	sleeved.decks = [deck('A', 1, [card('Forest', 2, { sleeve: 's1' })]), deck('B', 2, [card('Forest', 1, { sleeve: 's1' })])];
 	assert.equal(copiesFor(find(sleeved, 'Forest'), 'B'), 1);
@@ -243,6 +243,17 @@ test('Separate sleeve and dedicated batches do not paint a deck mark on more cop
 	assert.equal(copiesFor(krark, 'G2'), 1);
 	// the copy only G1 runs needs G1's child mark, as it gets with dedication off
 	assert.ok(krark.batches.some((b) => visible(b.stripes).some((s) => s.deckName === 'G1')));
+});
+
+test('Separate sleeve and dedicated batches at equal quantities keep one batch and its key (#424)', () => {
+	const sleeved = createPrism('T');
+	sleeved.decks = [deck('A', 1, [card('Forest', 2, { sleeve: 's1' })]), deck('B', 2, [card('Forest', 2, { sleeve: 's1' })])];
+	assert.deepEqual(find(sleeved, 'Forest').batches.map((b) => [b.key, b.isSeparateSleeve, b.isPool]), [['Forest|#b|A,B|2', true, true]]);
+
+	const dedicated = createPrism('T');
+	dedicated.useDedicatedCommanderCopies = true;
+	group(dedicated, 'G', 1, [[card('Krark', 2, { isCommander: true })], [card('Krark', 2)]]);
+	assert.deepEqual(find(dedicated, 'Krark').batches.map((b) => [b.key, b.isDedicated, b.isPool, b.logicalDeckCount]), [['Krark|#b|G1,G2|2', true, false, 1]]);
 });
 
 test('a deck its split group lists but that names no group, or another, is standalone in both group loops (#420)', () => {

@@ -54,7 +54,7 @@ A Swap applied in every deck of one marking batch, so the incoming card moves in
 
 **Separate sleeve**:
 A qualifier on a Pool or Core batch that exists because a copy was given its own sleeve, instead of sharing the sleeve the same card already has for other decks. Written `Core (separate sleeve)` or `Pool (separate sleeve)`, lowercase in the parentheses. Never a third category beside Pool and Core. It lasts until the card leaves the deck.
-_In code_: the `sleeve` id on a deck's card row (`deck_cards.sleeve`); rows sharing an id are one batch with `isSeparateSleeve`.
+_In code_: the `sleeve` id on a deck's card row (`deck_cards.sleeve`); rows sharing an id get their own quantity tiers, each batch with `isSeparateSleeve` (one batch when every row runs the same quantity).
 
 **Comparable card**:
 A card already in a deck the incoming card fits, which could be the outgoing card of a Swap because it does a similar job. By default it shares the incoming card's main type. Looking beyond the type, it must do every job the incoming card does. Lands are compared by the colors they fit.
