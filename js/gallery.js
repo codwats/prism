@@ -81,7 +81,7 @@ let isAdmin = false;      // current user is a gallery admin (loaded before rend
 let usingDemo = false;    // gallery schema not deployed — read-only sample data
 let publicLoaded = false;
 // The grid's loaded pages for one filter combination (key).
-let grid = { key: null, rows: [], total: 0, loading: false };
+let grid = { key: null, rows: [], total: 0, loading: false, error: false, dirty: false };
 
 const REST_HEADERS = { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` };
 
@@ -163,7 +163,7 @@ async function refreshArtworks() {
   artworksById.clear();
   fullIds.clear();
   artistWorks.clear();
-  grid = { key: null, rows: [], total: 0, loading: false };
+  grid = { key: null, rows: [], total: 0, loading: false, error: false, dirty: false };
   await loadArtists();
 }
 
@@ -294,6 +294,8 @@ async function toggleLike(artwork) {
     }
     repaintLike(artwork);
     showError('Could not save like — try again.');
+  } else if (filters.sort === 'liked') {
+    grid.dirty = true; // the server order moved; the next page re-reads from the top
   }
 }
 
@@ -432,21 +434,28 @@ function hasFilter() {
 async function loadGridPage() {
   const spec = gridSpec();
   const key = JSON.stringify(spec);
-  if (grid.key !== key) grid = { key, rows: [], total: 0, loading: false };
-  if (grid.loading) return;
-  grid.loading = true;
+  if (grid.key !== key) grid = { key, rows: [], total: 0, loading: false, error: false, dirty: false };
+  const g = grid; // a filter change or refresh swaps `grid`; this request then belongs to a dead one
+  if (g.loading) return;
+  g.loading = true;
+  g.error = false;
+  // A like moved artworks within the server order: re-read what is loaded instead of paging past a shifted offset.
+  const reread = g.dirty;
   try {
-    const { rows, total } = await fetchArtworks({ ...spec, offset: grid.rows.length, limit: GRID_PAGE_SIZE });
-    if (grid.key !== key) return; // filters moved on while this page was in flight
-    grid.rows = [...grid.rows, ...rows];
-    grid.total = total;
+    const { rows, total } = await fetchArtworks(reread
+      ? { ...spec, offset: 0, limit: Math.max(g.rows.length, GRID_PAGE_SIZE) }
+      : { ...spec, offset: g.rows.length, limit: GRID_PAGE_SIZE });
+    if (grid !== g) return;
+    g.rows = reread ? rows : [...g.rows, ...rows];
+    g.total = total;
+    g.dirty = false;
   } catch (err) {
     console.error('Gallery: could not load artwork', err);
-    if (grid.key === key) showError('Could not load artwork — try again.');
+    if (grid === g) { g.error = true; showError('Could not load artwork — try again.'); }
   } finally {
-    if (grid.key === key) grid.loading = false;
+    if (grid === g) g.loading = false;
   }
-  render();
+  if (grid === g) render();
 }
 
 function renderGrid(root) {
@@ -454,7 +463,7 @@ function renderGrid(root) {
   const alley = filters.type === 'alter';
   // Most downloaded isn't offered when nothing in view can be downloaded (Alter Alley with every Alter off).
   // The server's dl query leaves display-only Alters out, so an empty dl result is that case: fall back to liked.
-  if (filters.sort === 'dl' && grid.key === JSON.stringify(gridSpec()) && !grid.loading && grid.total === 0) filters.sort = 'liked';
+  if (filters.sort === 'dl' && grid.key === JSON.stringify(gridSpec()) && !grid.loading && !grid.error && grid.total === 0) filters.sort = 'liked';
   if (grid.key !== JSON.stringify(gridSpec())) loadGridPage(); // sets grid.loading before its first await
   const results = grid.rows;
   // Unloaded pages may hold downloadable work, so offer it; the fallback above catches an empty pick.
@@ -472,6 +481,13 @@ function renderGrid(root) {
   let gridsHtml;
   if (firstLoad) {
     gridsHtml = `<div style="margin-top: var(--wa-space-l);">${loadingHtml()}</div>`;
+  } else if (results.length === 0 && grid.error) {
+    gridsHtml = `
+      <div class="gallery-empty">
+        <div class="ic"><wa-icon name="image"></wa-icon></div>
+        <h3 class="wa-heading-s">Could not load artwork</h3>
+        <wa-button size="s" variant="brand" id="gallery-retry">Retry</wa-button>
+      </div>`;
   } else if (results.length === 0) {
     gridsHtml = hasFilter() ? `
       <div class="gallery-empty">
@@ -549,6 +565,7 @@ function renderGrid(root) {
 
   wireLikeButtons(root);
   root.querySelector('#gallery-load-more')?.addEventListener('click', loadGridPage);
+  root.querySelector('#gallery-retry')?.addEventListener('click', loadGridPage);
   root.querySelector('#gallery-signin-link')?.addEventListener('click', e => { e.preventDefault(); promptSignIn(); });
   root.querySelector('#gallery-clear-filters')?.addEventListener('click', () => {
     filters.type = 'all'; filters.artist = 'all'; filters.q = ''; filters.sort = 'liked';
@@ -575,13 +592,16 @@ function renderGrid(root) {
 async function renderDetail(root, id) {
   const seq = renderSeq;
   if (!fullIds.has(id) && !usingDemo) root.innerHTML = loadingHtml();
-  let artwork, artistAll;
+  let artwork, artistAll = [];
   try {
     artwork = await loadArtwork(id);
-    artistAll = artwork?.artistId ? await loadArtistWorks(artwork.artistId) : [];
   } catch (err) {
     console.error('Gallery: could not load artwork', err);
     artwork = null;
+  }
+  if (artwork?.artistId) {
+    // "More from" is optional: a failure here still shows the artwork.
+    try { artistAll = await loadArtistWorks(artwork.artistId); } catch (err) { console.error('Gallery: could not load more work', err); }
   }
   if (seq !== renderSeq) return; // the reader moved on while this loaded
   if (!artwork) {
@@ -866,7 +886,7 @@ async function renderClaimSlot(slot, artist) {
       .select('id').eq('artist_id', artist.id).eq('user_id', me.id).eq('status', 'approved').limit(1);
     if (approved?.length) {
       showSuccess('This page is yours — you can edit it and open commissions.');
-      await loadArtists(); // the artist row now carries user_id, so Edit artist page appears
+      await refreshArtworks(); // the artist row now carries user_id (Edit artist page appears) and linked uploads join their works
       render();
       return;
     }

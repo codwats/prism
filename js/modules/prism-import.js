@@ -109,6 +109,19 @@ export function buildPrismFromJson(jsonData, { preserveId = true } = {}) {
     newPrism.decks.push(newDeck);
   }
 
+  // Batch keys embed sorted participant deck ids (processCards); follow replaced ids and re-sort.
+  if (remapped.size) {
+    newPrism.markedCards = newPrism.markedCards.map(key => {
+      if (typeof key !== 'string') return key;
+      const at = key.indexOf('|#b|');
+      const end = key.lastIndexOf('|');
+      if (at < 0 || end <= at + 4) return key;
+      let ids = key.slice(at + 4, end);
+      for (const [from, to] of remapped) if (typeof from === 'string') ids = ids.split(from).join(to);
+      return `${key.slice(0, at + 4)}${ids.split(',').sort().join(',')}${key.slice(end)}`;
+    });
+  }
+
   const deckIds = new Set(newPrism.decks.map(d => d.id));
   newPrism.splitGroups = (prismData.splitGroups || [])
     .map(group => {

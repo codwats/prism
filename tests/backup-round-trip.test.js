@@ -169,3 +169,17 @@ test('non-integer or out-of-range slots never reach the PRISM', () => {
 	assert.deepEqual(restored.decks.map((d) => d.stripePosition), [undefined, undefined, undefined, undefined, 48, 30]);
 	assert.equal(restored.splitGroups[0].sideAPosition, undefined);
 });
+
+test('batch marks follow a deck whose unsafe id was replaced', async () => {
+	const { processCards } = await import('../js/modules/processor.js');
+	const { isCardDone } = await import('../js/core/utils.js');
+	const p = prism();
+	p.decks[1].cards[0].quantity = 2;
+	p.decks[0].id = 'd"><x';
+	const before = processCards(p).find((c) => c.name === 'Mind Stone');
+	p.markedCards = before.batches.map((b) => b.key);
+	const restored = buildPrismFromJson(JSON.parse(exportToJSON(p)));
+	assert.notEqual(restored.decks[0].id, 'd"><x');
+	const after = processCards(restored).find((c) => c.name === 'Mind Stone');
+	assert.equal(isCardDone(after, new Set(restored.markedCards)), true);
+});
