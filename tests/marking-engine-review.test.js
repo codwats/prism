@@ -14,7 +14,7 @@ globalThis.localStorage = {
 const { createPrism, createDeck, createSplitGroup, processCards, splitDeck } =
 	await import('../js/modules/processor.js');
 const { isCardDone, passKeysForCard, markSingleBatchDone } = await import('../js/core/utils.js');
-const { applySwap, stripeCountMap, unmarkCardsWithNewStripes, openRemovals } =
+const { applySwap, markTallies, unmarkCardsWithNewStripes, openRemovals } =
 	await import('../js/modules/swap.js');
 const { state } = await import('../js/core/state.js');
 const { unmarkSharedCards } = await import('../js/features/deck-list.js');
@@ -143,18 +143,48 @@ test('add deck: a card that left the PRISM and comes back in a new deck is not D
 	assert.equal(isCardDone(find(state.currentPrism, 'Sol Ring'), new Set(state.currentPrism.markedCards)), false);
 });
 
-test('raising a quantity retires a single-batch or pass Done: the new copies have no marks', BUG(422), () => {
+test('raising a quantity retires a single-batch or pass Done: the new copies have no marks (#422)', () => {
 	const prism = createPrism('T');
 	prism.decks = [deck('A', 1, [card('Forest', 3)])];
 	const forest = find(prism, 'Forest');
 	for (const marked of [markSingleBatchDone([], 'Forest', forest.batches[0].key).markedCards, ['Forest|A']]) {
 		const next = structuredClone(prism);
 		next.markedCards = marked;
-		const before = stripeCountMap(next);
+		const before = markTallies(next);
 		next.decks[0].cards[0].quantity = 5;
 		unmarkCardsWithNewStripes(next, before);
 		assert.equal(isCardDone(find(next, 'Forest'), new Set(next.markedCards)), false, marked.join());
 	}
+});
+
+test('a quantity change un-marks only the pass that needs more copies; a decrease un-marks nothing (#422)', () => {
+	const prism = createPrism('T');
+	prism.decks = [deck('A', 1, [card('Forest', 3)]), deck('K', 2, [card('Forest', 5)])];
+	prism.markedCards = ['Forest', 'Forest|A', 'Forest|K'];
+	let before = markTallies(prism);
+	prism.decks[0].cards[0].quantity = 4; // total stays 5
+	assert.deepEqual(unmarkCardsWithNewStripes(prism, before), ['Forest', 'Forest|A']);
+	assert.deepEqual(prism.markedCards, ['Forest|K']);
+
+	prism.markedCards = ['Forest', 'Forest|A', 'Forest|K'];
+	before = markTallies(prism);
+	prism.decks[1].cards[0].quantity = 2;
+	assert.deepEqual(unmarkCardsWithNewStripes(prism, before), []);
+});
+
+test('a card back in its only variant keeps Done: parent and child marks are both still painted (#422)', () => {
+	const prism = createPrism('T');
+	group(prism, 'G', 1, [[card('Sol Ring')], [card('Opt')]]);
+	prism.markedCards = ['Sol Ring'];
+	const away = applySwap(prism, { outgoing: 'Sol Ring', incoming: 'Island', deckIds: ['G1'] }).prism;
+	const back = applySwap(away, { outgoing: 'Island', incoming: 'Sol Ring', deckIds: ['G1'] }).prism;
+	assert.deepEqual(visible(find(back, 'Sol Ring').stripes).map((s) => s.deckName), ['G', 'G1']);
+	assert.ok(back.markedCards.includes('Sol Ring'));
+
+	// the group has moved slot since: the parent stripe on the sleeve is in the old one
+	away.splitGroups[0].sideAPosition = 9;
+	const moved = applySwap(away, { outgoing: 'Island', incoming: 'Sol Ring', deckIds: ['G1'] }).prism;
+	assert.ok(!moved.markedCards.includes('Sol Ring'));
 });
 
 test('a subset card that becomes shared by every variant has stale child marks to deal with', BUG(423), () => {

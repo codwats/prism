@@ -11,7 +11,7 @@ globalThis.localStorage = {
 
 const { createPrism, createDeck, createSplitGroup, processCards } = await import('../js/modules/processor.js');
 const { isCardDone } = await import('../js/core/utils.js');
-const { applySwap, canSleeveSwap, clearReturnedRemovals, keepSeparateSleeves, unmarkCardsWithNewStripes, stripeCountMap, trackRemovedCard } = await import('../js/modules/swap.js');
+const { applySwap, canSleeveSwap, clearReturnedRemovals, keepSeparateSleeves, unmarkCardsWithNewStripes, markTallies, trackRemovedCard } = await import('../js/modules/swap.js');
 
 const NOW = '2026-09-27T12:00:00.000Z';
 
@@ -191,7 +191,7 @@ test('Deck edit: re-adding a card with its stale mark still painted keeps it don
 		stripePosition: 1, removedAt: NOW, previousQuantity: 1, newQuantity: 0,
 	});
 	// Edit 2: Cultivate comes back, the way handleEditConfirm runs it.
-	const beforeCounts = stripeCountMap(prism);
+	const beforeCounts = markTallies(prism);
 	a.cards.push(card('Cultivate'));
 	const stillPainted = clearReturnedRemovals(prism, a);
 	assert.equal(stillPainted.length, 1);
