@@ -133,8 +133,14 @@ export function unmarkCardsWithNewStripes(prism, before, stillPainted = []) {
     }
     const deckNames = new Set();
     for (const [id, { copies, stripe }] of marks) {
-      const row = stillPainted.find((r) => r.deckId === stripe.deckId && sameName(r.cardName, card.name));
-      const painted = Math.max(before.get(card.name)?.get(id) || 0, row ? row.previousQuantity || 1 : 0);
+      // A returned row accounts for its deck's own mark and, for a split
+      // variant, the parent stripe of the group as it was painted.
+      const rows = stillPainted.filter((r) => sameName(r.cardName, card.name) && (stripe.deckId
+        ? r.deckId === stripe.deckId
+        : r.splitGroup?.id === stripe.groupId
+          && r.splitGroup.sideAPosition === stripe.position
+          && r.splitGroup.sideAColor === stripe.color));
+      const painted = Math.max(before.get(card.name)?.get(id) || 0, ...rows.map((r) => r.previousQuantity || 1));
       if (copies > painted) deckNames.add(stripe.deckName);
     }
     if (deckNames.size) gained.set(card.name, deckNames);

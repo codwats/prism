@@ -172,6 +172,21 @@ test('a quantity change un-marks only the pass that needs more copies; a decreas
 	assert.deepEqual(unmarkCardsWithNewStripes(prism, before), []);
 });
 
+test('a card back in its only variant keeps Done: parent and child marks are both still painted (#422)', () => {
+	const prism = createPrism('T');
+	group(prism, 'G', 1, [[card('Sol Ring')], [card('Opt')]]);
+	prism.markedCards = ['Sol Ring'];
+	const away = applySwap(prism, { outgoing: 'Sol Ring', incoming: 'Island', deckIds: ['G1'] }).prism;
+	const back = applySwap(away, { outgoing: 'Island', incoming: 'Sol Ring', deckIds: ['G1'] }).prism;
+	assert.deepEqual(visible(find(back, 'Sol Ring').stripes).map((s) => s.deckName), ['G', 'G1']);
+	assert.ok(back.markedCards.includes('Sol Ring'));
+
+	// the group has moved slot since: the parent stripe on the sleeve is in the old one
+	away.splitGroups[0].sideAPosition = 9;
+	const moved = applySwap(away, { outgoing: 'Island', incoming: 'Sol Ring', deckIds: ['G1'] }).prism;
+	assert.ok(!moved.markedCards.includes('Sol Ring'));
+});
+
 test('a subset card that becomes shared by every variant has stale child marks to deal with', BUG(423), () => {
 	const prism = createPrism('T');
 	group(prism, 'G', 1, [[card('Sol Ring')], [card('Sol Ring')], [card('Opt')]]);
