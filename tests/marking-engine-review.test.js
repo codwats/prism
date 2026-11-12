@@ -11,7 +11,7 @@ globalThis.localStorage = {
 	clear: () => store.clear(),
 };
 
-const { createPrism, createDeck, createSplitGroup, processCards, splitDeck } =
+const { createPrism, createDeck, createSplitGroup, processCards, splitDeck, addSplitToGroup, unsplitGroup, isNameTaken } =
 	await import('../js/modules/processor.js');
 const { isCardDone, passKeysForCard, markSingleBatchDone } = await import('../js/core/utils.js');
 const { applySwap, markTallies, unmarkCardsWithNewStripes, openRemovals } =
@@ -103,8 +103,6 @@ test('done-keying: turning dedication on retires a plain Done; a quantity change
 
 // --- Bugs -------------------------------------------------------------------
 
-const BUG = (issue) => ({ todo: `bug #${issue}` });
-
 test('basic land: marking the Side A passes alone must not read Done while a child-mark pass is open', () => {
 	const prism = createPrism('T');
 	group(prism, 'G', 1, [[card('Forest', 5)], [card('Forest', 2)]]);
@@ -114,15 +112,39 @@ test('basic land: marking the Side A passes alone must not read Done while a chi
 	assert.equal(isCardDone(forest, new Set(['Forest|G', 'Forest|E'])), false);
 });
 
-test('pass keys: a split group and a deck that share a name are two passes', BUG(419), () => {
+test('isNameTaken: decks and groups share one case-insensitive namespace (#419)', () => {
 	let prism = createPrism('T');
 	prism.decks = [createDeck({ name: 'Elves', bracket: 3, color: '#111111', stripePosition: 1, cards: [card('Forest', 2)] })];
 	prism = splitDeck(prism, prism.decks[0].id, 2); // group "Elves", variants "Elves (1)", "Elves (2)"
-	// the Add Deck name check only looks at deck names, so "Elves" is free again
-	prism.decks.push(createDeck({ name: 'Elves', bracket: 3, color: '#222222', stripePosition: 2, cards: [card('Forest', 2)] }));
-	const forest = find(prism, 'Forest');
-	assert.equal(visible(forest.batches[0].stripes).length, 2);
-	assert.equal(passKeysForCard(forest).length, 2);
+	assert.equal(isNameTaken(prism, ' elves '), true);
+	assert.equal(isNameTaken(prism, 'Elves (2)'), true);
+	assert.equal(isNameTaken(prism, 'Goblins'), false);
+	const g = prism.splitGroups[0];
+	assert.equal(isNameTaken(prism, 'Elves', { exceptGroupId: g.id }), false);
+	assert.equal(isNameTaken(prism, 'Elves (1)', { exceptDeckId: g.childDeckIds[0] }), false);
+});
+
+test('splitDeck / addSplitToGroup skip variant names already taken (#419)', () => {
+	let prism = createPrism('T');
+	prism.decks = [
+		createDeck({ name: 'Elves', bracket: 3, color: '#111111', stripePosition: 1, cards: [card('Forest', 2)] }),
+		createDeck({ name: 'Elves (1)', bracket: 3, color: '#222222', stripePosition: 2, cards: [] }),
+	];
+	prism = splitDeck(prism, prism.decks[0].id, 2);
+	const names = prism.decks.map((d) => d.name);
+	assert.equal(new Set(names.map((n) => n.toLowerCase())).size, names.length);
+	prism.decks.push(createDeck({ name: 'Elves (4)', bracket: 3, color: '#333333', stripePosition: 3, cards: [] }));
+	prism = addSplitToGroup(prism, prism.splitGroups[0].id);
+	const all = prism.decks.map((d) => d.name);
+	assert.equal(new Set(all.map((n) => n.toLowerCase())).size, all.length);
+});
+
+test('unsplitGroup returns the group name without a collision (#419)', () => {
+	let prism = createPrism('T');
+	prism.decks = [createDeck({ name: 'Elves', bracket: 3, color: '#111111', stripePosition: 1, cards: [card('Forest', 2)] })];
+	prism = splitDeck(prism, prism.decks[0].id, 2);
+	prism = unsplitGroup(prism, prism.splitGroups[0].id);
+	assert.deepEqual(prism.decks.map((d) => d.name), ['Elves']);
 });
 
 test('a variant whose split group is missing still gets a mark on its batch (#420)', () => {

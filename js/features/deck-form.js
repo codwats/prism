@@ -18,6 +18,7 @@ import {
   MAX_STRIPE_SLOTS,
   DEFAULT_COLORS,
   getColorName,
+  isNameTaken,
 } from "../modules/processor.js";
 import { savePrism, recordUnmarkedCards } from "../modules/storage.js";
 import { canonicalizeCards } from "../modules/scryfall.js";
@@ -258,11 +259,8 @@ export async function handleDeckSubmit(e) {
     }
 
     // Check for duplicate deck name
-    const existingDeck = state.currentPrism.decks.find(
-      (d) => d.name.toLowerCase() === name.toLowerCase(),
-    );
-    if (existingDeck) {
-      showError(`A deck named "${name}" already exists.`);
+    if (isNameTaken(state.currentPrism, name)) {
+      showError(`A deck or group named "${name}" already exists.`);
       return;
     }
 
