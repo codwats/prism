@@ -88,8 +88,7 @@ export default async function handler(request: Request): Promise<Response> {
       status: 200,
       headers: {
         ...getCorsHeaders(request),
-        'Content-Type': 'application/json',
-        'Cache-Control': 'public, max-age=3600'
+        'Content-Type': 'application/json'
       }
     });
 
@@ -103,5 +102,6 @@ export default async function handler(request: Request): Promise<Response> {
 }
 
 export const config = {
-  path: '/api/archidekt-edge'
+  path: '/api/archidekt-edge',
+  rateLimit: { windowLimit: 30, windowSize: 60, aggregateBy: ['ip', 'domain'] }
 };

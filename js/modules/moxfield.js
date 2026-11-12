@@ -40,6 +40,7 @@ export async function fetchMoxfieldDeck(publicId) {
   });
 
   if (!response.ok) {
+    if (response.status === 429) throw new Error('Import is busy, try again in a moment.');
     const error = await response.json().catch(() => ({ error: 'Unknown error' }));
     throw new Error(error.error || `Failed to fetch deck: ${response.status}`);
   }
