@@ -695,8 +695,9 @@ CREATE POLICY "Users unlike artworks"
 
 -- ---- Storage: public bucket, uuid paths ----
 -- Public-read display bucket. Discovery is controlled by table RLS (pending
--- art is never listed and paths are unguessable uuids); there is deliberately
--- NO SELECT policy on storage.objects so the bucket can't be listed via API.
+-- art is never listed and paths are unguessable uuids). The only SELECT policy
+-- on storage.objects is own-folder (or admin), below: a bucket-wide one would let
+-- anyone list the bucket via API.
 INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 VALUES ('gallery-art', 'gallery-art', true, 10485760, ARRAY['image/png', 'image/jpeg', 'image/webp'])
 ON CONFLICT (id) DO UPDATE
@@ -726,6 +727,17 @@ CREATE POLICY "Users or admins delete gallery art"
           AND NOT EXISTS (SELECT 1 FROM gallery_artworks a
                           WHERE a.image_path = storage.objects.name AND a.status = 'approved'))
     )
+  );
+
+-- The Storage API removes files with DELETE ... WHERE, and Postgres needs a
+-- SELECT policy on the rows that WHERE reads: without one an owner's remove()
+-- deleted nothing (#443). Own folder only, so other users' files stay unlisted.
+DROP POLICY IF EXISTS "Users or admins read own gallery art rows" ON storage.objects;
+CREATE POLICY "Users or admins read own gallery art rows"
+  ON storage.objects FOR SELECT TO authenticated
+  USING (
+    bucket_id = 'gallery-art'
+    AND (is_gallery_admin() OR (storage.foldername(name))[1] = auth.uid()::text)
   );
 
 -- ============================================

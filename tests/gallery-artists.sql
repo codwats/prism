@@ -1630,7 +1630,7 @@ ROLLBACK;
 -- ============================================
 -- Gallery art delete (#433): an uploader can't delete the image behind an
 -- approved artwork (and re-upload different art at the same path); admins can.
--- DELETE without WHERE so only the DELETE policy applies (no SELECT policy exists).
+-- DELETE without WHERE so only the DELETE policy applies (the WHERE shape is #443's section below).
 -- ============================================
 BEGIN;
 
@@ -1669,6 +1669,57 @@ DO $$
 BEGIN
   ASSERT NOT EXISTS (SELECT 1 FROM storage.objects WHERE bucket_id = 'gallery-art'),
     'an admin must delete any gallery file, an approved artwork''s included';
+END $$;
+
+ROLLBACK;
+
+-- ============================================
+-- Storage API delete shape (#443): remove() is DELETE ... WHERE, which needs a
+-- SELECT policy on the rows it reads. Owners see only their own folder.
+-- ============================================
+BEGIN;
+
+INSERT INTO auth.users (id, email, email_confirmed_at) VALUES
+  ('44300000-0000-0000-0000-00000000000a', 'sel-owner@example.invalid', now()),
+  ('44300000-0000-0000-0000-00000000000b', 'sel-other@example.invalid', now()),
+  ('44300000-0000-0000-0000-00000000000d', 'sel-admin@example.invalid', now());
+INSERT INTO public.gallery_admins (user_id) VALUES ('44300000-0000-0000-0000-00000000000d');
+INSERT INTO storage.objects (bucket_id, name) VALUES
+  ('gallery-art', '44300000-0000-0000-0000-00000000000a/mine.png'),
+  ('gallery-art', '44300000-0000-0000-0000-00000000000b/theirs.png'),
+  ('gallery-art', '44300000-0000-0000-0000-00000000000b/theirs2.png');
+
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', '44300000-0000-0000-0000-00000000000a', true);
+DO $$
+BEGIN
+  ASSERT (SELECT count(*) FROM storage.objects WHERE bucket_id = 'gallery-art') = 1,
+    'an owner must see only their own folder, never another user''s files';
+END $$;
+DELETE FROM storage.objects
+  WHERE bucket_id = 'gallery-art'
+    AND name = ANY (ARRAY['44300000-0000-0000-0000-00000000000a/mine.png',
+                          '44300000-0000-0000-0000-00000000000b/theirs.png']);
+RESET ROLE;
+
+DO $$
+BEGIN
+  ASSERT (SELECT array_agg(name ORDER BY name) FROM storage.objects WHERE bucket_id = 'gallery-art')
+         = ARRAY['44300000-0000-0000-0000-00000000000b/theirs.png',
+                 '44300000-0000-0000-0000-00000000000b/theirs2.png'],
+    'a WHERE delete must remove the owner''s file and nobody else''s';
+END $$;
+
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', '44300000-0000-0000-0000-00000000000d', true);
+DELETE FROM storage.objects WHERE bucket_id = 'gallery-art' AND name = '44300000-0000-0000-0000-00000000000b/theirs.png';
+RESET ROLE;
+
+DO $$
+BEGIN
+  ASSERT (SELECT array_agg(name) FROM storage.objects WHERE bucket_id = 'gallery-art')
+         = ARRAY['44300000-0000-0000-0000-00000000000b/theirs2.png'],
+    'an admin must be able to delete any file with a WHERE delete';
 END $$;
 
 ROLLBACK;
