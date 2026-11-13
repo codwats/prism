@@ -4,6 +4,7 @@
  */
 
 import { cardsToDecklistText } from './parser.js';
+import { importError } from './import-error.js';
 
 /**
  * Extract deck ID from a Moxfield URL or raw ID
@@ -39,10 +40,7 @@ export async function fetchMoxfieldDeck(publicId) {
     body: JSON.stringify({ publicId })
   });
 
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({ error: 'Unknown error' }));
-    throw new Error(error.error || `Failed to fetch deck: ${response.status}`);
-  }
+  if (!response.ok) throw await importError(response);
 
   return response.json();
 }

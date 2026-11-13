@@ -28,6 +28,7 @@ import { showSuccess, showError, showToast } from './core/notifications.js';
 import { wireCardAutocomplete as wireCardAutocompleteInput } from './modules/card-autocomplete.js';
 import { escapeHtml } from './core/utils.js';
 import { linkIcon } from './modules/gallery-links.js';
+import { artworksQuery, GRID_PAGE_SIZE } from './modules/gallery-query.js';
 
 // ============================================================
 // Demo fallback data (used only when the gallery schema isn't deployed)
@@ -71,19 +72,29 @@ const TURNSTILE_SITE_KEY = '0x4AAAAAAFSxouNPhJdr5HGl';
 // Data layer (Supabase)
 // ============================================================
 
-let artworks = [];        // approved artworks, mapped to camelCase
+const artworksById = new Map(); // every approved artwork fetched so far, mapped to camelCase
+const fullIds = new Set();        // ids whose detail-only columns are loaded
+const artistWorks = new Map();    // artist id -> that artist's approved artworks
 let artistsDb = [];       // gallery_artists rows, mapped
 let myLikes = new Set();  // artwork ids the current user liked
 let isAdmin = false;      // current user is a gallery admin (loaded before render)
 let usingDemo = false;    // gallery schema not deployed — read-only sample data
 let publicLoaded = false;
+// The grid's loaded pages for one filter combination (key).
+let grid = { key: null, rows: [], total: 0, loading: false, error: false, dirty: false };
 
 const REST_HEADERS = { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` };
 
-async function restGet(query) {
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/${query}`, { headers: REST_HEADERS });
+async function restGet(query, { count = false } = {}) {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/${query}`, {
+    headers: count ? { ...REST_HEADERS, Prefer: 'count=exact' } : REST_HEADERS,
+  });
   if (!res.ok) throw new Error(`Gallery fetch failed: ${res.status}`);
-  return res.json();
+  const rows = await res.json();
+  if (!count) return rows;
+  // Content-Range: 0-47/123 (or */0 when empty)
+  const total = Number(res.headers.get('content-range')?.split('/')[1]);
+  return { rows, total: Number.isFinite(total) ? total : rows.length };
 }
 
 function publicImageUrl(path) {
@@ -127,25 +138,79 @@ function mapArtist(r) {
     userId: r.user_id || null, // set = a claimed Artist; null = an Attribution
     commissionsOpen: !!r.commissions_open,
     commissionNote: r.commission_note || '',
+    hasWork: (r.gallery_artworks || []).length > 0,
   };
 }
 
-async function loadPublicData() {
+/** Every artist row, each flagged hasWork when it has an approved artwork (the Artist filter lists only those). */
+async function loadArtists() {
   try {
-    const [artworkRows, artistRows] = await Promise.all([
-      restGet('gallery_artworks?status=eq.approved&select=*&order=likes_count.desc'),
-      restGet('gallery_artists?select=*'),
-    ]);
-    artworks = artworkRows.map(mapArtwork);
-    artistsDb = artistRows.map(mapArtist);
+    // One approved artwork id per artist is enough for hasWork. The FK hint keeps the
+    // embed off the artist-artwork path through gallery_commission_sends.
+    artistsDb = (await restGet('gallery_artists?select=*,gallery_artworks!gallery_artworks_artist_id_fkey(id)'
+      + '&gallery_artworks.status=eq.approved&gallery_artworks.limit=1')).map(mapArtist);
     usingDemo = false;
   } catch (err) {
     console.warn('Gallery: schema not reachable, using demo data.', err);
-    artworks = DEMO_ARTWORKS;
-    artistsDb = DEMO_ARTISTS;
+    artistsDb = DEMO_ARTISTS.map(a => ({ ...a, hasWork: DEMO_ARTWORKS.some(w => w.artistId === a.id) }));
     usingDemo = true;
   }
   publicLoaded = true;
+}
+
+/** After a change to approved artwork: drop every cached artwork read and re-read artists; callers re-render. */
+async function refreshArtworks() {
+  artworksById.clear();
+  fullIds.clear();
+  artistWorks.clear();
+  grid = { key: null, rows: [], total: 0, loading: false, error: false, dirty: false };
+  await loadArtists();
+}
+
+/** Keep one object per artwork id so likes stay in step across views; only a full row upgrades it. */
+function remember(artwork, full) {
+  const known = artworksById.get(artwork.id);
+  if (!known) { artworksById.set(artwork.id, artwork); return artwork; }
+  return full ? Object.assign(known, artwork) : known;
+}
+
+// Client-side twins of the server's sort orders (gallery-query.js ORDER).
+const SORT_KEYS = { liked: a => a.likes || 0, new: a => Date.parse(a.createdAt) || 0, dl: a => a.downloads || 0 };
+
+// ponytail: demo-only in-memory twin of artworksQuery — goes with the DEMO_* arrays (#442).
+function demoArtworks({ type, artistIds, q, sort, featuredFirst, id, offset = 0, limit = Infinity }) {
+  const term = (q || '').trim().toLowerCase();
+  const key = SORT_KEYS[sort] || SORT_KEYS.liked;
+  const list = DEMO_ARTWORKS.filter(a => (!id || a.id === id)
+    && (!type || type === 'all' || a.type === type)
+    && (!artistIds || artistIds.includes(a.artistId))
+    && (sort !== 'dl' || isDownloadable(a))
+    && (!term || a.title.toLowerCase().includes(term) || (a.originalCard?.name || '').toLowerCase().includes(term)))
+    .sort((a, b) => (featuredFirst ? b.highlighted - a.highlighted : 0) || key(b) - key(a));
+  return { rows: list.slice(offset, offset + limit), total: list.length };
+}
+
+/** One page of approved artworks for a query spec (see gallery-query.js), cached by id. */
+async function fetchArtworks(spec) {
+  if (spec.artistIds?.length === 0) return { rows: [], total: 0 };
+  const { rows, total } = usingDemo
+    ? demoArtworks(spec)
+    : await restGet(artworksQuery(spec), { count: true }).then(r => ({ rows: r.rows.map(mapArtwork), total: r.total }));
+  return { rows: rows.map(a => remember(a, spec.columns === '*')), total };
+}
+
+/** Every column of one approved artwork, from cache once loaded; null when not public. */
+async function loadArtwork(id) {
+  if (fullIds.has(id) || usingDemo) return artworksById.get(id) || (await fetchArtworks({ id })).rows[0] || null;
+  const { rows } = await fetchArtworks({ id, columns: '*' });
+  if (rows[0]) fullIds.add(id);
+  return rows[0] || null;
+}
+
+/** All of one artist's approved artworks, most liked first. */
+async function loadArtistWorks(artistId) {
+  if (!artistWorks.has(artistId)) artistWorks.set(artistId, (await fetchArtworks({ artistIds: [artistId], sort: 'liked' })).rows);
+  return artistWorks.get(artistId);
 }
 
 async function loadMyLikes() {
@@ -171,7 +236,7 @@ async function loadAdminFlag() {
 }
 
 function findArtwork(id) {
-  return artworks.find(a => a.id === id) || null;
+  return artworksById.get(id) || null;
 }
 
 function getArtist(id) {
@@ -213,7 +278,7 @@ async function toggleLike(artwork) {
     myLikes.add(artwork.id);
     artwork.likes += 1;
   }
-  render();
+  repaintLike(artwork);
 
   const { error } = wasLiked
     ? await sb.from('gallery_likes').delete().eq('artwork_id', artwork.id).eq('user_id', user.id)
@@ -227,9 +292,21 @@ async function toggleLike(artwork) {
       myLikes.delete(artwork.id);
       artwork.likes = Math.max(0, artwork.likes - 1);
     }
-    render();
+    repaintLike(artwork);
     showError('Could not save like — try again.');
+  } else if (filters.sort === 'liked') {
+    grid.dirty = true; // the server order moved; the next page re-reads from the top
   }
+}
+
+/** On the grid, update one artwork's like buttons in place (a render would rebuild every card); elsewhere re-render. */
+function repaintLike(artwork) {
+  if (!document.getElementById('gallery-sort')) { render(); return; } // only the grid has the Sort select
+  const liked = isLiked(artwork.id);
+  document.querySelectorAll(`#gallery-root [data-like="${CSS.escape(artwork.id)}"]`).forEach(btn => {
+    btn.classList.toggle('liked', liked);
+    btn.innerHTML = `<wa-icon name="heart" family="${liked ? 'solid' : 'regular'}"></wa-icon>${likeCount(artwork)}`;
+  });
 }
 
 // ============================================================
@@ -339,43 +416,80 @@ function wireLikeButtons(root) {
 const initialType = new URLSearchParams(window.location.search).get('type');
 const filters = { type: TYPE_LABELS[initialType] ? initialType : 'all', artist: 'all', q: '', sort: 'liked' };
 
-function sortArtworks(list) {
-  const key = { liked: a => likeCount(a), new: a => Date.parse(a.createdAt) || 0, dl: a => a.downloads || 0 }[filters.sort];
-  return [...list].sort((a, b) => key(b) - key(a));
+/** The server query for the grid's current filters (one page at a time). */
+function gridSpec() {
+  const artistIds = filters.artist === 'all' ? null
+    : filters.artist === 'partnered' ? artistsDb.filter(a => a.isPartner).map(a => a.id)
+      : [filters.artist];
+  // The default view shows Featured above All artwork, so featured work pages in first.
+  return { type: filters.type, artistIds, q: filters.q, sort: filters.sort, featuredFirst: !hasFilter() && filters.sort === 'liked' };
 }
 
-function filteredArtworks() {
-  const q = filters.q.trim().toLowerCase();
-  return artworks.filter(a => {
-    if (filters.type !== 'all' && a.type !== filters.type) return false;
-    if (filters.artist === 'partnered') {
-      if (!getArtist(a.artistId)?.isPartner) return false;
-    } else if (filters.artist !== 'all' && a.artistId !== filters.artist) return false;
-    if (q && !(a.originalCard?.name || '').toLowerCase().includes(q) && !a.title.toLowerCase().includes(q)) return false;
-    return true;
-  });
+/** A type, artist or search filter narrows the grid (sort alone doesn't). */
+function hasFilter() {
+  return filters.type !== 'all' || filters.artist !== 'all' || filters.q.trim() !== '';
+}
+
+/** Fetch the next grid page for the current filters (the first when they changed), then re-render. */
+async function loadGridPage() {
+  const spec = gridSpec();
+  const key = JSON.stringify(spec);
+  if (grid.key !== key) grid = { key, rows: [], total: 0, loading: false, error: false, dirty: false };
+  const g = grid; // a filter change or refresh swaps `grid`; this request then belongs to a dead one
+  if (g.loading) return;
+  g.loading = true;
+  g.error = false;
+  // A like moved artworks within the server order: re-read what is loaded instead of paging past a shifted offset.
+  const reread = g.dirty;
+  try {
+    const { rows, total } = await fetchArtworks(reread
+      ? { ...spec, offset: 0, limit: Math.max(g.rows.length, GRID_PAGE_SIZE) }
+      : { ...spec, offset: g.rows.length, limit: GRID_PAGE_SIZE });
+    if (grid !== g) return;
+    g.rows = reread ? rows : [...g.rows, ...rows];
+    g.total = total;
+    g.dirty = false;
+  } catch (err) {
+    console.error('Gallery: could not load artwork', err);
+    if (grid === g) { g.error = true; showError('Could not load artwork — try again.'); }
+  } finally {
+    if (grid === g) g.loading = false;
+  }
+  if (grid === g) render();
 }
 
 function renderGrid(root) {
   const user = getCurrentUser();
   const alley = filters.type === 'alter';
-  // Most downloaded leaves out display-only Alters, and isn't offered when
-  // nothing in view can be downloaded (Alter Alley with every Alter off).
-  const filtered = filteredArtworks();
-  const canSortDl = filtered.some(isDownloadable);
-  if (!canSortDl && filters.sort === 'dl') filters.sort = 'liked';
-  const results = sortArtworks(filtered.filter(a => filters.sort !== 'dl' || isDownloadable(a)));
+  // Most downloaded isn't offered when nothing in view can be downloaded (Alter Alley with every Alter off).
+  // The server's dl query leaves display-only Alters out, so an empty dl result is that case: fall back to liked.
+  if (filters.sort === 'dl' && grid.key === JSON.stringify(gridSpec()) && !grid.loading && !grid.error && grid.total === 0) filters.sort = 'liked';
+  if (grid.key !== JSON.stringify(gridSpec())) loadGridPage(); // sets grid.loading before its first await
+  const results = grid.rows;
+  // Unloaded pages may hold downloadable work, so offer it; the fallback above catches an empty pick.
+  const canSortDl = filters.sort === 'dl' || results.length < grid.total || results.some(isDownloadable);
   const featured = results.filter(a => a.highlighted);
   const rest = results.filter(a => !a.highlighted);
-  const hasFilter = filters.type !== 'all' || filters.artist !== 'all' || filters.q.trim() !== '';
+  const firstLoad = grid.loading && results.length === 0;
+  const moreHtml = results.length < grid.total
+    ? `<div class="wa-cluster" style="justify-content: center; margin-top: var(--wa-space-l);"><wa-button appearance="outlined" id="gallery-load-more"${grid.loading ? ' loading' : ''}>Load more</wa-button></div>`
+    : '';
 
   const partnered = artistsDb.filter(a => a.isPartner);
-  const community = [...new Set(artworks.map(a => a.artistId).filter(id => id && !getArtist(id)?.isPartner))]
-    .map(id => getArtist(id)).filter(Boolean);
+  const community = artistsDb.filter(a => !a.isPartner && a.hasWork);
 
   let gridsHtml;
-  if (results.length === 0) {
-    gridsHtml = hasFilter ? `
+  if (firstLoad) {
+    gridsHtml = `<div style="margin-top: var(--wa-space-l);">${loadingHtml()}</div>`;
+  } else if (results.length === 0 && grid.error) {
+    gridsHtml = `
+      <div class="gallery-empty">
+        <div class="ic"><wa-icon name="image"></wa-icon></div>
+        <h3 class="wa-heading-s">Could not load artwork</h3>
+        <wa-button size="s" variant="brand" id="gallery-retry">Retry</wa-button>
+      </div>`;
+  } else if (results.length === 0) {
+    gridsHtml = hasFilter() ? `
       <div class="gallery-empty">
         <div class="ic"><wa-icon name="image"></wa-icon></div>
         <h3 class="wa-heading-s">No artwork matches these filters</h3>
@@ -391,17 +505,17 @@ function renderGrid(root) {
         <p class="wa-caption-m" style="color: var(--wa-color-neutral-text-subtle); max-width: 32ch;">Partnered art is on its way. Be the first community upload.</p>
         <wa-button size="s" variant="brand" href="gallery.html?view=upload"><wa-icon slot="start" name="plus"></wa-icon>Upload artwork</wa-button>
       </div>`;
-  } else if (hasFilter || filters.sort !== 'liked') {
+  } else if (hasFilter() || filters.sort !== 'liked') {
     gridsHtml = `
-      <div class="gallery-eyebrow"><wa-icon name="images"></wa-icon>Results <span class="count">&middot; ${results.length} piece${results.length === 1 ? '' : 's'}</span></div>
-      <div class="wa-grid wa-gap-m gallery-grid">${results.map(cardHtml).join('')}</div>`;
+      <div class="gallery-eyebrow"><wa-icon name="images"></wa-icon>Results <span class="count">&middot; ${grid.total} piece${grid.total === 1 ? '' : 's'}</span></div>
+      <div class="wa-grid wa-gap-m gallery-grid">${results.map(cardHtml).join('')}</div>${moreHtml}`;
   } else {
     gridsHtml = `
       ${featured.length ? `
         <div class="gallery-eyebrow"><wa-icon name="star" style="color: var(--wa-color-brand-text);"></wa-icon>Featured <span class="count">&middot; partnered work</span></div>
         <div class="wa-grid wa-gap-m gallery-grid">${featured.map(cardHtml).join('')}</div>` : ''}
-      <div class="gallery-eyebrow"><wa-icon name="images"></wa-icon>All artwork <span class="count">&middot; ${rest.length} piece${rest.length === 1 ? '' : 's'}</span></div>
-      <div class="wa-grid wa-gap-m gallery-grid">${rest.map(cardHtml).join('')}</div>`;
+      <div class="gallery-eyebrow"><wa-icon name="images"></wa-icon>All artwork <span class="count">&middot; ${grid.total - featured.length} piece${grid.total - featured.length === 1 ? '' : 's'}</span></div>
+      <div class="wa-grid wa-gap-m gallery-grid">${rest.map(cardHtml).join('')}</div>${moreHtml}`;
   }
 
   root.innerHTML = `
@@ -450,6 +564,8 @@ function renderGrid(root) {
     ${gridsHtml}`;
 
   wireLikeButtons(root);
+  root.querySelector('#gallery-load-more')?.addEventListener('click', loadGridPage);
+  root.querySelector('#gallery-retry')?.addEventListener('click', loadGridPage);
   root.querySelector('#gallery-signin-link')?.addEventListener('click', e => { e.preventDefault(); promptSignIn(); });
   root.querySelector('#gallery-clear-filters')?.addEventListener('click', () => {
     filters.type = 'all'; filters.artist = 'all'; filters.q = ''; filters.sort = 'liked';
@@ -473,15 +589,28 @@ function renderGrid(root) {
 // Detail view
 // ============================================================
 
-function renderDetail(root, id) {
-  const artwork = findArtwork(id);
+async function renderDetail(root, id) {
+  const seq = renderSeq;
+  if (!fullIds.has(id) && !usingDemo) root.innerHTML = loadingHtml();
+  let artwork, artistAll = [];
+  try {
+    artwork = await loadArtwork(id);
+  } catch (err) {
+    console.error('Gallery: could not load artwork', err);
+    artwork = null;
+  }
+  if (artwork?.artistId) {
+    // "More from" is optional: a failure here still shows the artwork.
+    try { artistAll = await loadArtistWorks(artwork.artistId); } catch (err) { console.error('Gallery: could not load more work', err); }
+  }
+  if (seq !== renderSeq) return; // the reader moved on while this loaded
   if (!artwork) {
     renderNotFound(root, 'Artwork not found', 'It may still be in review, or the link is wrong.');
     return;
   }
   const user = getCurrentUser();
   const artist = getArtist(artwork.artistId);
-  const more = artworks.filter(a => a.artistId === artwork.artistId && a.id !== artwork.id && artwork.artistId).slice(0, 4);
+  const more = artistAll.filter(a => a.id !== artwork.id).slice(0, 4);
   const liked = isLiked(artwork.id);
 
   root.innerHTML = `
@@ -548,7 +677,7 @@ function renderDetail(root, id) {
   root.querySelector('#detail-download-gated')?.addEventListener('click', promptSignIn);
   root.querySelector('#detail-delete')?.addEventListener('click', async () => {
     if (!await confirmDeleteArtwork(artwork)) return;
-    await loadPublicData(); // drops it from the grid and the artist page
+    await refreshArtworks(); // drops it from the grid and the artist page
     history.pushState({}, '', 'gallery.html');
     render();
   });
@@ -558,13 +687,24 @@ function renderDetail(root, id) {
 // Artist view
 // ============================================================
 
-function renderArtist(root, id) {
+async function renderArtist(root, id) {
   const artist = getArtist(id);
   if (!artist) {
     renderNotFound(root, 'Artist not found', 'The link may be wrong.');
     return;
   }
-  const works = sortArtworks(artworks.filter(a => a.artistId === artist.id));
+  const seq = renderSeq;
+  if (!artistWorks.has(id)) root.innerHTML = loadingHtml();
+  let works;
+  try {
+    const key = SORT_KEYS[filters.sort] || SORT_KEYS.liked; // the page follows the grid's Sort
+    works = [...await loadArtistWorks(id)].sort((a, b) => key(b) - key(a));
+  } catch (err) {
+    console.error('Gallery: could not load artist works', err);
+    works = [];
+    showError('Could not load this artist\u2019s works — try again.');
+  }
+  if (seq !== renderSeq) return; // the reader moved on while this loaded
   const totalLikes = works.reduce((sum, a) => sum + likeCount(a), 0);
   const focus = [...new Set(works.map(w => TYPE_LABELS[w.type]))].join(' &middot; ');
 
@@ -746,7 +886,7 @@ async function renderClaimSlot(slot, artist) {
       .select('id').eq('artist_id', artist.id).eq('user_id', me.id).eq('status', 'approved').limit(1);
     if (approved?.length) {
       showSuccess('This page is yours — you can edit it and open commissions.');
-      await loadPublicData(); // the artist row now carries user_id, so Edit artist page appears
+      await refreshArtworks(); // the artist row now carries user_id (Edit artist page appears) and linked uploads join their works
       render();
       return;
     }
@@ -1080,7 +1220,7 @@ async function renderEditArtwork(root, id) {
 
   root.querySelector('#edit-delete')?.addEventListener('click', async () => {
     if (!await confirmDeleteArtwork(artwork)) return;
-    await loadPublicData();
+    if (artwork.status === 'approved') await refreshArtworks(); // a pending or rejected upload was never public
     history.pushState({}, '', artwork.status === 'pending' ? 'gallery.html?view=admin' : 'gallery.html');
     render();
   });
@@ -1143,7 +1283,7 @@ async function renderEditArtwork(root, id) {
       }
       if (isOwner) rememberArtistName(fields.artistName);
       showSuccess('Changes saved');
-      await loadPublicData(); // approved metadata may have changed
+      if (artwork.status === 'approved' || status === 'approved') await refreshArtworks(); // public metadata may have changed
       history.pushState({}, '', backHref);
       render();
     } catch (err) {
@@ -1252,7 +1392,7 @@ async function renderEditArtist(root) {
       return;
     }
     showSuccess('Artist page saved');
-    await loadPublicData();
+    await loadArtists();
     history.pushState({}, '', backHref);
     render();
   });
@@ -1357,7 +1497,7 @@ async function renderAdminArtist(root, id) {
       submitBtn.removeAttribute('disabled');
       return;
     }
-    await loadPublicData();
+    await loadArtists();
     if (!created) {
       showSuccess('Artist saved');
       adminTab = 'artists';
@@ -1482,7 +1622,7 @@ async function renderMyUploads(root) {
     btn.removeAttribute('loading');
     if (err) { console.error('Add to my page failed:', err); showError('Could not add it to your artist page — try again.'); return; }
     showSuccess('Added to your artist page');
-    await loadPublicData(); // an approved work now shows on the page
+    await refreshArtworks(); // an approved work now shows on the page
     render();
   }));
   root.querySelectorAll('[data-withdraw]').forEach(btn => btn.addEventListener('click', async () => {
@@ -1677,7 +1817,7 @@ async function renderAdmin(root) {
     btn.removeAttribute('loading');
     if (err) showError(err.code === '23505' ? 'That artist page is already claimed, or the claimant already owns one.' : 'Could not update the claim — try again.');
     else done();
-    await loadPublicData(); // an approved claim changes the public artist row
+    await loadArtists(); // an approved claim changes the public artist row
     render();
   }));
   claimAction('data-claim-approve', 'approve_gallery_artist_claim', () => showSuccess('Claim approved — the account now owns this artist page'));
@@ -1695,13 +1835,13 @@ async function renderAdmin(root) {
     }).eq('id', id);
     if (err) { showError('Could not approve — try again.'); return; }
     showSuccess('Approved');
-    await loadPublicData(); // approved art is public now
+    await refreshArtworks(); // approved art is public now
     render();
   }));
   root.querySelectorAll('[data-delete-artist]').forEach(btn => btn.addEventListener('click', async () => {
     const a = artistsDb.find(x => x.id === btn.dataset.deleteArtist);
     if (!a || !await confirmDeleteArtist(a)) return;
-    await loadPublicData(); // the page is gone from the public artist list
+    await refreshArtworks(); // the page is gone, and its artworks lost their artist_id
     render();
   }));
   root.querySelectorAll('[data-delete-art]').forEach(btn => btn.addEventListener('click', async () => {
@@ -1831,9 +1971,12 @@ function renderNotFound(root, title, sub) {
     </div>`;
 }
 
+let renderSeq = 0; // bumped per render so a slow async view never paints over a newer one
+
 function render() {
   const root = document.getElementById('gallery-root');
   if (!root || !publicLoaded) return; // initial skeleton stays until public data arrives
+  renderSeq++;
   const params = new URLSearchParams(window.location.search);
   const art = params.get('art');
   const artist = params.get('artist');
@@ -1856,7 +1999,7 @@ function render() {
 
 initLayout({ activePage: 'gallery' });
 
-loadPublicData().then(async () => {
+loadArtists().then(async () => {
   await Promise.all([loadMyLikes(), loadAdminFlag()]); // no-ops unless auth already restored
   render();
 });

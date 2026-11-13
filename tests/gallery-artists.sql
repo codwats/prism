@@ -1626,3 +1626,49 @@ BEGIN
 END $$;
 
 ROLLBACK;
+
+-- ============================================
+-- Gallery art delete (#433): an uploader can't delete the image behind an
+-- approved artwork (and re-upload different art at the same path); admins can.
+-- DELETE without WHERE so only the DELETE policy applies (no SELECT policy exists).
+-- ============================================
+BEGIN;
+
+INSERT INTO auth.users (id, email, email_confirmed_at) VALUES
+  ('43300000-0000-0000-0000-00000000000a', 'art-uploader@example.invalid', now()),
+  ('43300000-0000-0000-0000-00000000000d', 'art-admin@example.invalid', now());
+INSERT INTO public.gallery_admins (user_id) VALUES ('43300000-0000-0000-0000-00000000000d');
+INSERT INTO public.gallery_artworks (title, type, artist_name, uploader_id, image_path, status) VALUES
+  ('Approved', 'proxy', 'Up', '43300000-0000-0000-0000-00000000000a', '43300000-0000-0000-0000-00000000000a/approved.png', 'approved'),
+  ('Pending', 'proxy', 'Up', '43300000-0000-0000-0000-00000000000a', '43300000-0000-0000-0000-00000000000a/pending.png', 'pending'),
+  ('Rejected', 'proxy', 'Up', '43300000-0000-0000-0000-00000000000a', '43300000-0000-0000-0000-00000000000a/rejected.png', 'rejected');
+INSERT INTO storage.objects (bucket_id, name) VALUES
+  ('gallery-art', '43300000-0000-0000-0000-00000000000a/approved.png'),
+  ('gallery-art', '43300000-0000-0000-0000-00000000000a/pending.png'),
+  ('gallery-art', '43300000-0000-0000-0000-00000000000a/rejected.png'),
+  ('gallery-art', '43300000-0000-0000-0000-00000000000a/orphan.png');
+
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', '43300000-0000-0000-0000-00000000000a', true);
+DELETE FROM storage.objects;
+RESET ROLE;
+
+DO $$
+BEGIN
+  ASSERT (SELECT array_agg(name ORDER BY name) FROM storage.objects WHERE bucket_id = 'gallery-art')
+         = ARRAY['43300000-0000-0000-0000-00000000000a/approved.png'],
+    'an uploader must delete their pending, rejected and unreferenced files but not an approved artwork''s';
+END $$;
+
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', '43300000-0000-0000-0000-00000000000d', true);
+DELETE FROM storage.objects;
+RESET ROLE;
+
+DO $$
+BEGIN
+  ASSERT NOT EXISTS (SELECT 1 FROM storage.objects WHERE bucket_id = 'gallery-art'),
+    'an admin must delete any gallery file, an approved artwork''s included';
+END $$;
+
+ROLLBACK;
