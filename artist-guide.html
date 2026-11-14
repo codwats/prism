@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en" class="wa-cloak">
+  <head>
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-VHXCWY6VT9"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'G-VHXCWY6VT9');
+    </script>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Artist Guide - PRISM</title>
+    <meta name="description" content="How to set up a PRISM artist page, upload your work, and take commissions. PRISM takes no cut of commissions and never sees your conversations with players." />
+    <!-- Share cards (#243 follow-up). Absolute URLs on purpose: og:image and
+         og:url are fetched by a scraper that has no page context, so a relative
+         path resolves against the scraper, not the site. They therefore resolve
+         only once prismmtg.com serves the site; until the domain points here a
+         shared link previews as it does today, with no card. One card serves
+         every page: assets/og-card.png (1200x630), made by hand. -->
+    <link rel="canonical" href="https://prismmtg.com/artist-guide.html" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="PRISM" />
+    <meta property="og:title" content="Artist Guide" />
+    <meta property="og:description" content="How to set up a PRISM artist page, upload your work, and take commissions. PRISM takes no cut of commissions and never sees your conversations with players." />
+    <meta property="og:url" content="https://prismmtg.com/artist-guide.html" />
+    <meta property="og:image" content="https://prismmtg.com/assets/og-card.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="The PRISM wordmark under the tagline “One Card. Every Deck.”, above five colored stripes" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Artist Guide" />
+    <meta name="twitter:description" content="How to set up a PRISM artist page, upload your work, and take commissions. PRISM takes no cut of commissions and never sees your conversations with players." />
+    <meta name="twitter:image" content="https://prismmtg.com/assets/og-card.png" />
+    <style>.wa-cloak { visibility: hidden; }</style>
+    <style>wa-page:not(:defined) { visibility: hidden; }</style>
+    <!-- CDN resilience. Both rules above hide the page until Web Awesome loads, and
+         nothing removes them if it never does, so a blocked or stalled kit leaves a
+         blank white document. Reveal at 5s regardless: unstyled but readable beats
+         invisible. WA removes the class itself on a normal load, well before this. -->
+    <style>
+      @keyframes prism-uncloak { to { visibility: visible; } }
+      .wa-cloak,
+      wa-page:not(:defined) { animation: prism-uncloak 0s linear 5s forwards; }
+    </style>
+    <!-- iOS Home Screen icon (layout.js injects these as a fallback) -->
+    <link rel="apple-touch-icon" href="./assets/apple-touch-icon.png" />
+    <link rel="manifest" href="./assets/site.webmanifest" />
+    <meta name="theme-color" content="#281645" />
+    <meta name="apple-mobile-web-app-title" content="PRISM" />
+    <!-- Preconnect to CDNs (Supabase SDK on cdn.jsdelivr.net is lazy-loaded for logged-in users) -->
+    <link rel="preconnect" href="https://ka-p.webawesome.com" />
+    <link rel="preconnect" href="https://ka-p.webawesome.com" crossorigin />
+    <link rel="preconnect" href="https://fonts.bunny.net" />
+    <link rel="preconnect" href="https://fonts.bunny.net" crossorigin />
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" />
+    <link rel="preconnect" href="https://use.typekit.net" />
+    <link rel="preconnect" href="https://use.typekit.net" crossorigin />
+    <!-- Web Awesome, fonts, and app CSS as static tags so the browser preload scanner
+         starts them immediately; layout.js injectHeadResources skips tags already present -->
+    <link rel="stylesheet" href="https://ka-p.webawesome.com/kit/da021fed1e5141f2/webawesome@3.14.0/styles/themes/default.css" />
+    <link rel="stylesheet" href="https://ka-p.webawesome.com/kit/da021fed1e5141f2/webawesome@3.14.0/styles/native.css" />
+    <link rel="stylesheet" href="https://ka-p.webawesome.com/kit/da021fed1e5141f2/webawesome@3.14.0/styles/utilities.css" />
+    <script type="module" src="https://ka-p.webawesome.com/kit/da021fed1e5141f2/webawesome@3.14.0/webawesome.loader.js"></script>
+    <link rel="stylesheet" href="https://fonts.bunny.net/css2?family=Geist+Mono:wght@100..900&display=swap" />
+    <link rel="stylesheet" href="https://use.typekit.net/gbw6ibc.css" />
+    <link rel="stylesheet" href="css/custom.css" />
+        <style>
+      .guide-step { padding-block: var(--wa-space-xl); }
+      .guide-step figure { margin: 0; }
+      .guide-step img { max-width: 100%; border: 1px solid var(--wa-color-neutral-border-normal); border-radius: var(--wa-border-radius-m); }
+      .guide-step figcaption { color: var(--wa-color-neutral-text-subtle); margin-top: var(--wa-space-2xs); }
+    </style>
+  </head>
+  <body>
+    <wa-page mobile-breakpoint="768">
+      <main style="max-width: 800px; margin: 0 auto;">
+        <div class="wa-stack wa-gap-xs" style="padding-block: var(--wa-space-xl);">
+          <h1 class="wa-heading-2xl">Artist Guide</h1>
+          <span>The <a href="gallery.html">PRISM gallery</a> shows your Magic: The Gathering art to Commander players, credited to you, with a link back to your site and an optional commission form. This guide covers getting set up, uploading, and taking commissions.</span>
+        </div>
+
+        <wa-callout variant="success" appearance="outlined">
+          <wa-icon slot="icon" name="hand-holding-dollar"></wa-icon>
+          <strong>Your commissions are yours.</strong> PRISM takes no cut and no fee, and no money for your commissions passes through us. We send you each request once by email, then step out: your replies go straight to the player, and we never see them.
+        </wa-callout>
+
+        <section class="wa-stack wa-gap-m guide-step">
+          <h2 class="wa-heading-xl">What to send us</h2>
+          <p>Send us these and we set up your artist page. You can edit everything except your name yourself later.</p>
+          <table>
+            <thead><tr><th>Item</th><th>Notes</th></tr></thead>
+            <tbody>
+              <tr><td>Display name</td><td>Exactly as you want to be credited. Shown publicly, so a handle or studio name is fine.</td></tr>
+              <tr><td>Email for your PRISM account</td><td>Sign up with this email so your page links to you. Never shown on the site.</td></tr>
+              <tr><td>Short bio</td><td>One or two sentences.</td></tr>
+              <tr><td>Links</td><td>Website, socials, shop. Each must be an https:// address.</td></tr>
+              <tr><td>Avatar (optional)</td><td>A link to a square image hosted somewhere public, starting with https://.</td></tr>
+              <tr><td>Store link (optional)</td><td>If you sell prints or files of a piece, tell us which piece and the link.</td></tr>
+            </tbody>
+          </table>
+          <p>Send them in the <a href="https://discord.gg/4NUUKGvY7" target="_blank" rel="noopener">PRISM Discord</a> or reply to the message that brought you here.</p>
+        </section>
+
+        <section class="wa-stack wa-gap-m guide-step">
+          <h2 class="wa-heading-xl">Your account</h2>
+          <p>You make your own account. Sign up with the email you sent us and your artist page becomes yours automatically, with nothing to claim. It works whether you sign up before or after we set the page up.</p>
+          <ol>
+            <li>Go to <a href="index.html">prismmtg.com</a>, click <strong>Log In</strong>, then <strong>Don't have an account? Sign up</strong>.</li>
+            <li>Enter the email you sent us and choose a password.</li>
+            <li>Confirm your email from the message we send you.</li>
+            <li>Open your artist page and click <strong>Edit artist page</strong> to add your bio, links and commission settings.</li>
+          </ol>
+          <p>Already have a PRISM account with that email? Nothing to do: the page is linked to it as soon as we set it up.</p>
+          <p>Prefer not to sign up yourself? Ask and we email you an invite instead. Click <strong>Accept invite</strong>, choose a password, and the page is yours.</p>
+          <p>One account owns one artist page. If you work under two names, tell us.</p>
+        </section>
+
+        <section class="wa-stack wa-gap-m guide-step">
+          <h2 class="wa-heading-xl">Uploading your work</h2>
+          <p>Signed in, go to the <a href="gallery.html">gallery</a> and choose <strong>Upload artwork</strong>. Files must be <strong>PNG, JPG or WebP, 10 MB or less</strong>. Every upload is reviewed before it goes public.</p>
+          <figure>
+            <img src="assets/artist-guide/gallery.png" alt="The gallery page with the Artist guide and Upload artwork buttons under the intro text" loading="lazy" />
+            <figcaption>The Upload artwork button sits at the top of the gallery, next to the Artist guide button.</figcaption>
+          </figure>
+          <p>Pick the type that fits the piece:</p>
+          <table>
+            <thead><tr><th>Type</th><th>Use it for</th><th>Players can download it</th></tr></thead>
+            <tbody>
+              <tr><td>Proxy</td><td>Full card art for printing a playtest or proxy card</td><td>Yes, when signed in</td></tr>
+              <tr><td>Token</td><td>Token art</td><td>Yes, when signed in</td></tr>
+              <tr><td>Showcase</td><td>Alternate treatments, card backs, frames</td><td>Yes, when signed in</td></tr>
+              <tr><td>Alter</td><td>A photo of a real card you painted by hand</td><td>Only if you turn on <strong>Allow downloads</strong></td></tr>
+            </tbody>
+          </table>
+          <p>The form asks for:</p>
+          <ul>
+            <li><strong>Title</strong>, e.g. “Sol Ring — Ornate”.</li>
+            <li><strong>Original card</strong> (optional): the Magic card the art is for. Start typing and pick it from the list. For an alter, this is the card you painted.</li>
+            <li><strong>Description</strong> (optional): a few words for players.</li>
+            <li><strong>AI-assisted</strong>: tick it if AI was used anywhere in the piece.</li>
+            <li><strong>Display name</strong>: your credit. It starts as your artist page name; keep it, and approved pieces link to your page automatically.</li>
+            <li><strong>Allow downloads</strong> (Alters only): off by default. Turn it on to let signed-in players download the photo for personal use.</li>
+          </ul>
+          <p>After approval you can still edit the details. To replace the image itself, withdraw the piece and upload it again.</p>
+          <p>A piece missing from your page, such as one credited under another name? Open <strong>My uploads</strong> in the gallery and click <strong>Add to my page</strong>.</p>
+        </section>
+
+        <section class="wa-stack wa-gap-m guide-step">
+          <h2 class="wa-heading-xl">Your artist page and commissions</h2>
+          <p>Open your artist page and click <strong>Edit artist page</strong>, or use the <strong>Artist page</strong> section on your Profile. Changes go live straight away, with no review.</p>
+          <ul>
+            <li><strong>Bio, links, avatar.</strong> Links and the avatar must be https:// addresses. The avatar is a link to an image, not an upload.</li>
+            <li><strong>Commissions open / closed.</strong> Turn it on only while you are taking work.</li>
+            <li><strong>Commissions note.</strong> One or two lines shown above the form, e.g. “Sleeve art, ~2 weeks, DM for rates”.</li>
+            <li><strong>Commission email.</strong> Where requests are sent. It starts as your account email and you can change it. It is never shown on the site.</li>
+          </ul>
+          <p>When commissions are open, signed-in players see a request form on your page. Alters also get a <strong>Commission this artist</strong> button on the piece itself.</p>
+          <p>How a request reaches you:</p>
+          <ol>
+            <li>The player writes their request and can pick one of your pieces as a reference.</li>
+            <li>You get an email from commissions@relay.prismmtg.com. It has their message, plus the piece’s title, thumbnail and link if they picked one.</li>
+            <li>Hit <strong>Reply</strong>. It goes straight to the player. From there the conversation is between the two of you; PRISM is out of the loop.</li>
+          </ol>
+          <p>Your address stays private until you reply. Each player can send you at most one request a day, and three a day across all artists.</p>
+          <h3 class="wa-heading-l">What PRISM does and doesn't do</h3>
+          <ul>
+            <li>PRISM relays one message per request and keeps no copy of it. We never see your replies or anything after them.</li>
+            <li>Pricing, payment, delivery and terms are between you and the player. PRISM takes no cut and no fee, and handles no money for commissions.</li>
+            <li>Store links point to your own shop. The sale happens there, not through us.</li>
+          </ul>
+        </section>
+
+        <section class="wa-stack wa-gap-m guide-step">
+          <h2 class="wa-heading-xl">How your work is shown</h2>
+          <ul>
+            <li><strong>Credit.</strong> Every piece shows your display name and links to your artist page, which links to your site and socials.</li>
+            <li><strong>License.</strong> Proxies, tokens and showcase pieces carry one site-wide line: <em>personal, non-commercial use only — credit the artist.</em> Signed-in players can download these, so only upload files you are happy to share on those terms.</li>
+            <li><strong>Alters.</strong> By default shown as a photo only, with no download button, and the line <em>display only — not for reproduction. Commission the artist for your own.</em> If you allow downloads, they work like other pieces. They also appear in <a href="gallery.html?type=alter">Alter Alley</a>.</li>
+            <li><strong>AI disclosure.</strong> Pieces marked AI-assisted show an AI tag.</li>
+            <li><strong>Store links.</strong> Any piece can carry an <strong>Order custom sleeves</strong> button that links to where you sell it; send us the piece and the link. We also feature standout pieces at the top of the gallery.</li>
+          </ul>
+        </section>
+
+        <section class="wa-stack wa-gap-m guide-step">
+          <h2 class="wa-heading-xl">Questions</h2>
+          <p>Ask in the <a href="https://discord.gg/4NUUKGvY7" target="_blank" rel="noopener">PRISM Discord</a> or reply to the message this guide came with.</p>
+        </section>
+      </main>
+    </wa-page>
+
+    <script type="module">
+      import { initLayout } from './js/layout.js';
+      initLayout({ activePage: 'gallery', headerCta: { href: 'build.html', label: 'Build PRISM', icon: 'wand-magic-sparkles' } });
+    </script>
+  </body>
+</html>

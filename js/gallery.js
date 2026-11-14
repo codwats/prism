@@ -527,7 +527,10 @@ function renderGrid(root) {
         <h1 class="wa-heading-2xl">Gallery</h1>
         <p style="color: var(--wa-color-neutral-text-subtle); max-width: 60ch; margin-top: var(--wa-space-2xs);">Partnered and community artwork for proxies, tokens, and showcase treatments, plus hand-painted alters. Personal, non-commercial use with credit to the artist.</p>`}
       </div>
-      <wa-button variant="brand" href="gallery.html?view=upload"><wa-icon slot="start" name="plus"></wa-icon>Upload artwork</wa-button>
+      <div class="wa-cluster wa-gap-xs">
+        <wa-button appearance="outlined" href="artist-guide.html"><wa-icon slot="start" name="circle-info"></wa-icon>Artist guide</wa-button>
+        <wa-button variant="brand" href="gallery.html?view=upload"><wa-icon slot="start" name="plus"></wa-icon>Upload artwork</wa-button>
+      </div>
     </div>
 
     ${user ? '' : `
