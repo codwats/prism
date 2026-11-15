@@ -33,10 +33,10 @@ window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () 
 // Navigation links
 const NAV_LINKS = [
   { href: 'index.html', label: 'Home', page: 'home' },
-  { href: 'guide.html', label: 'Guide', page: 'guide' },
-  { href: 'tools.html', label: 'Tools', page: 'tools' },
-  { href: 'gallery.html', label: 'Gallery', page: 'gallery' },
   { href: 'build.html', label: 'My PRISM', page: 'build' },
+  { href: 'guide.html', label: 'Guide', page: 'guide' },
+  { href: 'tools.html', label: 'Supplies', page: 'tools' },
+  { href: 'gallery.html', label: 'Gallery', page: 'gallery' },
 ];
 
 // Members-only (ADR 0003): the group ships hidden and only entitlement unhides it
@@ -399,9 +399,8 @@ function injectNav(activePage) {
   // Build nav links
   const linksHtml = NAV_LINKS.map(link => {
     const isActive = link.page === activePage;
-    const activeClass = isActive ? ' class="wa-body-m"' : '';
-    const activeColor = isActive ? ' color: var(--wa-color-brand-60);' : '';
-    return `<a href="${link.href}"${activeClass} style="text-decoration: none; color: inherit;${activeColor}">${link.label}</a>`;
+    const activeAttrs = isActive ? ' class="wa-body-m nav-link-active" aria-current="page"' : '';
+    return `<a href="${link.href}"${activeAttrs} style="text-decoration: none; color: inherit;">${link.label}</a>`;
   }).join('\n          ');
 
   const extrasHtml = EXTRAS_LINKS.map(link => {
@@ -510,7 +509,7 @@ function injectHeader(ctaConfig) {
           <wa-button data-toggle-nav appearance="plain" variant="neutral" size="s" aria-label="Menu">
             <wa-icon name="bars"></wa-icon>
           </wa-button>
-          <a href="index.html" class="wa-cluster wa-gap-xs wa-align-items-center" style="text-decoration: none; color: inherit;">
+          <a href="index.html" class="header-home wa-cluster wa-gap-xs wa-align-items-center" style="text-decoration: none; color: inherit;">
             <img src="./assets/Prism-Small-Icon-Invert.svg" alt="Prism Logo" style="height:1.5em;" class="wa-border-radius-square theme-logo-dark">
             <img src="./assets/Prism-Icon-Main.svg" alt="Prism Logo" style="height:1.5em;" class="wa-border-radius-square theme-logo-light">
             <span class="wa-heading-l wa-desktop-only">PRISM</span>
@@ -733,7 +732,7 @@ function injectSettingsDrawer() {
             <wa-radio value="bottom-right">Bottom Right</wa-radio>
             <wa-radio value="bottom-left">Bottom Left</wa-radio>
           </wa-radio-group>
-          <wa-button id="stripe-start-corner-apply" appearance="filled" variant="brand" size="s" disabled>Apply</wa-button>
+          <wa-button id="stripe-start-corner-apply" class="stripe-apply" appearance="filled" variant="brand" size="s" disabled>Apply</wa-button>
           <p class="wa-caption-s" style="color: var(--wa-color-neutral-text-subtle); margin: 0;">Slot numbers stay the same — stripes move so Slot 1 starts at the chosen corner.</p>
           <wa-slider
             id="stripe-position-numbers-mode"
