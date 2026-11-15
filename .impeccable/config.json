@@ -37,6 +37,12 @@
         "value": "#ff0000",
         "createdAt": "2026-11-12T15:54:27.660Z",
         "reason": "User confirmed: test fixture deck colour in tests/commander-role.test.js, not UI"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "#00ff00",
+        "createdAt": "2026-11-15T19:51:48.229Z",
+        "reason": "User confirmed #00FF00 is intentional"
       }
     ]
   }
