@@ -16,3 +16,4 @@ docs/research/paywall-dossier.html
 
 # Stale local CLI build output, never deployed
 dist/
+supabase/.temp/
