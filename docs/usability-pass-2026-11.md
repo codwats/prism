@@ -1,6 +1,6 @@
 # Usability pass — November 2026
 
-A read of every page's markup and the build-page feature modules, then a look at build.html and guide.html in Chrome with a seeded 10-deck PRISM (desktop, dark scheme, logged out, viewport about 1085 by 1270). The browser window would not resize, so **mobile was not looked at**; mobile claims below come from the CSS. Profile, gallery, the home page and the logged-in states were read, not rendered.
+A read of every page's markup and the build-page feature modules, then a look at build.html and guide.html in Chrome with a seeded 10-deck PRISM (desktop, dark scheme, logged out, viewport about 1085 by 1270). Mobile was checked in a second pass through a 390px-wide frame (375px of layout after the scrollbar), with every control measured. That frame has a mouse pointer, so the one `@media (pointer: coarse)` rule in `custom.css` did not apply; see the note in the mobile section. Profile, gallery, the home page and the logged-in states were read, not rendered.
 
 Items already fixed since `docs/beta-review-2026-06.md` are not repeated.
 
@@ -61,6 +61,39 @@ Seen on screen, in rough order of how much they hurt.
 - **SCRY-Mode shows the marks only as paint on the card art.** There is no text saying which deck, colour name and slot each mark is, and the marks are small at that size. For a screen whose job is "paint exactly this", add the legend lines the Results row already has behind its stripe toggle. The dialog is also a boxed panel with the table visible behind it, though it asks for the full viewport.
 - **Settings drawer:** the disabled Apply button is a full-width bar that looks like a section divider. Size it to its label.
 - **Copies column is blank for single copies**, so most of the column is empty. Fold the count into the card name ("×3") and give the width to the marks.
+
+## Mobile pass: button sizes
+
+A user reported buttons too small on a phone. Measured at 375px, against a 44 by 44px target.
+
+**The marks are off screen.** The Results table is 430px wide in a 375px viewport, and the Stripes column is the one cut off. A phone shows Done, Card Name and an empty Copies column; the colours to paint are a sideways scroll away on every row. This is worse than any button size and is a small fix: drop the Copies column on mobile (put "×3" after the name) and the marks fit.
+
+**The table starts 1528px down**, close to two full screens, and Add a Deck starts 2167px down with six decks.
+
+| Control | Size | Count | Note |
+| --- | --- | --- | --- |
+| Slot in the Move dialog | 44 × 14 | 48 | Stacked with no gap. The worst target on the site; a thumb covers three slots. |
+| Pen colour swatch (Add a Deck) | 36 × 28 | 22 | Two rows, tight gaps. |
+| Batch expand toggle (Results) | 22 × 38 | per multi-batch card | |
+| Batch parent checkbox | 18 × 18 | per multi-batch card | Not clickable, but looks it. |
+| Every `size="s"` button | 38 high | all of them | Menu, gear, `…`, deck kebab, Filters, Legend, Export, SCRY-Mode, Dismiss. |
+| Deck kebab menu items | 222 × 38 | 7 | No gap between rows, and Delete deck sits directly under Edit deck. |
+| Results view switch | 38 high | 4 | |
+| Marks toggle on each row | 78 × 38 | per row | |
+| "Two commanders" switch | 18 high | 1 | |
+| Home link in the header | 9 × 24 | 1 | The wordmark is hidden on mobile and the link shrinks to a sliver of the logo. |
+| SCRY-Mode Skip and Done | 71 × 43, 79 × 43 | 2 | Tall enough, but small and at opposite corners for the two buttons pressed hundreds of times a session. |
+| Done checkbox | 31 × 24 here | per row | `custom.css:171` raises this to 44 × 44 on touch devices. Not verified: the test frame has a mouse pointer. |
+
+Fixes, cheapest first:
+
+1. **One rule lifts most of the table.** Under `@media (pointer: coarse)`, give `wa-button[size="s"]`, the radio segments and the kebab items a 44px minimum block size, the same way the Done checkbox already gets it. Add a gap or divider above Delete deck.
+2. **Swatches:** 44px squares in a wrapping grid on touch. 22 of them is four rows at 375px, which is fine in a dialog.
+3. **Header home link:** set a minimum width on the anchor.
+4. **SCRY-Mode on a phone:** full screen, with Skip and Done as two full-width halves at the bottom edge. This is in the design brief.
+5. **Slot picker:** 14px rows cannot be fixed with padding, as the comment at `custom.css:1101` already says. On touch, tap a side to zoom it, or replace the picture with a list of free slots ("Side A - Slot 7") and keep the picture as a preview. Needs a mockup; add it to the brief if you want it designed with the rest.
+
+Other things seen at this width: each deck card stacks into five rows (colour square alone on a row, name, slot tag, bracket tag, commander line, kebab) and is about 270px tall, so six decks fill more than two screens. The 390px brief item 3 covers it.
 
 ## Your list
 
@@ -156,6 +189,8 @@ Give me desktop (1280px) and mobile (390px) for each of these four problems. The
 4. The marking screen (currently the "Results" tab). Today the first card row is 1035px down the page, under a warning callout, three stat cards, an overlap-matrix bar and a two-row toolbar. Get the first card row above the fold on a 13-inch laptop and within the first screen on a phone. Contents to place: progress (marked 0 of 235 sleeves, total cards, pool cards), a view switch (All cards, Pool, Marks to clear with a count), search, filters (by deck, undone only, one mark at a time), a legend of deck colours and slots, export, and one primary action that starts a card-by-card marking mode. Each table row has a done checkbox, the card name with a copy count, and its marks as coloured squares in slot order; rows with several batches expand. Add bulk actions that apply to the rows currently shown: mark all shown, clear all shown (with a confirm that states the count).
 
 Also design the card-by-card marking mode as a true full-screen view: the card image with its marks drawn on the sleeve edge, a text legend under it (colour name, deck name, slot) for each mark, progress (1 of 170), and large Skip and Done buttons reachable with one thumb. Then show the same screen as an audit variant with "Matches" and "Wrong" in place of Skip and Done.
+
+On mobile the marks column must be visible without sideways scrolling; today it is cut off at 375px. Also design a touch-friendly way to pick one of 48 slots (24 per side of the sleeve) on a phone, where each slot is currently a 14px-tall row.
 
 Constraints: nothing may be removed, only moved. Every destructive action keeps a confirm. Touch targets at least 44px. The marks on a card must stay accurate and unambiguous; that matters more than polish.
 ```
