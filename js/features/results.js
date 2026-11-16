@@ -467,9 +467,9 @@ export function renderResults({ preserveRows = false } = {}) {
     `${m.isDot ? 'Dot, ' : ''}${formatSlotLabel(m.position)}, ${m.deckName}`;
 
   let detailRowSeq = 0;
-  // Done / Card Name / Copies / Stripes. The Copies column is unconditional
-  // (#149) and the stale-marks view uses its own row markup, so this is stable.
-  const detailColspan = 4;
+  // Done / Card Name / Stripes. The stale-marks view uses its own row markup,
+  // so this is stable.
+  const detailColspan = 3;
 
   // Returns the <td> plus, when there is anything to decode, a full-width
   // sibling <tr> holding the legend for that row. The detail deliberately does
@@ -505,9 +505,9 @@ export function renderResults({ preserveRows = false } = {}) {
   };
 
   const markedSetForRows = new Set(state.currentPrism.markedCards || []);
-  // Copies cell renders only when the quantity exceeds one (#149) — the
+  // Copy count folds into the name as "×14" only above one (#149), so the
   // common singleton path gains no text at all.
-  const copiesCell = (q) => `<td class="copies-cell">${q > 1 ? q : ''}</td>`;
+  const copiesTag = (q) => (q > 1 ? ` <span class="card-copies">×${q}</span>` : '');
 
   // Zebra banding is applied per card, not per <tr>: a multi-batch card's
   // sub-rows and a row's stripe-detail row all share their card's band, so an
@@ -523,7 +523,7 @@ export function renderResults({ preserveRows = false } = {}) {
       // fields keep the plain label.
       const clearCopies = card.removedPreviousQuantity != null ? Math.max(1, card.removedOpenCopies) : null;
       const copiesNote = clearCopies != null
-        ? ` — clear ${clearCopies} ${clearCopies === 1 ? 'copy' : 'copies'}`
+        ? `, clear ${clearCopies} ${clearCopies === 1 ? 'copy' : 'copies'}`
         : '';
       return `
         <tr class="removed-row${band}" data-removed-key="${escapeHtml(removedKey)}">
@@ -573,7 +573,7 @@ export function renderResults({ preserveRows = false } = {}) {
           <td style="text-align: center;">
             <label class="mark-checkbox-hit"><input type="checkbox" class="mark-checkbox" aria-label="Mark ${escapeHtml(card.name)} done" ${isMarked ? "checked" : ""}></label>
           </td>
-          <td class="${nameClass} card-name-cell" data-card-name="${escapeHtml(card.isPassRow ? card.displayName : card.name)}">${escapeHtml(card.name)}${basicTag}</td>${copiesCell(card.totalQuantity)}
+          <td class="${nameClass} card-name-cell" data-card-name="${escapeHtml(card.isPassRow ? card.displayName : card.name)}">${escapeHtml(card.name)}${basicTag}${copiesTag(card.totalQuantity)}</td>
           ${stripes.cell}
         </tr>
         ${stripes.detailRow}
@@ -597,8 +597,8 @@ export function renderResults({ preserveRows = false } = {}) {
           <button type="button" class="batch-toggle" data-card-name="${escapeHtml(card.name)}" aria-expanded="${isExpanded}" title="${isExpanded ? 'Collapse' : 'Expand'} batches">
             <wa-icon name="${isExpanded ? 'chevron-down' : 'chevron-right'}"></wa-icon>
           </button>
-          ${escapeHtml(card.name)}${basicTag}
-        </td>${copiesCell(card.totalQuantity)}
+          ${escapeHtml(card.name)}${basicTag}${copiesTag(card.totalQuantity)}
+        </td>
         <td><span class="basic-tag">${batches.length} different markings</span></td>
       </tr>
     `;
@@ -618,7 +618,7 @@ export function renderResults({ preserveRows = false } = {}) {
           <td style="text-align: center;">
             <label class="mark-checkbox-hit"><input type="checkbox" class="mark-checkbox" aria-label="Mark ${b.copyCount} ${batchLabel} ${escapeHtml(card.name)} copies (${escapeHtml(markNames)}) done" ${marked ? "checked" : ""}></label>
           </td>
-          <td class="batch-subrow-label card-name-cell" data-card-name="${escapeHtml(card.name)}">${b.copyCount} ${b.copyCount === 1 ? 'copy' : 'copies'} — ${batchLabel}</td>${copiesCell(b.copyCount)}
+          <td class="batch-subrow-label card-name-cell" data-card-name="${escapeHtml(card.name)}">${b.copyCount} ${b.copyCount === 1 ? 'copy' : 'copies'}, ${batchLabel}</td>
           ${stripes.cell}
         </tr>
         ${stripes.detailRow}
@@ -689,7 +689,7 @@ export function renderResults({ preserveRows = false } = {}) {
     clearAllBtn.addEventListener('click', handleClearAllRemovedClick);
   }
 
-  const colspan = 4;
+  const colspan = 3;
 
   // Handle empty states
   if (displayCards.length === 0) {
@@ -741,9 +741,6 @@ function sortCards(cards, column, direction) {
       case 'name':
         comparison = a.name.localeCompare(b.name);
         break;
-      case 'copies':
-        comparison = a.totalQuantity - b.totalQuantity;
-        break;
       case 'deckCount':
         // 1. Sort by deck count (most shared first by default)
         comparison = a.deckCount - b.deckCount;
@@ -786,7 +783,6 @@ function renderResultsHeader() {
   if (!thead) return;
 
   const filter = state.elements.resultsFilter?.value || 'all';
-  const showCopies = true; // Copies column always present; cells are empty at qty 1 (#149)
   const isRemovedFilter = filter === 'removed';
 
   const getSortIcon = (column) => {
@@ -797,12 +793,6 @@ function renderResultsHeader() {
   const getSortedClass = (column) => {
     return state.sortState.column === column ? 'sorted' : '';
   };
-
-  const copiesHeader = showCopies ? `
-      <th class="sortable ${getSortedClass('copies')}" data-sort="copies">
-        Copies
-        <wa-icon name="${getSortIcon('copies')}" class="sort-icon"></wa-icon>
-      </th>` : '';
 
   // Different header for removed cards view
   if (isRemovedFilter) {
@@ -828,7 +818,7 @@ function renderResultsHeader() {
         <th class="sortable ${getSortedClass('name')}" data-sort="name">
           Card Name
           <wa-icon name="${getSortIcon('name')}" class="sort-icon"></wa-icon>
-        </th>${copiesHeader}
+        </th>
         <th class="sortable ${getSortedClass('deckCount')}" data-sort="deckCount">
           Stripes
           <wa-icon name="${getSortIcon('deckCount')}" class="sort-icon"></wa-icon>
