@@ -4,6 +4,7 @@
 
 import { state } from '../core/state.js';
 import { escapeHtml, stripeNumberLabel, countVisibleMarks, STRIPE_SPARSE_MAX, isCardDone, batchTally } from '../core/utils.js';
+import { markingPrereqVisible } from '../core/marking-prereq.js';
 import { getStripeNumbersMode } from '../modules/storage.js';
 import { processCards, formatSlotLabel, getColorName } from '../modules/processor.js';
 import { normalizeCardName } from '../modules/parser.js';
@@ -255,6 +256,12 @@ function resultsFilterValue() {
   return view;
 }
 
+/** Show or hide the pre-marking warning for the current PRISM (#476). */
+export function syncMarkingPrereq() {
+  const callout = document.getElementById('marking-prereq-callout');
+  if (callout) callout.style.display = markingPrereqVisible(state.currentPrism) ? '' : 'none';
+}
+
 export function renderResults({ preserveRows = false } = {}) {
   // Any re-render invalidates the pending tail observer; a new one is attached
   // once the fresh rows exist.
@@ -285,6 +292,7 @@ export function renderResults({ preserveRows = false } = {}) {
   if (state.elements.markingLayout) state.elements.markingLayout.style.display = hasDecks ? '' : 'none';
   if (state.elements.resultsStats) state.elements.resultsStats.style.display = hasDecks ? '' : 'none';
   if (state.elements.noResults) state.elements.noResults.style.display = hasDecks ? 'none' : 'flex';
+  syncMarkingPrereq();
   if (!hasDecks) return;
 
   // Apply filters

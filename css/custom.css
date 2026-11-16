@@ -583,14 +583,33 @@ wa-page[view='desktop'] [data-toggle-nav] {
   }
 }
 
+.marking-prereq::part(base) {
+  padding: var(--wa-space-xs) var(--wa-space-s);
+}
+
+.marking-prereq-line {
+  display: flex;
+  align-items: center;
+  gap: var(--wa-space-xs);
+}
+
+.marking-prereq-line > span {
+  flex: 1;
+}
+
 .marking-bar {
   display: none;
 }
 
 @media (max-width: 768px) {
   /* Everything in the rail has moved into the sheet */
-  .marking-rail {
+  .marking-rail,
+  #marking-actions {
     display: none;
+  }
+
+  .marking-prereq {
+    font-size: var(--wa-font-size-s);
   }
 
   /* Progress across the top, the two buttons share the row under it */

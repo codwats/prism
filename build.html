@@ -361,29 +361,15 @@
             <div class="wa-stack wa-gap-l">
               <h2 class="visually-hidden">Mark sleeves</h2>
               <!-- Marking prerequisites at the point of action -->
-              <div id="marking-prereq-callout" class="wa-stack wa-gap-xs" style="display: none;">
-                <wa-callout variant="warning">
-                  <wa-icon slot="icon" name="triangle-exclamation"></wa-icon>
-                  <strong>Finalize every decklist before you start marking.</strong> An edit made during a session changes the counts under you. Make the change after the pass.
-                </wa-callout>
-                <div class="wa-split wa-align-items-center wa-gap-s">
-                  <p style="margin: 0;">Marks go on the Perfect Fit inner. An outer sleeve goes over it and protects the paint. <a href="guide.html#mark-a-session">Run a marking session</a></p>
-                  <wa-button id="marking-prereq-dismiss" appearance="filled-outlined" size="s">
-                    <wa-icon slot="start" name="xmark"></wa-icon>
-                    Dismiss
+              <wa-callout id="marking-prereq-callout" class="marking-prereq" variant="warning" style="display: none;">
+                <wa-icon slot="icon" name="triangle-exclamation"></wa-icon>
+                <div class="marking-prereq-line">
+                  <span><strong>Finalize every decklist before you start marking.</strong> <a href="guide.html#mark-a-session">Run a marking session</a></span>
+                  <wa-button id="marking-prereq-dismiss" appearance="plain" variant="neutral" size="s">
+                    <wa-icon name="xmark" label="Dismiss"></wa-icon>
                   </wa-button>
                 </div>
-              </div>
-              <!-- Deck Overlap Matrix. Desktop: above the table. Phone: in the
-                   Totals and tools sheet (data-phone-slot, see marking-layout.js). -->
-              <wa-details id="overlap-matrix-container" data-phone-slot="sheet" data-phone-order="60" style="display: none;">
-                <span slot="summary" class="wa-heading-s">
-                  <wa-icon name="table-cells" style="margin-right: var(--wa-space-xs);"></wa-icon>
-                  Deck Overlap Matrix
-                </span>
-                <div id="overlap-matrix" style="overflow-x: auto;"></div>
-              </wa-details>
-
+              </wa-callout>
               <div id="marking-layout" class="marking-layout">
                 <!-- Rail: totals and legend beside the table. On phone both move into the sheet. -->
                 <aside class="marking-rail wa-stack wa-gap-m" aria-label="Totals and legend">
@@ -452,7 +438,7 @@
                 </aside>
 
                 <div class="marking-main wa-stack wa-gap-m">
-                  <!-- Row 1: view switch and search -->
+                  <!-- Row 1: view switch, search and filters -->
                   <div class="wa-cluster wa-gap-m wa-align-items-center">
                     <wa-radio-group id="results-filter" orientation="horizontal" value="all" size="s">
                       <wa-radio appearance="button" value="all" size="s">All Cards</wa-radio>
@@ -462,10 +448,6 @@
                     <wa-input id="results-search" placeholder="Search cards..." size="m" style="max-width: 400px; flex: 1; min-width: 10rem;">
                       <wa-icon slot="start" name="search"></wa-icon>
                     </wa-input>
-                  </div>
-
-                  <!-- Row 2: filters, export, Start marking -->
-                  <div class="wa-cluster wa-gap-s wa-align-items-center">
                     <!-- Checkbox items, not switches: a switch inside a menu can't be
                          reached by keyboard (Tab closes the menu). results.js handles
                          every choice on wa-select and appends the deck items. -->
@@ -484,6 +466,10 @@
                       </wa-dropdown-item>
                       <wa-divider></wa-divider>
                     </wa-dropdown>
+                  </div>
+
+                  <!-- Row 2: export, Shown rows, Audit, Start marking. Empty on phone, where all four move out (marking-layout.js), so it hides. -->
+                  <div id="marking-actions" class="wa-cluster wa-gap-s wa-align-items-center">
                     <!-- Export actions -->
                     <wa-dropdown id="export-dropdown" placement="bottom-end" data-phone-slot="sheet" data-phone-order="10">
                       <wa-button slot="trigger" variant="brand" appearance="outlined" size="s" caret>
@@ -570,6 +556,16 @@
                   </wa-button>
                 </div>
               </div>
+
+              <!-- Deck Overlap Matrix. Desktop: under the table, so the first card row stays on the first screen (#476). Phone: in the
+                   Totals and tools sheet (data-phone-slot, see marking-layout.js). -->
+              <wa-details id="overlap-matrix-container" data-phone-slot="sheet" data-phone-order="60" style="display: none;">
+                <span slot="summary" class="wa-heading-s">
+                  <wa-icon name="table-cells" style="margin-right: var(--wa-space-xs);"></wa-icon>
+                  Deck Overlap Matrix
+                </span>
+                <div id="overlap-matrix" style="overflow-x: auto;"></div>
+              </wa-details>
 
               <div id="no-results" class="wa-stack wa-gap-m wa-align-items-center" style="padding: var(--wa-space-2xl); display: none;">
                 <wa-icon name="layer-group" style="font-size: 3rem; color: var(--wa-color-neutral-text-subtle);"></wa-icon>
@@ -784,19 +780,6 @@
         document.getElementById('onboarding-dismiss')?.addEventListener('click', () => {
           localStorage.setItem(KEY, '1');
           callout.style.display = 'none';
-        });
-      })();
-    </script>
-    <script>
-      (function () {
-        const KEY = 'prism_marking_prereq_dismissed';
-        const callout = document.getElementById('marking-prereq-callout');
-        if (callout && !sessionStorage.getItem(KEY)) callout.style.display = '';
-        document.addEventListener('click', (e) => {
-          if (!e.target.closest('#marking-prereq-dismiss')) return;
-          sessionStorage.setItem(KEY, '1');
-          const c = document.getElementById('marking-prereq-callout');
-          if (c) c.style.display = 'none';
         });
       })();
     </script>
