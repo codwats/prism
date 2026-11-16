@@ -53,7 +53,7 @@ export function computeScale(w = window.innerWidth, h = window.innerHeight) {
   // Phone stacks the legend under the card, so it reserves more height.
   // Desktop (#474): card takes most of the height, so a higher cap and factor.
   const phone = w < 768;
-  const availH = h - (phone ? 360 : 160);
+  const availH = h - (phone ? 360 : 240);
   const availW = w - 48;
   const fit = Math.min(availH / 340, availW / 244);
   return phone ? Math.min(2.0, Math.max(0.8, fit)) * 0.85 : Math.min(3.0, Math.max(0.8, fit)) * 0.95;
