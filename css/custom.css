@@ -633,6 +633,10 @@ wa-page[view='desktop'] [data-toggle-nav] {
     align-items: center;
     border-bottom: 1px solid var(--wa-color-surface-border);
   }
+  /* The grid above would beat [hidden]; legend rows stay closed until tapped */
+  .results-table tr[hidden] {
+    display: none;
+  }
   .results-table th,
   .results-table td {
     border-bottom: 0;
