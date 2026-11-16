@@ -2336,3 +2336,11 @@ wa-page[view='desktop'] [data-toggle-nav] {
     padding-inline: var(--wa-space-m);
   }
 }
+
+/* Audit end screen (#457): the wrong rows with their legend. */
+.audit-end { align-self: stretch; max-inline-size: 36rem; margin-inline: auto; padding: var(--wa-space-l) 0; }
+.audit-end p { margin: 0; }
+.audit-end-icon { font-size: var(--wa-font-size-4xl); color: var(--wa-color-success-fill-loud); }
+.audit-wrong-list { list-style: none; margin: 0; padding: 0; }
+.audit-wrong { border-block-start: var(--wa-border-width-s) solid var(--wa-color-surface-border); padding-block-start: var(--wa-space-m); }
+.audit-end .audit-wrong-name { font-weight: var(--wa-font-weight-bold); margin-block-end: var(--wa-space-xs); }
