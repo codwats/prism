@@ -2294,3 +2294,10 @@ wa-page[view='desktop'] [data-toggle-nav] {
     min-block-size: 44px;
   }
 }
+
+/* Phone: "Decks" and "Mark sleeves" fit at 375px without tab scroll arrows */
+@media (max-width: 768px) {
+  #main-tabs wa-tab::part(base) {
+    padding-inline: var(--wa-space-m);
+  }
+}
