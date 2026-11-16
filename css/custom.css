@@ -188,8 +188,7 @@ wa-page[view='desktop'] [data-toggle-nav] {
    So: the name goes quiet and struck through, while the swatches and the
    checkbox stay at full strength and the row stays auditable. */
 .results-table .marked-row .card-name-cell,
-.results-table .marked-row .batch-subrow-label,
-.results-table .marked-row .copies-cell {
+.results-table .marked-row .batch-subrow-label {
   color: var(--wa-color-neutral-text-subtle);
 }
 
@@ -234,8 +233,10 @@ wa-page[view='desktop'] [data-toggle-nav] {
   pointer-events: none;
 }
 
-.results-table .copies-cell {
-  text-align: center;
+.results-table .card-copies {
+  color: var(--wa-color-neutral-text-subtle);
+  font-size: var(--wa-font-size-s);
+  white-space: nowrap;
 }
 
 /* ============================================================================
@@ -1226,21 +1227,98 @@ wa-page[view='desktop'] [data-toggle-nav] {
 }
 
 
-/* Wider touch targets on mobile */
+/* Slot list beside the sleeve picture (under it on phone, where the picture is
+   a preview). The rows are the touch targets, not the 10px picture slots. */
+.slot-picker-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--wa-space-2xs);
+}
+
+.slot-picker-row {
+  display: flex;
+  align-items: center;
+  gap: var(--wa-space-s);
+  padding: var(--wa-space-xs) var(--wa-space-s);
+  border: 1px solid var(--wa-color-surface-border);
+  border-radius: var(--wa-border-radius-m);
+  background: var(--wa-color-surface-default);
+  cursor: pointer;
+}
+
+.slot-picker-row:hover {
+  border-color: var(--wa-color-warning-70);
+}
+
+.slot-picker-row[aria-disabled="true"] {
+  cursor: default;
+  background: var(--wa-color-surface-2);
+}
+
+.slot-picker-row:focus-visible {
+  outline: 2px solid var(--wa-color-brand-fill);
+  outline-offset: 2px;
+}
+
+.slot-picker-swatch {
+  flex-shrink: 0;
+  width: var(--wa-space-m);
+  height: var(--wa-space-m);
+  border-radius: var(--wa-border-radius-s);
+  border: 1px dashed var(--wa-color-neutral-40);
+}
+
+.slot-picker-swatch[style] {
+  border: 1px solid var(--wa-color-surface-border);
+}
+
+.slot-picker-detail {
+  color: var(--wa-color-neutral-text-subtle);
+}
+
+/* The chosen slot, in the list and ringed on the picture. */
+.slot-picker-row.is-selected,
+.stripe-reorder-slot.is-selected {
+  border-color: var(--wa-color-brand-fill);
+  box-shadow: 0 0 0 2px var(--wa-color-brand-fill);
+}
+
+.slot-picker-row.is-selected {
+  background: var(--wa-color-brand-fill-quiet);
+}
+
+@media (pointer: coarse) {
+  .slot-picker-row {
+    min-height: 52px;
+  }
+}
+
+/* Phone: the list is the touch target, so the sleeve shrinks to a preview
+   and the list starts near the top of the dialog. */
 @media (max-width: 768px) {
-  .stripe-reorder-slot {
-    width: 44px;
-    height: 14px;
-  }
-
-  .stripe-reorder-slot::after {
-    inset: -1px -14px;
-  }
-
   .stripe-reorder-sleeve {
-    min-height: 400px;
+    min-height: 0;
   }
+  .stripe-reorder-edge {
+    gap: 1px;
+    padding: 2px;
+  }
+  .stripe-reorder-slot {
+    height: 5px;
+  }
+  .stripe-reorder-card-hint {
+    display: none;
+  }
+}
 
+@media (min-width: 769px) {
+  .slot-picker-list {
+    max-height: 24rem;
+    overflow-y: auto;
+  }
+}
+
+@media (max-width: 768px) {
   .results-table .mark-checkbox {
     width: 24px;
     height: 24px;
@@ -2065,7 +2143,14 @@ wa-page[view='desktop'] [data-toggle-nav] {
     min-block-size: 44px;
   }
   /* no documented part for the button-appearance radio, so the host */
-  #results-filter wa-radio {
+  wa-radio[appearance="button"] {
+    min-block-size: 44px;
+  }
+  wa-input::part(base),
+  wa-select::part(combobox) {
+    min-block-size: 44px;
+  }
+  wa-switch::part(base) {
     min-block-size: 44px;
   }
 }

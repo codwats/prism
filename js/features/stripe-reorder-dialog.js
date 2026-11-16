@@ -1,20 +1,22 @@
 /**
  * Stripe Reorder Dialog — visual card-sleeve slot picker.
- * Opens a wa-dialog with a card outline showing 24 slots per edge.
- * Users click a slot to move the active deck there; occupied slots prompt swap confirmation.
+ * Opens a wa-dialog with a card outline showing 24 slots per edge, beside a list
+ * of slots (under it on phone, where the picture is a preview). Choosing a slot
+ * in either one selects it; Move commits. A taken slot asks to swap first.
  */
 
 import { state } from '../core/state.js';
 import { getPreferences, savePrism } from '../modules/storage.js';
-import { moveStripeToPosition, moveGroupToPosition, formatSlotLabel } from '../modules/processor.js';
+import { moveStripeToPosition, moveGroupToPosition, formatSlotLabel, processCards } from '../modules/processor.js';
 import { renderAll } from './init.js';
 import { showSuccess } from '../core/notifications.js';
-import { escapeHtml } from '../core/utils.js';
+import { escapeHtml, isCardDone } from '../core/utils.js';
 
 // Module-level state for the currently open dialog session
-let activeDeckId = null;
 let activeGroupId = null;
 let pendingTargetPosition = null;
+// The deck (or group, as a synthetic deck) being moved, plus what the picker shows.
+const picker = { entity: null, slotMap: null, side: 'a', freeOnly: true, selected: null };
 
 // ============================================================================
 // Corner config (mirrors card-preview.js — kept local to avoid circular import)
@@ -33,7 +35,7 @@ function getCornerConfig() {
 // Slot map: position → occupant info
 // ============================================================================
 
-function buildSlotMap(prism) {
+export function buildSlotMap(prism) {
   const map = new Map();
 
   // Split group Side A positions — moveable (the group owns this slot)
@@ -76,6 +78,44 @@ function buildSlotMap(prism) {
 }
 
 // ============================================================================
+// Pure helpers for the slot list (exported for tests)
+// ============================================================================
+
+const sideOf = (position) => (position <= 24 ? 'a' : 'b');
+
+/** Free slots per side. The deck's own slot is in the map, so it is not free. */
+export function freeSlotCounts(slotMap) {
+  const counts = { a: 0, b: 0 };
+  for (let p = 1; p <= 48; p++) if (!slotMap.has(p)) counts[sideOf(p)]++;
+  return counts;
+}
+
+/** Rows for one side, in slot order. The current slot always shows, disabled. */
+export function slotRows(slotMap, side, freeOnly, currentPosition) {
+  const rows = [];
+  for (let p = side === 'a' ? 1 : 25; p <= (side === 'a' ? 24 : 48); p++) {
+    const info = slotMap.get(p) || null;
+    const isCurrent = p === currentPosition;
+    if (freeOnly && info && !isCurrent) continue;
+    rows.push({ position: p, info, isCurrent });
+  }
+  return rows;
+}
+
+/**
+ * Whether any card of these decks has paint on a sleeve. Uses isCardDone, the
+ * sole done gate, plus any marked batch key (a part-done multi-batch card).
+ */
+export function decksHaveMarks(prism, deckIds) {
+  const marked = new Set(prism.markedCards || []);
+  if (marked.size === 0) return false;
+  const ids = new Set(deckIds);
+  return processCards(prism).some((c) =>
+    (c.batches || []).some((b) => b.participantIds.some((id) => ids.has(id)))
+    && (isCardDone(c, marked) || c.batches.some((b) => marked.has(b.key))));
+}
+
+// ============================================================================
 // Edge position ordering (top-to-bottom display order)
 // ============================================================================
 
@@ -113,17 +153,18 @@ function renderSlot(position, activeDeck, slotMap) {
   // wireSlotKeyboard) rather than 48 tab stops.
   const slotLabel = formatSlotLabel(position);
   slot.setAttribute('role', 'radio');
-  slot.setAttribute('aria-checked', isActive ? 'true' : 'false');
+  slot.setAttribute('aria-checked', 'false');
   slot.tabIndex = -1;
+  // The current slot cannot be chosen, so it is skipped like a disabled one.
+  if (isDisabled || isActive) slot.setAttribute('aria-disabled', 'true');
   if (isDisabled) {
-    slot.setAttribute('aria-disabled', 'true');
     slot.setAttribute('aria-label', `${slotLabel}, unavailable`);
   } else if (isActive) {
     slot.setAttribute('aria-label', `${slotLabel}, current slot of ${activeDeck.name}`);
   } else if (info) {
-    slot.setAttribute('aria-label', `${slotLabel}, taken by ${info.name}, activate to swap`);
+    slot.setAttribute('aria-label', `${slotLabel}, taken by ${info.name}`);
   } else {
-    slot.setAttribute('aria-label', `${slotLabel}, empty, activate to move here`);
+    slot.setAttribute('aria-label', `${slotLabel}, empty`);
   }
 
   const classes = ['stripe-reorder-slot'];
@@ -146,7 +187,7 @@ function renderSlot(position, activeDeck, slotMap) {
   }
 
   if (!isDisabled && !isActive) {
-    slot.addEventListener('click', () => handleSlotClick(position, activeDeck, slotMap));
+    slot.addEventListener('click', () => selectPosition(position));
   }
 
   return slot;
@@ -248,29 +289,155 @@ function wireSlotKeyboard(sleeve) {
 }
 
 // ============================================================================
-// Slot click handler
+// Selection and Move
 // ============================================================================
 
-function handleSlotClick(position, activeDeck, slotMap) {
-  const info = slotMap.get(position);
-
-  // Clicking the slot the active entity already owns — no-op, just close.
-  const clickingSelf = info && (
-    (activeGroupId && info.groupId === activeGroupId && !info.deckId) ||
-    (activeDeckId && info.deckId === activeDeckId)
-  );
-  if (clickingSelf) {
-    state.elements.stripeReorderDialog.removeAttribute('open');
-    return;
+/** Ring the chosen slot in the picture and the list, and enable Move. */
+function syncSelection() {
+  const content = document.getElementById('stripe-reorder-content');
+  for (const el of content?.querySelectorAll('[data-position]') || []) {
+    const on = Number(el.dataset.position) === picker.selected;
+    el.setAttribute('aria-checked', String(on));
+    el.classList.toggle('is-selected', on);
   }
+  document.getElementById('stripe-reorder-move')?.toggleAttribute('disabled', picker.selected === null);
+}
 
+function clearSwapBar() {
+  document.querySelector('#stripe-reorder-content .stripe-reorder-swap-confirm')?.remove();
+  pendingTargetPosition = null;
+}
+
+function selectPosition(position) {
+  clearSwapBar();
+  picker.selected = position;
+  if (sideOf(position) !== picker.side) {
+    picker.side = sideOf(position);
+    const sides = document.getElementById('slot-picker-side');
+    if (sides) sides.value = picker.side;
+    renderList();
+  }
+  syncSelection();
+}
+
+/** Move button: an empty slot moves now, a taken one asks to swap first. */
+function handleMove() {
+  const position = picker.selected;
+  if (position === null) return;
+  const info = picker.slotMap.get(position);
   if (!info) {
-    executeMove(activeDeck.id, position);
+    executeMove(picker.entity.id, position);
     state.elements.stripeReorderDialog.removeAttribute('open');
   } else {
     pendingTargetPosition = position;
-    showSwapConfirmation(activeDeck, info, position);
+    showSwapConfirmation(picker.entity, info, position);
   }
+}
+
+// ============================================================================
+// Slot list
+// ============================================================================
+
+function renderRow({ position, info, isCurrent }) {
+  const row = document.createElement('div');
+  row.className = 'slot-picker-row';
+  row.dataset.position = String(position);
+  row.setAttribute('role', 'radio');
+  row.setAttribute('aria-checked', 'false');
+  row.tabIndex = -1;
+  const label = formatSlotLabel(position);
+  const detail = isCurrent ? 'Current slot' : info ? info.name : 'Free';
+  if (isCurrent) {
+    row.setAttribute('aria-disabled', 'true');
+    row.setAttribute('aria-label', `${label}, current slot of ${picker.entity.name}`);
+  } else {
+    row.setAttribute('aria-label', info
+      ? `${label}, taken by ${info.name}`
+      : `${label}, free`);
+    row.addEventListener('click', () => selectPosition(position));
+  }
+  row.innerHTML = `
+    <span class="slot-picker-swatch"${info?.color ? ` style="background-color:${escapeHtml(info.color)}"` : ''}></span>
+    <span class="wa-stack wa-gap-0">
+      <strong>${escapeHtml(label)}</strong>
+      <span class="wa-caption-s slot-picker-detail">${escapeHtml(detail)}</span>
+    </span>`;
+  return row;
+}
+
+function renderList() {
+  const list = document.getElementById('slot-picker-list');
+  if (!list) return;
+  const rows = slotRows(picker.slotMap, picker.side, picker.freeOnly, picker.entity.stripePosition);
+  // A choice the filter now hides would leave a ring with no row to explain it.
+  if (picker.selected !== null && sideOf(picker.selected) === picker.side
+    && !rows.some((r) => r.position === picker.selected)) {
+    picker.selected = null;
+    clearSwapBar();
+  }
+  list.replaceChildren(...rows.map(renderRow));
+  if (rows.every((r) => r.isCurrent)) {
+    const empty = document.createElement('p');
+    empty.className = 'wa-caption-m slot-picker-detail';
+    empty.textContent = 'No free slots on this side. Turn off "Free slots only" to swap with a deck.';
+    list.appendChild(empty);
+  }
+  wireListRoving(list);
+  syncSelection();
+}
+
+/** Radiogroup keys for the list: one tab stop, arrows walk, Enter or Space choose. */
+function wireListRoving(list) {
+  const live = [...list.querySelectorAll('.slot-picker-row')]
+    .filter((r) => r.getAttribute('aria-disabled') !== 'true');
+  const stop = live.find((r) => r.dataset.position === String(picker.selected)) || live[0];
+  if (stop) stop.tabIndex = 0;
+  if (list.dataset.wired) return;
+  list.dataset.wired = '1';
+  list.addEventListener('keydown', (e) => {
+    const row = e.target.closest?.('.slot-picker-row');
+    if (!row) return;
+    const items = [...list.querySelectorAll('.slot-picker-row')]
+      .filter((r) => r.getAttribute('aria-disabled') !== 'true');
+    const at = items.indexOf(row);
+    let target = null;
+    if (e.key === 'ArrowDown' || e.key === 'ArrowRight') target = items[at + 1];
+    else if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') target = items[at - 1];
+    else if (e.key === 'Home') target = items[0];
+    else if (e.key === 'End') target = items[items.length - 1];
+    else if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      row.click();
+      return;
+    } else return;
+    e.preventDefault();
+    if (!target) return;
+    for (const r of list.querySelectorAll('.slot-picker-row')) r.tabIndex = -1;
+    target.tabIndex = 0;
+    target.focus();
+  });
+}
+
+function renderPicker() {
+  const counts = freeSlotCounts(picker.slotMap);
+  const col = document.createElement('div');
+  col.className = 'wa-stack wa-gap-s';
+  col.innerHTML = `
+    <wa-radio-group id="slot-picker-side" label="Side" size="s" orientation="horizontal" value="${picker.side}">
+      <wa-radio appearance="button" value="a">Side A (${counts.a} free)</wa-radio>
+      <wa-radio appearance="button" value="b">Side B (${counts.b} free)</wa-radio>
+    </wa-radio-group>
+    <wa-switch id="slot-picker-free-only" size="s"${picker.freeOnly ? ' checked' : ''}>Free slots only</wa-switch>
+    <div id="slot-picker-list" class="slot-picker-list" role="radiogroup" aria-label="Slots for ${escapeHtml(picker.entity.name)}"></div>`;
+  col.querySelector('#slot-picker-side').addEventListener('change', (e) => {
+    picker.side = e.target.value;
+    renderList();
+  });
+  col.querySelector('#slot-picker-free-only').addEventListener('change', (e) => {
+    picker.freeOnly = e.target.checked;
+    renderList();
+  });
+  return col;
 }
 
 // ============================================================================
@@ -312,7 +479,10 @@ function showSwapConfirmation(activeDeck, targetInfo, targetPosition) {
     }
   });
 
-  content.appendChild(bar);
+  // Above the picker, scrolled into view: on phone the list is long and the
+  // bar must not sit off screen below it.
+  content.prepend(bar);
+  bar.scrollIntoView({ block: 'nearest' });
 }
 
 // ============================================================================
@@ -421,14 +591,37 @@ export function isDotVariantChild(prism, deckId) {
 
 // ============================================================================
 // Main entry point
+//
+// openStripeReorderDialog(deckId) opens the picker for any deck by id (the Add
+// form's Change button calls it once the deck exists).
 // ============================================================================
+
+function showPicker(content, prism, entity, deckIds) {
+  const slotMap = buildSlotMap(prism);
+  const counts = freeSlotCounts(slotMap);
+  Object.assign(picker, {
+    entity, slotMap, selected: null, freeOnly: true,
+    side: counts.a > 0 || counts.b === 0 ? 'a' : 'b',
+  });
+  if (decksHaveMarks(prism, deckIds)) {
+    const note = document.createElement('p');
+    note.className = 'wa-body-s';
+    note.textContent = 'This deck has marked cards. Marks you already painted do not move with it.';
+    content.appendChild(note);
+  }
+  const layout = document.createElement('div');
+  layout.className = 'wa-grid slot-picker-layout';
+  layout.appendChild(renderSleeveVisualization(entity, slotMap));
+  layout.appendChild(renderPicker());
+  content.appendChild(layout);
+  renderList();
+}
 
 export function openStripeReorderDialog(deckId) {
   const prism = state.currentPrism;
   const deck = prism.decks.find(d => d.id === deckId);
   if (!deck) return;
 
-  activeDeckId = deckId;
   activeGroupId = null;
   pendingTargetPosition = null;
 
@@ -440,8 +633,7 @@ export function openStripeReorderDialog(deckId) {
   if (!content) return;
   content.innerHTML = '';
 
-  const slotMap = buildSlotMap(prism);
-  content.appendChild(renderSleeveVisualization(deck, slotMap));
+  showPicker(content, prism, deck, [deck.id]);
   dialog.setAttribute('open', '');
 }
 
@@ -450,7 +642,6 @@ export function openGroupReorderDialog(groupId) {
   const group = prism.splitGroups?.find(g => g.id === groupId);
   if (!group) return;
 
-  activeDeckId = null;
   activeGroupId = groupId;
   pendingTargetPosition = null;
 
@@ -469,8 +660,7 @@ export function openGroupReorderDialog(groupId) {
     color: group.sideAColor,
     stripePosition: group.sideAPosition,
   };
-  const slotMap = buildSlotMap(prism);
-  content.appendChild(renderSleeveVisualization(syntheticActive, slotMap));
+  showPicker(content, prism, syntheticActive, group.childDeckIds || []);
   dialog.setAttribute('open', '');
 }
 
@@ -479,6 +669,7 @@ export function openGroupReorderDialog(groupId) {
 // ============================================================================
 
 export function setupStripeReorderDialog() {
+  document.getElementById('stripe-reorder-move')?.addEventListener('click', handleMove);
   const cancelBtn = document.getElementById('stripe-reorder-cancel');
   if (cancelBtn) {
     cancelBtn.addEventListener('click', () => {
