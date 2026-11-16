@@ -13,7 +13,7 @@ import { escapeHtml } from '../core/utils.js';
 
 let scrySnapshot = [];
 let scryIndex = 0;
-// Step 9 (#457) swaps these through openScryMode options for the audit pass.
+// The audit pass (#457, audit.js) swaps these through openScryMode options.
 const DEFAULT_OPTS = {
   skipLabel: 'Skip',
   doneLabel: 'Done',
@@ -23,6 +23,9 @@ const DEFAULT_OPTS = {
     updateMarkedProgress();
   },
   onSkip: null,
+  rows: null, // screens to walk; null walks the shown rows (state.resultsView)
+  endLabel: 'All cards reviewed',
+  renderEnd: null, // (contentEl) => void, replaces the default end screen
 };
 let scryOpts = DEFAULT_OPTS;
 
@@ -139,9 +142,12 @@ async function renderCurrentScryCard() {
 
 function showCompletionState() {
   const { scryProgress, scryContent, btnScryDone, btnScrySkip } = state.elements;
-  if (scryProgress) scryProgress.textContent = 'All cards reviewed';
+  if (scryProgress) scryProgress.textContent = scryOpts.endLabel;
   state.elements.scryBar?.setAttribute('value', '100');
-  if (scryContent) {
+  if (scryContent && scryOpts.renderEnd) {
+    scryContent.innerHTML = '';
+    scryOpts.renderEnd(scryContent);
+  } else if (scryContent) {
     scryContent.innerHTML = '';
     const wrap = document.createElement('div');
     wrap.className = 'wa-stack wa-gap-m wa-align-items-center';
@@ -201,7 +207,8 @@ function handleScryKeydown(e) {
 
 /**
  * @param {Object} [opts] Overrides for DEFAULT_OPTS: skipLabel, doneLabel, title,
- *   onDone(key, card), onSkip(key, card). The audit pass (#457) passes its own.
+ *   onDone(key, card), onSkip(key, card), rows, endLabel, renderEnd(contentEl).
+ *   The audit pass (#457, audit.js) passes its own.
  *   Called from a click listener, so a non-plain argument (the event) is ignored.
  */
 export function openScryMode(opts) {
@@ -211,7 +218,7 @@ export function openScryMode(opts) {
   if (btnScrySkip) btnScrySkip.textContent = scryOpts.skipLabel;
   scryDialog?.setAttribute('label', scryOpts.title);
 
-  const view = state.resultsView || [];
+  const view = scryOpts.rows || state.resultsView || [];
   const filtered = view.filter(c => !c.isRemoved);
 
   if (filtered.length === 0) {
