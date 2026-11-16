@@ -194,3 +194,48 @@ On mobile the marks column must be visible without sideways scrolling; today it 
 
 Constraints: nothing may be removed, only moved. Every destructive action keeps a confirm. Touch targets at least 44px. The marks on a card must stay accurate and unambiguous; that matters more than polish.
 ```
+
+## Implementation handoff
+
+The mockups are reviewed. Nine steps, one GitHub issue and one PR each, tracked under the `usability-pass` label. Every step's session reads this section first, then its own issue.
+
+### Before starting a step
+
+- Read `CLAUDE.md`, `PRODUCT.md`, `CONTEXT.md`, `DESIGN.md`. CONTEXT.md is the controlled vocabulary; do not invent terms.
+- Read this file's findings above, but ignore "Prompt for Claude Design".
+- Read the **Decisions** section below, including what earlier steps appended.
+- Open the mockups through the claude_design MCP (`https://api.anthropic.com/v1/design/mcp`, auth via `/design-login`): project `https://claude.ai/design/p/7d231f59-fa22-4020-97cc-419f4de2f589`. Boards: `Marking screen.dc.html` (1a to 1y), `Deck list.dc.html` (2a to 2p), `Top strip.dc.html` (3a to 3v), `Slot picker.dc.html` (4a to 4m). Each board opens with a "Calls made" list; read it before the frames. Design system files are under `_ds/prism-system-5d834954-f82f-44e5-91bd-a7ec92064bd8/`.
+
+### Rules
+
+- Mockups show intent, not a pixel spec. Repo rules win where they disagree.
+- Web Awesome components and existing tokens, at the version the repo loads. No new colors, fonts, hardcoded hex or px. Deck colors are for deck identity only.
+- Nothing is removed from the page, only moved. Every destructive action keeps its confirm.
+- No data model, sync, key shape or copy-rule change unless the step says so.
+- Marks on a card stay accurate and unambiguous; that beats polish. Slot labels come from `formatSlotLabel` (Side A 1 to 24, Side B 25 to 48).
+- Touch targets at least 44px on touch devices. Check 375px first, then 1280px, dark and light.
+- Copy: sentence case, no exclamation points, no em-dashes, the player is the actor.
+- `mock.css` is scaffolding and never ships. Its `.touch` rules stand in for `@media (pointer: coarse)`.
+- Run `npm run lint && npm test`; add tests for any logic touched.
+
+### Not drawn in the mockups
+
+A 25-mark row on phone (wraps to three lines), the full 25-row deck list, the desktop kebab, Rename on desktop, Marks to Clear on desktop, moving a split group. Follow the nearest drawn frame and flag what does not carry over.
+
+### When a step is done
+
+Append to **Decisions** below: what you decided that the mockup or issue did not, what you could not follow and why, anything you built that a later step should reuse (component, class, helper), and what you left untested. Keep it to a few lines per step. Put the same in the PR body with how you checked 375px and 1280px in both schemes.
+
+### Decisions
+
+Owner answers, 2026-11-16:
+
+- **Tab and column names (step 4).** Tab "Mark sleeves", column "Marks" (a Mark is a stripe or a dot, so "Stripes" was wrong for dot variants). Button "Start marking"; dialog title stays SCRY-Mode. Add "Mark sleeves" to CONTEXT.md as the tab name.
+- **Phone tools (step 4).** Legend and Export live in the "Totals and tools" sheet, two taps away. Accepted.
+- **Slot picker (step 8).** Choose a slot, then press Move, even for an empty slot. Accepted.
+- **Moving a marked deck (step 8).** When the deck has marked cards, the Move dialog shows one line that painted marks do not move. Copy only, no logic change.
+- **Slot in the Add form (step 2).** No logic change: the deck takes the next free slot on add; Change opens the Move dialog after the deck exists.
+- **Settings copy (step 7).** The footer line that PRISMs "live on your Profile" now points to the PRISM menu. The two sentences that lost a dash in the mockup use a comma or colon, no em-dash.
+- **Backup import copy (step 7).** Both sentences are accurate and stay: build.html keeps the backup's id and replaces the current PRISM; profile uses `preserveId: false` and imports as a new PRISM (`js/modules/prism-import.js`).
+
+Step notes (appended by each step's session):
