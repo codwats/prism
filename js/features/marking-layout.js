@@ -8,7 +8,7 @@
  * Moving the nodes, not copying them, keeps one id per control, so every
  * state.elements ref and listener keeps working. To add a sheet entry, give
  * the element its desktop home in build.html and `data-phone-slot="sheet"`
- * plus a `data-phone-order` (Totals 10, Legend 20, Export 30, Matrix 40).
+ * plus a `data-phone-order` (Export 10, Shown rows 20, Audit 30, Totals 40, Legend 50, Matrix 60).
  */
 
 const PHONE_QUERY = '(max-width: 768px)';
