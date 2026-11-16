@@ -92,6 +92,7 @@ export function auditOptions(prismId, rows) {
     doneLabel: 'Matches',
     onDone: record('match'),
     onSkip: record('wrong'),
+    skipAnswers: true,
     endLabel: 'Audit finished',
     renderEnd: (el) => {
       el.innerHTML = endHtml(wrongRows(rows, verdicts));

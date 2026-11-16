@@ -4,7 +4,7 @@
 
 import { state } from '../core/state.js';
 import { escapeHtml, stripeNumberLabel, countVisibleMarks, STRIPE_SPARSE_MAX, isCardDone, batchTally } from '../core/utils.js';
-import { markingPrereqVisible } from '../core/marking-prereq.js';
+import { markingPrereqVisible, retireMarkingPrereq } from '../core/marking-prereq.js';
 import { getStripeNumbersMode } from '../modules/storage.js';
 import { processCards, formatSlotLabel, getColorName } from '../modules/processor.js';
 import { normalizeCardName } from '../modules/parser.js';
@@ -258,8 +258,10 @@ function resultsFilterValue() {
 
 /** Show or hide the pre-marking warning for the current PRISM (#476). */
 export function syncMarkingPrereq() {
-  const callout = document.getElementById('marking-prereq-callout');
-  if (callout) callout.style.display = markingPrereqVisible(state.currentPrism) ? '' : 'none';
+  const callout = state.elements.markingPrereq;
+  if (!callout) return;
+  retireMarkingPrereq(state.currentPrism);
+  callout.style.display = markingPrereqVisible(state.currentPrism) ? '' : 'none';
 }
 
 export function renderResults({ preserveRows = false } = {}) {
@@ -858,7 +860,7 @@ function renderResultsHeader() {
           Card name
           <wa-icon name="${getSortIcon('name')}" class="sort-icon"></wa-icon>
         </th>
-        <th>Remove Mark From</th>
+        <th>Remove mark from</th>
         <th style="text-align: center;">
           <wa-button id="clear-all-removed-btn" appearance="outlined" variant="danger" size="s">Clear All</wa-button>
         </th>
@@ -867,7 +869,7 @@ function renderResultsHeader() {
   } else {
     thead.innerHTML = `
       <tr>
-        <th class="sortable ${getSortedClass('marked')}" data-sort="marked" style="width: 60px; text-align: center;">
+        <th class="sortable ${getSortedClass('marked')}" data-sort="marked" style="text-align: center;">
           Done
           <wa-icon name="${getSortIcon('marked')}" class="sort-icon"></wa-icon>
         </th>

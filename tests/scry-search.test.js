@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createScrySession, scryMatches, scryJump, scryAct, scryClearSearch, getScryCardKey } from '../js/features/scry-mode.js';
+import { createScrySession, scryMatches, scryJump, scryAct, scryAnswer, scryClearSearch } from '../js/features/scry-mode.js';
 
 const rows = [
   { name: 'Sol Ring' },
@@ -23,10 +23,11 @@ test('search lists every screen of a matching card, case-insensitive, with a lab
   assert.equal(scryMatches(s, '  ').length, 0);
 });
 
-test('jump, act, return: the found card is acted on once and the walk resumes where it was', () => {
+test('jump, answer, return: the found card is answered once and the walk resumes where it was', () => {
   const s = createScrySession(rows);
   const done = [];
-  const act = () => { done.push(getScryCardKey(s.rows[s.index])); scryAct(s); };
+  const opts = { onDone: (key) => done.push(key), onSkip: null };
+  const act = () => scryAnswer(s, opts, 'done');
 
   act(); // Sol Ring in sequence
   assert.equal(s.index, 1);
@@ -37,7 +38,6 @@ test('jump, act, return: the found card is acted on once and the walk resumes wh
   assert.deepEqual(done, ['Sol Ring', 'Forest|#b|d1|2']);
   assert.equal(s.index, 1, 'back on Arcane Signet');
 
-  // The acted screen is not offered by search or by the walk again
   assert.deepEqual(scryMatches(s, 'forest').map((x) => x.index), [2]);
   act(); act(); act();
   assert.deepEqual(done.slice(2), ['Arcane Signet', 'Forest|#b|d1,d2|4', 'Island|Atraxa']);
@@ -45,6 +45,24 @@ test('jump, act, return: the found card is acted on once and the walk resumes wh
   act();
   assert.equal(s.index, rows.length, 'session ends');
   assert.equal(s.rows, rows, 'order and membership unchanged');
+});
+
+test('Skip leaves the card findable; Skip on a found card returns to the walk', () => {
+  const s = createScrySession(rows);
+  const opts = { onDone() {}, onSkip() {} };
+  scryAnswer(s, opts, 'skip');
+  assert.equal(s.index, 1);
+  assert.equal(scryMatches(s, 'sol')[0].index, 0, 'skipped card still searchable');
+  scryJump(s, 5);
+  scryAnswer(s, opts, 'skip');
+  assert.equal(s.index, 1, 'back on the walk');
+  assert.equal(scryMatches(s, 'command').length, 1, 'found card still in the walk');
+});
+
+test('Audit: skipAnswers makes Wrong an answer', () => {
+  const s = createScrySession(rows);
+  scryAnswer(s, { onDone() {}, onSkip() {}, skipAnswers: true }, 'skip');
+  assert.equal(scryMatches(s, 'sol').length, 0);
 });
 
 test('clearing the search without acting returns to the card the player was on', () => {

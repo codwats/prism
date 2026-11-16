@@ -677,7 +677,6 @@ wa-page[view='desktop'] [data-toggle-nav] {
   .results-table thead tr:not(.removed-head) > :first-child {
     justify-content: center;
     padding-inline: 0;
-    width: auto !important; /* beats the inline 60px, which spills 4px into the name column */
   }
   .results-table tr > :first-child:not([colspan]) {
     grid-row: span 2;

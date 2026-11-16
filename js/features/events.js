@@ -184,11 +184,12 @@ export function setupEventListeners() {
     }
   });
 
-  // SCRY-Mode launch
-  document.getElementById('marking-prereq-dismiss')?.addEventListener('click', () => {
+  state.elements.markingPrereqDismiss?.addEventListener('click', () => {
     dismissMarkingPrereq(state.currentPrism.id);
     syncMarkingPrereq();
   });
+
+  // SCRY-Mode launch
   if (state.elements.btnScry) {
     state.elements.btnScry.addEventListener('click', openScryMode);
   }

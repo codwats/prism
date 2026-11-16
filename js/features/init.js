@@ -164,6 +164,10 @@ function getElements() {
     // Stripe reorder dialog
     stripeReorderDialog: document.getElementById('stripe-reorder-dialog'),
 
+    // Pre-marking warning (#476)
+    markingPrereq: document.getElementById('marking-prereq-callout'),
+    markingPrereqDismiss: document.getElementById('marking-prereq-dismiss'),
+
     // SCRY-Mode
     btnScry: document.getElementById('btn-scry'),
     scryDialog: document.getElementById('scry-dialog'),

@@ -9,7 +9,7 @@ globalThis.localStorage = {
 	setItem: (k, v) => store.set(k, String(v)),
 	removeItem: (k) => store.delete(k),
 };
-const { markingPrereqVisible, dismissMarkingPrereq } = await import('../js/core/marking-prereq.js');
+const { markingPrereqVisible, dismissMarkingPrereq, retireMarkingPrereq } = await import('../js/core/marking-prereq.js');
 
 const prism = (id, markedCards = []) => ({ id, markedCards });
 
@@ -28,6 +28,8 @@ test('dismissal sticks across reloads and stays per PRISM', () => {
 test('first mark retires it, even after the marks are cleared', () => {
 	store.clear();
 	assert.equal(markingPrereqVisible(prism('a', ['Sol Ring'])), false);
+	assert.equal(store.size, 0, 'reading writes nothing');
+	retireMarkingPrereq(prism('a', ['Sol Ring']));
 	assert.equal(markingPrereqVisible(prism('a', [])), false);
 });
 

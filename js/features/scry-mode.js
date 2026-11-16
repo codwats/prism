@@ -23,6 +23,7 @@ const DEFAULT_OPTS = {
     updateMarkedProgress();
   },
   onSkip: null,
+  skipAnswers: false, // true when Skip is an answer too (Audit's Wrong); otherwise a skipped card stays findable
   rows: null, // screens to walk; null walks the shown rows (state.resultsView)
   endLabel: 'All cards reviewed',
   renderEnd: null, // (contentEl) => void, replaces the default end screen
@@ -84,9 +85,10 @@ export function scryClearSearch(s) {
   s.returnTo = null;
 }
 
-/** After Done or Skip: back to the walk if this was a found card, else the next unanswered screen. */
-export function scryAct(s) {
-  s.acted.add(s.index);
+/** After Done or Skip: back to the walk if this was a found card, else the next unanswered screen.
+ *  answered=false (a plain Skip) leaves the screen searchable and unanswered. */
+export function scryAct(s, answered = true) {
+  if (answered) s.acted.add(s.index);
   const back = s.returnTo;
   s.returnTo = null;
   if (back !== null && !s.acted.has(back)) {
@@ -98,16 +100,27 @@ export function scryAct(s) {
   s.index = i;
 }
 
-export function computeScale(w = window.innerWidth, h = window.innerHeight) {
-  // Reserve ~160px for progress line + footer buttons + dialog chrome.
-  // 0.85 factor prevents overflow inside WA dialog's own padding on mobile.
-  // Phone stacks the legend under the card, so it reserves more height.
-  // Desktop (#474): card takes most of the height, so a higher cap and factor.
+/**
+ * Card scale. availH is the height the dialog really leaves for the card (measured at render);
+ * without it, fall back to a fixed reserve for header, progress and footer.
+ * Phone portrait stacks the legend under the card, so it gives up ~120px more.
+ */
+export function computeScale(w = window.innerWidth, h = window.innerHeight, availH = null) {
   const phone = w < 768;
-  const availH = h - (phone ? 360 : 240);
-  const availW = w - 48;
-  const fit = Math.min(availH / 340, availW / 244);
-  return phone ? Math.min(2.0, Math.max(0.8, fit)) * 0.85 : Math.min(3.0, Math.max(0.8, fit)) * 0.95;
+  const height = availH ?? h - (phone ? 360 : 240);
+  const fit = Math.min(height / 340, (w - 48) / 244);
+  return phone ? Math.min(2.0, Math.max(0.4, fit)) * 0.85 : Math.min(3.0, Math.max(0.4, fit)) * 0.95;
+}
+
+/** Height left for the card inside the open dialog body, or null before the dialog has laid out. */
+function measureCardHeight() {
+  const { scryDialog, scryProgress, scryBar } = state.elements;
+  const body = scryDialog?.shadowRoot?.querySelector('[part~="body"]');
+  if (!body?.clientHeight || !scryProgress) return null;
+  const cs = getComputedStyle(body);
+  const inner = body.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom);
+  const legend = window.innerWidth < 768 ? 120 : 0;
+  return Math.max(0, inner - scryProgress.offsetHeight - (scryBar?.offsetHeight || 0) - 16 - legend);
 }
 
 function makeScaledWrapper(scale) {
@@ -137,16 +150,18 @@ async function renderCurrentScryCard() {
   }
 
   const card = session.rows[session.index];
-  const displayName = card.isPassRow ? card.displayName : card.name;
+  const displayName = screenName(card);
   // Each screen states its quantity — "mark 2 copies" — rather than implying
   // one copy per card (#149). Pass rows and batch screens both carry one.
   const copies = card.copyCount || card.totalQuantity || 1;
   const copiesNote = copies > 1 ? `, mark ${copies} copies` : '';
-  scryProgress.textContent = `${session.index + 1} of ${session.rows.length}: ${displayName}${copiesNote}`;
+  // A found card shows where the walk is, not the found card's list index.
+  const walk = session.returnTo ?? session.index;
+  scryProgress.textContent = `${walk + 1} of ${session.rows.length}: ${displayName}${copiesNote}`;
   const bar = state.elements.scryBar;
-  if (bar) bar.setAttribute('value', String(Math.round((session.index / session.rows.length) * 100)));
+  if (bar) bar.setAttribute('value', String(Math.round((walk / session.rows.length) * 100)));
 
-  const scale = computeScale();
+  const scale = computeScale(window.innerWidth, window.innerHeight, measureCardHeight());
   scryContent.innerHTML = '';
   const legend = scryLegend(card.stripes)
     .map((m) => `<li><span class="stripe-detail-swatch${m.isDot ? ' stripe-detail-swatch-dot' : ''}" style="background-color:${escapeHtml(m.color)};"></span><span>${escapeHtml(m.text)}</span></li>`)
@@ -187,7 +202,7 @@ async function renderCurrentScryCard() {
   // Prefetch next few cards so advance is snappy
   const nextNames = session.rows
     .slice(session.index + 1, session.index + 4)
-    .map(c => c.isPassRow ? c.displayName : c.name)
+    .map(screenName)
     .filter(Boolean);
   if (nextNames.length > 0) prefetchCards(nextNames).catch(() => {});
 }
@@ -221,30 +236,42 @@ function showCompletionState() {
   if (btnScrySkip) btnScrySkip.setAttribute('disabled', '');
 }
 
-function advance() {
+/** Done or Skip on the shown screen: call the option handler, then move the walk. */
+export function scryAnswer(s, opts, kind) {
+  if (s.index >= s.rows.length) return;
+  const card = s.rows[s.index];
+  const key = getScryCardKey(card);
+  if (kind === 'done') opts.onDone(key, card);
+  else opts.onSkip?.(key, card);
+  scryAct(s, kind === 'done' || !!opts.skipAnswers);
+}
+
+function answer(kind) {
   const found = session.returnTo !== null;
-  scryAct(session);
+  scryAnswer(session, scryOpts, kind);
   if (found) resetSearchField(); // back on the walk, so the search is over
   renderCurrentScryCard();
 }
 
-function handleScryDone() {
-  if (session.index >= session.rows.length) return;
-  const card = session.rows[session.index];
-  scryOpts.onDone(getScryCardKey(card), card);
-  advance();
-}
-
-function handleScrySkip() {
-  if (session.index >= session.rows.length) return;
-  scryOpts.onSkip?.(getScryCardKey(session.rows[session.index]), session.rows[session.index]);
-  advance();
-}
+const handleScryDone = () => answer('done');
+const handleScrySkip = () => answer('skip');
 
 function resetSearchField() {
   const { scrySearchInput, scrySearchResults } = state.elements;
   if (scrySearchInput) scrySearchInput.value = '';
   if (scrySearchResults) scrySearchResults.hidden = true;
+  syncActionsWithSearch();
+}
+
+/** While matches are listed over the card, Done and Skip would act on a card the player cannot see. */
+function syncActionsWithSearch() {
+  const { scrySearchResults, btnScryDone, btnScrySkip } = state.elements;
+  const open = scrySearchResults && !scrySearchResults.hidden;
+  for (const b of [btnScryDone, btnScrySkip]) {
+    if (!b) continue;
+    if (open) b.setAttribute('disabled', '');
+    else if (session.index < session.rows.length) b.removeAttribute('disabled');
+  }
 }
 
 function handleSearchInput() {
@@ -252,6 +279,7 @@ function handleSearchInput() {
   const query = scrySearchInput.value || '';
   if (!query.trim()) {
     scrySearchResults.hidden = true;
+    syncActionsWithSearch();
     if (session.returnTo !== null) {
       scryClearSearch(session);
       renderCurrentScryCard();
@@ -263,6 +291,7 @@ function handleSearchInput() {
     ? matches.map((m) => `<li><wa-button appearance="plain" size="s" data-index="${m.index}">${escapeHtml(m.label)}</wa-button></li>`).join('')
     : `<li class="scry-search-empty">No card left in this session matches "${escapeHtml(query.trim())}".</li>`;
   scrySearchResults.hidden = false;
+  syncActionsWithSearch();
 }
 
 function handleSearchPick(e) {
@@ -270,6 +299,7 @@ function handleSearchPick(e) {
   if (!btn) return;
   scryJump(session, Number(btn.dataset.index));
   state.elements.scrySearchResults.hidden = true;
+  syncActionsWithSearch();
   btn.blur(); // focus off the field, so s/d and Enter act on the card
   renderCurrentScryCard();
 }
@@ -334,6 +364,14 @@ export function setupScryMode() {
   scrySearchInput?.addEventListener('input', handleSearchInput);
   scrySearchInput?.addEventListener('wa-clear', handleSearchInput);
   scrySearchResults?.addEventListener('click', handleSearchPick);
+  // Escape clears the search; it must not reach the dialog and close it.
+  scrySearchInput?.addEventListener('keydown', (e) => {
+    if (e.key !== 'Escape' || !scrySearchInput.value) return;
+    e.preventDefault();
+    e.stopPropagation();
+    scrySearchInput.value = '';
+    handleSearchInput();
+  });
 
   if (scryDialog) {
     // Re-render results once when dialog closes to sync marked rows

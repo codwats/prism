@@ -21,11 +21,12 @@ export function dismissMarkingPrereq(prismId) {
   }
 }
 
-/** Shown until dismissed or until the PRISM has a mark; a first mark retires it for good. */
+/** A first mark retires the warning for good, even if the marks are cleared later. Writes storage. */
+export function retireMarkingPrereq(prism) {
+  if (prism.markedCards?.length) dismissMarkingPrereq(prism.id);
+}
+
+/** Shown until dismissed or until the PRISM has a mark. Read only. */
 export function markingPrereqVisible(prism) {
-  if (prism.markedCards?.length) {
-    dismissMarkingPrereq(prism.id);
-    return false;
-  }
-  return !load().includes(prism.id);
+  return !prism.markedCards?.length && !load().includes(prism.id);
 }
