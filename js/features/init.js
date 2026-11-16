@@ -37,6 +37,7 @@ function getElements() {
     // Deck form (#450): one form for Add and Edit
     deckForm: document.getElementById('deck-form'),
     deckFormInlineHost: document.getElementById('deck-form-inline-host'),
+    deckFormActions: document.getElementById('deck-form-actions'),
     addDeckCard: document.getElementById('add-deck-card'),
     addDeckBar: document.getElementById('add-deck-bar'),
     btnOpenAddDeck: document.getElementById('btn-open-add-deck'),

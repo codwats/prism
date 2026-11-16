@@ -94,18 +94,6 @@ wa-page[view='desktop'] [data-toggle-nav] {
   }
 }
 
-/* In the dialog the actions stay in view while the decklist scrolls. Not on
-   phone, where the wrapped row would cover a quarter of the dialog. */
-@media (min-width: 640px) {
-  #deck-dialog .deck-form-actions {
-    position: sticky;
-    bottom: calc(var(--wa-space-l) * -1);
-    padding-block: var(--wa-space-s);
-    background: var(--wa-color-surface-raised);
-    z-index: 1;
-  }
-}
-
 /* ============================================================================
    Deck Color Indicators
    ============================================================================ */

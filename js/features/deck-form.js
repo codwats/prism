@@ -120,6 +120,15 @@ export function placeDeckForm() {
       resetDeckForm();
     }
   }
+  // The actions are the dialog footer in the dialog, so they stay on screen
+  // while the form scrolls; their submit button reaches the form by form="deck-form".
+  const actions = els.deckFormActions;
+  const actionsHost = empty ? els.deckForm : els.deckDialog;
+  if (actions && actionsHost && actions.parentElement !== actionsHost) {
+    if (empty) actions.removeAttribute("slot");
+    else actions.setAttribute("slot", "footer");
+    actionsHost.append(actions);
+  }
   renderDeckFormSlot();
 }
 
