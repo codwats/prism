@@ -807,28 +807,22 @@ wa-page[view='desktop'] [data-toggle-nav] {
   box-shadow: var(--wa-shadow-m);
 }
 
-/* Deck action buttons: inline cluster on desktop, kebab dropdown on mobile */
-.deck-actions-kebab {
-  display: none;
+/* Deck row: name block grows, Edit / Move / kebab stay at the right edge */
+.deck-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--wa-space-s);
 }
 
-.deck-actions-kebab-menu {
-  min-width: 12rem;
-  padding: var(--wa-space-2xs);
+.deck-row-main {
+  min-inline-size: 0;
+  flex: 1 1 auto;
 }
 
-.deck-actions-kebab-menu .kebab-item::part(button) {
-  width: 100%;
-  justify-content: flex-start;
-}
-
-@media (max-width: 768px) {
-  .deck-actions-inline {
-    display: none;
-  }
-  .deck-actions-kebab {
-    display: inline-flex;
-  }
+.deck-row-actions {
+  flex: none;
+  flex-wrap: nowrap;
 }
 
 /* ============================================================================
@@ -2277,19 +2271,12 @@ wa-page[view='desktop'] [data-toggle-nav] {
   align-self: start;
 }
 
-/* Separate Delete deck from Edit deck */
-.deck-actions-kebab-menu .kebab-item-danger {
-  margin-block-start: var(--wa-space-xs);
-  border-block-start: var(--wa-border-width-s) var(--wa-border-style) var(--wa-color-neutral-border-quiet);
-  padding-block-start: var(--wa-space-2xs);
-}
-
 /* 44px touch targets (same input-method gate as .mark-checkbox-hit) */
 @media (pointer: coarse) {
-  wa-button[size="s"]::part(button),
-  .deck-actions-kebab-menu .kebab-item::part(button) {
+  wa-button[size="s"]::part(button) {
     min-block-size: 44px;
   }
+  .deck-actions-kebab wa-dropdown-item,
   #account-menu wa-dropdown-item,
   #prism-overflow wa-dropdown-item,
   #deck-filter-dropdown wa-dropdown-item,
@@ -2307,5 +2294,26 @@ wa-page[view='desktop'] [data-toggle-nav] {
   }
   wa-switch::part(base) {
     min-block-size: 44px;
+  }
+}
+
+/* Card-by-card marking (#453): card and legend stack on phone, sit side by side from 768px. */
+/* Card-by-card marking fills the screen; WA otherwise caps the panel and centers it */
+#scry-dialog::part(dialog) { max-inline-size: none; max-block-size: none; inline-size: 100vw; block-size: 100dvh; margin: 0; border-radius: 0; }
+.scry-content { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--wa-space-l); min-height: 200px; }
+.scry-legend { align-self: stretch; max-inline-size: 28rem; }
+.scry-copies { margin: 0 0 var(--wa-space-xs); font-weight: var(--wa-font-weight-bold); font-size: var(--wa-font-size-l); }
+.scry-actions { display: grid; grid-template-columns: 1fr 1fr; gap: var(--wa-space-s); inline-size: 100%; }
+.scry-actions wa-button::part(base) { min-block-size: 56px; }
+@media (min-width: 768px) {
+  .scry-content { flex-direction: row; gap: var(--wa-space-2xl); }
+  .scry-legend { align-self: center; }
+  .scry-actions { grid-template-columns: auto auto; justify-content: space-between; }
+}
+
+/* Phone: "Decks" and "Mark sleeves" fit at 375px without tab scroll arrows */
+@media (max-width: 768px) {
+  #main-tabs wa-tab::part(base) {
+    padding-inline: var(--wa-space-m);
   }
 }

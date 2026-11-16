@@ -8,11 +8,38 @@ import { buildCardWithStripes, createLoadingElement, createErrorElement } from '
 import { prefetchCards } from '../modules/scryfall.js';
 import { setCardMarked } from './deck-list.js';
 import { renderResults, updateMarkedProgress } from './results.js';
+import { getColorName, formatSlotLabel } from '../modules/processor.js';
+import { escapeHtml } from '../core/utils.js';
 
 let scrySnapshot = [];
 let scryIndex = 0;
+// Step 9 (#457) swaps these through openScryMode options for the audit pass.
+const DEFAULT_OPTS = {
+  skipLabel: 'Skip',
+  doneLabel: 'Done',
+  title: 'SCRY-Mode',
+  onDone: (key) => {
+    setCardMarked(key, true);
+    updateMarkedProgress();
+  },
+  onSkip: null,
+};
+let scryOpts = DEFAULT_OPTS;
 
-function getScryCardKey(card) {
+/** One legend line per rendered mark: color name, deck, slot (same as Mark sleeves). */
+export function scryLegend(stripes) {
+  return (stripes || [])
+    .filter((s) => s.markType !== 'membership')
+    .slice()
+    .sort((a, b) => a.position - b.position)
+    .map((s) => ({
+      color: s.color,
+      isDot: s.markType === 'dot',
+      text: `${getColorName(s.color)}${s.markType === 'dot' ? ' dot' : ''}, ${s.deckName}, ${formatSlotLabel(s.position)}`,
+    }));
+}
+
+export function getScryCardKey(card) {
   if (card.batchKey) return card.batchKey; // one screen per batch (#149/#151)
   return card.isPassRow ? `${card.displayName}|${card.deckName}` : card.name;
 }
@@ -20,7 +47,8 @@ function getScryCardKey(card) {
 function computeScale() {
   // Reserve ~160px for progress line + footer buttons + dialog chrome.
   // 0.85 factor prevents overflow inside WA dialog's own padding on mobile.
-  const availH = window.innerHeight - 160;
+  // Phone stacks the legend under the card, so it reserves more height.
+  const availH = window.innerHeight - (window.innerWidth < 768 ? 360 : 160);
   const availW = window.innerWidth - 48;
   const scaleH = availH / 340;
   const scaleW = availW / 244;
@@ -58,11 +86,20 @@ async function renderCurrentScryCard() {
   // Each screen states its quantity — "mark 2 copies" — rather than implying
   // one copy per card (#149). Pass rows and batch screens both carry one.
   const copies = card.copyCount || card.totalQuantity || 1;
-  const copiesNote = copies > 1 ? ` — mark ${copies} copies` : '';
-  scryProgress.textContent = `${scryIndex + 1} / ${scrySnapshot.length} — ${displayName}${copiesNote}`;
+  const copiesNote = copies > 1 ? `, mark ${copies} copies` : '';
+  scryProgress.textContent = `${scryIndex + 1} of ${scrySnapshot.length}: ${displayName}${copiesNote}`;
+  const bar = state.elements.scryBar;
+  if (bar) bar.setAttribute('value', String(Math.round((scryIndex / scrySnapshot.length) * 100)));
 
   const scale = computeScale();
   scryContent.innerHTML = '';
+  const legend = scryLegend(card.stripes)
+    .map((m) => `<li><span class="stripe-detail-swatch${m.isDot ? ' stripe-detail-swatch-dot' : ''}" style="background-color:${escapeHtml(m.color)};"></span><span>${escapeHtml(m.text)}</span></li>`)
+    .join('');
+  const copiesLine = copies > 1 ? `<p class="scry-copies">Mark ${copies} copies</p>` : '';
+  const side = document.createElement('div');
+  side.className = 'scry-legend';
+  side.innerHTML = `${copiesLine}<ul class="stripe-detail">${legend}</ul>`;
 
   // Show loading state
   const { outer: loadOuter, inner: loadInner } = makeScaledWrapper(scale);
@@ -81,7 +118,7 @@ async function renderCurrentScryCard() {
     scryContent.innerHTML = '';
     const { outer, inner } = makeScaledWrapper(scale);
     inner.appendChild(el);
-    scryContent.appendChild(outer);
+    scryContent.append(outer, side);
   } catch (err) {
     console.warn(`SCRY: failed to load card image for "${displayName}":`, err);
     if (scryIndex !== capturedIndex) return;
@@ -89,7 +126,7 @@ async function renderCurrentScryCard() {
     scryContent.innerHTML = '';
     const { outer, inner } = makeScaledWrapper(scale);
     inner.appendChild(createErrorElement('Image not available'));
-    scryContent.appendChild(outer);
+    scryContent.append(outer, side);
   }
 
   // Prefetch next few cards so advance is snappy
@@ -102,7 +139,8 @@ async function renderCurrentScryCard() {
 
 function showCompletionState() {
   const { scryProgress, scryContent, btnScryDone, btnScrySkip } = state.elements;
-  if (scryProgress) scryProgress.textContent = 'All cards reviewed!';
+  if (scryProgress) scryProgress.textContent = 'All cards reviewed';
+  state.elements.scryBar?.setAttribute('value', '100');
   if (scryContent) {
     scryContent.innerHTML = '';
     const wrap = document.createElement('div');
@@ -133,14 +171,13 @@ function advance() {
 function handleScryDone() {
   if (scryIndex >= scrySnapshot.length) return;
   const card = scrySnapshot[scryIndex];
-  const cardKey = getScryCardKey(card);
-  setCardMarked(cardKey, true);
-  updateMarkedProgress();
+  scryOpts.onDone(getScryCardKey(card), card);
   advance();
 }
 
 function handleScrySkip() {
   if (scryIndex >= scrySnapshot.length) return;
+  scryOpts.onSkip?.(getScryCardKey(scrySnapshot[scryIndex]), scrySnapshot[scryIndex]);
   advance();
 }
 
@@ -162,7 +199,18 @@ function handleScryKeydown(e) {
   }
 }
 
-export function openScryMode() {
+/**
+ * @param {Object} [opts] Overrides for DEFAULT_OPTS: skipLabel, doneLabel, title,
+ *   onDone(key, card), onSkip(key, card). The audit pass (#457) passes its own.
+ *   Called from a click listener, so a non-plain argument (the event) is ignored.
+ */
+export function openScryMode(opts) {
+  scryOpts = { ...DEFAULT_OPTS, ...(opts && !(opts instanceof Event) ? opts : {}) };
+  const { scryDialog, btnScryDone, btnScrySkip } = state.elements;
+  if (btnScryDone) btnScryDone.textContent = scryOpts.doneLabel;
+  if (btnScrySkip) btnScrySkip.textContent = scryOpts.skipLabel;
+  scryDialog?.setAttribute('label', scryOpts.title);
+
   const view = state.resultsView || [];
   const filtered = view.filter(c => !c.isRemoved);
 

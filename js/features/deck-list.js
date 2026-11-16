@@ -4,7 +4,7 @@
 
 import { state } from "../core/state.js";
 import { showError, showSuccess } from "../core/notifications.js";
-import { escapeHtml, debugLog, markSingleBatchDone } from "../core/utils.js";
+import { escapeHtml, debugLog, markSingleBatchDone, clickItemsOnKeyboardSelect } from "../core/utils.js";
 import { parseDecklist, validateDecklist, cardsToDecklistText, normalizeCardName } from "../modules/parser.js";
 import {
   processCards,
@@ -723,114 +723,66 @@ export function getDeckPoolCoreCounts(deck, processedCards) {
 // Render deck card + deck list
 // ============================================================================
 
+// Tooltip + icon button; ids are unique per deck/group so wa-tooltip can bind.
+function iconButton(cls, idAttr, id, tip, label, icon) {
+  return `
+    <wa-button id="tip-${cls}-${id}" appearance="plain" variant="neutral" size="s"
+      class="${cls}" ${idAttr}="${id}" aria-label="${label}">
+      <wa-icon name="${icon}"></wa-icon>
+    </wa-button>
+    <wa-tooltip for="tip-${cls}-${id}">${tip}</wa-tooltip>
+  `;
+}
+
+// A dot variant owns no slot, so its Move moves the whole group (same as the
+// Edit form's Change). Everything else moves its own slot.
 function getMoveButtonHtml(deck, isInGroup) {
   const group = isInGroup ? state.currentPrism.splitGroups?.find(g => g.id === deck.splitGroupId) : null;
-  const splitStyle = group?.splitStyle || 'stripes';
-
-  // Dot variants have no slot of their own — mark lives on the parent group's slot.
-  if (isInGroup && splitStyle === 'dots') {
-    const parentName = escapeHtml(group?.name || 'parent deck');
-    return `
-      <wa-button appearance="plain" variant="neutral" size="s" disabled
-        title="Dot variants do not own a slot. Move &quot;${parentName}&quot; instead."
-        aria-label="Move ${escapeHtml(deck.name)} (unavailable for dot variants)">
-        <wa-icon name="up-down-left-right"></wa-icon>
-      </wa-button>
-    `;
-  }
-
-  // Standalone decks AND stripes-style variants: fully moveable.
-  return `
-    <wa-button appearance="plain" variant="neutral" size="s"
-      class="btn-move-deck" data-deck-id="${deck.id}" title="Move to a different slot"
-      aria-label="Move ${escapeHtml(deck.name)} to a different slot">
-      <wa-icon name="up-down-left-right"></wa-icon>
-    </wa-button>
-  `;
-}
-
-// Mobile kebab: same actions as the inline cluster, reusing the same btn-*
-// classes + data-deck-id so existing listeners attach automatically.
-// Uses plain wa-buttons (not wa-menu) because wa-menu/wa-menu-item autoload
-// flakily from the CDN kit (see CLAUDE.md); wa-button is always registered.
-function kebabItem(deck, cls, icon, label, site) {
-  return `
-    <wa-button class="kebab-item ${cls}" data-deck-id="${deck.id}"${site ? ` data-site="${site}"` : ""}
-      appearance="plain" variant="neutral" size="s">
-      <wa-icon slot="start" name="${icon}"></wa-icon>${label}
-    </wa-button>
-  `;
-}
-
-// A deck imported by URL copies in its site's format; one with no source picks
-// a site from a split button, Moxfield first (#377).
-function getExportButtonHtml(deck) {
   const name = escapeHtml(deck.name);
-  if (deckSourceSite(deck.sourceUrl)) {
-    return `<wa-button appearance="plain" variant="neutral" size="s"
-            class="btn-export-deck" data-deck-id="${deck.id}" title="Copy for Moxfield/Archidekt"
-            aria-label="Copy ${name} for Moxfield or Archidekt">
-            <wa-icon name="file-export"></wa-icon>
-          </wa-button>`;
+  if (isInGroup && group?.splitStyle === 'dots') {
+    return iconButton("btn-move-group", "data-group-id", group.id,
+      "Move group (dot variants share its slot)", `Move the group that ${name} belongs to`, "up-down-left-right");
   }
-  return `<wa-button-group label="Copy ${name} for Moxfield or Archidekt">
-            <wa-button appearance="plain" variant="neutral" size="s"
-              class="btn-export-deck" data-deck-id="${deck.id}" data-site="moxfield" title="Copy for Moxfield"
-              aria-label="Copy ${name} for Moxfield">
-              <wa-icon name="file-export"></wa-icon>
-            </wa-button>
-            <wa-dropdown class="export-site-dropdown" data-deck-id="${deck.id}" placement="bottom-end">
-              <wa-button slot="trigger" appearance="plain" variant="neutral" size="s">
-                <wa-icon name="chevron-down" label="Choose Moxfield or Archidekt"></wa-icon>
-              </wa-button>
-              <wa-dropdown-item value="moxfield">Copy for Moxfield</wa-dropdown-item>
-              <wa-dropdown-item value="archidekt">Copy for Archidekt</wa-dropdown-item>
-            </wa-dropdown>
-          </wa-button-group>`;
+  return iconButton("btn-move-deck", "data-deck-id", deck.id,
+    "Move to a different slot", `Move ${name} to a different slot`, "up-down-left-right");
 }
 
-function getMoveKebabItemHtml(deck, isInGroup) {
-  const group = isInGroup
-    ? state.currentPrism.splitGroups?.find(g => g.id === deck.splitGroupId)
-    : null;
-  const splitStyle = group?.splitStyle || 'stripes';
-  // Standalone decks AND stripes-style variants are fully moveable — matches
-  // the inline Move button. Only dot variants are locked (they own no slot).
-  if (!isInGroup || splitStyle === 'stripes') {
-    return kebabItem(deck, "btn-move-deck", "up-down-left-right", "Move to slot");
-  }
-  const reason = `Dot variants move with their parent. Move &quot;${escapeHtml(group?.name || 'parent deck')}&quot; instead.`;
+// wa-dropdown-item (not wa-button): arrow keys and Enter work, and
+// clickItemsOnKeyboardSelect turns a keyboard choice into the click that the
+// btn-* listeners wait for.
+function kebabItem(id, idAttr, cls, icon, label, site, variant) {
   return `
-    <wa-button class="kebab-item" appearance="plain" variant="neutral" size="s" disabled title="${reason}">
-      <wa-icon slot="start" name="up-down-left-right"></wa-icon>Move to slot
+    <wa-dropdown-item class="${cls}" ${idAttr}="${id}"${site ? ` data-site="${site}"` : ""}${variant ? ` variant="${variant}"` : ""}>
+      <wa-icon slot="icon" name="${icon}"></wa-icon>${label}
+    </wa-dropdown-item>
+  `;
+}
+
+function kebabTrigger(name) {
+  return `
+    <wa-button slot="trigger" appearance="plain" variant="neutral" size="s"
+      aria-label="More actions for ${name}">
+      <wa-icon name="ellipsis-vertical"></wa-icon>
     </wa-button>
   `;
 }
 
+// A deck imported by URL copies in its site's format; one with no source gets
+// one item per site (#377).
 function getDeckActionsKebabHtml(deck, isInGroup) {
-  const whatIf = state.currentPrism.decks.length >= 2
-    ? kebabItem(deck, "btn-what-if", "flask", "What if I remove this?")
-    : "";
-  const split = !isInGroup
-    ? kebabItem(deck, "btn-split-deck", "code-branch", "Split into variants")
-    : "";
+  const id = deck.id;
+  const item = (cls, icon, label, site, variant) => kebabItem(id, "data-deck-id", cls, icon, label, site, variant);
   return `
-    <wa-dropdown class="deck-actions-kebab">
-      <wa-button slot="trigger" appearance="plain" variant="neutral" size="s" title="Actions"
-        aria-label="Actions for ${escapeHtml(deck.name)}">
-        <wa-icon name="ellipsis-vertical"></wa-icon>
-      </wa-button>
-      <div class="wa-stack wa-gap-0 deck-actions-kebab-menu">
-        ${whatIf}
-        ${getMoveKebabItemHtml(deck, isInGroup)}
-        ${split}
-        ${deckSourceSite(deck.sourceUrl)
-          ? kebabItem(deck, "btn-export-deck", "file-export", "Copy for Moxfield/Archidekt")
-          : `${kebabItem(deck, "btn-export-deck", "file-export", "Copy for Moxfield", "moxfield")}
-             ${kebabItem(deck, "btn-export-deck", "file-export", "Copy for Archidekt", "archidekt")}`}
-        ${kebabItem(deck, "btn-edit-deck", "pen-to-square", "Edit deck")}
-        ${kebabItem(deck, "btn-delete-deck kebab-item-danger", "trash", "Delete deck")}
-      </div>
+    <wa-dropdown class="deck-actions-kebab" placement="bottom-end">
+      ${kebabTrigger(escapeHtml(deck.name))}
+      ${state.currentPrism.decks.length >= 2 ? item("btn-what-if", "flask", "What if I remove this deck?") : ""}
+      ${!isInGroup ? item("btn-split-deck", "code-branch", "Split into variants") : ""}
+      ${deckSourceSite(deck.sourceUrl)
+        ? item("btn-export-deck", "file-export", "Copy for Moxfield or Archidekt")
+        : `${item("btn-export-deck", "file-export", "Copy for Moxfield", "moxfield")}
+           ${item("btn-export-deck", "file-export", "Copy for Archidekt", "archidekt")}`}
+      <wa-divider></wa-divider>
+      ${item("btn-delete-deck", "trash", "Delete deck", null, "danger")}
     </wa-dropdown>
   `;
 }
@@ -844,8 +796,8 @@ export function renderDeckCard(deck, showActions = true, processedCards = null) 
 
   return `
     <div class="deck-card-inner ${isInGroup ? "split-child-card" : ""}" data-deck-id="${deck.id}">
-      <div class="wa-split wa-align-items-center">
-        <div class="wa-cluster wa-gap-m wa-align-items-center">
+      <div class="deck-row">
+        <div class="wa-cluster wa-gap-m wa-align-items-center deck-row-main">
           <div class="deck-color-indicator" style="background-color: ${deck.color};" title="${getColorName(deck.color)}"></div>
           <div class="wa-stack wa-gap-2xs">
             <div class="wa-cluster wa-gap-s wa-align-items-center">
@@ -861,43 +813,11 @@ export function renderDeckCard(deck, showActions = true, processedCards = null) 
         ${
           showActions
             ? `
-        <div class="wa-cluster wa-gap-xs deck-actions-inline">
-          ${
-            state.currentPrism.decks.length >= 2
-              ? `
-          <wa-button appearance="plain" variant="neutral" size="s"
-            class="btn-what-if" data-deck-id="${deck.id}" title="What if I remove this deck?"
-            aria-label="What if I remove ${escapeHtml(deck.name)}?">
-            <wa-icon name="flask"></wa-icon>
-          </wa-button>
-          `
-              : ""
-          }
+        <div class="wa-cluster wa-gap-2xs deck-row-actions">
+          ${iconButton("btn-edit-deck", "data-deck-id", deck.id, "Edit deck", `Edit ${escapeHtml(deck.name)}`, "pen-to-square")}
           ${getMoveButtonHtml(deck, isInGroup)}
-          ${
-            !isInGroup
-              ? `
-          <wa-button appearance="plain" variant="neutral" size="s"
-            class="btn-split-deck" data-deck-id="${deck.id}" title="Split into variants"
-            aria-label="Split ${escapeHtml(deck.name)} into variants">
-            <wa-icon name="code-branch"></wa-icon>
-          </wa-button>
-          `
-              : ""
-          }
-          ${getExportButtonHtml(deck)}
-          <wa-button appearance="plain" variant="neutral" size="s"
-            class="btn-edit-deck" data-deck-id="${deck.id}" title="Edit deck"
-            aria-label="Edit ${escapeHtml(deck.name)}">
-            <wa-icon name="pen-to-square"></wa-icon>
-          </wa-button>
-          <wa-button appearance="plain" variant="neutral" size="s"
-            class="btn-delete-deck" data-deck-id="${deck.id}" title="Delete deck"
-            aria-label="Delete ${escapeHtml(deck.name)}">
-            <wa-icon name="trash"></wa-icon>
-          </wa-button>
+          ${getDeckActionsKebabHtml(deck, isInGroup)}
         </div>
-        ${getDeckActionsKebabHtml(deck, isInGroup)}
         `
             : ""
         }
@@ -959,8 +879,8 @@ export function renderDecksList() {
     return `
       <wa-card class="deck-card split-group-card" data-group-id="${group.id}">
         <div class="split-group-header">
-          <div class="wa-split wa-align-items-center">
-            <div class="wa-cluster wa-gap-m wa-align-items-center">
+          <div class="deck-row">
+            <div class="wa-cluster wa-gap-m wa-align-items-center deck-row-main">
               <div class="deck-color-indicator" style="background-color: ${group.sideAColor};" title="${getColorName(group.sideAColor)}"></div>
               <div class="wa-stack wa-gap-2xs">
                 <div class="wa-cluster wa-gap-s wa-align-items-center">
@@ -980,28 +900,14 @@ export function renderDecksList() {
                 </div>
               </div>
             </div>
-            <div class="wa-cluster wa-gap-xs">
-              <wa-button appearance="plain" variant="neutral" size="s"
-                class="btn-move-group" data-group-id="${group.id}" title="Move group to a different slot"
-                aria-label="Move ${escapeHtml(group.name)} to a different slot">
-                <wa-icon name="up-down-left-right"></wa-icon>
-              </wa-button>
-              <wa-button appearance="plain" variant="neutral" size="s"
-                class="btn-edit-group" data-group-id="${group.id}" title="Edit group name and color"
-                aria-label="Edit ${escapeHtml(group.name)} name and color">
-                <wa-icon name="pen-to-square"></wa-icon>
-              </wa-button>
-              <wa-button appearance="plain" variant="neutral" size="s"
-                class="btn-add-split" data-group-id="${group.id}" title="Add another variant"
-                aria-label="Add another variant to ${escapeHtml(group.name)}"
-                ${(group.splitStyle || 'stripes') === 'dots' && group.childDeckIds.length >= 2 ? 'disabled' : ''}>
-                <wa-icon name="plus"></wa-icon>
-              </wa-button>
-              <wa-button appearance="plain" variant="neutral" size="s"
-                class="btn-unsplit" data-group-id="${group.id}" title="Merge back into one deck"
-                aria-label="Merge ${escapeHtml(group.name)} back into one deck">
-                <wa-icon name="code-merge"></wa-icon>
-              </wa-button>
+            <div class="wa-cluster wa-gap-2xs deck-row-actions">
+              ${iconButton("btn-edit-group", "data-group-id", group.id, "Edit group name and color", `Edit ${escapeHtml(group.name)} name and color`, "pen-to-square")}
+              ${iconButton("btn-move-group", "data-group-id", group.id, "Move group to a different slot", `Move ${escapeHtml(group.name)} to a different slot`, "up-down-left-right")}
+              <wa-dropdown class="deck-actions-kebab" placement="bottom-end">
+                ${kebabTrigger(escapeHtml(group.name))}
+                ${(group.splitStyle || 'stripes') === 'dots' && group.childDeckIds.length >= 2 ? "" : kebabItem(group.id, "data-group-id", "btn-add-split", "plus", "Add another variant")}
+                ${kebabItem(group.id, "data-group-id", "btn-unsplit", "code-merge", "Merge back into one deck")}
+              </wa-dropdown>
             </div>
           </div>
         </div>
@@ -1030,12 +936,6 @@ export function renderDecksList() {
       if (deck) openDeckExportDialog(deck, btn.dataset.site);
     });
   });
-  state.elements.decksList.querySelectorAll(".export-site-dropdown").forEach((dropdown) => {
-    dropdown.addEventListener("wa-select", (e) => {
-      const deck = state.currentPrism.decks.find((d) => d.id === dropdown.dataset.deckId);
-      if (deck) openDeckExportDialog(deck, e.detail.item.value);
-    });
-  });
   state.elements.decksList.querySelectorAll(".btn-edit-deck").forEach((btn) => {
     btn.addEventListener("click", () => handleEditClick(btn.dataset.deckId));
   });
@@ -1062,11 +962,5 @@ export function renderDecksList() {
   state.elements.decksList.querySelectorAll(".btn-unsplit").forEach((btn) => {
     btn.addEventListener("click", () => handleUnsplit(btn.dataset.groupId));
   });
-  // Close the mobile kebab dropdown after picking an action (plain buttons
-  // don't auto-close the way wa-menu-items would).
-  state.elements.decksList.querySelectorAll(".kebab-item").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      btn.closest("wa-dropdown")?.removeAttribute("open");
-    });
-  });
+  state.elements.decksList.querySelectorAll(".deck-actions-kebab").forEach(clickItemsOnKeyboardSelect);
 }

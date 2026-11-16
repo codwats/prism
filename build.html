@@ -729,11 +729,12 @@
 
     <!-- SCRY-Mode Dialog -->
     <wa-dialog id="scry-dialog" label="SCRY-Mode" style="--width: 100vw; --height: 100vh;">
-      <div id="scry-progress" class="wa-caption-m" style="text-align:center;padding-bottom:var(--wa-space-s);"></div>
-      <div id="scry-content" class="wa-stack wa-align-items-center" style="justify-content:center;min-height:200px;"></div>
-      <div slot="footer" class="wa-split" style="width:100%;">
-        <wa-button id="btn-scry-skip" appearance="outlined" variant="neutral">Skip</wa-button>
-        <wa-button id="btn-scry-done" appearance="filled" variant="success">Done</wa-button>
+      <div id="scry-progress" class="wa-caption-m" style="text-align:center;padding-bottom:var(--wa-space-s);" aria-live="polite"></div>
+      <wa-progress-bar id="scry-bar" value="0" label="Marking progress" style="--height:6px;margin-bottom:var(--wa-space-m);"></wa-progress-bar>
+      <div id="scry-content" class="scry-content"></div>
+      <div slot="footer" class="scry-actions">
+        <wa-button id="btn-scry-skip" size="large" appearance="outlined" variant="neutral">Skip</wa-button>
+        <wa-button id="btn-scry-done" size="large" appearance="filled" variant="success">Done</wa-button>
       </div>
     </wa-dialog>
 
