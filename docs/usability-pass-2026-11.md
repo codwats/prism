@@ -278,3 +278,5 @@ Still open, needs the owner:
 - Real touch device for the 44px and 52px coarse-pointer rules; a screen reader pass.
 - Signed-in session: account menu, a sync round trip with bulk mark, clear and an audit.
 - Printable guide copy still has an em-dash and Title Case headings ("Deck Legend", "Card Marking Guide"); outside the mockups, left as is.
+
+**Step (#473, slot picker on phone).** At 768px and below the slot list leads and the sleeve picture follows it (CSS `order`, same DOM, so it still reflects the chosen slot); the side switch is forced to one row with `::part(form-control-input)` `flex-wrap: nowrap`. Desktop untouched. Not checked in a browser (none available): the part selector and the four-rows-at-375x844 criterion are unverified.
