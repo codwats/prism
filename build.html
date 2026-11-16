@@ -735,12 +735,13 @@
     </wa-dialog>
 
     <!-- Stripe Reorder Dialog -->
-    <wa-dialog id="stripe-reorder-dialog" label="Move to a Different Slot" style="--width: min(580px, 92vw);">
+    <wa-dialog id="stripe-reorder-dialog" label="Move to a Different Slot" style="--width: min(52rem, 92vw);">
       <div id="stripe-reorder-content" class="wa-stack wa-gap-l">
         <!-- Content injected by stripe-reorder-dialog.js -->
       </div>
-      <div slot="footer">
+      <div slot="footer" class="wa-cluster wa-gap-s">
         <wa-button id="stripe-reorder-cancel" variant="neutral" appearance="outlined">Cancel</wa-button>
+        <wa-button id="stripe-reorder-move" variant="brand" disabled>Move</wa-button>
       </div>
     </wa-dialog>
 
