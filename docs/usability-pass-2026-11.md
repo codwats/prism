@@ -199,6 +199,10 @@ Constraints: nothing may be removed, only moved. Every destructive action keeps 
 
 The mockups are reviewed. Nine steps, one GitHub issue and one PR each, tracked under the `usability-pass` label. Every step's session reads this section first, then its own issue.
 
+### Branching
+
+Steps 1, 7 and 8 merged straight to `main`. Every later step branches off `usability-pass` and opens its PR against `usability-pass`, never `main`. `main` stays as it is until the whole pass is tested; then one PR merges `usability-pass` into `main`. Test the combined work on that PR's deploy preview.
+
 ### Before starting a step
 
 - Read `CLAUDE.md`, `PRODUCT.md`, `CONTEXT.md`, `DESIGN.md`. CONTEXT.md is the controlled vocabulary; do not invent terms.
