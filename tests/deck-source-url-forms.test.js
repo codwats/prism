@@ -1,8 +1,10 @@
 /**
- * sourceUrl (#377) is set by a URL add and a URL re-import and kept by a
- * manual decklist edit — driven through the real build-page handlers. DOM
- * elements are permissive fakes; the network is a mocked fetch serving one
- * Moxfield deck (Scryfall requests fail, which canonicalization tolerates).
+ * The one deck form (#450) and sourceUrl (#377), driven through the real
+ * build-page handlers. sourceUrl is set by a URL add and a URL re-import and
+ * kept by a manual decklist edit; the mode flag routes submit, and a pending
+ * URL from one mode never reaches the other mode's save. DOM elements are
+ * permissive fakes; the network is a mocked fetch serving Moxfield decks
+ * (Scryfall requests fail, which canonicalization tolerates).
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -49,33 +51,36 @@ globalThis.fetch = async (url, init) => {
 };
 
 const { state } = await import('../js/core/state.js');
-const { createPrism } = await import('../js/modules/processor.js');
-const { handleMoxfieldImport, handleEditUrlImport } = await import('../js/features/deck-import.js');
-const { handleDeckSubmit } = await import('../js/features/deck-form.js');
-const { handleEditClick, handleEditConfirm } = await import('../js/features/deck-list.js');
+const { createPrism, createDeck } = await import('../js/modules/processor.js');
+const { handleDeckUrlImport } = await import('../js/features/deck-import.js');
+const { handleDeckFormSubmit, setDeckFormMode, openAddDeckDialog, closeDeckDialog, deckFormSlot } = await import('../js/features/deck-form.js');
+const { handleEditClick } = await import('../js/features/deck-list.js');
 
 state.elements = elements;
 state.currentPrism = createPrism('T');
 
+const list = (card) => `Commander\n1 Ayula, Queen Among Bears\n\nDeck\n1 ${card}`;
+
 test('URL add sets sourceUrl, URL re-import repoints it, a manual edit keeps it', async () => {
-	elements.moxfieldUrl.value = 'https://moxfield.com/decks/first';
-	await handleMoxfieldImport();
+	setDeckFormMode('add');
+	elements.deckUrl.value = 'https://moxfield.com/decks/first';
+	await handleDeckUrlImport();
 	elements.deckColor.value = '#FF0000';
-	await handleDeckSubmit();
+	await handleDeckFormSubmit();
 	const [deck] = state.currentPrism.decks;
 	assert.equal(deck.sourceUrl, 'https://moxfield.com/decks/first');
 
 	handleEditClick(deck.id);
-	elements.editImportUrl.value = 'https://moxfield.com/decks/second';
-	await handleEditUrlImport();
-	await handleEditConfirm();
+	elements.deckUrl.value = 'https://moxfield.com/decks/second';
+	await handleDeckUrlImport();
+	await handleDeckFormSubmit();
 	const reimported = state.currentPrism.decks[0];
 	assert.ok(reimported.cards.some((c) => c.name === 'Rampant Growth'), 'the re-import was saved');
 	assert.equal(reimported.sourceUrl, 'https://moxfield.com/decks/second');
 
 	handleEditClick(deck.id);
-	elements.editDeckList.value = 'Commander\n1 Ayula, Queen Among Bears\n\nDeck\n1 Sol Ring';
-	await handleEditConfirm();
+	elements.deckList.value = list('Sol Ring');
+	await handleDeckFormSubmit();
 	const edited = state.currentPrism.decks[0];
 	assert.ok(edited.cards.some((c) => c.name === 'Sol Ring'), 'the manual edit was saved');
 	assert.equal(edited.sourceUrl, 'https://moxfield.com/decks/second');
@@ -84,14 +89,95 @@ test('URL add sets sourceUrl, URL re-import repoints it, a manual edit keeps it'
 		'https://moxfield.com/decks/second', 'saved to storage');
 });
 
-test('an edit import still in flight when the dialog reopens is ignored', async () => {
+test('the mode flag routes submit: edit saves the deck, add adds one, and a save ends in add mode', async () => {
 	const [deck] = state.currentPrism.decks;
 	handleEditClick(deck.id);
-	const pending = handleEditUrlImport('https://moxfield.com/decks/first');
+	assert.equal(state.deckFormMode, 'edit');
+	assert.equal(state.deckToEdit, deck.id);
+	elements.deckName.value = 'Renamed';
+	await handleDeckFormSubmit();
+	assert.equal(state.currentPrism.decks.length, 1, 'an edit adds no deck');
+	assert.equal(state.currentPrism.decks[0].name, 'Renamed');
+	assert.equal(state.deckFormMode, 'add');
+	assert.equal(state.deckToEdit, null);
+
+	openAddDeckDialog();
+	assert.equal(state.deckFormMode, 'add');
+	elements.deckName.value = 'Second';
+	elements.deckCommander.value = 'Ayula, Queen Among Bears';
+	elements.deckList.value = list('Opt');
+	elements.deckColor.value = '#00FF00';
+	await handleDeckFormSubmit();
+	assert.equal(state.currentPrism.decks.length, 2);
+	assert.equal(state.currentPrism.decks[0].name, 'Renamed', 'the add leaves the edited deck alone');
+});
+
+test('an Add import cancelled before save never reaches an Edit save', async () => {
+	openAddDeckDialog();
+	elements.deckUrl.value = 'https://moxfield.com/decks/first';
+	await handleDeckUrlImport();
+	assert.equal(state.addSourceUrl, 'https://moxfield.com/decks/first');
+	closeDeckDialog();
+	assert.equal(state.addSourceUrl, null);
+	assert.equal(state.editSourceUrl, null);
+
+	const second = state.currentPrism.decks.find((d) => d.name === 'Second');
+	handleEditClick(second.id);
+	elements.deckList.value = list('Ponder');
+	await handleDeckFormSubmit();
+	assert.equal(state.currentPrism.decks.find((d) => d.id === second.id).sourceUrl, undefined);
+});
+
+test('an Edit import cancelled before save never reaches an Add save', async () => {
+	const second = state.currentPrism.decks.find((d) => d.name === 'Second');
+	handleEditClick(second.id);
+	elements.deckUrl.value = 'https://moxfield.com/decks/second';
+	await handleDeckUrlImport();
+	assert.equal(state.editSourceUrl, 'https://moxfield.com/decks/second');
+	closeDeckDialog();
+	assert.equal(state.editSourceUrl, null);
+	assert.equal(state.currentPrism.decks.find((d) => d.id === second.id).sourceUrl, undefined, 'nothing saved');
+
+	openAddDeckDialog();
+	elements.deckName.value = 'Third';
+	elements.deckCommander.value = 'Ayula, Queen Among Bears';
+	elements.deckList.value = list('Brainstorm');
+	elements.deckColor.value = '#0000FF';
+	await handleDeckFormSubmit();
+	assert.equal(state.currentPrism.decks.find((d) => d.name === 'Third').sourceUrl, undefined);
+});
+
+test('an import still in flight when the form changes mode or reopens is ignored', async () => {
+	const [deck] = state.currentPrism.decks;
+	openAddDeckDialog();
+	const addPending = handleDeckUrlImport('https://moxfield.com/decks/first');
+	handleEditClick(deck.id); // the Add import resolves into an Edit session
+	elements.deckList.value = 'unchanged';
+	await addPending;
+	assert.equal(elements.deckList.value, 'unchanged', 'stale list not written');
+	assert.equal(state.addSourceUrl, null);
+	assert.equal(state.editSourceUrl, null);
+
+	const editPending = handleDeckUrlImport('https://moxfield.com/decks/first');
 	handleEditClick(deck.id); // new edit session before the fetch resolves
-	state.editSourceUrl = null;
-	elements.editDeckList.value = 'unchanged';
-	await pending;
-	assert.equal(elements.editDeckList.value, 'unchanged', 'stale list not written');
+	elements.deckList.value = 'unchanged';
+	await editPending;
+	assert.equal(elements.deckList.value, 'unchanged', 'stale list not written');
 	assert.equal(state.editSourceUrl, null, 'stale sourceUrl not pending');
+	closeDeckDialog();
+});
+
+test('slot row: Add shows the next free slot with Change off; Edit opens Move for the deck or its group', () => {
+	const prism = createPrism('S');
+	const a = createDeck({ name: 'A', bracket: 2, color: '#111111', stripePosition: 1, cards: [] });
+	const v = createDeck({ name: 'V', bracket: 2, color: '#222222', stripePosition: 48, cards: [], splitGroupId: 'g' });
+	prism.decks = [a, v];
+	prism.splitGroups = [{ id: 'g', name: 'G', sideAPosition: 2, sideAColor: '#333333', childDeckIds: [v.id], splitStyle: 'dots' }];
+
+	assert.deepEqual(deckFormSlot(prism, 'add', null).change, null);
+	assert.equal(deckFormSlot(prism, 'add', null).label, 'Side A - Slot 3');
+	assert.deepEqual(deckFormSlot(prism, 'edit', a.id), { label: 'Side A - Slot 1', hint: '', change: { deckId: a.id } });
+	const dot = deckFormSlot(prism, 'edit', v.id);
+	assert.equal(dot.label, 'Side A - Slot 2');
+	assert.deepEqual(dot.change, { groupId: 'g' });
 });

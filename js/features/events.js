@@ -6,7 +6,7 @@ import { state } from '../core/state.js';
 import { downloadCSV, downloadJSON, openPrintableGuide, downloadUndoneTxt, copyUndoneToClipboard } from '../modules/export.js';
 import { wireCardPreview, refreshOpenPreview } from '../modules/card-preview.js';
 import {
-  handleDeckSubmit,
+  handleDeckFormSubmit,
   resetDeckForm,
   updateColorSwatchSelection,
   checkColorWarning,
@@ -14,11 +14,14 @@ import {
   syncCommanderFieldsFromText,
   applyCommanderFieldsToText,
   handleTwoCommandersToggle,
-  addCommanderRefs,
-  editCommanderRefs,
+  commanderRefs,
+  openAddDeckDialog,
+  closeDeckDialog,
+  endDeckFormSession,
+  handleChangeSlot,
 } from './deck-form.js';
-import { handleFileUpload, handleJsonImport, handleMoxfieldImport, handleEditFileUpload, handleEditUrlImport, openCubeDialog, handleLoadCube, updateCubeCapacity, setAllCubeTags, handleCreateCubePrism } from './deck-import.js';
-import { handleDeleteConfirm, handleEditConfirm, handleNewPrism, handleSplitConfirm, handleEditGroupConfirm, handleClearAllRemoved } from './deck-list.js';
+import { handleFileUpload, handleJsonImport, handleDeckUrlImport, openCubeDialog, handleLoadCube, updateCubeCapacity, setAllCubeTags, handleCreateCubePrism } from './deck-import.js';
+import { handleDeleteConfirm, handleNewPrism, handleSplitConfirm, handleEditGroupConfirm, handleClearAllRemoved } from './deck-list.js';
 import { renderResults } from './results.js';
 import { openScryMode } from './scry-mode.js';
 import { renderOverlapMatrix } from './analysis.js';
@@ -71,22 +74,29 @@ export function setupEventListeners() {
   state.elements.btnRenamePrism?.addEventListener('click', startRename);
   if (state.elements.prismOverflow) clickItemsOnKeyboardSelect(state.elements.prismOverflow);
 
-  // Deck form submission
+  // Deck form (#450): one form, Add or Edit by state.deckFormMode
   if (state.elements.deckForm) {
-    state.elements.deckForm.addEventListener('submit', handleDeckSubmit);
+    state.elements.deckForm.addEventListener('submit', handleDeckFormSubmit);
   }
 
   if (state.elements.btnResetForm) {
     state.elements.btnResetForm.addEventListener('click', resetDeckForm);
   }
+  state.elements.btnOpenAddDeck?.addEventListener('click', openAddDeckDialog);
+  state.elements.btnCancelDeckForm?.addEventListener('click', closeDeckDialog);
+  // Escape or the close button: drop whatever the session left pending.
+  // wa-hide bubbles from components inside the form, so check the target.
+  state.elements.deckDialog?.addEventListener('wa-hide', (e) => {
+    if (e.target === state.elements.deckDialog) endDeckFormSession();
+  });
+  state.elements.btnChangeSlot?.addEventListener('click', handleChangeSlot);
 
-  // Commander fields <-> decklist text sync (#147), Add form and Edit dialog
-  for (const refs of [addCommanderRefs(), editCommanderRefs()]) {
-    refs.textarea?.addEventListener('change', () => syncCommanderFieldsFromText(refs));
-    refs.field1?.addEventListener('change', () => applyCommanderFieldsToText(refs));
-    refs.field2?.addEventListener('change', () => applyCommanderFieldsToText(refs));
-    refs.toggle?.addEventListener('change', () => handleTwoCommandersToggle(refs));
-  }
+  // Commander fields <-> decklist text sync (#147)
+  const refs = commanderRefs();
+  refs.textarea?.addEventListener('change', () => syncCommanderFieldsFromText(refs));
+  refs.field1?.addEventListener('change', () => applyCommanderFieldsToText(refs));
+  refs.field2?.addEventListener('change', () => applyCommanderFieldsToText(refs));
+  refs.toggle?.addEventListener('change', () => handleTwoCommandersToggle(refs));
 
   // Dedicated commander copies — per-PRISM synced setting; write path per #145
   // (flag + its own merge timestamp + prism.updatedAt, mirroring mark-toggle)
@@ -113,9 +123,10 @@ export function setupEventListeners() {
     });
   }
 
-  // File upload (wa-file-input handles its own UI)
+  // File upload: the button opens the hidden native file input
   if (state.elements.deckFileInput) {
     state.elements.deckFileInput.addEventListener('change', handleFileUpload);
+    state.elements.btnDeckFile?.addEventListener('click', () => state.elements.deckFileInput.click());
   }
 
   // JSON import (wa-file-input handles its own UI); close the dialog once a file is chosen
@@ -158,19 +169,19 @@ export function setupEventListeners() {
     state.elements.cubeDialog?.removeAttribute('open');
   });
 
-  // Moxfield import
-  if (state.elements.btnImportMoxfield) {
-    state.elements.btnImportMoxfield.addEventListener('click', handleMoxfieldImport);
-  }
-  if (state.elements.moxfieldUrl) {
-    // Also allow pressing Enter to import
-    state.elements.moxfieldUrl.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') {
-        e.preventDefault();
-        handleMoxfieldImport();
-      }
-    });
-  }
+  // Deck URL import (Moxfield / Archidekt / DeckCheck)
+  state.elements.btnImportDeckUrl?.addEventListener('click', () => handleDeckUrlImport());
+  state.elements.btnRefreshSource?.addEventListener('click', () => {
+    const deck = state.currentPrism.decks.find((d) => d.id === state.deckToEdit);
+    if (deck?.sourceUrl) handleDeckUrlImport(deck.sourceUrl, state.elements.btnRefreshSource);
+  });
+  // Enter imports instead of submitting the form
+  state.elements.deckUrl?.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleDeckUrlImport();
+    }
+  });
 
   // SCRY-Mode launch
   if (state.elements.btnScry) {
@@ -296,40 +307,6 @@ export function setupEventListeners() {
   }
   if (state.elements.btnConfirmClearAllRemoved) {
     state.elements.btnConfirmClearAllRemoved.addEventListener('click', handleClearAllRemoved);
-  }
-
-  // Edit dialog
-  if (state.elements.btnCancelEdit) {
-    state.elements.btnCancelEdit.addEventListener('click', () => {
-      state.elements.editDialog.removeAttribute('open');
-    });
-  }
-  if (state.elements.btnConfirmEdit) {
-    state.elements.btnConfirmEdit.addEventListener('click', handleEditConfirm);
-  }
-
-  // Edit dialog file upload (wa-file-input handles its own UI)
-  if (state.elements.editDeckFileInput) {
-    state.elements.editDeckFileInput.addEventListener('change', handleEditFileUpload);
-  }
-
-  // Edit dialog URL import
-  if (state.elements.btnEditImportUrl) {
-    state.elements.btnEditImportUrl.addEventListener('click', () => handleEditUrlImport());
-  }
-  if (state.elements.btnEditRefreshSource) {
-    state.elements.btnEditRefreshSource.addEventListener('click', () => {
-      const deck = state.currentPrism.decks.find((d) => d.id === state.deckToEdit);
-      if (deck?.sourceUrl) handleEditUrlImport(deck.sourceUrl, state.elements.btnEditRefreshSource);
-    });
-  }
-  if (state.elements.editImportUrl) {
-    state.elements.editImportUrl.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') {
-        e.preventDefault();
-        handleEditUrlImport();
-      }
-    });
   }
 
   // Edit group dialog

@@ -75,6 +75,37 @@ wa-page[view='desktop'] [data-toggle-nav] {
   box-shadow: 0 0 0 2px var(--wa-color-brand-fill-subtle);
 }
 
+/* Custom color: the native picker, sized as one more swatch */
+.deck-color-custom {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 2px dashed var(--wa-color-neutral-border-normal);
+  border-radius: var(--wa-border-radius-s);
+  background: none;
+  cursor: pointer;
+}
+
+@media (pointer: coarse) {
+  .color-swatch,
+  .deck-color-custom {
+    width: 44px;
+    height: 44px;
+  }
+}
+
+/* In the dialog the actions stay in view while the decklist scrolls. Not on
+   phone, where the wrapped row would cover a quarter of the dialog. */
+@media (min-width: 640px) {
+  #deck-dialog .deck-form-actions {
+    position: sticky;
+    bottom: calc(var(--wa-space-l) * -1);
+    padding-block: var(--wa-space-s);
+    background: var(--wa-color-surface-raised);
+    z-index: 1;
+  }
+}
+
 /* ============================================================================
    Deck Color Indicators
    ============================================================================ */

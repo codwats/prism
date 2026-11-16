@@ -15,8 +15,7 @@ import { escapeHtml } from '../core/utils.js';
 import {
   initColorSwatches,
   syncCommanderFieldsFromText,
-  addCommanderRefs,
-  editCommanderRefs,
+  commanderRefs,
 } from './deck-form.js';
 import { renderAll } from './init.js';
 
@@ -46,12 +45,16 @@ export function handleFileUpload(e) {
   const reader = new FileReader();
   reader.onload = (event) => {
     const content = event.target.result;
+    // An import still in flight must not overwrite the uploaded list
+    cancelDeckUrlImport();
     if (state.elements.deckList) state.elements.deckList.value = content;
-    state.addSourceUrl = null; // the list no longer comes from the imported URL
+    // The list no longer comes from the imported URL
+    if (state.deckFormMode === 'edit') state.editSourceUrl = null;
+    else state.addSourceUrl = null;
     // Programmatic .value writes fire no change event — sync fields explicitly
-    syncCommanderFieldsFromText(addCommanderRefs());
+    syncCommanderFieldsFromText(commanderRefs());
 
-    if (state.elements.deckName && !state.elements.deckName.value) {
+    if (state.deckFormMode !== 'edit' && state.elements.deckName && !state.elements.deckName.value) {
       const nameWithoutExt = file.name.replace(/\.(txt|dec|dek|mwDeck)$/i, '');
       state.elements.deckName.value = nameWithoutExt;
     }
@@ -64,25 +67,6 @@ export function handleFileUpload(e) {
   // Clear the selection so re-uploading the same file (e.g. after hand-editing
   // the textarea) fires another change event. FileReader keeps its own
   // reference to `file`, so clearing now doesn't abort the read.
-  resetFileInput(e.target);
-}
-
-export function handleEditFileUpload(e) {
-  const file = e.target.files?.[0];
-  if (!file) return;
-
-  const reader = new FileReader();
-  reader.onload = (event) => {
-    const content = event.target.result;
-    cancelEditUrlImport();
-    if (state.elements.editDeckList) state.elements.editDeckList.value = content;
-    state.editSourceUrl = null;
-    syncCommanderFieldsFromText(editCommanderRefs());
-    showSuccess(`Loaded ${file.name}`);
-  };
-
-  reader.onerror = () => showError('Failed to read file. Please try again.');
-  reader.readAsText(file);
   resetFileInput(e.target);
 }
 
@@ -245,85 +229,63 @@ export function handleJsonImport(e) {
 }
 
 // ============================================================================
-// Moxfield / Archidekt URL Import
+// Deck URL Import (Moxfield / Archidekt / DeckCheck)
 // ============================================================================
 
-export async function handleMoxfieldImport() {
-  const urlOrId = state.elements.moxfieldUrl?.value?.trim();
+let importGeneration = 0; // a response from an older import or form session is ignored
+
+/** Drop any in-flight import: a new form session, a reset or a file upload supersedes it. */
+export function cancelDeckUrlImport() {
+  importGeneration++;
+  if (state.elements?.btnImportDeckUrl) state.elements.btnImportDeckUrl.loading = false;
+  if (state.elements?.btnRefreshSource) state.elements.btnRefreshSource.loading = false;
+}
+
+/**
+ * Fill the deck form from a deck URL. Add mode fills name, bracket and list
+ * and leaves the URL pending in state.addSourceUrl; edit mode replaces only
+ * the list and leaves it in state.editSourceUrl. Each save reads only its
+ * own (#377). Also the edit form's "Refresh from saved link", passing
+ * deck.sourceUrl.
+ */
+export async function handleDeckUrlImport(urlOrId = state.elements.deckUrl?.value?.trim(), btn = state.elements.btnImportDeckUrl) {
   if (!urlOrId) {
-    showMoxfieldError('Please enter a deck URL.');
+    showImportError('Please enter a deck URL.');
     return;
   }
 
-  hideMoxfieldMessages();
-  const btn = state.elements.btnImportMoxfield;
+  hideImportMessages();
+  const generation = ++importGeneration;
+  const editing = state.deckFormMode === 'edit';
   if (btn) btn.loading = true;
 
   try {
     const { serviceName, deckData } = await resolveDeckSource(urlOrId);
+    if (generation !== importGeneration) return;
 
-    if (state.elements.deckName) state.elements.deckName.value = deckData.name || '';
-    if (deckData.bracket && state.elements.deckBracket) state.elements.deckBracket.value = String(deckData.bracket);
+    if (!editing) {
+      if (state.elements.deckName) state.elements.deckName.value = deckData.name || '';
+      if (deckData.bracket && state.elements.deckBracket) state.elements.deckBracket.value = String(deckData.bracket);
+    }
     if (state.elements.deckList) state.elements.deckList.value = toDecklistText(deckData);
-    state.addSourceUrl = deckData.sourceUrl || null;
+    if (editing) state.editSourceUrl = deckData.sourceUrl || null;
+    else state.addSourceUrl = deckData.sourceUrl || null;
     // Commander fields auto-fill from the text's Commander section (#147)
-    syncCommanderFieldsFromText(addCommanderRefs());
+    syncCommanderFieldsFromText(commanderRefs());
 
-    logToSupabase('info', 'url_import', { service: serviceName, name: deckData.name, cardCount: deckData.cards.length });
-    showMoxfieldSuccess(`Imported "${deckData.name}" from ${serviceName} (${deckData.cards.length} cards). Review the form and click "Add Deck" to save.`);
+    if (!editing) logToSupabase('info', 'url_import', { service: serviceName, name: deckData.name, cardCount: deckData.cards.length });
+    showImportSuccess(editing
+      ? `Imported "${deckData.name}" from ${serviceName} (${deckData.cards.length} cards). Review and select "Save changes" to update.`
+      : `Imported "${deckData.name}" from ${serviceName} (${deckData.cards.length} cards). Review the form and select "Add deck" to save.`);
 
-    if (state.elements.moxfieldUrl) state.elements.moxfieldUrl.value = '';
-    if (state.elements.moxfieldImportSection) state.elements.moxfieldImportSection.open = false;
-
+    if (state.elements.deckUrl) state.elements.deckUrl.value = '';
   } catch (err) {
+    if (generation !== importGeneration) return;
     console.error('Deck import error:', err);
-    logToSupabase('error', 'url_import_failed', { error: err.message });
-    showMoxfieldError(err.message || 'Failed to import deck.');
+    if (!editing) logToSupabase('error', 'url_import_failed', { error: err.message });
+    showImportError(err.message || 'Failed to import deck.');
   } finally {
-    if (btn) btn.loading = false;
-  }
-}
-
-// Edit dialog URL import
-let editImportGeneration = 0; // a response from an older import or edit session is ignored
-
-/** Drop any in-flight edit import: a new edit session or a file upload supersedes it. */
-export function cancelEditUrlImport() {
-  editImportGeneration++;
-  if (state.elements.btnEditImportUrl) state.elements.btnEditImportUrl.loading = false;
-  if (state.elements.btnEditRefreshSource) state.elements.btnEditRefreshSource.loading = false;
-}
-
-// Also the edit dialog's "Refresh from saved link", passing deck.sourceUrl
-export async function handleEditUrlImport(urlOrId = state.elements.editImportUrl?.value?.trim(), btn = state.elements.btnEditImportUrl) {
-  if (!urlOrId) {
-    showEditImportError('Please enter a deck URL.');
-    return;
-  }
-
-  hideEditImportMessages();
-  const generation = ++editImportGeneration;
-  if (btn) btn.loading = true;
-
-  try {
-    const { serviceName, deckData } = await resolveDeckSource(urlOrId);
-    if (generation !== editImportGeneration) return;
-
-    if (state.elements.editDeckList) state.elements.editDeckList.value = toDecklistText(deckData);
-    state.editSourceUrl = deckData.sourceUrl || null;
-    syncCommanderFieldsFromText(editCommanderRefs());
-
-    showEditImportSuccess(`Imported "${deckData.name}" from ${serviceName} (${deckData.cards.length} cards). Review and click "Save Changes" to update.`);
-
-    if (state.elements.editImportUrl) state.elements.editImportUrl.value = '';
-    if (state.elements.editImportSection) state.elements.editImportSection.open = false;
-
-  } catch (err) {
-    if (generation !== editImportGeneration) return;
-    console.error('Edit deck import error:', err);
-    showEditImportError(err.message || 'Failed to import deck.');
-  } finally {
-    if (btn && generation === editImportGeneration) btn.loading = false;
+    if (btn && generation === importGeneration) btn.loading = false;
   }
 }
 
@@ -331,32 +293,17 @@ export async function handleEditUrlImport(urlOrId = state.elements.editImportUrl
 // Import message helpers
 // ============================================================================
 
-function showMoxfieldError(message) {
-  if (state.elements.moxfieldError) { state.elements.moxfieldError.textContent = message; state.elements.moxfieldError.hidden = false; }
-  if (state.elements.moxfieldSuccess) state.elements.moxfieldSuccess.hidden = true;
+function showImportError(message) {
+  if (state.elements.deckUrlError) { state.elements.deckUrlError.textContent = message; state.elements.deckUrlError.hidden = false; }
+  if (state.elements.deckUrlSuccess) state.elements.deckUrlSuccess.hidden = true;
 }
 
-function showMoxfieldSuccess(message) {
-  if (state.elements.moxfieldSuccess) { state.elements.moxfieldSuccess.textContent = message; state.elements.moxfieldSuccess.hidden = false; }
-  if (state.elements.moxfieldError) state.elements.moxfieldError.hidden = true;
+function showImportSuccess(message) {
+  if (state.elements.deckUrlSuccess) { state.elements.deckUrlSuccess.textContent = message; state.elements.deckUrlSuccess.hidden = false; }
+  if (state.elements.deckUrlError) state.elements.deckUrlError.hidden = true;
 }
 
-function hideMoxfieldMessages() {
-  if (state.elements.moxfieldError) state.elements.moxfieldError.hidden = true;
-  if (state.elements.moxfieldSuccess) state.elements.moxfieldSuccess.hidden = true;
-}
-
-function showEditImportError(message) {
-  if (state.elements.editImportError) { state.elements.editImportError.textContent = message; state.elements.editImportError.hidden = false; }
-  if (state.elements.editImportSuccess) state.elements.editImportSuccess.hidden = true;
-}
-
-function showEditImportSuccess(message) {
-  if (state.elements.editImportSuccess) { state.elements.editImportSuccess.textContent = message; state.elements.editImportSuccess.hidden = false; }
-  if (state.elements.editImportError) state.elements.editImportError.hidden = true;
-}
-
-export function hideEditImportMessages() {
-  if (state.elements.editImportError) state.elements.editImportError.hidden = true;
-  if (state.elements.editImportSuccess) state.elements.editImportSuccess.hidden = true;
+export function hideImportMessages() {
+  if (state.elements?.deckUrlError) state.elements.deckUrlError.hidden = true;
+  if (state.elements?.deckUrlSuccess) state.elements.deckUrlSuccess.hidden = true;
 }

@@ -1,5 +1,7 @@
 /**
- * Deck form: add deck submission, color swatches, form reset, parse errors.
+ * The deck form (#450): one form for Add and Edit, switched by
+ * state.deckFormMode. Inline on the empty Decks tab, else in #deck-dialog.
+ * Add submission, color swatches, slot row, form reset, parse errors.
  */
 
 import { state } from "../core/state.js";
@@ -20,6 +22,7 @@ import {
   getColorName,
   isNameTaken,
   nameTakenMessage,
+  formatSlotLabel,
 } from "../modules/processor.js";
 import { savePrism, recordUnmarkedCards } from "../modules/storage.js";
 import { canonicalizeCards } from "../modules/scryfall.js";
@@ -27,9 +30,157 @@ import {
   getMarkTallies,
   unmarkCardsWithNewStripes,
   autoClearRemovedCards,
+  handleEditConfirm,
 } from "./deck-list.js";
-import { resetFileInput } from "./deck-import.js";
+import { resetFileInput, cancelDeckUrlImport, hideImportMessages } from "./deck-import.js";
 import { renderAll } from "./init.js";
+import { openStripeReorderDialog, openGroupReorderDialog } from "./stripe-reorder-dialog.js";
+
+const SLOTS_FULL_MESSAGE = `All ${MAX_STRIPE_SLOTS} slots in this PRISM carry a mark. Remove a deck to free one, or start another PRISM.`;
+
+// ============================================================================
+// Mode, placement and the dialog
+// ============================================================================
+
+/**
+ * Close or cancel: nothing pending survives into the next session. An Add
+ * import never reaches an Edit save or the reverse (#377), and an import
+ * still in flight is dropped.
+ */
+export function endDeckFormSession() {
+  cancelDeckUrlImport();
+  state.deckFormMode = "add";
+  state.deckToEdit = null;
+  state.addSourceUrl = null;
+  state.editSourceUrl = null;
+}
+
+/** Start a session in `mode` ('add' | 'edit'; edit needs deckId) and relabel the form. */
+export function setDeckFormMode(mode, deckId = null) {
+  endDeckFormSession();
+  state.deckFormMode = mode;
+  state.deckToEdit = mode === "edit" ? deckId : null;
+
+  const els = state.elements;
+  const editing = mode === "edit";
+  const deck = editing ? state.currentPrism.decks.find((d) => d.id === deckId) : null;
+  els.deckDialog?.setAttribute("label", editing ? "Edit deck" : "Add a deck");
+  if (els.deckSubmitLabel) els.deckSubmitLabel.textContent = editing ? "Save changes" : "Add deck";
+  els.deckSubmitIcon?.setAttribute("name", editing ? "check" : "plus");
+  if (els.btnResetForm) els.btnResetForm.hidden = editing;
+  if (els.deckUrlHint) {
+    els.deckUrlHint.textContent = editing
+      ? "The deck must be public. Import replaces the list and keeps the name and color."
+      : "The deck must be public. Import fills in the name, commander, bracket and list.";
+  }
+  if (els.btnRefreshSource) {
+    els.btnRefreshSource.hidden = !deck?.sourceUrl;
+    els.btnRefreshSource.title = deck?.sourceUrl || "";
+  }
+  if (els.deckListUpdated) els.deckListUpdated.hidden = !editing;
+  renderDeckFormSlot();
+}
+
+export function openAddDeckDialog() {
+  if (getUsedPositions(state.currentPrism).size >= MAX_STRIPE_SLOTS) {
+    showError(SLOTS_FULL_MESSAGE);
+    return;
+  }
+  setDeckFormMode("add");
+  resetDeckForm();
+  state.elements.deckDialog?.setAttribute("open", "");
+}
+
+export function closeDeckDialog() {
+  state.elements.deckDialog?.removeAttribute("open");
+  endDeckFormSession();
+}
+
+/**
+ * The form is inline only while the PRISM has no deck; otherwise it lives
+ * in the dialog behind the Add deck button. Runs on every renderAll.
+ */
+export function placeDeckForm() {
+  const els = state.elements;
+  const empty = (state.currentPrism?.decks || []).length === 0;
+  if (els.addDeckCard) els.addDeckCard.style.display = empty ? "" : "none";
+  if (els.addDeckBar) els.addDeckBar.style.display = empty ? "none" : "";
+  if (els.btnCancelDeckForm) els.btnCancelDeckForm.hidden = empty;
+
+  const host = empty ? els.deckFormInlineHost : els.deckDialog;
+  if (els.deckForm && host && els.deckForm.parentElement !== host) {
+    host.append(els.deckForm);
+    if (empty) {
+      // The PRISM emptied (last deck deleted, sync, switch): a fresh add form
+      els.deckDialog?.removeAttribute("open");
+      setDeckFormMode("add");
+      resetDeckForm();
+    }
+  }
+  renderDeckFormSlot();
+}
+
+/**
+ * Where the form's deck sits, and what Change opens. Add mode shows the next
+ * free slot with Change off: the deck has no id to move until it is added
+ * (#450, no logic change). A dot variant owns no slot, so it shows its
+ * group's slot and Change moves the group.
+ */
+export function deckFormSlot(prism, mode, deckId) {
+  if (mode !== "edit") {
+    const next = getNextStripePosition(prism);
+    return next === null
+      ? { label: "No free slot", hint: "Every slot carries a mark. Remove a deck to free one.", change: null }
+      : { label: formatSlotLabel(next), hint: "The deck takes the next free slot. You can change it after you add the deck.", change: null };
+  }
+  const deck = prism.decks.find((d) => d.id === deckId);
+  if (!deck) return { label: "", hint: "", change: null };
+  const group = deck.splitGroupId ? (prism.splitGroups || []).find((g) => g.id === deck.splitGroupId) : null;
+  if (group && (group.splitStyle || "stripes") === "dots") {
+    return {
+      label: formatSlotLabel(group.sideAPosition, "a"),
+      hint: `Dot variants share the slot of "${group.name}". Change moves the whole group.`,
+      change: { groupId: group.id },
+    };
+  }
+  return { label: formatSlotLabel(deck.stripePosition), hint: "", change: { deckId: deck.id } };
+}
+
+export function renderDeckFormSlot() {
+  const els = state.elements;
+  if (!els?.deckSlotLabel || !state.currentPrism) return;
+  const slot = deckFormSlot(state.currentPrism, state.deckFormMode, state.deckToEdit);
+  els.deckSlotLabel.textContent = slot.label;
+  if (els.deckSlotHint) {
+    els.deckSlotHint.textContent = slot.hint;
+    els.deckSlotHint.hidden = !slot.hint;
+  }
+  if (els.btnChangeSlot) els.btnChangeSlot.disabled = !slot.change;
+}
+
+export function handleChangeSlot() {
+  const { change } = deckFormSlot(state.currentPrism, state.deckFormMode, state.deckToEdit);
+  if (change?.groupId) openGroupReorderDialog(change.groupId);
+  else if (change?.deckId) openStripeReorderDialog(change.deckId);
+}
+
+let _saving = false;
+
+/** The form's one submit: Add or Save changes by mode. */
+export async function handleDeckFormSubmit(e) {
+  if (e) {
+    e.preventDefault();
+    e.stopPropagation();
+  }
+  if (_saving) return;
+  _saving = true;
+  try {
+    if (state.deckFormMode === "edit") await handleEditConfirm();
+    else await handleDeckSubmit();
+  } finally {
+    _saving = false;
+  }
+}
 
 // ============================================================================
 // Color Swatches
@@ -58,6 +209,8 @@ export function initColorSwatches() {
 
     state.elements.colorSwatches.appendChild(swatch);
   });
+  // The custom picker ends the row (the innerHTML reset above detached it)
+  if (state.elements.deckColor) state.elements.colorSwatches.appendChild(state.elements.deckColor);
 
   // Set initial color
   const nextColor = getNextColor(state.currentPrism);
@@ -67,6 +220,10 @@ export function initColorSwatches() {
 
 export function updateColorSwatchSelection() {
   const selectedColor = state.elements.deckColor.value.toUpperCase();
+  if (state.elements.deckColorName) {
+    const name = getColorName(selectedColor);
+    state.elements.deckColorName.textContent = name.toUpperCase() === selectedColor ? "Custom" : name;
+  }
 
   state.elements.colorSwatches
     .querySelectorAll(".color-swatch")
@@ -101,21 +258,12 @@ function getInputValue(element) {
   return "";
 }
 
-export function addCommanderRefs() {
+export function commanderRefs() {
   return {
     textarea: state.elements.deckList,
     field1: state.elements.deckCommander,
     field2: state.elements.deckCommander2,
     toggle: state.elements.deckTwoCommanders,
-  };
-}
-
-export function editCommanderRefs() {
-  return {
-    textarea: state.elements.editDeckList,
-    field1: state.elements.editDeckCommander,
-    field2: state.elements.editDeckCommander2,
-    toggle: state.elements.editDeckTwoCommanders,
   };
 }
 
@@ -193,7 +341,7 @@ export async function handleDeckSubmit(e) {
 
   // Spinner while card names are canonicalized via Scryfall — the await below
   // is network-bound and can exceed 300ms with no other feedback.
-  const submitBtn = state.elements.btnAddDeck;
+  const submitBtn = state.elements.btnSubmitDeck;
   submitBtn?.setAttribute("loading", "");
 
   try {
@@ -202,13 +350,13 @@ export async function handleDeckSubmit(e) {
     // Check slot limit — a new standalone deck consumes one of the 48 physical
     // stripe slots (dot variants don't own a slot, so they're excluded here).
     if (getUsedPositions(state.currentPrism).size >= MAX_STRIPE_SLOTS) {
-      showError(`All ${MAX_STRIPE_SLOTS} slots in this PRISM carry a mark. Remove a deck to free one, or start another PRISM.`);
+      showError(SLOTS_FULL_MESSAGE);
       return;
     }
 
     // Fields → text once at save entry (idempotent) so a commander typed
     // without blurring still lands in the Commander section (#147)
-    applyCommanderFieldsToText(addCommanderRefs());
+    applyCommanderFieldsToText(commanderRefs());
 
     const name = getInputValue(state.elements.deckName);
     const commander = getInputValue(state.elements.deckCommander);
@@ -324,9 +472,10 @@ export async function handleDeckSubmit(e) {
     debugLog("PRISM: Deck added:", deck.name);
     logToSupabase('info', 'deck_added', { name: deck.name, commander: commanderNames(deck).join(' / '), bracket: deck.bracket, cardCount: parseResult.uniqueCards });
 
-    // Reset form and re-render
+    // Reset form and re-render; the first deck moves the form into the dialog
     resetDeckForm();
     renderAll();
+    closeDeckDialog();
 
     // Show success feedback
     let message = `Added "${name}" with ${parseResult.uniqueCards} cards.`;
@@ -349,7 +498,11 @@ export async function handleDeckSubmit(e) {
 
 export function resetDeckForm() {
   state.addSourceUrl = null;
+  cancelDeckUrlImport();
+  hideImportMessages();
   if (state.elements.deckForm) state.elements.deckForm.reset();
+  if (state.elements.deckUrl) state.elements.deckUrl.value = "";
+  if (state.elements.deckListUpdated) state.elements.deckListUpdated.textContent = "";
   if (state.elements.deckName) state.elements.deckName.value = "";
   if (state.elements.deckCommander) {
     state.elements.deckCommander.value = "";
@@ -381,7 +534,8 @@ export function checkColorWarning() {
   const color = state.elements.deckColor?.value;
   if (!color) return;
 
-  const existingDeck = isColorUsed(state.currentPrism, color);
+  // Editing: the deck's own color is not a clash
+  const existingDeck = isColorUsed(state.currentPrism, color, state.deckToEdit);
   if (existingDeck) {
     showColorWarning(`This color is already used by "${existingDeck.name}".`);
   } else {

@@ -8,7 +8,7 @@ import { createPrism, getUsedPositions, MAX_STRIPE_SLOTS, applyCommanderFallback
 import { getCurrentPrism, savePrism, setCurrentPrism, getPreferences, onSyncStatusChange, forceSyncCurrentPrism, getAllPrisms, isCloudWritePaused, getLastCloudSyncDate, isPrismLocalOnly } from '../modules/storage.js';
 import { startAuth, getCurrentUser, onAuthChange } from '../modules/auth.js';
 import { logToSupabase } from '../modules/supabase-client.js';
-import { initColorSwatches } from './deck-form.js';
+import { initColorSwatches, placeDeckForm } from './deck-form.js';
 import { renderDecksList, handleSwitchPrism } from './deck-list.js';
 import { setupStripeReorderDialog } from './stripe-reorder-dialog.js';
 import { setupScryMode } from './scry-mode.js';
@@ -32,29 +32,44 @@ function getElements() {
     // Tabs
     mainTabs: document.getElementById('main-tabs'),
 
-    // Deck form
+    // Deck form (#450): one form for Add and Edit
     deckForm: document.getElementById('deck-form'),
+    deckFormInlineHost: document.getElementById('deck-form-inline-host'),
+    addDeckCard: document.getElementById('add-deck-card'),
+    addDeckBar: document.getElementById('add-deck-bar'),
+    btnOpenAddDeck: document.getElementById('btn-open-add-deck'),
+    deckDialog: document.getElementById('deck-dialog'),
     deckName: document.getElementById('deck-name'),
     deckCommander: document.getElementById('deck-commander'),
     deckCommander2: document.getElementById('deck-commander-2'),
     deckTwoCommanders: document.getElementById('deck-two-commanders'),
     deckBracket: document.getElementById('deck-bracket'),
     deckColor: document.getElementById('deck-color'),
+    deckColorName: document.getElementById('deck-color-name'),
     deckList: document.getElementById('deck-list'),
+    deckListUpdated: document.getElementById('deck-list-updated'),
     deckFileInput: document.getElementById('deck-file-input'),
+    btnDeckFile: document.getElementById('btn-deck-file'),
     dedicatedCommanderToggle: document.getElementById('dedicated-commander-copies'),
     colorSwatches: document.getElementById('color-swatches'),
     colorWarning: document.getElementById('color-warning'),
     parseErrors: document.getElementById('parse-errors'),
-    btnAddDeck: document.getElementById('btn-add-deck'),
+    deckSlotLabel: document.getElementById('deck-slot-label'),
+    deckSlotHint: document.getElementById('deck-slot-hint'),
+    btnChangeSlot: document.getElementById('btn-change-slot'),
+    btnSubmitDeck: document.getElementById('btn-submit-deck'),
+    deckSubmitLabel: document.getElementById('deck-submit-label'),
+    deckSubmitIcon: document.getElementById('deck-submit-icon'),
     btnResetForm: document.getElementById('btn-reset-form'),
+    btnCancelDeckForm: document.getElementById('btn-cancel-deck-form'),
 
-    // Moxfield import
-    moxfieldUrl: document.getElementById('moxfield-url'),
-    btnImportMoxfield: document.getElementById('btn-import-moxfield'),
-    moxfieldError: document.getElementById('moxfield-error'),
-    moxfieldSuccess: document.getElementById('moxfield-success'),
-    moxfieldImportSection: document.getElementById('moxfield-import-section'),
+    // Deck URL import
+    deckUrl: document.getElementById('deck-url'),
+    deckUrlHint: document.getElementById('deck-url-hint'),
+    btnImportDeckUrl: document.getElementById('btn-import-deck-url'),
+    btnRefreshSource: document.getElementById('btn-refresh-source'),
+    deckUrlError: document.getElementById('deck-url-error'),
+    deckUrlSuccess: document.getElementById('deck-url-success'),
 
     // Decks list
     decksList: document.getElementById('decks-list'),
@@ -125,31 +140,6 @@ function getElements() {
     clearAllRemovedCount: document.getElementById('clear-all-removed-count'),
     btnCancelClearAllRemoved: document.getElementById('btn-cancel-clear-all-removed'),
     btnConfirmClearAllRemoved: document.getElementById('btn-confirm-clear-all-removed'),
-
-    // Edit dialog
-    editDialog: document.getElementById('edit-dialog'),
-    editDeckForm: document.getElementById('edit-deck-form'),
-    editDeckId: document.getElementById('edit-deck-id'),
-    editDeckName: document.getElementById('edit-deck-name'),
-    editDeckCommander: document.getElementById('edit-deck-commander'),
-    editDeckCommander2: document.getElementById('edit-deck-commander-2'),
-    editDeckTwoCommanders: document.getElementById('edit-deck-two-commanders'),
-    editDeckBracket: document.getElementById('edit-deck-bracket'),
-    editDeckColor: document.getElementById('edit-deck-color'),
-    editDeckList: document.getElementById('edit-deck-list'),
-    editDeckListUpdated: document.getElementById('edit-deck-list-updated'),
-    editDeckFileInput: document.getElementById('edit-deck-file-input'),
-    editParseErrors: document.getElementById('edit-parse-errors'),
-    btnCancelEdit: document.getElementById('btn-cancel-edit'),
-    btnConfirmEdit: document.getElementById('btn-confirm-edit'),
-
-    // Edit dialog URL import
-    editImportSection: document.getElementById('edit-import-section'),
-    editImportUrl: document.getElementById('edit-import-url'),
-    btnEditImportUrl: document.getElementById('btn-edit-import-url'),
-    btnEditRefreshSource: document.getElementById('btn-edit-refresh-source'),
-    editImportError: document.getElementById('edit-import-error'),
-    editImportSuccess: document.getElementById('edit-import-success'),
 
     // Edit group dialog
     editGroupDialog: document.getElementById('edit-group-dialog'),
@@ -268,6 +258,7 @@ export function renderAll() {
     state.elements.dedicatedCommanderToggle.checked = !!state.currentPrism?.useDedicatedCommanderCopies;
   }
   renderDecksList();
+  placeDeckForm();
   renderResults();
   renderExport();
   updateRemovedFilterBadge();
