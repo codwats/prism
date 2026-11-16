@@ -592,7 +592,7 @@
         <p class="wa-caption-m" style="color: var(--wa-color-neutral-text-subtle); margin: 0;">
           Import a previously exported PRISM JSON file to restore your decks and settings. This replaces the current PRISM.
         </p>
-        <wa-file-input id="prism-json-input" accept=".json" label="Import File" hint="Drag & drop or click to select your exported .json file" size="s"></wa-file-input>
+        <wa-file-input id="prism-json-input" accept=".json" label="Import file" hint="Drag & drop or click to select your exported .json file" size="s"></wa-file-input>
       </div>
       <div slot="footer" class="wa-cluster wa-gap-s">
         <wa-button id="btn-cancel-import" variant="neutral" appearance="outlined">Cancel</wa-button>
@@ -623,7 +623,7 @@
     </wa-dialog>
 
     <!-- Delete Confirmation Dialog -->
-    <wa-dialog id="delete-dialog" label="Delete Deck">
+    <wa-dialog id="delete-dialog" label="Delete deck">
       <p>Are you sure you want to delete <strong id="delete-deck-name"></strong>?</p>
       <p style="color: var(--wa-color-neutral-text-subtle);">This action cannot be undone. Its marks move to Marks to Clear.</p>
       <div slot="footer" class="wa-cluster wa-gap-s">
@@ -633,7 +633,7 @@
     </wa-dialog>
 
     <!-- New PRISM Confirmation Dialog -->
-    <wa-dialog id="new-prism-dialog" label="Create New PRISM">
+    <wa-dialog id="new-prism-dialog" label="Create new PRISM">
       <p>This will create a new empty PRISM and switch you to it.</p>
       <p style="color: var(--wa-color-neutral-text-subtle);">
         <strong id="new-prism-current-name">Your current PRISM</strong> is saved on this device. To come back to it,
@@ -675,7 +675,7 @@
     <wa-dialog id="deck-dialog" label="Add a deck" style="--width: min(640px, 92vw);"></wa-dialog>
 
     <!-- Split Deck Dialog -->
-    <wa-dialog id="split-dialog" label="Split Deck" style="--width: min(450px, 92vw);">
+    <wa-dialog id="split-dialog" label="Split deck" style="--width: min(450px, 92vw);">
       <div class="wa-stack wa-gap-m">
         <p class="wa-body-m">Split "<strong id="split-deck-name"></strong>" into multiple variants?</p>
         <p class="wa-caption-m" style="color: var(--wa-color-neutral-text-subtle);">
@@ -700,16 +700,16 @@
         <wa-button id="btn-cancel-split" variant="neutral" appearance="outlined">Cancel</wa-button>
         <wa-button id="btn-confirm-split" variant="brand">
           <wa-icon slot="start" name="code-branch"></wa-icon>
-          Split Deck
+          Split deck
         </wa-button>
       </div>
     </wa-dialog>
 
     <!-- Edit Group Dialog -->
-    <wa-dialog id="edit-group-dialog" label="Edit Group" style="--width: min(420px, 92vw);">
+    <wa-dialog id="edit-group-dialog" label="Edit group" style="--width: min(420px, 92vw);">
       <div class="wa-stack wa-gap-l">
         <input type="hidden" id="edit-group-id" />
-        <wa-input id="edit-group-name" label="Group Name" required></wa-input>
+        <wa-input id="edit-group-name" label="Group name" required></wa-input>
         <div class="wa-stack wa-gap-xs">
           <label class="wa-caption-m" for="edit-group-color">Shared Stripe Color</label>
           <wa-color-picker id="edit-group-color" format="hex" no-format-toggle></wa-color-picker>

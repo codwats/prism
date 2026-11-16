@@ -818,6 +818,25 @@ wa-page[view='desktop'] [data-toggle-nav] {
 .deck-row-main {
   min-inline-size: 0;
   flex: 1 1 auto;
+  flex-wrap: nowrap;
+}
+
+.deck-row-main > .wa-stack {
+  flex: 1 1 0;
+  min-inline-size: 0;
+}
+
+/* Phone: three 38px actions leave the name block ~90px, so they drop to their own line, still at the right edge */
+@media (max-width: 640px) {
+  .deck-row {
+    flex-wrap: wrap;
+  }
+  .deck-row-main {
+    flex-basis: 100%;
+  }
+  .deck-row-actions {
+    margin-inline-start: auto;
+  }
 }
 
 .deck-row-actions {

@@ -109,7 +109,10 @@ export function placeDeckForm() {
 
   const host = empty ? els.deckFormInlineHost : els.deckDialog;
   if (els.deckForm && host && els.deckForm.parentElement !== host) {
+    const hadFocus = els.deckForm.contains(document.activeElement);
     host.append(els.deckForm);
+    // First inline add moves the form into the closed dialog; keep keyboard focus on the page
+    if (!empty && hadFocus) els.btnOpenAddDeck?.focus();
     if (empty) {
       // The PRISM emptied (last deck deleted, sync, switch): a fresh add form
       els.deckDialog?.removeAttribute("open");
