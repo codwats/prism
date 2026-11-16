@@ -278,3 +278,5 @@ Still open, needs the owner:
 - Real touch device for the 44px and 52px coarse-pointer rules; a screen reader pass.
 - Signed-in session: account menu, a sync round trip with bulk mark, clear and an audit.
 - Printable guide copy still has an em-dash and Title Case headings ("Deck Legend", "Card Marking Guide"); outside the mockups, left as is.
+
+- **Guide step bar (#475).** Not checked in a browser (extension not connected), so layout is unverified at 375px and 1280px. Two navs, one source: the phone and tablet bar (`#step-bar`, still the `wa-page` subheader) and a sticky "On this page" list (`#step-list`) in a right column at 1024px and up, built by script from the chips so labels live once. The bar hides its scrollbar, ends in a mask fade instead of the chevron patch, and scrolls itself (not the page) to center the active chip. Labels are shortened and numbered. Section ids and `scroll-margin-top` are unchanged. Open: the subheader slot may still reserve space when its nav is `display: none` on desktop; the sticky list's `top: 6rem` is a guess at the header height.
