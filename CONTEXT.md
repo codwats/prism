@@ -80,6 +80,11 @@ The build page tab where the player marks sleeves: the card table with its Marks
 _Avoid_: Results, Results tab
 _In code_: the tab panel is still `results` (`#results` deep link, `results.js`, `renderResults`). The mismatch is deliberate; the tab label is the one to use in reader-facing prose.
 
+**Audit**:
+A second pass over the rows the player ticked Done, checking each painted sleeve against its marks: Matches or Wrong per row, then a list of the wrong rows with their legend so the player can fix the paint. It walks the done rows shown, never unticks a Done mark, and lives on this device only, never in the PRISM or its sync.
+_Avoid_: review, verify, check pass
+_In code_: `js/features/audit.js`, stored under the `prism_audit_<prismId>` localStorage key.
+
 **Mark to clear**:
 A mark on a sleeve for a deck that no longer needs the card. Arises when a card leaves a decklist or its quantity drops, or when a split variant's child mark stops being needed while the variant keeps the card (another variant gained it, so the card is shared by every variant). A card leaving a variant whose child mark was never painted leaves nothing to clear. Lowercase in prose; the Mark sleeves view switch reads **Marks to Clear**. Named for the job, not the state: "stale mark" left players and partners asking what it meant.
 _Avoid_: stale mark, removed card, pending removal

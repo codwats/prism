@@ -525,6 +525,11 @@
                         Clear marks on all shown
                       </wa-dropdown-item>
                     </wa-dropdown>
+                    <!-- Audit (#457): a device-only second pass over the done rows shown (audit.js). Hidden in Marks to Clear. -->
+                    <wa-button id="btn-audit" appearance="outlined" variant="neutral" size="s" data-phone-slot="sheet" data-phone-order="60">
+                      <wa-icon slot="start" name="clipboard-check"></wa-icon>
+                      Audit marks
+                    </wa-button>
                     <!-- Opens SCRY-Mode (hidden in Marks to Clear). On phone it moves to the bottom bar. -->
                     <wa-button id="btn-scry" appearance="filled" variant="brand" size="s" data-phone-slot="bar">
                       <wa-icon slot="start" name="expand"></wa-icon>
