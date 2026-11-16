@@ -116,35 +116,48 @@ export function autoClearRemovedCards(newCards) {
 // ============================================================================
 
 export function setCardMarked(cardKey, marked) {
-  if (!cardKey || !state.currentPrism) return;
-  if (!state.currentPrism.markedCards) state.currentPrism.markedCards = [];
+  setCardsMarked([cardKey], marked);
+}
 
-  const single = state.processedCards?.find((c) => c.name === cardKey && c.batches?.length === 1);
-  const keys = single ? [cardKey, single.batches[0].key] : [cardKey];
-  if (marked) {
-    if (!state.currentPrism.markedCards.includes(cardKey)) {
-      // GA-only funnel step (visit → deck → first mark → export); too chatty
-      // for app_logs rows.
-      trackEvent('card_marked');
+/**
+ * Mark or clear several row keys (plain, `|#b|` batch or pass keys) with one
+ * tombstone write and one save. The per-row checkbox, SCRY-Mode and the bulk
+ * actions all come through here, so every path writes the same keys.
+ */
+export function setCardsMarked(cardKeys, marked) {
+  const prism = state.currentPrism;
+  if (!prism || !cardKeys?.some(Boolean)) return;
+  if (!prism.markedCards) prism.markedCards = [];
+
+  const unmarkedKeys = [];
+  let newlyMarked = false;
+  for (const cardKey of cardKeys) {
+    if (!cardKey) continue;
+    const single = state.processedCards?.find((c) => c.name === cardKey && c.batches?.length === 1);
+    const keys = single ? [cardKey, single.batches[0].key] : [cardKey];
+    if (marked) {
+      if (!prism.markedCards.includes(cardKey)) newlyMarked = true;
+      if (single) {
+        const done = markSingleBatchDone(prism.markedCards, cardKey, single.batches[0].key);
+        prism.markedCards = done.markedCards;
+        unmarkedKeys.push(...done.unmarkedKeys);
+      } else if (!prism.markedCards.includes(cardKey)) {
+        prism.markedCards.push(cardKey);
+      }
+    } else {
+      prism.markedCards = prism.markedCards.filter((c) => !keys.includes(c));
+      unmarkedKeys.push(...keys);
     }
-    if (single) {
-      const done = markSingleBatchDone(state.currentPrism.markedCards, cardKey, single.batches[0].key);
-      state.currentPrism.markedCards = done.markedCards;
-      if (done.unmarkedKeys.length) recordUnmarkedCards(state.currentPrism.id, done.unmarkedKeys);
-    } else if (!state.currentPrism.markedCards.includes(cardKey)) {
-      state.currentPrism.markedCards.push(cardKey);
-    }
-  } else {
-    state.currentPrism.markedCards = state.currentPrism.markedCards.filter(
-      (c) => !keys.includes(c),
-    );
-    recordUnmarkedCards(state.currentPrism.id, keys);
   }
+  // GA-only funnel step (visit → deck → first mark → export); too chatty
+  // for app_logs rows. Once per action, so a bulk mark is one event.
+  if (newlyMarked) trackEvent('card_marked');
+  recordUnmarkedCards(prism.id, unmarkedKeys);
 
   const now = new Date().toISOString();
-  state.currentPrism.updatedAt = now;
-  state.currentPrism.markedCardsUpdatedAt = now;
-  savePrism(state.currentPrism);
+  prism.updatedAt = now;
+  prism.markedCardsUpdatedAt = now;
+  savePrism(prism);
 }
 
 export function handleMarkToggle(event) {

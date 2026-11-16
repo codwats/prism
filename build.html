@@ -509,6 +509,22 @@
                         Download undone (.txt)
                       </wa-dropdown-item>
                     </wa-dropdown>
+                    <!-- Bulk marks over the shown rows (#454), hidden in Marks to Clear. bulk-mark.js handles both items on wa-select. -->
+                    <wa-dropdown id="bulk-mark-dropdown" placement="bottom-end" data-phone-slot="sheet" data-phone-order="50">
+                      <wa-button slot="trigger" appearance="outlined" variant="neutral" size="s" caret>
+                        <wa-icon slot="start" name="list-check"></wa-icon>
+                        Shown rows
+                      </wa-button>
+                      <p class="wa-caption-s prism-menu-note">Acts on the rows your view, filters and search show. Expand a card with different markings to include its batches.</p>
+                      <wa-dropdown-item id="btn-mark-shown">
+                        <wa-icon slot="icon" name="check-double"></wa-icon>
+                        Mark all shown as done
+                      </wa-dropdown-item>
+                      <wa-dropdown-item id="btn-clear-shown">
+                        <wa-icon slot="icon" name="eraser"></wa-icon>
+                        Clear marks on all shown
+                      </wa-dropdown-item>
+                    </wa-dropdown>
                     <!-- Opens SCRY-Mode (hidden in Marks to Clear). On phone it moves to the bottom bar. -->
                     <wa-button id="btn-scry" appearance="filled" variant="brand" size="s" data-phone-slot="bar">
                       <wa-icon slot="start" name="expand"></wa-icon>
@@ -634,6 +650,19 @@
       <div slot="footer" class="wa-cluster wa-gap-s">
         <wa-button id="btn-cancel-clear-all-removed" variant="neutral" appearance="outlined">Cancel</wa-button>
         <wa-button id="btn-confirm-clear-all-removed" variant="danger">Clear All</wa-button>
+      </div>
+    </wa-dialog>
+
+    <!-- Clear marks on all shown rows (#454) -->
+    <wa-dialog id="clear-shown-dialog" label="Clear marks on shown rows">
+      <p>Clear the Done tick on <strong id="clear-shown-count"></strong>?</p>
+      <p style="color: var(--wa-color-neutral-text-subtle);">
+        Only the rows your view, filters and search show change. The paint on your sleeves stays.
+        If you sync, these rows read not done on your other devices too.
+      </p>
+      <div slot="footer" class="wa-cluster wa-gap-s">
+        <wa-button id="btn-cancel-clear-shown" variant="neutral" appearance="outlined">Cancel</wa-button>
+        <wa-button id="btn-confirm-clear-shown" variant="danger">Clear marks</wa-button>
       </div>
     </wa-dialog>
 
