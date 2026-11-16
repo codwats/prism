@@ -9,7 +9,7 @@
  */
 
 import { startAuth, getCurrentUser, onAuthChange } from './modules/auth.js';
-import { isEntitled } from './modules/billing.js';
+import { isEntitled, isMembershipDrawerAvailable } from './modules/billing.js';
 import { hasStoredSession, loadSupabaseSdk } from './modules/supabase-client.js';
 import {
   getColorScheme,
@@ -23,7 +23,7 @@ import {
 } from './modules/storage.js';
 import { applyColorScheme } from './modules/theme.js';
 import { initGlobalErrorReporting } from './core/telemetry.js';
-import { debounce } from './core/utils.js';
+import { debounce, clickItemsOnKeyboardSelect } from './core/utils.js';
 
 // Re-apply when the OS theme changes, but only while preference is 'auto'
 window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
@@ -69,10 +69,13 @@ export function initLayout(options = {}) {
   injectFooter();
   injectAuthDialog();
   injectSettingsDrawer();
+  const accountMenu = document.getElementById('account-menu');
+  if (accountMenu) clickItemsOnKeyboardSelect(accountMenu);
   // Nothing here waits on Web Awesome: startAuth only sets style.display on
   // plain elements and attaches listeners, and both work before an upgrade.
   startAuth();
   onAuthChange(updateNavExtras);
+  onAuthChange(updateAccountMembership);
   updateNavExtras();
   // Debounced: a mark toggle saves too, and the count runs processCards
   window.addEventListener('prism:saved', debounce(updateNavExtras, 300));
@@ -394,7 +397,7 @@ function injectNav(activePage) {
   const nav = document.createElement('nav');
   nav.slot = 'navigation';
   nav.className = 'wa-stack wa-gap-m';
-  nav.style.cssText = 'padding: var(--wa-space-l); height: 100%; justify-content: space-between;';
+  nav.style.cssText = 'padding: var(--wa-space-l);';
 
   // Build nav links
   const linksHtml = NAV_LINKS.map(link => {
@@ -418,59 +421,10 @@ function injectNav(activePage) {
             <h2 id="nav-extras-heading" class="nav-extras-heading">Extras</h2>
             ${extrasHtml}
           </section>
-        </div>
-
-        <!-- Account Section -->
-        <div class="wa-stack wa-gap-s" style="border-top: 1px solid var(--wa-color-surface-border); padding-top: var(--wa-space-m);">
-          <!-- Loading State (replaced by updateAuthUI once auth resolves).
-               Sized to match the auth state we expect to resolve to, so the
-               swap doesn't shift the nav: logged-in shows two buttons. -->
-          <div id="auth-loading"${hasStoredSession() ? ' class="wa-stack wa-gap-s"' : ''}>
-            <wa-skeleton effect="pulse" class="nav-auth-skeleton"></wa-skeleton>
-            ${hasStoredSession() ? '<wa-skeleton effect="pulse" class="nav-auth-skeleton-secondary"></wa-skeleton>' : ''}
-          </div>
-
-          <!-- Logged Out State -->
-          <div id="auth-logged-out" style="display: none;">
-            <wa-button id="btn-login" variant="neutral" appearance="outlined" style="width: 100%;">
-              <wa-icon slot="start" name="right-to-bracket"></wa-icon>
-              Log In
-            </wa-button>
-          </div>
-
-          <!-- Couldn't Reach Auth State. Shown only once the SDK is out of
-               retries AND a stored session says the user is probably signed
-               in — see showAuthUnavailable. Anything less definite stays on
-               the skeleton above. -->
-          <div id="auth-unavailable" class="wa-stack wa-gap-2xs" style="display: none;">
-            <span class="wa-caption-s" style="color: var(--wa-color-neutral-text-subtle);">
-              Couldn't reach the login service. Your decks are saved on this device.
-            </span>
-            <wa-button id="btn-auth-retry" variant="neutral" appearance="outlined" size="s" style="width: 100%;">
-              <wa-icon slot="start" name="rotate-right"></wa-icon>
-              Retry
-            </wa-button>
-          </div>
-
-          <!-- Logged In State -->
-          <div id="auth-logged-in" class="wa-stack wa-gap-s" style="display: none;">
-            <wa-button href="profile.html" variant="neutral" appearance="outlined" style="width: 100%;">
-              <wa-icon slot="start" name="circle-user"></wa-icon>
-              Profile
-            </wa-button>
-            <wa-button id="btn-logout" variant="neutral" appearance="plain" size="s">
-              <wa-icon slot="start" name="right-from-bracket"></wa-icon>
-              Log Out
-            </wa-button>
-          </div>
         </div>`;
 
   // Insert nav as first child of wa-page (before header and main)
   waPage.insertBefore(nav, waPage.firstChild);
-
-  // The profile button used to carry its own pre-upgrade click fallback here.
-  // initButtonHrefFallback() now covers every <wa-button href> on the page,
-  // including this one and the header CTA, so the per-element listener is gone.
 }
 
 // ============================================================
@@ -517,14 +471,11 @@ function injectHeader(ctaConfig) {
           <wa-tag size="s" variant="brand" appearance="outlined" title="PRISM is in open beta — expect rough edges and tell us about them">Beta</wa-tag>
         </div>
         <div class="wa-cluster wa-gap-xs wa-align-items-center">
-          <wa-button id="btn-settings" appearance="plain" variant="neutral" size="s" aria-label="Settings">
-            <wa-icon name="gear"></wa-icon>
-          </wa-button>
-          <wa-tooltip for="btn-settings">Settings</wa-tooltip>
           ${suppressCta ? '' : `<wa-button${ctaId}${ctaHref} variant="${ctaVariant}"${ctaAppearanceAttr} size="s">
             <wa-icon slot="start" name="${ctaIcon}"></wa-icon>
             ${ctaLabel}
           </wa-button>`}
+          ${accountMenuHtml()}
         </div>`;
 
   // Insert after nav (if exists) or as first child
@@ -534,6 +485,66 @@ function injectHeader(ctaConfig) {
   } else {
     waPage.insertBefore(header, waPage.firstChild);
   }
+}
+
+// The account menu. Each auth state is one or more of its children, marked
+// data-auth and toggled by updateAuthUI (auth.js): wa-dropdown only finds items
+// that are its direct children, so a state can't sit in one wrapper. Opening
+// the menu runs no code of ours, so a logged-out visitor still loads the auth
+// SDK only from Log in (ensureAuthReady). Pages with a Membership drawer wire
+// the Membership item themselves (initMembershipDrawer); elsewhere it links to
+// the Profile's drawer.
+function accountMenuHtml() {
+  const membershipHref = document.getElementById('membership-drawer') ? '' : ' href="profile.html#membership"';
+  const off = ' style="display: none;"';
+  return `<wa-dropdown id="account-menu" placement="bottom-end">
+            <wa-button slot="trigger" id="btn-account" appearance="plain" variant="neutral" size="s" aria-label="Account">
+              <wa-icon id="account-icon" name="circle-user"></wa-icon>
+              <wa-avatar id="account-avatar" class="account-avatar" label="Account" hidden></wa-avatar>
+            </wa-button>
+            <!-- Sized to the state we expect to resolve to: logged in shows two items -->
+            <div id="auth-loading" data-auth="loading" class="account-menu-loading wa-stack wa-gap-xs">
+              <wa-skeleton effect="pulse" class="nav-auth-skeleton"></wa-skeleton>
+              ${hasStoredSession() ? '<wa-skeleton effect="pulse" class="nav-auth-skeleton-secondary"></wa-skeleton>' : ''}
+            </div>
+            <!-- Shown only once the SDK is out of retries AND a stored session
+                 says the user is probably signed in (showAuthUnavailable) -->
+            <p data-auth="unavailable" class="account-menu-note wa-caption-s"${off}>Couldn't reach the login service. Your decks are saved on this device.</p>
+            <wa-dropdown-item id="btn-auth-retry" data-auth="unavailable"${off}>
+              <wa-icon slot="icon" name="rotate-right"></wa-icon>
+              Retry
+            </wa-dropdown-item>
+            <wa-dropdown-item id="btn-login" data-auth="logged-out"${off}>
+              <wa-icon slot="icon" name="right-to-bracket"></wa-icon>
+              Log in
+            </wa-dropdown-item>
+            <wa-dropdown-item data-auth="logged-in" href="profile.html"${off}>
+              <wa-icon slot="icon" name="circle-user"></wa-icon>
+              Profile
+            </wa-dropdown-item>
+            <wa-dropdown-item id="btn-settings">
+              <wa-icon slot="icon" name="gear"></wa-icon>
+              Settings
+            </wa-dropdown-item>
+            <wa-dropdown-item data-auth="logged-in" data-open-membership${membershipHref} hidden${off}>
+              <wa-icon slot="icon" name="gem"></wa-icon>
+              Membership
+            </wa-dropdown-item>
+            <wa-divider data-auth="logged-in"${off}></wa-divider>
+            <wa-dropdown-item id="btn-logout" data-auth="logged-in"${off}>
+              <wa-icon slot="icon" name="right-from-bracket"></wa-icon>
+              Log out
+            </wa-dropdown-item>
+          </wa-dropdown>`;
+}
+
+// On pages without a Membership drawer nothing else owns the item's
+// visibility, so it follows the same availability check the drawer uses.
+// Logged-in only, so the SDK is already loaded by the time this reads.
+async function updateAccountMembership(user) {
+  if (!user || document.getElementById('membership-drawer')) return;
+  const item = document.querySelector('#account-menu [data-open-membership]');
+  if (item) item.hidden = !(await isMembershipDrawerAvailable());
 }
 
 // ============================================================
@@ -688,7 +699,7 @@ function injectAuthDialog() {
 }
 
 // ============================================================
-// Settings Drawer (global — opened by the header gear button)
+// Settings Drawer (global, device-level preferences only, #398; opened from the account menu)
 // ============================================================
 
 function injectSettingsDrawer() {
@@ -733,7 +744,7 @@ function injectSettingsDrawer() {
             <wa-radio value="bottom-left">Bottom Left</wa-radio>
           </wa-radio-group>
           <wa-button id="stripe-start-corner-apply" class="stripe-apply" appearance="filled" variant="brand" size="s" disabled>Apply</wa-button>
-          <p class="wa-caption-s" style="color: var(--wa-color-neutral-text-subtle); margin: 0;">Slot numbers stay the same — stripes move so Slot 1 starts at the chosen corner.</p>
+          <p class="wa-caption-s" style="color: var(--wa-color-neutral-text-subtle); margin: 0;">Slot numbers stay the same: stripes move so Slot 1 starts at the chosen corner.</p>
           <wa-slider
             id="stripe-position-numbers-mode"
             label="Slot Numbers"
@@ -742,7 +753,7 @@ function injectSettingsDrawer() {
             max="3"
             value="${numbersValue}"
             with-markers
-            hint="Counting aid — None hides numbers, Some overlays every 5th slot (5 / 10 / 15 / 20 per side), All numbers every mark."
+            hint="Counting aid: None hides numbers, Some overlays every 5th slot (5 / 10 / 15 / 20 per side), All numbers every mark."
           >
             <span slot="reference">None</span>
             <span slot="reference">Some</span>
@@ -752,12 +763,12 @@ function injectSettingsDrawer() {
 
         <wa-divider></wa-divider>
 
-        <p class="wa-caption-s" style="color: var(--wa-color-neutral-text-subtle); margin: 0;">Looking for email, password, or your PRISMs? Those live on your <a href="profile.html">Profile</a>.</p>
+        <p class="wa-caption-s" style="color: var(--wa-color-neutral-text-subtle); margin: 0;">Your PRISMs are in the PRISM menu on <a href="build.html">My PRISM</a>. Email and password live on your <a href="profile.html">Profile</a>.</p>
       </div>`;
 
   document.body.appendChild(drawer);
 
-  // Gear button opens the drawer (attribute works before WA upgrade)
+  // Account menu's Settings item opens the drawer (attribute works before WA upgrade)
   document.getElementById('btn-settings')?.addEventListener('click', () => {
     drawer.setAttribute('open', '');
   });

@@ -341,40 +341,47 @@ export async function updateEmail(newEmail) {
   if (error) throw error;
 }
 
-// Update user account UI in the nav
-export function updateAuthUI(user) {
-  const loadingSection = document.getElementById('auth-loading');
-  const loginSection = document.getElementById('auth-logged-out');
-  const userSection = document.getElementById('auth-logged-in');
-  const unavailableSection = document.getElementById('auth-unavailable');
+// Each auth state is one or more account-menu children marked data-auth (see
+// accountMenuHtml in layout.js). Showing one hides the rest. Hidden items are
+// also disabled so the menu's arrow keys and typeahead skip them.
+const AUTH_STATES = ['loading', 'logged-out', 'logged-in', 'unavailable'];
 
-  if (loadingSection) loadingSection.style.display = 'none';
-  // Reaching here means auth answered, so retire any "couldn't reach" notice —
-  // a background SDK retry that finally lands comes through this path.
-  if (unavailableSection) unavailableSection.style.display = 'none';
-
-  if (user) {
-    if (loginSection) loginSection.style.display = 'none';
-    if (userSection) userSection.style.display = '';
-  } else {
-    if (loginSection) loginSection.style.display = '';
-    if (userSection) userSection.style.display = 'none';
+function showAuthState(shown) {
+  for (const name of AUTH_STATES) {
+    document.querySelectorAll(`[data-auth="${name}"]`).forEach((el) => {
+      el.style.display = name === shown ? '' : 'none';
+      if (el.localName === 'wa-dropdown-item') {
+        if (name === shown) el.removeAttribute('disabled');
+        else el.setAttribute('disabled', '');
+      }
+    });
   }
 }
 
-// Nav state for "we could not reach the login service". Deliberately distinct
+// Update the account menu and its trigger (initial when logged in, person icon otherwise)
+export function updateAuthUI(user) {
+  // Reaching here means auth answered, so this also retires the skeleton and
+  // any "couldn't reach" notice: a background SDK retry that lands comes here.
+  showAuthState(user ? 'logged-in' : 'logged-out');
+  const avatar = document.getElementById('account-avatar');
+  const icon = document.getElementById('account-icon');
+  if (avatar && icon) {
+    avatar.setAttribute('initials', (user?.email || '').charAt(0).toUpperCase());
+    avatar.hidden = !user;
+    icon.hidden = !!user;
+  }
+}
+
+// Account state for "we could not reach the login service". Deliberately distinct
 // from signed-out: a stored session says the user probably IS signed in, we
 // just can't confirm it, and claiming they're logged out is #199 all over
-// again. Without this the nav sits on its loading skeleton indefinitely, which
+// again. Without this the menu sits on its loading skeleton indefinitely, which
 // tells the user nothing and offers no way out.
 export function showAuthUnavailable() {
-  // An anonymous visitor has no session to confirm, so the correct nav for them
-  // is still Log In — clicking it retries the SDK anyway via ensureAuthReady.
+  // An anonymous visitor has no session to confirm, so the correct menu for them
+  // is still Log in — clicking it retries the SDK anyway via ensureAuthReady.
   if (canPaintAuthState()) return;
-  const loadingSection = document.getElementById('auth-loading');
-  const unavailableSection = document.getElementById('auth-unavailable');
-  if (loadingSection) loadingSection.style.display = 'none';
-  if (unavailableSection) unavailableSection.style.display = '';
+  showAuthState('unavailable');
 }
 
 // Show specific auth view
@@ -442,7 +449,7 @@ function clearAuthMessages() {
   });
 }
 
-// Setup auth event listeners for nav buttons
+// Setup auth event listeners for the account menu
 let listenersSetup = false;
 
 function setupAuthListeners() {
@@ -469,10 +476,7 @@ function setupAuthListeners() {
   if (retryBtn) {
     retryBtn.addEventListener('click', async () => {
       // Back to the skeleton while we try again.
-      const unavailableSection = document.getElementById('auth-unavailable');
-      const loadingSection = document.getElementById('auth-loading');
-      if (unavailableSection) unavailableSection.style.display = 'none';
-      if (loadingSection) loadingSection.style.display = '';
+      showAuthState('loading');
       // initAuth cleared authInitPromise and loadSupabaseSdk cleared its own
       // cached failure, so this gets a genuinely fresh set of attempts.
       try {

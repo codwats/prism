@@ -70,23 +70,61 @@
   <body>
     <wa-page mobile-breakpoint="768">
       <main class="wa-stack wa-gap-xl">
-        <!-- The page's real title. The visible PRISM name is an editable input,
-             so without this the document outline started at an <h3> stat label. -->
-        <h1 class="visually-hidden">Build Your PRISM</h1>
-
-        <!-- PRISM Name -->
+        <!-- PRISM name: the page title and the PRISM menu trigger. Rename swaps
+             the menu for #prism-name in place (startRename in features/events.js). -->
         <section class="wa-stack wa-gap-s">
           <div class="wa-split wa-align-items-center">
-            <div class="wa-cluster wa-gap-s wa-align-items-center">
+            <div class="prism-title-row wa-cluster wa-gap-s wa-align-items-center">
             <img src="./assets/Prism-Small-Icon-Invert.svg" alt="Prism Logo" style="height:1.5em;" class="wa-border-radius-square theme-logo-dark">
             <img src="./assets/Prism-Icon-Main.svg" alt="Prism Logo" style="height:1.5em;" class="wa-border-radius-square theme-logo-light">
+              <!-- Named by the title text alone, so the menu's items never join the heading's name -->
+              <h1 class="prism-title" aria-labelledby="prism-title-text">
+                <wa-dropdown id="prism-overflow" placement="bottom-start">
+                  <wa-button slot="trigger" class="prism-title-trigger" appearance="plain" variant="neutral" with-caret>
+                    <span id="prism-title-text">My PRISM</span>
+                  </wa-button>
+                  <!-- Switch-PRISM entries are injected before this divider by
+                       renderPrismSwitcher() in features/init.js. Without them a
+                       logged-out user has no route back to an earlier PRISM. -->
+                  <wa-divider id="prism-switch-divider"></wa-divider>
+                  <wa-dropdown-item id="btn-new-prism">
+                    <wa-icon slot="icon" name="plus"></wa-icon>
+                    New PRISM
+                  </wa-dropdown-item>
+                  <wa-dropdown-item id="btn-import-cube">
+                    <wa-icon slot="icon" name="cubes"></wa-icon>
+                    Import CubeCobra cube
+                  </wa-dropdown-item>
+                  <wa-divider></wa-divider>
+                  <wa-dropdown-item id="btn-rename-prism">
+                    <wa-icon slot="icon" name="pen"></wa-icon>
+                    Rename
+                  </wa-dropdown-item>
+                  <!-- Per-PRISM, synced (#145). Write path in features/events.js -->
+                  <wa-dropdown-item id="dedicated-commander-copies" type="checkbox">
+                    Dedicated commander copies
+                  </wa-dropdown-item>
+                  <p class="prism-menu-note wa-caption-s">
+                    Sleeve a dedicated copy of each commander instead of sharing it with other decks. Synced with this PRISM.
+                  </p>
+                  <wa-divider></wa-divider>
+                  <wa-dropdown-item id="btn-export-json">
+                    <wa-icon slot="icon" name="file-code"></wa-icon>
+                    Download backup (.json)
+                  </wa-dropdown-item>
+                  <wa-dropdown-item id="btn-import-backup">
+                    <wa-icon slot="icon" name="file-import"></wa-icon>
+                    Import backup (.json)
+                  </wa-dropdown-item>
+                </wa-dropdown>
+              </h1>
               <wa-input
                 id="prism-name"
                 label="PRISM name"
-                class="wa-visually-hidden-label"
+                class="wa-visually-hidden-label prism-name-input"
                 placeholder="My PRISM"
                 size="l"
-                style="--wa-input-border-width: 0; font-weight: 600;"
+                hidden
               ></wa-input>
             </div>
             <div class="wa-cluster wa-gap-s wa-align-items-center">
@@ -95,36 +133,6 @@
                 <wa-icon name="arrows-rotate"></wa-icon>
               </wa-button>
               <wa-tag id="deck-count-tag" variant="neutral" size="s">0 decks</wa-tag>
-              <wa-dropdown id="prism-overflow" placement="bottom-end">
-                <wa-button slot="trigger" appearance="plain" variant="neutral" size="s" aria-label="More actions">
-                  <wa-icon name="ellipsis"></wa-icon>
-                </wa-button>
-                <!-- Switch-PRISM entries are injected before this divider by
-                     renderPrismSwitcher() in features/init.js. Without them a
-                     logged-out user has no route back to an earlier PRISM. -->
-                <wa-divider id="prism-switch-divider"></wa-divider>
-                <wa-dropdown-item id="btn-new-prism">
-                  <wa-icon slot="icon" name="plus"></wa-icon>
-                  New PRISM
-                </wa-dropdown-item>
-                <wa-divider></wa-divider>
-                <wa-dropdown-item id="btn-export-json">
-                  <wa-icon slot="icon" name="file-code"></wa-icon>
-                  Download backup (.json)
-                </wa-dropdown-item>
-                <wa-dropdown-item id="btn-import-backup">
-                  <wa-icon slot="icon" name="file-import"></wa-icon>
-                  Import backup (.json)
-                </wa-dropdown-item>
-                <wa-dropdown-item id="btn-import-cube">
-                  <wa-icon slot="icon" name="cubes"></wa-icon>
-                  Import CubeCobra cube
-                </wa-dropdown-item>
-                <wa-dropdown-item data-open-membership hidden>
-                  <wa-icon slot="icon" name="gem"></wa-icon>
-                  Membership and Extras
-                </wa-dropdown-item>
-              </wa-dropdown>
             </div>
           </div>
           <p class="wa-caption-s" style="color: var(--wa-color-neutral-text-subtle); margin: 0;">
@@ -765,27 +773,9 @@
       <wa-button slot="footer" appearance="plain" data-drawer="close">Close</wa-button>
     </wa-drawer>
 
-    <!-- Per-PRISM settings, moved into the global settings drawer by
-         mountPrismSettings() in js/features/init.js (build page only, #398) -->
-    <template id="prism-settings-template">
-      <div class="wa-stack wa-gap-m">
-        <div class="wa-cluster wa-gap-s wa-align-items-center">
-          <wa-icon name="layer-group" style="color: var(--wa-color-brand-fill);"></wa-icon>
-          <span class="wa-heading-s">This PRISM</span>
-        </div>
-        <div class="wa-stack wa-gap-2xs">
-          <wa-switch id="dedicated-commander-copies" size="s">Dedicated commander copies</wa-switch>
-          <p class="wa-caption-s" style="color: var(--wa-color-neutral-text-subtle); margin: 0;">
-            Sleeve a dedicated copy of each commander instead of sharing it with other decks. Synced with this PRISM.
-          </p>
-        </div>
-      </div>
-      <wa-divider></wa-divider>
-    </template>
-
     <script type="module">
       import { initLayout } from './js/layout.js';
-      // No headerCta: "New PRISM" lives in the PRISM overflow menu beside the
+      // No headerCta: "New PRISM" lives in the PRISM menu beside the
       // switcher, so a mis-click in the primary-action slot can no longer
       // swap the PRISM out from under the user.
       initLayout({ activePage: 'build', headerCta: null });

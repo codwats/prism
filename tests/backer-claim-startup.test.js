@@ -5,7 +5,7 @@ test('sign-out during the startup claim cannot publish the restored account', as
   let callback;
   let completeClaim;
   globalThis.localStorage = { getItem: () => null };
-  globalThis.document = { getElementById: () => null };
+  globalThis.document = { getElementById: () => null, querySelectorAll: () => [] };
   let session = { user: { id: 'departing-backer' } };
   const client = {
     auth: {

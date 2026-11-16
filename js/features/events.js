@@ -22,7 +22,7 @@ import { handleDeleteConfirm, handleEditConfirm, handleNewPrism, handleSplitConf
 import { renderResults } from './results.js';
 import { openScryMode } from './scry-mode.js';
 import { renderOverlapMatrix } from './analysis.js';
-import { debounce } from '../core/utils.js';
+import { debounce, clickItemsOnKeyboardSelect } from '../core/utils.js';
 import { updatePreferences, getCurrentPrism, savePrism } from '../modules/storage.js';
 import { renderAll } from './init.js';
 import { logToSupabase } from '../modules/supabase-client.js';
@@ -31,11 +31,45 @@ import { logToSupabase } from '../modules/supabase-client.js';
 // Event Listeners
 // ============================================================================
 
+// Rename in place: the PRISM menu gives way to the name input until it loses focus.
+function startRename() {
+  const { prismName, prismOverflow } = state.elements;
+  if (!prismName || !prismOverflow) return;
+  prismName.value = state.currentPrism.name;
+  prismOverflow.hidden = true;
+  prismName.hidden = false;
+  // After the menu closes, which hands focus back to its trigger
+  setTimeout(() => {
+    prismName.focus();
+    prismName.select?.();
+  });
+}
+
+function endRename() {
+  const { prismName, prismOverflow } = state.elements;
+  if (!prismName || prismName.hidden) return;
+  prismName.hidden = true;
+  prismOverflow.hidden = false;
+  // Title text and the switch list both show the new name
+  renderAll();
+}
+
 export function setupEventListeners() {
-  // PRISM name change
+  // PRISM name change (each keystroke saves; Rename shows the input in place)
   if (state.elements.prismName) {
     state.elements.prismName.addEventListener('input', handlePrismNameChange);
+    state.elements.prismName.addEventListener('keydown', (e) => {
+      if (e.key !== 'Enter' && e.key !== 'Escape') return;
+      // Else this Enter also activates the trigger it hands focus to and reopens the menu
+      e.preventDefault();
+      endRename();
+      // Keyboard finish only: a click elsewhere keeps focus where it landed
+      state.elements.prismOverflow?.querySelector('[slot="trigger"]')?.focus();
+    });
+    state.elements.prismName.addEventListener('focusout', endRename);
   }
+  state.elements.btnRenamePrism?.addEventListener('click', startRename);
+  if (state.elements.prismOverflow) clickItemsOnKeyboardSelect(state.elements.prismOverflow);
 
   // Deck form submission
   if (state.elements.deckForm) {
@@ -56,10 +90,14 @@ export function setupEventListeners() {
 
   // Dedicated commander copies — per-PRISM synced setting; write path per #145
   // (flag + its own merge timestamp + prism.updatedAt, mirroring mark-toggle)
+  // A checkbox item in the PRISM menu: the dropdown toggles `checked` itself
+  // before wa-select, and stays open so the new state shows.
   if (state.elements.dedicatedCommanderToggle) {
-    state.elements.dedicatedCommanderToggle.addEventListener('change', (e) => {
+    state.elements.prismOverflow?.addEventListener('wa-select', (e) => {
+      if (e.detail.item !== state.elements.dedicatedCommanderToggle) return;
+      e.preventDefault();
       const now = new Date().toISOString();
-      state.currentPrism.useDedicatedCommanderCopies = !!e.target.checked;
+      state.currentPrism.useDedicatedCommanderCopies = !!e.detail.item.checked;
       state.currentPrism.useDedicatedCommanderCopiesUpdatedAt = now;
       state.currentPrism.updatedAt = now;
       savePrism(state.currentPrism);
@@ -88,7 +126,7 @@ export function setupEventListeners() {
     });
   }
 
-  // Import backup dialog (opened from the ... overflow menu)
+  // Import backup dialog (opened from the PRISM menu)
   if (state.elements.btnImportBackup) {
     state.elements.btnImportBackup.addEventListener('click', () => {
       state.elements.importDialog?.setAttribute('open', '');
