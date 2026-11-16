@@ -166,6 +166,7 @@ function getElements() {
     scryDialog: document.getElementById('scry-dialog'),
     scryContent: document.getElementById('scry-content'),
     scryProgress: document.getElementById('scry-progress'),
+    scryBar: document.getElementById('scry-bar'),
     btnScrySkip: document.getElementById('btn-scry-skip'),
     btnScryDone: document.getElementById('btn-scry-done'),
 
