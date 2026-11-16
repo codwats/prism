@@ -78,7 +78,7 @@ These render on all nine pages, so each one is a sitewide defect.
 ### Cross-page consistency
 
 - [ ] **Feature names do not match the app.** `index.html` says "Overlap View";
-  `build.html` calls it the Deck Overlap Matrix. "Deck Variants" is a "split
+  `build.html` calls it the Deck overlap matrix. "Deck Variants" is a "split
   group" everywhere else in the product and the codebase.
 - [ ] **Heading casing diverges.** `index.html` and `tools.html` use Title Case
   section headings, `guide.html` uses sentence case. Each is defensible alone;
@@ -259,7 +259,7 @@ decision on 2026-08-17, so these are recorded as questions, not defects.
   physical workflow, and `batches` / `marksForParticipants` already support the
   projection.
 - [ ] **None of the three stat cards reports the number the user came for.**
-  Total Cards, Pool Cards, and Marked are internal quantities. People open PRISM
+  Total cards, Pool cards, and Marked are internal quantities. People open PRISM
   to learn how many copies they do not have to buy.
 - [ ] **Marking is irreversible, but Done is the cheapest control HTML offers.**
   The batch model already refuses a false parent checkbox because over-marking

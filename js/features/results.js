@@ -217,7 +217,7 @@ export function updateRemovedFilterBadge() {
 // Marked progress (sleeves done)
 // ============================================================================
 
-// Sums totalQuantity for marked vs all rows — matches Total Cards stat.
+// Sums totalQuantity for marked vs all rows — matches Total cards stat.
 // Uses cached state.processedCards so it can run on mark toggle without reprocessing.
 export function updateMarkedProgress() {
   const cards = state.processedCards || [];
@@ -247,7 +247,7 @@ export function updateMarkedProgress() {
 // Results rendering
 // ============================================================================
 
-// The view switch holds All Cards / Pool / Marks to Clear; One Mark at a Time
+// The view switch holds All cards / Pool / Marks to Clear; One Mark at a Time
 // is a Filters item (#452) that turns either card view into the pass view.
 // The pass view keeps its internal value, `basics-by-deck`.
 function resultsFilterValue() {
@@ -274,7 +274,7 @@ export function renderResults({ preserveRows = false } = {}) {
   shownCards = [];
   const totalCardCount = processedCards.reduce((sum, c) => sum + c.totalQuantity, 0);
   // Pool/core belongs to batches (#146): A5/B3 contributes 3 pool + 2 core,
-  // not 5 pool — so Pool Cards sums pool-batch quantities.
+  // not 5 pool — so Pool cards sums pool-batch quantities.
   const sharedCardCount = processedCards.reduce(
     (sum, c) => sum + (c.batches || []).reduce((s, b) => s + (b.isPool ? b.copyCount : 0), 0),
     0,
@@ -524,7 +524,7 @@ export function renderResults({ preserveRows = false } = {}) {
     `${getColorName(m.color)}${m.isDot ? ' dot' : ''}, ${m.deckName}, ${formatSlotLabel(m.position)}`;
 
   let detailRowSeq = 0;
-  // Done / Card Name / Stripes. The stale-marks view uses its own row markup,
+  // Done / Card name / Marks. The stale-marks view uses its own row markup,
   // so this is stable.
   const detailColspan = 3;
 
@@ -855,7 +855,7 @@ function renderResultsHeader() {
     thead.innerHTML = `
       <tr class="removed-head">
         <th class="sortable ${getSortedClass('name')}" data-sort="name">
-          Card Name
+          Card name
           <wa-icon name="${getSortIcon('name')}" class="sort-icon"></wa-icon>
         </th>
         <th>Remove Mark From</th>
@@ -872,7 +872,7 @@ function renderResultsHeader() {
           <wa-icon name="${getSortIcon('marked')}" class="sort-icon"></wa-icon>
         </th>
         <th class="sortable ${getSortedClass('name')}" data-sort="name">
-          Card Name
+          Card name
           <wa-icon name="${getSortIcon('name')}" class="sort-icon"></wa-icon>
         </th>
         <th class="sortable ${getSortedClass('deckCount')}" data-sort="deckCount">
