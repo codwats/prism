@@ -523,7 +523,7 @@ export function renderResults({ preserveRows = false } = {}) {
       // fields keep the plain label.
       const clearCopies = card.removedPreviousQuantity != null ? Math.max(1, card.removedOpenCopies) : null;
       const copiesNote = clearCopies != null
-        ? ` — clear ${clearCopies} ${clearCopies === 1 ? 'copy' : 'copies'}`
+        ? `, clear ${clearCopies} ${clearCopies === 1 ? 'copy' : 'copies'}`
         : '';
       return `
         <tr class="removed-row${band}" data-removed-key="${escapeHtml(removedKey)}">
@@ -618,7 +618,7 @@ export function renderResults({ preserveRows = false } = {}) {
           <td style="text-align: center;">
             <label class="mark-checkbox-hit"><input type="checkbox" class="mark-checkbox" aria-label="Mark ${b.copyCount} ${batchLabel} ${escapeHtml(card.name)} copies (${escapeHtml(markNames)}) done" ${marked ? "checked" : ""}></label>
           </td>
-          <td class="batch-subrow-label card-name-cell" data-card-name="${escapeHtml(card.name)}">${b.copyCount} ${b.copyCount === 1 ? 'copy' : 'copies'} — ${batchLabel}</td>
+          <td class="batch-subrow-label card-name-cell" data-card-name="${escapeHtml(card.name)}">${b.copyCount} ${b.copyCount === 1 ? 'copy' : 'copies'}, ${batchLabel}</td>
           ${stripes.cell}
         </tr>
         ${stripes.detailRow}
