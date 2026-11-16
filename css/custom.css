@@ -173,7 +173,7 @@ wa-page[view='desktop'] [data-toggle-nav] {
   background: var(--prism-zebra);
 }
 
-/* No Pool row tint. Pool is already legible three ways: the Stripes column
+/* No Pool row tint. Pool is already legible three ways: the Marks column
    shows one mark per deck, the default sort puts many-mark cards on top, and
    the Pool filter isolates them. A fourth encoding on the row background
    added nothing, and it used the warning ramp — amber reading as caution on
@@ -259,9 +259,17 @@ wa-page[view='desktop'] [data-toggle-nav] {
   font-size: var(--wa-font-size-s);
 }
 
-/* Derived roll-up checkbox is informational, not a control */
-.results-table .batch-parent-check {
-  pointer-events: none;
+/* Derived roll-up tally ("1/4" batches done, #452): information, not a control */
+.results-table .batch-tally {
+  color: var(--wa-color-neutral-text-subtle);
+  font-size: var(--wa-font-size-s);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* A row tap opens its legend (or expands a multi-batch card) */
+.results-table tbody tr:not(.stripe-detail-row):not(.removed-row) {
+  cursor: pointer;
 }
 
 .results-table .card-copies {
@@ -512,7 +520,7 @@ wa-page[view='desktop'] [data-toggle-nav] {
 }
 
 /* Full-width row under the card, so the decode reads at the left edge instead
-   of inside the Stripes column, which sits past the right edge of a phone. */
+   of inside the Marks column. */
 .results-table .stripe-detail-row > td {
   background: var(--wa-color-surface-2);
   padding-top: var(--wa-space-xs);
@@ -546,6 +554,133 @@ wa-page[view='desktop'] [data-toggle-nav] {
 
 .stripe-detail-swatch-dot {
   border-radius: 50%;
+}
+
+.stripe-detail-body {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--wa-space-xs) var(--wa-space-m);
+}
+
+/* ============================================================================
+   Mark sleeves layout (#452): rail beside the table on desktop; on phone the
+   marks stack under the name, and progress plus Start marking sit in a bottom
+   bar whose "Totals and tools" sheet holds the rest (marking-layout.js).
+   ============================================================================ */
+
+.marking-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--wa-space-l);
+}
+
+.marking-main {
+  min-width: 0;
+}
+
+@media (min-width: 1024px) {
+  .marking-layout {
+    grid-template-columns: minmax(0, 1fr) 20rem;
+    align-items: start;
+  }
+  .marking-main {
+    grid-column: 1;
+    grid-row: 1;
+  }
+  .marking-rail {
+    grid-column: 2;
+    grid-row: 1;
+  }
+}
+
+.marking-bar {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  /* Everything in the rail has moved into the sheet */
+  .marking-rail {
+    display: none;
+  }
+
+  /* Progress across the top, the two buttons share the row under it */
+  .marking-bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--wa-space-xs) var(--wa-space-s);
+    position: sticky;
+    bottom: 0;
+    z-index: 1;
+    padding: var(--wa-space-s) 0;
+    background: var(--wa-color-surface-default);
+    border-top: 1px solid var(--wa-color-surface-border);
+  }
+
+  .marking-bar-progress {
+    flex: 1 1 100%;
+    min-width: 0;
+  }
+  .marking-bar > wa-button {
+    flex: 1 1 0;
+  }
+  /* Both labels fit one row at 375px only without their icons */
+  .marking-bar > wa-button wa-icon {
+    display: none;
+  }
+
+  /* Owner decision (#452) over DESIGN.md's "never reflow": each row is a
+     two-column grid, Done beside the name with its marks stacked under it,
+     so a phone never scrolls sideways to reach the marks. */
+  .results-table,
+  .results-table thead,
+  .results-table tbody {
+    display: block;
+  }
+  .results-table tr {
+    display: grid;
+    grid-template-columns: 3.5rem minmax(0, 1fr);
+    align-items: center;
+    border-bottom: 1px solid var(--wa-color-surface-border);
+  }
+  .results-table th,
+  .results-table td {
+    border-bottom: 0;
+  }
+  .results-table thead tr {
+    background: var(--wa-color-surface-2);
+  }
+  .results-table tr > :first-child:not([colspan]) {
+    grid-row: span 2;
+  }
+  .results-table tr > [colspan] {
+    grid-column: 1 / -1;
+  }
+  .results-table tr > :nth-child(2):not(:last-child) {
+    padding-bottom: 0;
+  }
+  /* Marks to Clear: name over "Remove from", Clear button at the end */
+  .results-table tr.removed-row,
+  .results-table tr.removed-head {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+  .results-table tr.removed-row > :first-child,
+  .results-table tr.removed-head > :first-child {
+    grid-row: auto;
+    padding-bottom: 0;
+  }
+  .results-table tr.removed-row > :nth-child(2),
+  .results-table tr.removed-head > :nth-child(2) {
+    grid-column: 1;
+    grid-row: 2;
+  }
+  .results-table tr.removed-row > :nth-child(3),
+  .results-table tr.removed-head > :nth-child(3) {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+  }
 }
 
 /* ============================================================================
@@ -749,22 +884,7 @@ wa-page[view='desktop'] [data-toggle-nav] {
    Deck Filter Dropdown
    ============================================================================ */
 
-/* Deck filter menu mirrors the deck-actions kebab menu styling */
-.deck-filter-menu {
-  min-width: 14rem;
-  padding: var(--wa-space-2xs);
-}
-
-.deck-filter-menu wa-button::part(button) {
-  width: 100%;
-  justify-content: flex-start;
-}
-
-.deck-filter-menu wa-divider {
-  margin: var(--wa-space-2xs) 0;
-}
-
-.deck-filter-menu .deck-color-indicator {
+.deck-filter-item .deck-color-indicator {
   display: inline-block;
   vertical-align: middle;
   flex-shrink: 0;
@@ -2170,7 +2290,9 @@ wa-page[view='desktop'] [data-toggle-nav] {
     min-block-size: 44px;
   }
   #account-menu wa-dropdown-item,
-  #prism-overflow wa-dropdown-item {
+  #prism-overflow wa-dropdown-item,
+  #deck-filter-dropdown wa-dropdown-item,
+  #export-dropdown wa-dropdown-item {
     min-block-size: 44px;
   }
   /* no documented part for the button-appearance radio, so the host */

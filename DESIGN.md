@@ -502,7 +502,7 @@ Only functional transitions: color, border-color, box-shadow, and the 1.1 scale 
 - **Collapsing strategy:**
   - Deck grid: 3 columns (≥1024px) → 2 (≥640px) → 1.
   - Tabs stay horizontal and scroll rather than stacking. Tab labels keep their icons; text may drop below 640px.
-  - Results table: horizontal scroll inside a bordered container. Never reflow rows into stacked cards — column alignment is the value.
+  - Mark sleeves table: below 768px each row becomes Done beside the card name, with its marks stacked under the name (owner decision, #452), so the marks never sit past the right edge. Above 768px it stays a table.
   - Dialogs go full-width (`92vw`) with the same 6px radius.
   - Marketing hero display type steps 64 → 48 → 36px; section padding 84 → 42px.
 - **Print** (marking guides, exports): white background, black text, Geist Mono for data, stripe colors preserved. Hide nav, tabs, and buttons.

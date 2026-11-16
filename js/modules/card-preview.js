@@ -375,10 +375,18 @@ export function updatePosition(event) {
 // root. Desktop: hover to show, leave to hide. Mobile (≤768px, the same
 // breakpoint as the rest of the mobile layout): tap a name to open, tap
 // outside to dismiss — there is no mouseleave on touch.
+// A cell with `data-preview="hover"` never opens on tap (its tap belongs to the
+// row, e.g. the Mark sleeves legend); a `.card-show-btn` cell opens on any
+// click, mouse or keyboard, on every screen size. Escape closes the preview.
 // stripesFor(name, cell) → the stripes to draw over the image.
 export function wireCardPreview(root, stripesFor) {
   const isMobile = () => window.matchMedia('(max-width: 768px)').matches;
   const cellOf = e => e.target.closest?.('.card-name-cell');
+  const clickOpens = e => {
+    const cell = cellOf(e);
+    if (!cell) return false;
+    return cell.classList.contains('card-show-btn') || (isMobile() && cell.dataset.preview !== 'hover');
+  };
   const open = e => {
     const cell = cellOf(e);
     const name = cell?.dataset.cardName;
@@ -392,11 +400,12 @@ export function wireCardPreview(root, stripesFor) {
     hidePreview();
   }, true);
   root.addEventListener('mousemove', e => { if (!isMobile() && cellOf(e)) updatePosition(e); });
-  root.addEventListener('click', e => { if (isMobile()) open(e); });
+  root.addEventListener('click', e => { if (clickOpens(e)) open(e); });
   document.addEventListener('click', e => {
-    if (!isMobile() || cellOf(e)) return;
+    if (clickOpens(e) || (!isMobile() && cellOf(e))) return;
     const tooltip = getTooltip();
     if (!tooltip || tooltip.hidden || tooltip.contains(e.target)) return;
     hidePreview();
   });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') hidePreview(); });
 }

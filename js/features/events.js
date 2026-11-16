@@ -202,12 +202,22 @@ export function setupEventListeners() {
   if (state.elements.resultsSearch) {
     state.elements.resultsSearch.addEventListener('input', debounce(renderResults, 150));
   }
-  if (state.elements.showAllSlots) {
-    state.elements.showAllSlots.addEventListener('change', renderResults);
-  }
-  if (state.elements.undoneFilter) {
-    state.elements.undoneFilter.addEventListener('change', () => {
-      updatePreferences({ undoneOnly: state.elements.undoneFilter.checked });
+  // Filters: every entry is a wa-dropdown-item, so mouse and keyboard both
+  // land here. Checkbox items toggle `checked` before wa-select;
+  // preventDefault keeps the menu open so the new state shows.
+  if (state.elements.deckFilterDropdown) {
+    state.elements.deckFilterDropdown.addEventListener('wa-select', (e) => {
+      const item = e.detail?.item;
+      if (!item) return;
+      e.preventDefault();
+      if (item === state.elements.undoneFilter) {
+        updatePreferences({ undoneOnly: !!item.checked });
+      } else if (item.id === 'deck-filter-clear') {
+        state.selectedDeckIds.clear();
+      } else if (item.dataset.deckId) {
+        if (item.checked) state.selectedDeckIds.add(item.dataset.deckId);
+        else state.selectedDeckIds.delete(item.dataset.deckId);
+      }
       renderResults();
     });
   }
@@ -220,6 +230,8 @@ export function setupEventListeners() {
   }
 
   // Export buttons — each logs an 'export' funnel event (GA + app_logs)
+  const exportDropdown = document.getElementById('export-dropdown');
+  if (exportDropdown) clickItemsOnKeyboardSelect(exportDropdown);
   if (state.elements.btnExportCSV) {
     state.elements.btnExportCSV.addEventListener('click', () => {
       downloadCSV(state.currentPrism);
@@ -355,7 +367,7 @@ export function setupEventListeners() {
     // A batch sub-row previews only its batch's marks, never the card's union
     wireCardPreview(state.elements.resultsTbody, (name, cell) => {
       const card = (state.processedCards || []).find(c => c.name === name);
-      const batchKey = cell.closest('tr.batch-subrow')?.dataset.cardKey;
+      const batchKey = cell.dataset.batchKey || cell.closest('tr.batch-subrow')?.dataset.cardKey;
       return (batchKey && card?.batches?.find(b => b.key === batchKey)?.stripes) || card?.stripes || [];
     });
   }

@@ -1,5 +1,5 @@
 /**
- * Deck legend rendering (Legend dropdown in the Results toolbar; also prints on the guide).
+ * Deck legend rendering (rail beside the Mark sleeves table, or its phone sheet; also prints on the guide).
  */
 
 import { state } from '../core/state.js';
@@ -38,10 +38,10 @@ export function renderExport() {
     legendItems.sort((a, b) => a.sortPos - b.sortPos);
 
     const legendRow = (color, name, slotLabel) => `
-      <div class="wa-cluster wa-gap-s wa-align-items-center" style="flex-wrap: nowrap;">
+      <div class="wa-cluster wa-gap-s wa-align-items-center">
         <div class="deck-color-indicator" style="background-color: ${color};"></div>
-        <span style="flex: 1;">${escapeHtml(name)}</span>
-        <span class="wa-caption-s" style="font-family: var(--wa-font-family-code); white-space: nowrap;">${escapeHtml(slotLabel)}</span>
+        <span style="flex: 1 1 8rem; min-width: 0;">${escapeHtml(name)}</span>
+        <span class="wa-caption-s" style="font-family: var(--wa-font-family-code); white-space: nowrap; margin-inline-start: auto;">${escapeHtml(slotLabel)}</span>
       </div>`;
 
     state.elements.deckLegend.innerHTML = legendItems.map(item => {

@@ -164,7 +164,7 @@
           </wa-tab>
           <wa-tab slot="nav" panel="results">
             <wa-icon name="table" style="margin-right: 0.5em;"></wa-icon>
-            Results
+            Mark sleeves
           </wa-tab>
 
           <!-- Decks Panel -->
@@ -359,7 +359,7 @@
           <!-- Results Panel -->
           <wa-tab-panel name="results">
             <div class="wa-stack wa-gap-l">
-              <h2 class="visually-hidden">Marking Results</h2>
+              <h2 class="visually-hidden">Mark sleeves</h2>
               <!-- Marking prerequisites at the point of action -->
               <div id="marking-prereq-callout" class="wa-stack wa-gap-xs" style="display: none;">
                 <wa-callout variant="warning">
@@ -374,59 +374,9 @@
                   </wa-button>
                 </div>
               </div>
-              <!-- Stats Summary -->
-              <div id="results-stats" class="wa-grid wa-gap-m" style="--min-column-size: 30ch">
-                <wa-card>
-                  <div class="wa-flank wa-align-items-start">
-                    <wa-avatar shape="circle">
-                      <wa-icon slot="icon" name="box-open"></wa-icon>
-                    </wa-avatar>
-                    <div class="wa-stack wa-gap-2xs">
-                      <p class="wa-caption-s" style="margin: 0;">Total Cards</p>
-                      <div class="wa-cluster wa-gap-xs">
-                        <span class="wa-heading-xl" id="stat-total">0</span>
-                        <wa-badge variant="neutral" appearance="outlined" pill>
-                          Pool+Core
-                        </wa-badge>
-                      </div>
-                    </div>
-                  </div>
-                </wa-card>
-                <wa-card>
-                  <div class="wa-flank wa-align-items-start">
-                    <wa-avatar shape="circle">
-                      <wa-icon slot="icon" name="object-group"></wa-icon>
-                    </wa-avatar>
-                    <div class="wa-stack wa-gap-2xs">
-                      <p class="wa-caption-s" style="margin: 0;">Pool Cards</p>
-                      <div class="wa-cluster wa-gap-xs">
-                        <span class="wa-heading-xl" id="stat-shared">0</span>
-                        <wa-badge variant="neutral" appearance="outlined" pill>
-                          Copies in 2+ Decks
-                        </wa-badge>
-                      </div>
-                    </div>
-                  </div>
-                </wa-card>
-                <wa-card>
-                  <div class="wa-flank wa-align-items-start">
-                    <wa-progress-ring value="0" id="marked-progress" style="--track-width: 6px; --indicator-width: 8px; --size: 48px;">
-                    </wa-progress-ring>
-                    <div class="wa-stack wa-gap-2xs">
-                      <p class="wa-caption-s" style="margin: 0;">Marked</p>
-                      <div class="wa-cluster wa-gap-xs">
-                        <span class="wa-heading-xl" id="stat-marked">0/0</span>
-                        <wa-badge variant="neutral" appearance="outlined" pill>
-                          Sleeves Done
-                        </wa-badge>
-                      </div>
-                    </div>
-                  </div>
-                </wa-card>
-              </div>
-
-              <!-- Deck Overlap Matrix -->
-              <wa-details id="overlap-matrix-container" style="display: none;">
+              <!-- Deck Overlap Matrix. Desktop: above the table. Phone: in the
+                   Totals and tools sheet (data-phone-slot, see marking-layout.js). -->
+              <wa-details id="overlap-matrix-container" data-phone-slot="sheet" data-phone-order="40" style="display: none;">
                 <span slot="summary" class="wa-heading-s">
                   <wa-icon name="table-cells" style="margin-right: var(--wa-space-xs);"></wa-icon>
                   Deck Overlap Matrix
@@ -434,104 +384,170 @@
                 <div id="overlap-matrix" style="overflow-x: auto;"></div>
               </wa-details>
 
-              <!-- Persistent undone-only filter
-              <div class="wa-cluster wa-gap-s wa-align-items-center" style="flex-wrap: wrap;">
-                <wa-switch id="undone-filter" size="s">Show undone only</wa-switch>
-              </div> -->
-
-              <!-- Filter -->
-              <div class="wa-cluster wa-gap-m wa-align-items-center" style="flex-wrap: wrap;">
-
-
-                <!-- Deck Filter Dropdown -->
-                <wa-dropdown id="deck-filter-dropdown" stay-open-on-select>
-                  <wa-button slot="trigger" appearance="plain" variant="neutral" size="s" caret>
-                    <wa-icon slot="start" name="filter"></wa-icon>
-                    Filters
-                  </wa-button>
-                <div class="wa-stack wa-gap-2xs deck-filter-menu">
-                <wa-switch id="undone-filter" size="s">Undone only</wa-switch>
-                <wa-switch id="show-all-slots" size="s">All slots</wa-switch>
+              <div id="marking-layout" class="marking-layout">
+                <!-- Rail: totals and legend beside the table. On phone both move into the sheet. -->
+                <aside class="marking-rail wa-stack wa-gap-m" aria-label="Totals and legend">
+                  <div id="results-stats" class="wa-grid wa-gap-m" style="--min-column-size: 14rem;" data-phone-slot="sheet" data-phone-order="10">
+                    <wa-card>
+                      <div class="wa-flank wa-align-items-start">
+                        <wa-avatar shape="circle">
+                          <wa-icon slot="icon" name="box-open"></wa-icon>
+                        </wa-avatar>
+                        <div class="wa-stack wa-gap-2xs">
+                          <p class="wa-caption-s" style="margin: 0;">Total Cards</p>
+                          <div class="wa-cluster wa-gap-xs">
+                            <span class="wa-heading-xl" id="stat-total">0</span>
+                            <wa-badge variant="neutral" appearance="outlined" pill>
+                              Pool+Core
+                            </wa-badge>
+                          </div>
+                        </div>
+                      </div>
+                    </wa-card>
+                    <wa-card>
+                      <div class="wa-flank wa-align-items-start">
+                        <wa-avatar shape="circle">
+                          <wa-icon slot="icon" name="object-group"></wa-icon>
+                        </wa-avatar>
+                        <div class="wa-stack wa-gap-2xs">
+                          <p class="wa-caption-s" style="margin: 0;">Pool Cards</p>
+                          <div class="wa-cluster wa-gap-xs">
+                            <span class="wa-heading-xl" id="stat-shared">0</span>
+                            <wa-badge variant="neutral" appearance="outlined" pill>
+                              Copies in 2+ Decks
+                            </wa-badge>
+                          </div>
+                        </div>
+                      </div>
+                    </wa-card>
+                    <wa-card>
+                      <div class="wa-flank wa-align-items-start">
+                        <wa-progress-ring value="0" id="marked-progress" style="--track-width: 6px; --indicator-width: 8px; --size: 48px;">
+                        </wa-progress-ring>
+                        <div class="wa-stack wa-gap-2xs">
+                          <p class="wa-caption-s" style="margin: 0;">Marked</p>
+                          <div class="wa-cluster wa-gap-xs">
+                            <span class="wa-heading-xl" id="stat-marked">0/0</span>
+                            <wa-badge variant="neutral" appearance="outlined" pill>
+                              Sleeves Done
+                            </wa-badge>
+                          </div>
+                        </div>
+                      </div>
+                    </wa-card>
                   </div>
-                  <div class="wa-stack wa-gap-0 deck-filter-menu" id="deck-filter-menu">
-                    <!-- Deck filter buttons will be dynamically inserted here -->
-                  </div>
-                </wa-dropdown>
-                <!--Results-->
-                <wa-radio-group id="results-filter" orientation="horizontal" value="all" size="s">
-                  <wa-radio appearance="button" value="all" size="s">All Cards</wa-radio>
-                  <wa-radio appearance="button" value="shared" size="s">Pool</wa-radio>
-                  <wa-radio appearance="button" value="basics-by-deck" size="s">One Mark at a Time</wa-radio>
-                  <wa-radio appearance="button" value="removed" id="removed-filter-btn" size="s">Marks to Clear</wa-radio>
-                </wa-radio-group>
-                <!-- Search -->
-                <wa-input id="results-search" placeholder="Search cards..." size="m" style="max-width: 400px; flex: 1; min-width: 10rem;">
-                  <wa-icon slot="start" name="search"></wa-icon>
-                </wa-input>
-                <!-- Deck legend (prints on the guide) -->
-                <wa-dropdown id="legend-dropdown" placement="bottom-end">
-                  <wa-button slot="trigger" appearance="plain" variant="neutral" size="s" caret>
-                    <wa-icon slot="start" name="palette"></wa-icon>
-                    Legend
-                  </wa-button>
-                  <div class="wa-stack wa-gap-s" style="padding: var(--wa-space-s) var(--wa-space-m); min-width: 16rem;">
-                    <span class="wa-caption-s" style="color: var(--wa-color-neutral-text-subtle);">Deck colors and slots. This legend prints on the guide.</span>
-                    <div id="deck-legend" class="wa-stack wa-gap-s">
-                      <!-- Deck legend items will be inserted here -->
+                  <!-- Deck legend (prints on the guide) -->
+                  <wa-card data-phone-slot="sheet" data-phone-order="20">
+                    <div class="wa-stack wa-gap-s">
+                      <h3 class="wa-heading-s" style="margin: 0;">
+                        <wa-icon name="palette" style="margin-right: var(--wa-space-xs);"></wa-icon>
+                        Legend
+                      </h3>
+                      <span class="wa-caption-s" style="color: var(--wa-color-neutral-text-subtle);">Deck colors and slots. This legend prints on the guide.</span>
+                      <div id="deck-legend" class="wa-stack wa-gap-s">
+                        <!-- Deck legend items will be inserted here -->
+                      </div>
                     </div>
+                  </wa-card>
+                </aside>
+
+                <div class="marking-main wa-stack wa-gap-m">
+                  <!-- Row 1: view switch and search -->
+                  <div class="wa-cluster wa-gap-m wa-align-items-center">
+                    <wa-radio-group id="results-filter" orientation="horizontal" value="all" size="s">
+                      <wa-radio appearance="button" value="all" size="s">All Cards</wa-radio>
+                      <wa-radio appearance="button" value="shared" size="s">Pool</wa-radio>
+                      <wa-radio appearance="button" value="removed" id="removed-filter-btn" size="s">Marks to Clear</wa-radio>
+                    </wa-radio-group>
+                    <wa-input id="results-search" placeholder="Search cards..." size="m" style="max-width: 400px; flex: 1; min-width: 10rem;">
+                      <wa-icon slot="start" name="search"></wa-icon>
+                    </wa-input>
                   </div>
-                </wa-dropdown>
-                <!-- Export actions -->
-                <wa-dropdown id="export-dropdown" placement="bottom-end">
-                  <wa-button slot="trigger" variant="brand" appearance="outlined" size="s" caret>
-                    <wa-icon slot="start" name="download"></wa-icon>
-                    Export
+
+                  <!-- Row 2: filters, export, Start marking -->
+                  <div class="wa-cluster wa-gap-s wa-align-items-center">
+                    <!-- Checkbox items, not switches: a switch inside a menu can't be
+                         reached by keyboard (Tab closes the menu). results.js handles
+                         every choice on wa-select and appends the deck items. -->
+                    <wa-dropdown id="deck-filter-dropdown">
+                      <wa-button slot="trigger" appearance="plain" variant="neutral" size="s" caret>
+                        <wa-icon slot="start" name="filter"></wa-icon>
+                        Filters
+                      </wa-button>
+                      <wa-dropdown-item id="undone-filter" type="checkbox">Undone only</wa-dropdown-item>
+                      <wa-dropdown-item id="one-mark-filter" type="checkbox">One Mark at a Time</wa-dropdown-item>
+                      <wa-dropdown-item id="show-all-slots" type="checkbox">All slots</wa-dropdown-item>
+                      <wa-divider></wa-divider>
+                      <wa-dropdown-item id="deck-filter-clear">
+                        <wa-icon slot="icon" name="xmark"></wa-icon>
+                        Clear deck filters
+                      </wa-dropdown-item>
+                      <wa-divider></wa-divider>
+                    </wa-dropdown>
+                    <!-- Export actions -->
+                    <wa-dropdown id="export-dropdown" placement="bottom-end" data-phone-slot="sheet" data-phone-order="30">
+                      <wa-button slot="trigger" variant="brand" appearance="outlined" size="s" caret>
+                        <wa-icon slot="start" name="download"></wa-icon>
+                        Export
+                      </wa-button>
+                      <span class="wa-caption-s" style="display: block; padding: var(--wa-space-s) var(--wa-space-m) 0; color: var(--wa-color-neutral-text-subtle);">The printable guide lists every card with its colors and slots, plus the deck legend.</span>
+                      <wa-dropdown-item id="btn-print-guide">
+                        <wa-icon slot="icon" name="print"></wa-icon>
+                        Printable guide
+                      </wa-dropdown-item>
+                      <wa-dropdown-item id="btn-export-csv">
+                        <wa-icon slot="icon" name="file-csv"></wa-icon>
+                        Download CSV
+                      </wa-dropdown-item>
+                      <wa-divider></wa-divider>
+                      <wa-dropdown-item id="btn-copy-undone">
+                        <wa-icon slot="icon" name="clipboard"></wa-icon>
+                        Copy undone list
+                      </wa-dropdown-item>
+                      <wa-dropdown-item id="btn-download-undone">
+                        <wa-icon slot="icon" name="file-lines"></wa-icon>
+                        Download undone (.txt)
+                      </wa-dropdown-item>
+                    </wa-dropdown>
+                    <!-- Opens SCRY-Mode (hidden in Marks to Clear). On phone it moves to the bottom bar. -->
+                    <wa-button id="btn-scry" appearance="filled" variant="brand" size="s" data-phone-slot="bar">
+                      <wa-icon slot="start" name="expand"></wa-icon>
+                      Start marking
+                    </wa-button>
+                  </div>
+
+                  <!-- Results Table -->
+                  <div id="results-table-container" style="overflow-x: auto;">
+                    <table id="results-table" class="results-table">
+                      <thead>
+                        <tr>
+                          <th style="width: 60px;">Done</th>
+                          <th>Card Name</th>
+                          <th>Marks</th>
+                        </tr>
+                      </thead>
+                      <tbody id="results-tbody">
+                        <!-- Loading skeletons — replaced by the first renderResults() -->
+                        <tr><td colspan="3"><wa-skeleton effect="pulse" class="skeleton-line"></wa-skeleton></td></tr>
+                        <tr><td colspan="3"><wa-skeleton effect="pulse" class="skeleton-line"></wa-skeleton></td></tr>
+                        <tr><td colspan="3"><wa-skeleton effect="pulse" class="skeleton-line"></wa-skeleton></td></tr>
+                        <tr><td colspan="3"><wa-skeleton effect="pulse" class="skeleton-line"></wa-skeleton></td></tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                <!-- Phone only: progress and Start marking stay in reach; the rest opens in one sheet -->
+                <div id="marking-bar" class="marking-bar">
+                  <div class="marking-bar-progress wa-stack wa-gap-2xs">
+                    <span class="wa-caption-s"><span id="bar-marked">0/0</span> sleeves done</span>
+                    <wa-progress-bar id="bar-progress" value="0" aria-label="Sleeves done"></wa-progress-bar>
+                  </div>
+                  <wa-button id="btn-marking-tools" appearance="outlined" variant="neutral" size="s">
+                    <wa-icon slot="start" name="sliders"></wa-icon>
+                    Totals and tools
                   </wa-button>
-                  <span class="wa-caption-s" style="display: block; padding: var(--wa-space-s) var(--wa-space-m) 0; color: var(--wa-color-neutral-text-subtle);">The printable guide lists every card with its colors and slots, plus the deck legend.</span>
-                  <wa-dropdown-item id="btn-print-guide">
-                    <wa-icon slot="icon" name="print"></wa-icon>
-                    Printable guide
-                  </wa-dropdown-item>
-                  <wa-dropdown-item id="btn-export-csv">
-                    <wa-icon slot="icon" name="file-csv"></wa-icon>
-                    Download CSV
-                  </wa-dropdown-item>
-                  <wa-divider></wa-divider>
-                  <wa-dropdown-item id="btn-copy-undone">
-                    <wa-icon slot="icon" name="clipboard"></wa-icon>
-                    Copy undone list
-                  </wa-dropdown-item>
-                  <wa-dropdown-item id="btn-download-undone">
-                    <wa-icon slot="icon" name="file-lines"></wa-icon>
-                    Download undone (.txt)
-                  </wa-dropdown-item>
-                </wa-dropdown>
-                <!-- SCRY-Mode launcher (hidden in Removed view) -->
-                <wa-button id="btn-scry" appearance="filled" variant="brand" size="s">
-                  <wa-icon slot="start" name="expand"></wa-icon>
-                  SCRY-Mode
-                </wa-button>
-              </div>
-
-
-              <!-- Results Table -->
-              <div id="results-table-container" style="overflow-x: auto;">
-                <table id="results-table" class="results-table">
-                  <thead>
-                    <tr>
-                      <th style="width: 60px;">Done</th>
-                      <th>Card Name</th>
-                      <th>Stripes</th>
-                    </tr>
-                  </thead>
-                  <tbody id="results-tbody">
-                    <!-- Loading skeletons — replaced by the first renderResults() -->
-                    <tr><td colspan="3"><wa-skeleton effect="pulse" class="skeleton-line"></wa-skeleton></td></tr>
-                    <tr><td colspan="3"><wa-skeleton effect="pulse" class="skeleton-line"></wa-skeleton></td></tr>
-                    <tr><td colspan="3"><wa-skeleton effect="pulse" class="skeleton-line"></wa-skeleton></td></tr>
-                    <tr><td colspan="3"><wa-skeleton effect="pulse" class="skeleton-line"></wa-skeleton></td></tr>
-                  </tbody>
-                </table>
+                </div>
               </div>
 
               <div id="no-results" class="wa-stack wa-gap-m wa-align-items-center" style="padding: var(--wa-space-2xl); display: none;">
@@ -697,6 +713,12 @@
 
     <!-- Toast notification container -->
     <wa-toast placement="bottom-end" id="toast-container"></wa-toast>
+
+    <!-- Totals and tools (phone). marking-layout.js moves every
+         [data-phone-slot="sheet"] element in here, ordered by data-phone-order. -->
+    <wa-drawer id="marking-sheet" label="Totals and tools" placement="bottom">
+      <div id="marking-sheet-body" class="wa-stack wa-gap-m"></div>
+    </wa-drawer>
 
     <wa-drawer id="membership-drawer" label="Membership" placement="end">
       <div data-membership-content></div>

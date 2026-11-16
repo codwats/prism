@@ -11,7 +11,7 @@ globalThis.localStorage = {
 
 const { createPrism, createDeck, createSplitGroup, processCards, calculateRemovedCards } =
 	await import('../js/modules/processor.js');
-const { isCardDone, passKeysForCard } = await import('../js/core/utils.js');
+const { isCardDone, passKeysForCard, batchTally } = await import('../js/core/utils.js');
 const { mergeRemovedCards } = await import('../js/modules/storage.js');
 const { getDeckPoolCoreCounts } = await import('../js/features/deck-list.js');
 
@@ -169,6 +169,23 @@ test('isCardDone: batch keys, legacy plain key, pass keys, fail-safe crossing', 
 
 	// non-repeated card has no pass keys
 	assert.deepEqual(passKeysForCard(sol), []);
+});
+
+test('batchTally: done batch keys over total batches, plain and pass keys ignored (#452)', () => {
+	const prism = createPrism('T');
+	prism.decks = [
+		standalone('A', 1, [card('Forest', 8, true)]),
+		standalone('K', 2, [card('Forest', 3, true)]),
+	];
+	const forest = processCards(prism).find((c) => c.name === 'Forest');
+	const total = forest.batches.length;
+	assert.ok(total > 1);
+
+	assert.deepEqual(batchTally(forest, new Set()), { done: 0, total });
+	assert.deepEqual(batchTally(forest, new Set([forest.batches[0].key])), { done: 1, total });
+	assert.deepEqual(batchTally(forest, new Set(forest.batches.map((b) => b.key))), { done: total, total });
+	// The tally counts batch keys only: a legacy plain mark or pass marks never fill it
+	assert.deepEqual(batchTally(forest, new Set(['Forest', 'Forest|A', 'Forest|K'])), { done: 0, total });
 });
 
 // --- #151 removals -----------------------------------------------------------

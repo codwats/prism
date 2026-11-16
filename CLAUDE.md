@@ -92,19 +92,19 @@ Preferences: { colorScheme, defaultColors, stripeStartCorner ('top-right'|'top-l
 
 `processCards(prism)` dedupes cards across decks, assigns stripe indicators. Names canonicalized via Scryfall before storage. Split-group child marks emitted in **post-loop pass** — main loop emits only group's Side A stripe; post-loop decides shared vs subset over whole group first (see split styles). `markType`: `'stripe'` (rendered Side B stripe), `'dot'` (rendered dot), `'membership'` (not rendered; carries `deckId` for deck-filter). `dotIndex` not stored — renderers compute dot order from stripes array. Results table and printable guide both use ö-style rendering (dot row above stripe square).
 
-**Marking batches (#146)** — every ProcessedCard carries `batches`: quantity-tier thresholds over distinct per-deck quantities, each `{ copyCount: ti−t(i−1), participantIds (sorted), key, logicalDeckCount, isPool, isDedicated?, stripes }`. Batch marks **re-derived from exact participant set** (`marksForParticipants`), never filtered from card's stripes — `processCards` decides shared-vs-subset over whole group, so an A5/B2 group emits no child indicator while the 5-tier batch needs one. `totalQuantity` = Σ batch copyCounts (dedicated batches + max across remaining participants; plain max when dedication off). Results renders multi-batch cards as expandable sub-rows with derived, non-clickable parent roll-up checkbox; parent never shows mark union (over-marking trap). SCRY consumes flattened `state.resultsView` snapshot — one screen per batch, stating copy count. "One Mark at a Time" (internal filter value still `basics-by-deck`) = per-mark projection of batches over every repeated card.
+**Marking batches (#146)** — every ProcessedCard carries `batches`: quantity-tier thresholds over distinct per-deck quantities, each `{ copyCount: ti−t(i−1), participantIds (sorted), key, logicalDeckCount, isPool, isDedicated?, stripes }`. Batch marks **re-derived from exact participant set** (`marksForParticipants`), never filtered from card's stripes — `processCards` decides shared-vs-subset over whole group, so an A5/B2 group emits no child indicator while the 5-tier batch needs one. `totalQuantity` = Σ batch copyCounts (dedicated batches + max across remaining participants; plain max when dedication off). Mark sleeves tab renders multi-batch cards as expandable sub-rows; parent shows derived, never-clickable tally of done batches (`batchTally`, "1/4"), never mark union (over-marking trap). SCRY consumes flattened `state.resultsView` snapshot — one screen per batch, stating copy count. "One Mark at a Time" (internal filter value still `basics-by-deck`) = per-mark projection of batches over every repeated card.
 
 ### Display Counts
 
 Pool/core belongs to **batches**, not card names (#146): pool batch spans 2+ logical decks, core batch exactly one; dedicated batches core by construction.
 
 - **Decks tab** — each deck card shows **pool**/**core**: Σ copyCount of pool/core batches deck participates in (`getDeckPoolCoreCounts()` in `deck-list.js`). Per-deck pool + core = deck's decklist quantity per card; not additive across decks.
-- **Results tab** — **Total Cards** (Σ `totalQuantity`), **Pool Cards** (Σ pool-batch quantities). Marked progress counts copies: full `totalQuantity` for done cards + copyCounts of done batches on partially-done cards. Dedication on drains commanders from pool (Total rises, Pool drops) — correct, not a bug.
+- **Mark sleeves tab** (panel still `results`) — **Total Cards** (Σ `totalQuantity`), **Pool Cards** (Σ pool-batch quantities). Marked progress counts copies: full `totalQuantity` for done cards + copyCounts of done batches on partially-done cards. Dedication on drains commanders from pool (Total rises, Pool drops) — correct, not a bug.
 
 ### Logical vs Physical Deck Count
 
 `processCards()` returns per card:
-- `deckCount` — raw count of deck IDs (each split variant separately). Sorting and "N decks" in Stripes column.
+- `deckCount` — raw count of deck IDs (each split variant separately). Sorting and "N decks" in Marks column.
 - `logicalDeckCount` — standalone decks + split groups (all variants of a group count 1). All pool/shared/core classification. Card shared only among one group's variants has `logicalDeckCount: 1` → **core**, not pool.
 
 ### Split Position Assignment
