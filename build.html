@@ -159,11 +159,11 @@
         <!-- Tab Navigation -->
         <wa-tab-group id="main-tabs">
           <wa-tab slot="nav" panel="decks">
-            <wa-icon name="layer-group" style="margin-right: 0.5em;"></wa-icon>
+            <wa-icon class="tab-icon" name="layer-group" style="margin-right: 0.5em;"></wa-icon>
             Decks
           </wa-tab>
           <wa-tab slot="nav" panel="results">
-            <wa-icon name="table" style="margin-right: 0.5em;"></wa-icon>
+            <wa-icon class="tab-icon" name="table" style="margin-right: 0.5em;"></wa-icon>
             Mark sleeves
           </wa-tab>
 
@@ -380,7 +380,7 @@
                           <wa-icon slot="icon" name="box-open"></wa-icon>
                         </wa-avatar>
                         <div class="wa-stack wa-gap-2xs">
-                          <p class="wa-caption-s" style="margin: 0;">Total Cards</p>
+                          <p class="wa-caption-s" style="margin: 0;">Total cards</p>
                           <div class="wa-cluster wa-gap-xs">
                             <span class="wa-heading-xl" id="stat-total">0</span>
                             <wa-badge variant="neutral" appearance="outlined" pill>
@@ -396,11 +396,11 @@
                           <wa-icon slot="icon" name="object-group"></wa-icon>
                         </wa-avatar>
                         <div class="wa-stack wa-gap-2xs">
-                          <p class="wa-caption-s" style="margin: 0;">Pool Cards</p>
+                          <p class="wa-caption-s" style="margin: 0;">Pool cards</p>
                           <div class="wa-cluster wa-gap-xs">
                             <span class="wa-heading-xl" id="stat-shared">0</span>
                             <wa-badge variant="neutral" appearance="outlined" pill>
-                              Copies in 2+ Decks
+                              Copies in 2+ decks
                             </wa-badge>
                           </div>
                         </div>
@@ -415,7 +415,7 @@
                           <div class="wa-cluster wa-gap-xs">
                             <span class="wa-heading-xl" id="stat-marked">0/0</span>
                             <wa-badge variant="neutral" appearance="outlined" pill>
-                              Sleeves Done
+                              Sleeves done
                             </wa-badge>
                           </div>
                         </div>
@@ -438,38 +438,13 @@
                 </aside>
 
                 <div class="marking-main wa-stack wa-gap-m">
-                  <!-- Row 1: view switch, search and filters -->
-                  <div class="wa-cluster wa-gap-m wa-align-items-center">
-                    <wa-radio-group id="results-filter" orientation="horizontal" value="all" size="s">
-                      <wa-radio appearance="button" value="all" size="s">All Cards</wa-radio>
-                      <wa-radio appearance="button" value="shared" size="s">Pool</wa-radio>
-                      <wa-radio appearance="button" value="removed" id="removed-filter-btn" size="s">Marks to Clear</wa-radio>
-                    </wa-radio-group>
-                    <wa-input id="results-search" placeholder="Search cards..." size="m" style="max-width: 400px; flex: 1; min-width: 10rem;">
-                      <wa-icon slot="start" name="search"></wa-icon>
-                    </wa-input>
-                    <!-- Checkbox items, not switches: a switch inside a menu can't be
-                         reached by keyboard (Tab closes the menu). results.js handles
-                         every choice on wa-select and appends the deck items. -->
-                    <wa-dropdown id="deck-filter-dropdown">
-                      <wa-button slot="trigger" appearance="plain" variant="neutral" size="s" caret>
-                        <wa-icon slot="start" name="filter"></wa-icon>
-                        Filters
-                      </wa-button>
-                      <wa-dropdown-item id="undone-filter" type="checkbox">Undone only</wa-dropdown-item>
-                      <wa-dropdown-item id="one-mark-filter" type="checkbox">One Mark at a Time</wa-dropdown-item>
-                      <wa-dropdown-item id="show-all-slots" type="checkbox">All slots</wa-dropdown-item>
-                      <wa-divider></wa-divider>
-                      <wa-dropdown-item id="deck-filter-clear">
-                        <wa-icon slot="icon" name="xmark"></wa-icon>
-                        Clear deck filters
-                      </wa-dropdown-item>
-                      <wa-divider></wa-divider>
-                    </wa-dropdown>
-                  </div>
-
-                  <!-- Row 2: export, Shown rows, Audit, Start marking. Empty on phone, where all four move out (marking-layout.js), so it hides. -->
+                  <!-- Row 1: Start marking leads, then Export, Shown rows, Audit, so the primary action is never alone on a row (#477). Empty on phone, where all four move out (marking-layout.js), so it hides. -->
                   <div id="marking-actions" class="wa-cluster wa-gap-s wa-align-items-center">
+                    <!-- Opens SCRY-Mode (hidden in Marks to Clear). On phone it moves to the bottom bar. -->
+                    <wa-button id="btn-scry" appearance="filled" variant="brand" size="s" data-phone-slot="bar">
+                      <wa-icon slot="start" name="expand"></wa-icon>
+                      Start marking
+                    </wa-button>
                     <!-- Export actions -->
                     <wa-dropdown id="export-dropdown" placement="bottom-end" data-phone-slot="sheet" data-phone-order="10">
                       <wa-button slot="trigger" variant="brand" appearance="outlined" size="s" caret>
@@ -516,11 +491,36 @@
                       <wa-icon slot="start" name="clipboard-check"></wa-icon>
                       Audit marks
                     </wa-button>
-                    <!-- Opens SCRY-Mode (hidden in Marks to Clear). On phone it moves to the bottom bar. -->
-                    <wa-button id="btn-scry" appearance="filled" variant="brand" size="s" data-phone-slot="bar">
-                      <wa-icon slot="start" name="expand"></wa-icon>
-                      Start marking
-                    </wa-button>
+                  </div>
+
+                  <!-- Row 2: view switch, search and filters -->
+                  <div class="wa-cluster wa-gap-m wa-align-items-center">
+                    <wa-radio-group id="results-filter" orientation="horizontal" value="all" size="s">
+                      <wa-radio appearance="button" value="all" size="s">All cards</wa-radio>
+                      <wa-radio appearance="button" value="shared" size="s">Pool</wa-radio>
+                      <wa-radio appearance="button" value="removed" id="removed-filter-btn" size="s">Marks to Clear</wa-radio>
+                    </wa-radio-group>
+                    <wa-input id="results-search" placeholder="Search cards..." size="m" style="max-width: 400px; flex: 1; min-width: 10rem;">
+                      <wa-icon slot="start" name="search"></wa-icon>
+                    </wa-input>
+                    <!-- Checkbox items, not switches: a switch inside a menu can't be
+                         reached by keyboard (Tab closes the menu). results.js handles
+                         every choice on wa-select and appends the deck items. -->
+                    <wa-dropdown id="deck-filter-dropdown">
+                      <wa-button slot="trigger" appearance="plain" variant="neutral" size="s" caret>
+                        <wa-icon slot="start" name="filter"></wa-icon>
+                        Filters
+                      </wa-button>
+                      <wa-dropdown-item id="undone-filter" type="checkbox">Undone only</wa-dropdown-item>
+                      <wa-dropdown-item id="one-mark-filter" type="checkbox">One Mark at a Time</wa-dropdown-item>
+                      <wa-dropdown-item id="show-all-slots" type="checkbox">All slots</wa-dropdown-item>
+                      <wa-divider></wa-divider>
+                      <wa-dropdown-item id="deck-filter-clear">
+                        <wa-icon slot="icon" name="xmark"></wa-icon>
+                        Clear deck filters
+                      </wa-dropdown-item>
+                      <wa-divider></wa-divider>
+                    </wa-dropdown>
                   </div>
 
                   <!-- Results Table -->
@@ -529,7 +529,7 @@
                       <thead>
                         <tr>
                           <th style="width: 60px;">Done</th>
-                          <th>Card Name</th>
+                          <th>Card name</th>
                           <th>Marks</th>
                         </tr>
                       </thead>
@@ -557,12 +557,12 @@
                 </div>
               </div>
 
-              <!-- Deck Overlap Matrix. Desktop: under the table, so the first card row stays on the first screen (#476). Phone: in the
+              <!-- Deck overlap matrix. Desktop: under the table, so the first card row stays on the first screen (#476). Phone: in the
                    Totals and tools sheet (data-phone-slot, see marking-layout.js). -->
               <wa-details id="overlap-matrix-container" data-phone-slot="sheet" data-phone-order="60" style="display: none;">
                 <span slot="summary" class="wa-heading-s">
                   <wa-icon name="table-cells" style="margin-right: var(--wa-space-xs);"></wa-icon>
-                  Deck Overlap Matrix
+                  Deck overlap matrix
                 </span>
                 <div id="overlap-matrix" style="overflow-x: auto;"></div>
               </wa-details>
