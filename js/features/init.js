@@ -12,6 +12,7 @@ import { initColorSwatches, placeDeckForm } from './deck-form.js';
 import { renderDecksList, handleSwitchPrism } from './deck-list.js';
 import { setupStripeReorderDialog } from './stripe-reorder-dialog.js';
 import { setupScryMode } from './scry-mode.js';
+import { setupBulkMark } from './bulk-mark.js';
 import { setupMarkingLayout } from './marking-layout.js';
 import { renderResults, updateRemovedFilterBadge } from './results.js';
 import { renderExport } from './export-view.js';
@@ -239,6 +240,7 @@ export async function init() {
   setupMarkingLayout();
   setupStripeReorderDialog();
   setupScryMode();
+  setupBulkMark();
   setupSyncStatus();
   initMembershipDrawer();
 

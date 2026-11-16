@@ -743,7 +743,8 @@ wa-page[view='desktop'] [data-toggle-nav] {
    screen. WA caps the menu at this variable with !important, and only sets it
    for horizontal auto-size, which dropdowns don't use. */
 #prism-overflow::part(menu),
-#account-menu::part(menu) {
+#account-menu::part(menu),
+#bulk-mark-dropdown::part(menu) {
   --auto-size-available-width: min(28rem, calc(100vw - 2 * var(--wa-space-m)));
 }
 
@@ -2292,7 +2293,8 @@ wa-page[view='desktop'] [data-toggle-nav] {
   #account-menu wa-dropdown-item,
   #prism-overflow wa-dropdown-item,
   #deck-filter-dropdown wa-dropdown-item,
-  #export-dropdown wa-dropdown-item {
+  #export-dropdown wa-dropdown-item,
+  #bulk-mark-dropdown wa-dropdown-item {
     min-block-size: 44px;
   }
   /* no documented part for the button-appearance radio, so the host */

@@ -82,6 +82,37 @@ function renderSlot(slot, opts) {
 // disclosure state survives re-renders within the session.
 const expandedCards = new Set();
 
+export function toggleCardExpanded(name) {
+  if (expandedCards.has(name)) expandedCards.delete(name);
+  else expandedCards.add(name);
+}
+
+// The row's markedCards key: pass rows `<name>|<deckName>`, others the name.
+const rowKey = (card) => (card.isPassRow ? `${card.displayName}|${card.deckName}` : card.name);
+
+// Cards the last render left after view, filters, search and sort.
+let shownCards = [];
+
+/**
+ * Keys of the checkbox rows the current view shows, for the bulk actions.
+ * Marks to Clear rows and multi-batch parents have no checkbox and are
+ * skipped; a collapsed parent's batch rows are hidden, so they are skipped
+ * too and counted in `collapsed`.
+ * @returns {{ keys: string[], collapsed: number }}
+ */
+export function shownMarkRows() {
+  const keys = [];
+  let collapsed = 0;
+  for (const card of shownCards) {
+    if (card.isRemoved) continue;
+    const batches = card.batches || [];
+    if (card.isPassRow || batches.length <= 1) keys.push(rowKey(card));
+    else if (expandedCards.has(card.name)) keys.push(...batches.map(b => b.key));
+    else collapsed++;
+  }
+  return { keys, collapsed };
+}
+
 // ============================================================================
 // Chunked row rendering
 // ============================================================================
@@ -113,9 +144,7 @@ function bindResultsDelegation(tbody) {
   tbody.addEventListener('click', (e) => {
     const batchToggle = e.target.closest('.batch-toggle');
     if (batchToggle) {
-      const name = batchToggle.dataset.cardName;
-      if (expandedCards.has(name)) expandedCards.delete(name);
-      else expandedCards.add(name);
+      toggleCardExpanded(batchToggle.dataset.cardName);
       // Preserve depth: expanding a card at row 400 must not yank the list
       // back to the first 60 rows.
       renderResults({ preserveRows: true });
@@ -235,6 +264,7 @@ export function renderResults({ preserveRows = false } = {}) {
 
   const processedCards = processCards(state.currentPrism);
   state.processedCards = processedCards;
+  shownCards = [];
   const totalCardCount = processedCards.reduce((sum, c) => sum + c.totalQuantity, 0);
   // Pool/core belongs to batches (#146): A5/B3 contributes 3 pool + 2 core,
   // not 5 pool — so Pool Cards sums pool-batch quantities.
@@ -397,6 +427,7 @@ export function renderResults({ preserveRows = false } = {}) {
 
   // Apply sorting
   displayCards = sortCards(displayCards, state.sortState.column, state.sortState.direction);
+  shownCards = displayCards;
 
   // Snapshot for SCRY-Mode — reflects exact list visible to user (all
   // filters/sort applied). Multi-batch cards flatten to one entry per batch
@@ -594,7 +625,7 @@ export function renderResults({ preserveRows = false } = {}) {
     if (!multiBatch) {
       // Singleton path — exactly today's row (#149). Pass rows keep their
       // `<name>|<deckName>` key.
-      const cardKey = card.isPassRow ? `${card.displayName}|${card.deckName}` : card.name;
+      const cardKey = rowKey(card);
       const isMarked = markedSetForRows.has(cardKey);
       const previewName = card.isPassRow ? card.displayName : card.name;
       const stripes = stripesCell(card.stripes, band, previewName);
