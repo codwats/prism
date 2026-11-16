@@ -41,6 +41,7 @@ New domain facts go in the matching `docs/agents/*.md`, not here.
 
 - `currentPrism` — active PRISM (decks, cards, splitGroups, markedCards, removedCards)
 - `deckToDelete` / `deckToEdit` — temp IDs for dialog workflows
+- `deckFormMode` — `'add'` | `'edit'` for the one deck form (#450); set by `setDeckFormMode`, reset to add by `endDeckFormSession` on close/cancel
 - `elements` — cached DOM refs (set during init)
 - `sortState` — `{ column, direction }` for results table
 - `selectedDeckIds` — `Set` for deck filter dropdown

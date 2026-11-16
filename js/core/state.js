@@ -7,6 +7,8 @@ export const state = {
   currentPrism: null,
   deckToDelete: null,
   deckToEdit: null,
+  // The one deck form's mode (#450): 'add' or 'edit' (deckToEdit set)
+  deckFormMode: 'add',
   elements: null,
   sortState: { column: 'deckCount', direction: 'desc' },
   selectedDeckIds: new Set(),

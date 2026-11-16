@@ -163,8 +163,8 @@ test('sync merge carries stillInDeck on the newer row and drops it when a remova
 async function editDeck(prism, deckId, list) {
 	state.currentPrism = prism;
 	handleEditClick(deckId);
-	state.elements.editDeckCommander.value = 'Ayula, Queen Among Bears';
-	state.elements.editDeckList.value = `Commander\n1 Ayula, Queen Among Bears\n\n${list}`;
+	state.elements.deckCommander.value = 'Ayula, Queen Among Bears';
+	state.elements.deckList.value = `Commander\n1 Ayula, Queen Among Bears\n\n${list}`;
 	await handleEditConfirm();
 	return state.currentPrism;
 }

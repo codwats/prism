@@ -41,13 +41,17 @@ import { openMembershipDrawer } from "../modules/membership.js";
 import { openDeckExportDialog } from "../modules/deck-export-panel.js";
 import { deckSourceSite } from "../modules/deck-source.js";
 import { canonicalizeCards } from "../modules/scryfall.js";
-import { hideEditImportMessages, cancelEditUrlImport } from "./deck-import.js";
 import {
   initColorSwatches,
   resetDeckForm,
   syncCommanderFieldsFromText,
   applyCommanderFieldsToText,
-  editCommanderRefs,
+  commanderRefs,
+  setDeckFormMode,
+  closeDeckDialog,
+  updateColorSwatchSelection,
+  checkColorWarning,
+  showParseErrors,
 } from "./deck-form.js";
 import { renderAll } from "./init.js";
 import { openStripeReorderDialog, openGroupReorderDialog } from "./stripe-reorder-dialog.js";
@@ -263,26 +267,26 @@ export function handleEditClick(deckId) {
   const deck = state.currentPrism.decks.find((d) => d.id === deckId);
   if (!deck) return;
 
-  state.deckToEdit = deckId;
-  state.editSourceUrl = null;
+  // Edit mode on the one deck form (#450): clears both pending sourceUrls
+  setDeckFormMode("edit", deckId);
+  resetDeckForm();
 
-  if (state.elements.editDeckId) state.elements.editDeckId.value = deck.id;
-  if (state.elements.editDeckName)
-    state.elements.editDeckName.value = deck.name;
-  if (state.elements.editDeckBracket)
-    state.elements.editDeckBracket.value = String(deck.bracket);
-  if (state.elements.editDeckColor)
-    state.elements.editDeckColor.value = deck.color;
+  if (state.elements.deckName) state.elements.deckName.value = deck.name;
+  if (state.elements.deckBracket)
+    state.elements.deckBracket.value = String(deck.bracket);
+  if (state.elements.deckColor) state.elements.deckColor.value = deck.color;
+  updateColorSwatchSelection();
+  checkColorWarning();
 
-  if (state.elements.editDeckList) {
+  if (state.elements.deckList) {
     // Sections carry the commander flags through the textarea round-trip (#147)
-    state.elements.editDeckList.value = cardsToDecklistText(deck.cards);
+    state.elements.deckList.value = cardsToDecklistText(deck.cards);
   }
-  syncCommanderFieldsFromText(editCommanderRefs());
+  syncCommanderFieldsFromText(commanderRefs());
 
-  if (state.elements.editDeckListUpdated) {
+  if (state.elements.deckListUpdated) {
     const ts = deck.cardsUpdatedAt || deck.createdAt;
-    state.elements.editDeckListUpdated.textContent = ts
+    state.elements.deckListUpdated.textContent = ts
       ? `Deck list last edited: ${new Date(ts).toLocaleString("en-US", {
           dateStyle: "medium",
           timeStyle: "short",
@@ -290,22 +294,7 @@ export function handleEditClick(deckId) {
       : "";
   }
 
-  if (state.elements.editParseErrors) {
-    state.elements.editParseErrors.style.display = "none";
-    state.elements.editParseErrors.innerHTML = "";
-  }
-
-  cancelEditUrlImport();
-  hideEditImportMessages();
-  if (state.elements.editImportUrl) state.elements.editImportUrl.value = "";
-  if (state.elements.editImportSection)
-    state.elements.editImportSection.open = false;
-  if (state.elements.btnEditRefreshSource) {
-    state.elements.btnEditRefreshSource.hidden = !deck.sourceUrl;
-    state.elements.btnEditRefreshSource.title = deck.sourceUrl || "";
-  }
-
-  state.elements.editDialog.setAttribute('open', '');
+  state.elements.deckDialog?.setAttribute('open', '');
 }
 
 export async function handleEditConfirm() {
@@ -319,13 +308,13 @@ export async function handleEditConfirm() {
   const oldCards = [...deck.cards];
 
   // Fields → text once at save entry (idempotent) — see handleDeckSubmit
-  applyCommanderFieldsToText(editCommanderRefs());
+  applyCommanderFieldsToText(commanderRefs());
 
-  const name = (state.elements.editDeckName?.value || "").trim();
-  const commander = (state.elements.editDeckCommander?.value || "").trim();
-  const bracket = state.elements.editDeckBracket?.value || "2";
-  const color = state.elements.editDeckColor?.value || deck.color;
-  const decklistText = state.elements.editDeckList?.value || "";
+  const name = (state.elements.deckName?.value || "").trim();
+  const commander = (state.elements.deckCommander?.value || "").trim();
+  const bracket = state.elements.deckBracket?.value || "2";
+  const color = state.elements.deckColor?.value || deck.color;
+  const decklistText = state.elements.deckList?.value || "";
 
   if (!name) {
     showError("Please enter a deck name.");
@@ -348,7 +337,7 @@ export async function handleEditConfirm() {
   const parseResult = parseDecklist(decklistText);
 
   // Spinner for the Scryfall round-trip — the only network-bound wait here.
-  const saveBtn = state.elements.btnConfirmEdit;
+  const saveBtn = state.elements.btnSubmitDeck;
   saveBtn?.setAttribute("loading", "");
   try {
     await canonicalizeCards(parseResult.cards);
@@ -360,23 +349,7 @@ export async function handleEditConfirm() {
 
   const validation = validateDecklist(parseResult);
 
-  if (parseResult.errors.length > 0 && state.elements.editParseErrors) {
-    state.elements.editParseErrors.style.display = "";
-    state.elements.editParseErrors.innerHTML = `
-      <wa-callout variant="warning">
-        <strong>Some lines couldn't be parsed:</strong>
-        <ul style="margin: 0.5em 0 0 1.5em; padding: 0;">
-          ${parseResult.errors
-            .slice(0, 5)
-            .map(
-              (e) => `<li>Line ${e.lineNumber}: ${escapeHtml(e.content)}</li>`,
-            )
-            .join("")}
-          ${parseResult.errors.length > 5 ? `<li>...and ${parseResult.errors.length - 5} more</li>` : ""}
-        </ul>
-      </wa-callout>
-    `;
-  }
+  if (parseResult.errors.length > 0) showParseErrors(parseResult.errors);
 
   if (!validation.isValid) {
     showError(validation.messages.join(" "));
@@ -433,7 +406,7 @@ export async function handleEditConfirm() {
   state.currentPrism.updatedAt = now;
   savePrism(state.currentPrism);
   state.deckToEdit = null;
-  state.elements.editDialog.removeAttribute('open');
+  closeDeckDialog();
 
   renderAll();
 
@@ -930,13 +903,10 @@ export function renderDecksList() {
   const splitGroups = state.currentPrism.splitGroups || [];
   const processed = sortedDecks.length > 0 ? processCards(state.currentPrism) : [];
 
+  // The inline deck form under the list is the empty state (#450)
+  state.elements.decksList.hidden = sortedDecks.length === 0;
   if (sortedDecks.length === 0) {
-    state.elements.decksList.innerHTML = `
-      <div class="wa-stack wa-gap-m wa-align-items-center" style="padding: var(--wa-space-xl); text-align: center;">
-        <wa-icon name="layer-group" style="font-size: 2.5rem; color: var(--wa-color-neutral-text-subtle);"></wa-icon>
-        <p style="color: var(--wa-color-neutral-text-subtle);">No decks yet.</p>
-      </div>
-    `;
+    state.elements.decksList.innerHTML = "";
     return;
   }
 
