@@ -99,7 +99,7 @@ Preferences: { colorScheme, defaultColors, stripeStartCorner ('top-right'|'top-l
 Pool/core belongs to **batches**, not card names (#146): pool batch spans 2+ logical decks, core batch exactly one; dedicated batches core by construction.
 
 - **Decks tab** — each deck card shows **pool**/**core**: Σ copyCount of pool/core batches deck participates in (`getDeckPoolCoreCounts()` in `deck-list.js`). Per-deck pool + core = deck's decklist quantity per card; not additive across decks.
-- **Mark sleeves tab** (panel still `results`) — **Total Cards** (Σ `totalQuantity`), **Pool Cards** (Σ pool-batch quantities). Marked progress counts copies: full `totalQuantity` for done cards + copyCounts of done batches on partially-done cards. Dedication on drains commanders from pool (Total rises, Pool drops) — correct, not a bug.
+- **Mark sleeves tab** (panel still `results`) — **Total cards** (Σ `totalQuantity`), **Pool cards** (Σ pool-batch quantities). Marked progress counts copies: full `totalQuantity` for done cards + copyCounts of done batches on partially-done cards. Dedication on drains commanders from pool (Total rises, Pool drops) — correct, not a bug.
 
 ### Logical vs Physical Deck Count
 
