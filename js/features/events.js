@@ -22,7 +22,8 @@ import {
 } from './deck-form.js';
 import { handleFileUpload, handleJsonImport, handleDeckUrlImport, openCubeDialog, handleLoadCube, updateCubeCapacity, setAllCubeTags, handleCreateCubePrism } from './deck-import.js';
 import { handleDeleteConfirm, handleNewPrism, handleSplitConfirm, handleEditGroupConfirm, handleClearAllRemoved } from './deck-list.js';
-import { renderResults } from './results.js';
+import { renderResults, syncMarkingPrereq } from './results.js';
+import { dismissMarkingPrereq } from '../core/marking-prereq.js';
 import { openScryMode } from './scry-mode.js';
 import { renderOverlapMatrix } from './analysis.js';
 import { debounce, clickItemsOnKeyboardSelect } from '../core/utils.js';
@@ -184,6 +185,10 @@ export function setupEventListeners() {
   });
 
   // SCRY-Mode launch
+  document.getElementById('marking-prereq-dismiss')?.addEventListener('click', () => {
+    dismissMarkingPrereq(state.currentPrism.id);
+    syncMarkingPrereq();
+  });
   if (state.elements.btnScry) {
     state.elements.btnScry.addEventListener('click', openScryMode);
   }
