@@ -4,7 +4,7 @@
  * supabase-client.js caches its client in module scope — only a fresh process
  * gives each scenario a clean module graph.
  *
- * Regression harness for #199: the nav account section must settle on the
+ * Regression harness for #199: the account menu must settle on the
  * branch that matches the real session under every page-load ordering.
  *
  * The fake DOM models script tags the way a browser does: appending a
@@ -25,6 +25,7 @@ class FakeEl {
   constructor(id = null, tag = 'div') {
     this.id = id;
     this.tagName = tag.toUpperCase();
+    this.localName = tag;
     this.style = {};
     this.hidden = false;
     this._listeners = {};
@@ -53,10 +54,16 @@ class FakeEl {
  * An array applies one outcome per successive attempt, last value repeating.
  */
 function installDom({ sdkScriptPresent, outcome, sdkArrivalDelay, sdkFactory }) {
+  // One stand-in per account-menu auth state (data-auth in layout.js), keyed
+  // by the old section ids the assertions below still read.
   const byId = new Map();
-  for (const id of ['auth-loading', 'auth-logged-out', 'auth-logged-in', 'auth-unavailable']) {
-    byId.set(id, new FakeEl(id));
+  for (const state of ['loading', 'logged-out', 'logged-in', 'unavailable']) {
+    byId.set(`auth-${state}`, new FakeEl(`auth-${state}`));
   }
+  const byAuthState = (sel) => {
+    const state = sel.match(/^\[data-auth="([^"]+)"\]$/)?.[1];
+    return state ? [byId.get(`auth-${state}`)] : [];
+  };
   const outcomes = Array.isArray(outcome) ? outcome : [outcome];
   let attempt = 0;
 
@@ -93,7 +100,7 @@ function installDom({ sdkScriptPresent, outcome, sdkArrivalDelay, sdkFactory }) 
     head,
     getElementById: (id) => byId.get(id) || null,
     querySelector: findScript,
-    querySelectorAll: () => [],
+    querySelectorAll: byAuthState,
     createElement: (tag) => new FakeEl(null, tag),
     addEventListener: () => {},
   };

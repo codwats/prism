@@ -23,8 +23,9 @@ import { initMembershipDrawer } from '../modules/membership.js';
 
 function getElements() {
   return {
-    // PRISM name
+    // PRISM name: the title text and the in-place rename input
     prismName: document.getElementById('prism-name'),
+    prismTitleText: document.getElementById('prism-title-text'),
     deckCountTag: document.getElementById('deck-count-tag'),
 
     // Tabs
@@ -83,7 +84,7 @@ function getElements() {
     btnCopyUndone: document.getElementById('btn-copy-undone'),
     btnDownloadUndone: document.getElementById('btn-download-undone'),
 
-    // Import backup dialog (opened from the ... overflow menu)
+    // Import backup dialog (opened from the PRISM menu)
     btnImportBackup: document.getElementById('btn-import-backup'),
     importDialog: document.getElementById('import-dialog'),
     btnCancelImport: document.getElementById('btn-cancel-import'),
@@ -110,9 +111,10 @@ function getElements() {
     btnConfirmNew: document.getElementById('btn-confirm-new'),
     newPrismCurrentName: document.getElementById('new-prism-current-name'),
 
-    // PRISM switcher (injected into the ... overflow menu)
+    // PRISM menu (switcher entries injected into it)
     prismOverflow: document.getElementById('prism-overflow'),
     prismSwitchDivider: document.getElementById('prism-switch-divider'),
+    btnRenamePrism: document.getElementById('btn-rename-prism'),
 
     // Clear-all stale marks confirmation
     clearAllRemovedDialog: document.getElementById('clear-all-removed-dialog'),
@@ -186,19 +188,6 @@ function getElements() {
 // Initialization
 // ============================================================================
 
-/**
- * Move build.html's per-PRISM settings into the global settings drawer, above
- * its Profile footnote, so only the build page's drawer gets them (#398).
- * initLayout injects the drawer synchronously before app.js runs.
- */
-function mountPrismSettings() {
-  const template = document.getElementById('prism-settings-template');
-  const footnote = document.querySelector('#settings-drawer > .wa-stack > p:last-child');
-  if (!template || !footnote) return;
-  footnote.before(template.content);
-  template.remove();
-}
-
 export async function init() {
   debugLog('PRISM: Initializing...');
 
@@ -213,9 +202,6 @@ export async function init() {
   await startAuth();
 
   logToSupabase('info', 'app_loaded', { page: 'build', url: window.location.pathname });
-
-  // Before getElements(), so the toggle is cached at its drawer location
-  mountPrismSettings();
 
   // Get element references
   state.elements = getElements();
@@ -283,7 +269,7 @@ export function renderAll() {
 }
 
 /**
- * Populate the ... overflow menu with one entry per stored PRISM.
+ * Populate the PRISM menu with one entry per stored PRISM.
  *
  * This is the only route back to a previous PRISM for a logged-out user —
  * profile.html lists PRISMs inside its logged-in block only — so without it
@@ -341,6 +327,9 @@ function renderPrismSwitcher() {
 function renderPrismHeader() {
   if (state.elements.prismName) {
     state.elements.prismName.value = state.currentPrism.name;
+  }
+  if (state.elements.prismTitleText) {
+    state.elements.prismTitleText.textContent = state.currentPrism.name || 'Untitled PRISM';
   }
   renderPrismSwitcher();
   if (state.elements.deckCountTag) {

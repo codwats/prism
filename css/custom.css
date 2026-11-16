@@ -552,17 +552,69 @@ wa-page[view='desktop'] [data-toggle-nav] {
   height: 1rem;
 }
 
-/* Matches the height of the outlined nav auth button it stands in for */
-.nav-auth-skeleton {
-  width: 100%;
-  height: 2.5rem;
-}
-
-/* Second bar when a stored session exists — stands in for the small plain
-   Log Out button below the Profile button */
+/* Account menu skeleton: one bar stands in for Log in, two (stored session)
+   for Profile and Log out */
+.nav-auth-skeleton,
 .nav-auth-skeleton-secondary {
   width: 100%;
-  height: 2.5rem;
+  height: 1.5rem;
+}
+
+.account-menu-loading,
+.account-menu-note,
+.prism-menu-note {
+  padding: var(--wa-space-xs) var(--wa-space-m);
+  margin: 0;
+}
+
+.account-menu-note,
+.prism-menu-note {
+  max-inline-size: 32ch;
+  color: var(--wa-color-neutral-text-subtle);
+}
+
+/* A long PRISM name wraps inside the menu instead of pushing it off a phone
+   screen. WA caps the menu at this variable with !important, and only sets it
+   for horizontal auto-size, which dropdowns don't use. */
+#prism-overflow::part(menu),
+#account-menu::part(menu) {
+  --auto-size-available-width: min(28rem, calc(100vw - 2 * var(--wa-space-m)));
+}
+
+.account-avatar {
+  --size: 1.75em;
+  font-size: var(--wa-font-size-s);
+}
+
+/* The PRISM name is the page title and the PRISM menu trigger: heading type,
+   no field chrome, wraps instead of overflowing on a phone */
+.prism-title {
+  margin: 0;
+  min-inline-size: 0;
+  /* the menu's items sit inside the h1 and must not inherit heading type */
+  font: inherit;
+}
+
+.prism-title-trigger::part(base) {
+  block-size: auto;
+  padding-inline: var(--wa-space-xs);
+}
+
+.prism-title-trigger::part(label) {
+  font-family: var(--wa-font-family-heading);
+  font-size: var(--wa-font-size-xl);
+  font-weight: var(--wa-font-weight-heading);
+  white-space: normal;
+  text-align: start;
+}
+
+.prism-title-row {
+  min-inline-size: 0;
+  flex: 1 1 auto;
+}
+
+.prism-name-input {
+  flex: 1 1 16rem;
 }
 
 .nav-auth-skeleton::part(indicator),
@@ -2084,6 +2136,10 @@ wa-page[view='desktop'] [data-toggle-nav] {
 @media (pointer: coarse) {
   wa-button[size="s"]::part(button),
   .deck-actions-kebab-menu .kebab-item::part(button) {
+    min-block-size: 44px;
+  }
+  #account-menu wa-dropdown-item,
+  #prism-overflow wa-dropdown-item {
     min-block-size: 44px;
   }
   /* no documented part for the button-appearance radio, so the host */

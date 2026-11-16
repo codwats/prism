@@ -32,6 +32,22 @@ export function debounce(fn, ms = 150) {
   return function(...args) { const ctx = this; clearTimeout(t); t = setTimeout(() => fn.apply(ctx, args), ms); };
 }
 
+/**
+ * A wa-dropdown item chosen from the keyboard emits only `wa-select`, never
+ * `click`, and menu actions here are click listeners on their items. Replay a
+ * click for those. Links navigate and checkbox items toggle on their own, and
+ * a pointer choice already clicked, so neither is replayed.
+ */
+export function clickItemsOnKeyboardSelect(dropdown) {
+  let clicked = null;
+  dropdown.addEventListener('click', (e) => { clicked = e.target.closest?.('wa-dropdown-item') || null; }, true);
+  dropdown.addEventListener('wa-select', (e) => {
+    const item = e.detail?.item;
+    if (item && item !== clicked && !item.href && item.type !== 'checkbox') item.click();
+    clicked = null;
+  });
+}
+
 // Slots per side (Side A = 1-24, Side B = 25-48).
 const SLOTS_PER_SIDE = 24;
 // Anchor marker every Nth slot within each side.
