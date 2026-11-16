@@ -86,7 +86,7 @@ async function renderCurrentScryCard() {
   // Each screen states its quantity — "mark 2 copies" — rather than implying
   // one copy per card (#149). Pass rows and batch screens both carry one.
   const copies = card.copyCount || card.totalQuantity || 1;
-  const copiesNote = copies > 1 ? ` — mark ${copies} copies` : '';
+  const copiesNote = copies > 1 ? `, mark ${copies} copies` : '';
   scryProgress.textContent = `${scryIndex + 1} of ${scrySnapshot.length}: ${displayName}${copiesNote}`;
   const bar = state.elements.scryBar;
   if (bar) bar.setAttribute('value', String(Math.round((scryIndex / scrySnapshot.length) * 100)));
@@ -140,6 +140,7 @@ async function renderCurrentScryCard() {
 function showCompletionState() {
   const { scryProgress, scryContent, btnScryDone, btnScrySkip } = state.elements;
   if (scryProgress) scryProgress.textContent = 'All cards reviewed';
+  state.elements.scryBar?.setAttribute('value', '100');
   if (scryContent) {
     scryContent.innerHTML = '';
     const wrap = document.createElement('div');
