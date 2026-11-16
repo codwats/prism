@@ -278,3 +278,5 @@ Still open, needs the owner:
 - Real touch device for the 44px and 52px coarse-pointer rules; a screen reader pass.
 - Signed-in session: account menu, a sync round trip with bulk mark, clear and an audit.
 - Printable guide copy still has an em-dash and Title Case headings ("Deck Legend", "Card Marking Guide"); outside the mockups, left as is.
+
+- **Sheet tools first (#471).** Phone sheet order is now Export 10, Shown rows 20, Audit 30, Totals 40, Legend 50, Matrix 60 (`data-phone-order` in build.html). Desktop untouched. Not checked in a browser: the 375x844 fit is by construction (three tool controls open the sheet).
