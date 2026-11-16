@@ -12,6 +12,7 @@ import { initColorSwatches } from './deck-form.js';
 import { renderDecksList, handleSwitchPrism } from './deck-list.js';
 import { setupStripeReorderDialog } from './stripe-reorder-dialog.js';
 import { setupScryMode } from './scry-mode.js';
+import { setupMarkingLayout } from './marking-layout.js';
 import { renderResults, updateRemovedFilterBadge } from './results.js';
 import { renderExport } from './export-view.js';
 import { setupEventListeners } from './events.js';
@@ -70,13 +71,16 @@ function getElements() {
     resultsSearch: document.getElementById('results-search'),
     showAllSlots: document.getElementById('show-all-slots'),
     undoneFilter: document.getElementById('undone-filter'),
+    oneMarkFilter: document.getElementById('one-mark-filter'),
     deckFilterDropdown: document.getElementById('deck-filter-dropdown'),
-    deckFilterMenu: document.getElementById('deck-filter-menu'),
+    markingLayout: document.getElementById('marking-layout'),
+    barMarked: document.getElementById('bar-marked'),
+    barProgress: document.getElementById('bar-progress'),
     resultsTbody: document.getElementById('results-tbody'),
     noResults: document.getElementById('no-results'),
     btnGoToDecks: document.getElementById('btn-go-to-decks'),
 
-    // Export (Legend + Export dropdowns in the Results toolbar)
+    // Legend (rail / sheet) and Export dropdown on the Mark sleeves tab
     deckLegend: document.getElementById('deck-legend'),
     btnExportCSV: document.getElementById('btn-export-csv'),
     btnExportJSON: document.getElementById('btn-export-json'),
@@ -242,6 +246,7 @@ export async function init() {
 
   // Set up event listeners
   setupEventListeners();
+  setupMarkingLayout();
   setupStripeReorderDialog();
   setupScryMode();
   setupSyncStatus();

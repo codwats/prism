@@ -164,6 +164,18 @@ export function isCardDone(card, markedSet) {
 }
 
 /**
+ * Done batches over total batches ("1/4") for a multi-batch card's parent row
+ * (#452). Derived from batch keys only, never clickable, never a mark union.
+ * @param {Object} card - Processed card with `batches`
+ * @param {Set<string>} markedSet
+ * @returns {{ done: number, total: number }}
+ */
+export function batchTally(card, markedSet) {
+  const batches = card.batches || [];
+  return { done: batches.filter(b => markedSet.has(b.key)).length, total: batches.length };
+}
+
+/**
  * Mark a single-batch card Done: its plain name plus its batch key (#382), so
  * Sleeve up can tell when the card later gains copies. The card's other batch
  * keys are dropped: they would count as sleeves in hand on top of this one.
