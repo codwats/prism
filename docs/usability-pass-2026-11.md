@@ -280,3 +280,5 @@ Still open, needs the owner:
 - Real touch device for the 44px and 52px coarse-pointer rules; a screen reader pass.
 - Signed-in session: account menu, a sync round trip with bulk mark, clear and an audit.
 - Printable guide copy still has an em-dash and Title Case headings ("Deck Legend", "Card Marking Guide"); outside the mockups, left as is.
+
+Deck dialog footer (#472): `#deck-form-actions` (Add deck or Save changes, Reset, Cancel) is a child of `#deck-dialog` with `slot="footer"` while the form is in the dialog, and goes back to the end of the form for the inline empty state; `placeDeckForm` moves it. The submit button carries `form="deck-form"`, so it submits from outside the form (WA copies the attribute to the light-DOM button it clicks, and `form.elements` then holds it for Enter in a field). The sticky rule at 640px and up is gone. Untested in a browser (extension not connected): 375px and 1280px, dark and light, Enter in a field, tab order, WA's footer layout of the buttons. Covered by `tests/deck-dialog-footer.test.js` (placement only).
