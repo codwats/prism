@@ -787,6 +787,14 @@ function getDeckActionsKebabHtml(deck, isInGroup) {
   `;
 }
 
+// Commander names, then counts; a deck with no commander has no leading separator
+function deckMetaLine(deck, processedCards) {
+  const counts = processedCards
+    ? (({ pool, core }) => `${pool} pool • ${core} core`)(getDeckPoolCoreCounts(deck, processedCards))
+    : `${deck.cards.length} cards`;
+  return [commanderNames(deck).join(' / '), counts].filter(Boolean).join(' • ');
+}
+
 export function renderDeckCard(deck, showActions = true, processedCards = null) {
   const isInGroup = !!deck.splitGroupId;
   const isDot = isDotVariant(deck, state.currentPrism);
@@ -806,7 +814,7 @@ export function renderDeckCard(deck, showActions = true, processedCards = null) 
               <wa-tag size="s" variant="neutral">Bracket ${deck.bracket}</wa-tag>
             </div>
             <div class="wa-caption-m" style="color: var(--wa-color-neutral-text-subtle);">
-              ${escapeHtml(commanderNames(deck).join(' / '))}${processedCards ? (() => { const { pool, core } = getDeckPoolCoreCounts(deck, processedCards); return ` • ${pool} pool • ${core} core`; })() : ` • ${deck.cards.length} cards`}
+              ${escapeHtml(deckMetaLine(deck, processedCards))}
             </div>
           </div>
         </div>
@@ -896,7 +904,7 @@ export function renderDecksList() {
                   </wa-tag>
                 </div>
                 <div class="wa-caption-m" style="color: var(--wa-color-neutral-text-subtle);">
-                  ${escapeHtml(children[0] ? commanderNames(children[0]).join(' / ') : "")} • Split deck group
+                  ${escapeHtml([children[0] ? commanderNames(children[0]).join(' / ') : "", "Split deck group"].filter(Boolean).join(' • '))}
                 </div>
               </div>
             </div>
