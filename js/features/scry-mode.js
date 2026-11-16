@@ -11,8 +11,8 @@ import { renderResults, updateMarkedProgress } from './results.js';
 import { getColorName, formatSlotLabel } from '../modules/processor.js';
 import { escapeHtml } from '../core/utils.js';
 
-let scrySnapshot = [];
-let scryIndex = 0;
+// Search (#478) jumps within these rows; order and membership never change.
+let session = createScrySession([]);
 // The audit pass (#457, audit.js) swaps these through openScryMode options.
 const DEFAULT_OPTS = {
   skipLabel: 'Skip',
@@ -47,6 +47,57 @@ export function getScryCardKey(card) {
   return card.isPassRow ? `${card.displayName}|${card.deckName}` : card.name;
 }
 
+/** rows: the screens fixed at Start marking or Audit. acted: indexes already answered. */
+export function createScrySession(rows) {
+  return { rows, index: 0, acted: new Set(), returnTo: null };
+}
+
+const screenName = (row) => (row.isPassRow ? row.displayName : row.name);
+
+/** Unanswered screens whose name contains `query`, labelled so batches and passes can be told apart. */
+export function scryMatches(s, query) {
+  const q = query.trim().toLowerCase();
+  if (!q) return [];
+  return s.rows.flatMap((row, index) => {
+    const name = screenName(row) || '';
+    if (s.acted.has(index) || !name.toLowerCase().includes(q)) return [];
+    let label = name;
+    if (row.isPassRow) label += `, ${row.deckName}`;
+    else if (row.batchKey) {
+      const decks = (row.stripes || []).filter((m) => m.markType !== 'membership').map((m) => m.deckName);
+      label += `, ${row.copyCount} ${row.copyCount === 1 ? 'copy' : 'copies'}, ${decks.join(' + ')}`;
+    }
+    return [{ index, label }];
+  });
+}
+
+/** Show screen `i`, remembering where the walk was (only the first jump of a search sets it). */
+export function scryJump(s, i) {
+  if (s.returnTo === null) s.returnTo = s.index;
+  s.index = i;
+}
+
+/** Back to where the walk was before searching. */
+export function scryClearSearch(s) {
+  if (s.returnTo === null) return;
+  s.index = s.returnTo;
+  s.returnTo = null;
+}
+
+/** After Done or Skip: back to the walk if this was a found card, else the next unanswered screen. */
+export function scryAct(s) {
+  s.acted.add(s.index);
+  const back = s.returnTo;
+  s.returnTo = null;
+  if (back !== null && !s.acted.has(back)) {
+    s.index = back;
+    return;
+  }
+  let i = (back ?? s.index) + 1;
+  while (i < s.rows.length && s.acted.has(i)) i++;
+  s.index = i;
+}
+
 export function computeScale(w = window.innerWidth, h = window.innerHeight) {
   // Reserve ~160px for progress line + footer buttons + dialog chrome.
   // 0.85 factor prevents overflow inside WA dialog's own padding on mobile.
@@ -74,26 +125,26 @@ async function renderCurrentScryCard() {
   const { scryProgress, scryContent, btnScryDone, btnScrySkip } = state.elements;
   if (!scryProgress || !scryContent) return;
 
-  if (scrySnapshot.length === 0) return;
+  if (session.rows.length === 0) return;
 
   // Re-enable buttons (may have been disabled on completion)
   if (btnScryDone) btnScryDone.removeAttribute('disabled');
   if (btnScrySkip) btnScrySkip.removeAttribute('disabled');
 
-  if (scryIndex >= scrySnapshot.length) {
+  if (session.index >= session.rows.length) {
     showCompletionState();
     return;
   }
 
-  const card = scrySnapshot[scryIndex];
+  const card = session.rows[session.index];
   const displayName = card.isPassRow ? card.displayName : card.name;
   // Each screen states its quantity — "mark 2 copies" — rather than implying
   // one copy per card (#149). Pass rows and batch screens both carry one.
   const copies = card.copyCount || card.totalQuantity || 1;
   const copiesNote = copies > 1 ? `, mark ${copies} copies` : '';
-  scryProgress.textContent = `${scryIndex + 1} of ${scrySnapshot.length}: ${displayName}${copiesNote}`;
+  scryProgress.textContent = `${session.index + 1} of ${session.rows.length}: ${displayName}${copiesNote}`;
   const bar = state.elements.scryBar;
-  if (bar) bar.setAttribute('value', String(Math.round((scryIndex / scrySnapshot.length) * 100)));
+  if (bar) bar.setAttribute('value', String(Math.round((session.index / session.rows.length) * 100)));
 
   const scale = computeScale();
   scryContent.innerHTML = '';
@@ -111,13 +162,13 @@ async function renderCurrentScryCard() {
   scryContent.appendChild(loadOuter);
 
   // Stale-check token
-  const capturedIndex = scryIndex;
+  const capturedIndex = session.index;
 
   try {
     const stripes = card.stripes || [];
     const el = await buildCardWithStripes(displayName, stripes);
 
-    if (scryIndex !== capturedIndex) return;
+    if (session.index !== capturedIndex) return;
 
     scryContent.innerHTML = '';
     const { outer, inner } = makeScaledWrapper(scale);
@@ -125,7 +176,7 @@ async function renderCurrentScryCard() {
     scryContent.append(outer, side);
   } catch (err) {
     console.warn(`SCRY: failed to load card image for "${displayName}":`, err);
-    if (scryIndex !== capturedIndex) return;
+    if (session.index !== capturedIndex) return;
 
     scryContent.innerHTML = '';
     const { outer, inner } = makeScaledWrapper(scale);
@@ -134,8 +185,8 @@ async function renderCurrentScryCard() {
   }
 
   // Prefetch next few cards so advance is snappy
-  const nextNames = scrySnapshot
-    .slice(scryIndex + 1, scryIndex + 4)
+  const nextNames = session.rows
+    .slice(session.index + 1, session.index + 4)
     .map(c => c.isPassRow ? c.displayName : c.name)
     .filter(Boolean);
   if (nextNames.length > 0) prefetchCards(nextNames).catch(() => {});
@@ -171,26 +222,63 @@ function showCompletionState() {
 }
 
 function advance() {
-  scryIndex++;
+  const found = session.returnTo !== null;
+  scryAct(session);
+  if (found) resetSearchField(); // back on the walk, so the search is over
   renderCurrentScryCard();
 }
 
 function handleScryDone() {
-  if (scryIndex >= scrySnapshot.length) return;
-  const card = scrySnapshot[scryIndex];
+  if (session.index >= session.rows.length) return;
+  const card = session.rows[session.index];
   scryOpts.onDone(getScryCardKey(card), card);
   advance();
 }
 
 function handleScrySkip() {
-  if (scryIndex >= scrySnapshot.length) return;
-  scryOpts.onSkip?.(getScryCardKey(scrySnapshot[scryIndex]), scrySnapshot[scryIndex]);
+  if (session.index >= session.rows.length) return;
+  scryOpts.onSkip?.(getScryCardKey(session.rows[session.index]), session.rows[session.index]);
   advance();
+}
+
+function resetSearchField() {
+  const { scrySearchInput, scrySearchResults } = state.elements;
+  if (scrySearchInput) scrySearchInput.value = '';
+  if (scrySearchResults) scrySearchResults.hidden = true;
+}
+
+function handleSearchInput() {
+  const { scrySearchInput, scrySearchResults } = state.elements;
+  const query = scrySearchInput.value || '';
+  if (!query.trim()) {
+    scrySearchResults.hidden = true;
+    if (session.returnTo !== null) {
+      scryClearSearch(session);
+      renderCurrentScryCard();
+    }
+    return;
+  }
+  const matches = scryMatches(session, query);
+  scrySearchResults.innerHTML = matches.length
+    ? matches.map((m) => `<li><wa-button appearance="plain" size="s" data-index="${m.index}">${escapeHtml(m.label)}</wa-button></li>`).join('')
+    : `<li class="scry-search-empty">No card left in this session matches "${escapeHtml(query.trim())}".</li>`;
+  scrySearchResults.hidden = false;
+}
+
+function handleSearchPick(e) {
+  const btn = e.target.closest('[data-index]');
+  if (!btn) return;
+  scryJump(session, Number(btn.dataset.index));
+  state.elements.scrySearchResults.hidden = true;
+  btn.blur(); // focus off the field, so s/d and Enter act on the card
+  renderCurrentScryCard();
 }
 
 function handleScryKeydown(e) {
   const dialog = state.elements.scryDialog;
   if (!dialog || !dialog.hasAttribute('open')) return;
+  // Typing a name, or Enter on a match, must not skip or mark the card (#478).
+  if (state.elements.scrySearch && e.composedPath().includes(state.elements.scrySearch)) return;
 
   switch (e.key) {
     case 'ArrowRight':
@@ -227,8 +315,8 @@ export function openScryMode(opts) {
     return;
   }
 
-  scrySnapshot = [...filtered];
-  scryIndex = 0;
+  session = createScrySession([...filtered]);
+  resetSearchField();
 
   if (state.elements.scryDialog) {
     state.elements.scryDialog.setAttribute('open', '');
@@ -242,6 +330,10 @@ export function setupScryMode() {
 
   if (btnScryDone) btnScryDone.addEventListener('click', handleScryDone);
   if (btnScrySkip) btnScrySkip.addEventListener('click', handleScrySkip);
+  const { scrySearchInput, scrySearchResults } = state.elements;
+  scrySearchInput?.addEventListener('input', handleSearchInput);
+  scrySearchInput?.addEventListener('wa-clear', handleSearchInput);
+  scrySearchResults?.addEventListener('click', handleSearchPick);
 
   if (scryDialog) {
     // Re-render results once when dialog closes to sync marked rows
