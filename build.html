@@ -730,6 +730,12 @@
 
     <!-- SCRY-Mode Dialog -->
     <wa-dialog id="scry-dialog" label="SCRY-Mode" style="--width: 100vw; --height: 100vh;">
+      <div id="scry-search" slot="header-actions" class="scry-search">
+        <wa-input id="scry-search-input" type="search" label="Find a card" class="wa-visually-hidden-label" placeholder="Find a card" size="s" with-clear autocomplete="off">
+          <wa-icon slot="start" name="search"></wa-icon>
+        </wa-input>
+        <ul id="scry-search-results" class="scry-search-results" aria-label="Matching cards" hidden></ul>
+      </div>
       <div id="scry-progress" class="wa-caption-m" style="text-align:center;padding-bottom:var(--wa-space-s);" aria-live="polite"></div>
       <wa-progress-bar id="scry-bar" value="0" label="Marking progress" style="--height:6px;margin-bottom:var(--wa-space-m);"></wa-progress-bar>
       <div id="scry-content" class="scry-content"></div>

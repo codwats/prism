@@ -172,6 +172,9 @@ function getElements() {
     scryBar: document.getElementById('scry-bar'),
     btnScrySkip: document.getElementById('btn-scry-skip'),
     btnScryDone: document.getElementById('btn-scry-done'),
+    scrySearch: document.getElementById('scry-search'),
+    scrySearchInput: document.getElementById('scry-search-input'),
+    scrySearchResults: document.getElementById('scry-search-results'),
 
     // Sync status
     syncStatus: document.getElementById('sync-status'),
