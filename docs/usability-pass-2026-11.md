@@ -281,4 +281,5 @@ Still open, needs the owner:
 - Signed-in session: account menu, a sync round trip with bulk mark, clear and an audit.
 - Printable guide copy still has an em-dash and Title Case headings ("Deck Legend", "Card Marking Guide"); outside the mockups, left as is.
 
+**Step (#473, slot picker on phone).** At 768px and below the slot list leads and the sleeve picture follows it (CSS `order`, same DOM, so it still reflects the chosen slot); the side switch is forced to one row with `::part(form-control-input)` `flex-wrap: nowrap`. Desktop untouched. Not checked in a browser (none available): the part selector and the four-rows-at-375x844 criterion are unverified.
 - **Sheet tools first (#471).** Phone sheet order is now Export 10, Shown rows 20, Audit 30, Totals 40, Legend 50, Matrix 60 (`data-phone-order` in build.html). Desktop untouched. Not checked in a browser: the 375x844 fit is by construction (three tool controls open the sheet).
