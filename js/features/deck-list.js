@@ -843,7 +843,7 @@ function getDeckActionsKebabHtml(deck, isInGroup) {
           : `${kebabItem(deck, "btn-export-deck", "file-export", "Copy for Moxfield", "moxfield")}
              ${kebabItem(deck, "btn-export-deck", "file-export", "Copy for Archidekt", "archidekt")}`}
         ${kebabItem(deck, "btn-edit-deck", "pen-to-square", "Edit deck")}
-        ${kebabItem(deck, "btn-delete-deck", "trash", "Delete deck")}
+        ${kebabItem(deck, "btn-delete-deck kebab-item-danger", "trash", "Delete deck")}
       </div>
     </wa-dropdown>
   `;

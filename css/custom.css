@@ -1974,3 +1974,42 @@ wa-page[view='desktop'] [data-toggle-nav] {
 .nav-extra wa-badge {
   margin-inline-start: auto;
 }
+
+/* Active main-nav link: weight + underline so colour is not the only cue */
+.nav-link-active {
+  color: var(--wa-color-brand-60) !important;
+  font-weight: var(--wa-font-weight-bold);
+  text-decoration: underline !important;
+  text-underline-offset: var(--wa-space-2xs);
+}
+
+/* Header home link: 44px target even when the wordmark is hidden on mobile */
+.header-home {
+  min-inline-size: 44px;
+  min-block-size: 44px;
+  justify-content: center;
+}
+
+/* Settings drawer Apply sizes to its label instead of stretching */
+.stripe-apply {
+  align-self: start;
+}
+
+/* Separate Delete deck from Edit deck */
+.deck-actions-kebab-menu .kebab-item-danger {
+  margin-block-start: var(--wa-space-xs);
+  border-block-start: var(--wa-border-width-s) var(--wa-border-style) var(--wa-color-neutral-border-quiet);
+  padding-block-start: var(--wa-space-2xs);
+}
+
+/* 44px touch targets (same input-method gate as .mark-checkbox-hit) */
+@media (pointer: coarse) {
+  wa-button[size="s"]::part(button),
+  .deck-actions-kebab-menu .kebab-item::part(button) {
+    min-block-size: 44px;
+  }
+  /* no documented part for the button-appearance radio, so the host */
+  #results-filter wa-radio {
+    min-block-size: 44px;
+  }
+}
