@@ -1240,6 +1240,24 @@ wa-page[view='desktop'] [data-toggle-nav] {
   }
 }
 
+/* Phone: the list is the touch target, so the sleeve shrinks to a preview
+   and the list starts near the top of the dialog. */
+@media (max-width: 768px) {
+  .stripe-reorder-sleeve {
+    min-height: 0;
+  }
+  .stripe-reorder-edge {
+    gap: 1px;
+    padding: 2px;
+  }
+  .stripe-reorder-slot {
+    height: 5px;
+  }
+  .stripe-reorder-card-hint {
+    display: none;
+  }
+}
+
 @media (min-width: 769px) {
   .slot-picker-list {
     max-height: 24rem;

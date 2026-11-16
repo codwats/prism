@@ -162,9 +162,9 @@ function renderSlot(position, activeDeck, slotMap) {
   } else if (isActive) {
     slot.setAttribute('aria-label', `${slotLabel}, current slot of ${activeDeck.name}`);
   } else if (info) {
-    slot.setAttribute('aria-label', `${slotLabel}, taken by ${info.name}, activate to swap`);
+    slot.setAttribute('aria-label', `${slotLabel}, taken by ${info.name}`);
   } else {
-    slot.setAttribute('aria-label', `${slotLabel}, empty, activate to move here`);
+    slot.setAttribute('aria-label', `${slotLabel}, empty`);
   }
 
   const classes = ['stripe-reorder-slot'];
@@ -352,8 +352,8 @@ function renderRow({ position, info, isCurrent }) {
     row.setAttribute('aria-label', `${label}, current slot of ${picker.entity.name}`);
   } else {
     row.setAttribute('aria-label', info
-      ? `${label}, taken by ${info.name}, activate to swap`
-      : `${label}, free, activate to move here`);
+      ? `${label}, taken by ${info.name}`
+      : `${label}, free`);
     row.addEventListener('click', () => selectPosition(position));
   }
   row.innerHTML = `
