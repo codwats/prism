@@ -645,6 +645,10 @@ wa-page[view='desktop'] [data-toggle-nav] {
     align-items: center;
     border-bottom: 1px solid var(--wa-color-surface-border);
   }
+  /* The grid above would beat [hidden]; legend rows stay closed until tapped */
+  .results-table tr[hidden] {
+    display: none;
+  }
   .results-table th,
   .results-table td {
     border-bottom: 0;
@@ -1473,6 +1477,13 @@ wa-page[view='desktop'] [data-toggle-nav] {
   }
   .stripe-reorder-card-hint {
     display: none;
+  }
+  /* List leads; the picture follows as a preview (#473). */
+  .slot-picker-layout > .stripe-reorder-sleeve-wrapper {
+    order: 2;
+  }
+  #slot-picker-side::part(form-control-input) {
+    flex-wrap: nowrap;
   }
 }
 

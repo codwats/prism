@@ -376,7 +376,7 @@
               </div>
               <!-- Deck Overlap Matrix. Desktop: above the table. Phone: in the
                    Totals and tools sheet (data-phone-slot, see marking-layout.js). -->
-              <wa-details id="overlap-matrix-container" data-phone-slot="sheet" data-phone-order="40" style="display: none;">
+              <wa-details id="overlap-matrix-container" data-phone-slot="sheet" data-phone-order="60" style="display: none;">
                 <span slot="summary" class="wa-heading-s">
                   <wa-icon name="table-cells" style="margin-right: var(--wa-space-xs);"></wa-icon>
                   Deck Overlap Matrix
@@ -387,7 +387,7 @@
               <div id="marking-layout" class="marking-layout">
                 <!-- Rail: totals and legend beside the table. On phone both move into the sheet. -->
                 <aside class="marking-rail wa-stack wa-gap-m" aria-label="Totals and legend">
-                  <div id="results-stats" class="wa-grid wa-gap-m" style="--min-column-size: 14rem;" data-phone-slot="sheet" data-phone-order="10">
+                  <div id="results-stats" class="wa-grid wa-gap-m" style="--min-column-size: 14rem;" data-phone-slot="sheet" data-phone-order="40">
                     <wa-card>
                       <div class="wa-flank wa-align-items-start">
                         <wa-avatar shape="circle">
@@ -437,7 +437,7 @@
                     </wa-card>
                   </div>
                   <!-- Deck legend (prints on the guide) -->
-                  <wa-card data-phone-slot="sheet" data-phone-order="20">
+                  <wa-card data-phone-slot="sheet" data-phone-order="50">
                     <div class="wa-stack wa-gap-s">
                       <h3 class="wa-heading-s" style="margin: 0;">
                         <wa-icon name="palette" style="margin-right: var(--wa-space-xs);"></wa-icon>
@@ -485,7 +485,7 @@
                       <wa-divider></wa-divider>
                     </wa-dropdown>
                     <!-- Export actions -->
-                    <wa-dropdown id="export-dropdown" placement="bottom-end" data-phone-slot="sheet" data-phone-order="30">
+                    <wa-dropdown id="export-dropdown" placement="bottom-end" data-phone-slot="sheet" data-phone-order="10">
                       <wa-button slot="trigger" variant="brand" appearance="outlined" size="s" caret>
                         <wa-icon slot="start" name="download"></wa-icon>
                         Export
@@ -510,7 +510,7 @@
                       </wa-dropdown-item>
                     </wa-dropdown>
                     <!-- Bulk marks over the shown rows (#454), hidden in Marks to Clear. bulk-mark.js handles both items on wa-select. -->
-                    <wa-dropdown id="bulk-mark-dropdown" placement="bottom-end" data-phone-slot="sheet" data-phone-order="50">
+                    <wa-dropdown id="bulk-mark-dropdown" placement="bottom-end" data-phone-slot="sheet" data-phone-order="20">
                       <wa-button slot="trigger" appearance="outlined" variant="neutral" size="s" caret>
                         <wa-icon slot="start" name="list-check"></wa-icon>
                         Shown rows
@@ -526,7 +526,7 @@
                       </wa-dropdown-item>
                     </wa-dropdown>
                     <!-- Audit (#457): a device-only second pass over the done rows shown (audit.js). Hidden in Marks to Clear. -->
-                    <wa-button id="btn-audit" appearance="outlined" variant="neutral" size="s" data-phone-slot="sheet" data-phone-order="60">
+                    <wa-button id="btn-audit" appearance="outlined" variant="neutral" size="s" data-phone-slot="sheet" data-phone-order="30">
                       <wa-icon slot="start" name="clipboard-check"></wa-icon>
                       Audit marks
                     </wa-button>
