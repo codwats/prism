@@ -2327,7 +2327,9 @@ wa-page[view='desktop'] [data-toggle-nav] {
 @media (min-width: 768px) {
   .scry-content { flex-direction: row; gap: var(--wa-space-2xl); }
   .scry-legend { align-self: center; }
-  .scry-actions { grid-template-columns: auto auto; justify-content: space-between; }
+  .scry-legend .stripe-detail { flex-direction: column; font-size: var(--wa-font-size-m); color: var(--wa-color-text-normal); }
+  .scry-legend .stripe-detail-swatch { inline-size: 16px; block-size: 16px; }
+  .scry-actions { grid-template-columns: repeat(2, minmax(10rem, 14rem)); justify-content: center; }
 }
 
 /* Phone: "Decks" and "Mark sleeves" fit at 375px without tab scroll arrows */

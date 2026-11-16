@@ -47,15 +47,16 @@ export function getScryCardKey(card) {
   return card.isPassRow ? `${card.displayName}|${card.deckName}` : card.name;
 }
 
-function computeScale() {
+export function computeScale(w = window.innerWidth, h = window.innerHeight) {
   // Reserve ~160px for progress line + footer buttons + dialog chrome.
   // 0.85 factor prevents overflow inside WA dialog's own padding on mobile.
   // Phone stacks the legend under the card, so it reserves more height.
-  const availH = window.innerHeight - (window.innerWidth < 768 ? 360 : 160);
-  const availW = window.innerWidth - 48;
-  const scaleH = availH / 340;
-  const scaleW = availW / 244;
-  return Math.min(2.0, Math.max(0.8, Math.min(scaleH, scaleW))) * 0.85;
+  // Desktop (#474): card takes most of the height, so a higher cap and factor.
+  const phone = w < 768;
+  const availH = h - (phone ? 360 : 160);
+  const availW = w - 48;
+  const fit = Math.min(availH / 340, availW / 244);
+  return phone ? Math.min(2.0, Math.max(0.8, fit)) * 0.85 : Math.min(3.0, Math.max(0.8, fit)) * 0.95;
 }
 
 function makeScaledWrapper(scale) {
