@@ -89,43 +89,71 @@
       #step-bar .step-chip wa-tag {
         cursor: pointer;
       }
-      /* Persistent hint that the bar scrolls sideways past the last visible
-         chip — sticky so it rides the trailing edge as the user scrolls. */
-      #step-bar-hint {
-        position: sticky;
-        right: 0;
-        flex: none;
-        align-self: center;
-        padding-inline-start: var(--wa-space-xs);
-        color: var(--wa-color-neutral-text-subtle);
-        background: var(--wa-color-surface-default);
-        pointer-events: none;
+      /* Trailing-edge fade says "more this way"; the end padding lets the last chip
+         scroll clear of it. */
+      #step-bar {
+        scrollbar-width: none;
+        padding-inline-end: var(--wa-space-2xl);
+        mask-image: linear-gradient(to right, #000 calc(100% - var(--wa-space-2xl)), transparent);
+      }
+      #step-bar::-webkit-scrollbar { display: none; }
+      .guide-layout { max-width: 800px; margin: 0 auto; }
+      #step-list { display: none; }
+      @media (min-width: 1024px) {
+        /* Steps become a sticky side list; the sideways bar is phone and tablet only. */
+        #step-bar { display: none; }
+        .guide-layout {
+          max-width: 70rem;
+          display: grid;
+          grid-template-columns: minmax(0, 50rem) 14rem;
+          justify-content: center;
+          gap: var(--wa-space-3xl);
+          align-items: start;
+        }
+        #step-list {
+          display: flex;
+          flex-direction: column;
+          position: sticky;
+          top: 6rem;
+          margin-block-start: var(--wa-space-xl);
+        }
+        #step-list strong { padding-block: var(--wa-space-xs); }
+        #step-list a {
+          display: block;
+          padding: var(--wa-space-xs) var(--wa-space-s);
+          border-inline-start: 2px solid var(--wa-color-neutral-border-quiet);
+          color: var(--wa-color-text-quiet);
+          text-decoration: none;
+        }
+        #step-list a[aria-current="true"] {
+          border-inline-start-color: var(--wa-color-brand-fill-loud);
+          color: var(--wa-color-text-normal);
+          font-weight: var(--wa-font-weight-semibold);
+        }
       }
       .guide-step {
         padding-block: var(--wa-space-xl);
         /* Clears the sticky header plus the step bar when a chip jumps to a
-           section. Measured at ~135px with the 44px chips; 10rem leaves room for
-           the horizontal scrollbar the bar shows on platforms without overlay
-           scrollbars, which would otherwise hide the heading behind it. */
+           section. Measured at ~135px with the 44px chips. */
         scroll-margin-top: 10rem;
       }
     </style>
   </head>
   <body>
     <wa-page mobile-breakpoint="768">
-      <div slot="subheader" id="step-bar">
-        <a href="#read-a-sleeve" data-step="read-a-sleeve" class="step-chip"><wa-tag variant="neutral" appearance="outlined" size="s" pill>Read a marked sleeve</wa-tag></a>
-        <a href="#pool-and-core" data-step="pool-and-core" class="step-chip"><wa-tag variant="neutral" appearance="outlined" size="s" pill>Tell Pool from Core</wa-tag></a>
-        <a href="#choose-slots" data-step="choose-slots" class="step-chip"><wa-tag variant="neutral" appearance="outlined" size="s" pill>Choose your slots and corner</wa-tag></a>
-        <a href="#mark-a-session" data-step="mark-a-session" class="step-chip"><wa-tag variant="neutral" appearance="outlined" size="s" pill>Run a marking session</wa-tag></a>
-        <a href="#count-copies" data-step="count-copies" class="step-chip"><wa-tag variant="neutral" appearance="outlined" size="s" pill>Count the copies you need</wa-tag></a>
-        <a href="#mark-variants" data-step="mark-variants" class="step-chip"><wa-tag variant="neutral" appearance="outlined" size="s" pill>Mark a split group</wa-tag></a>
-        <a href="#fix-a-mark" data-step="fix-a-mark" class="step-chip"><wa-tag variant="neutral" appearance="outlined" size="s" pill>Fix a mark you no longer want</wa-tag></a>
-        <a href="#swap-a-card" data-step="swap-a-card" class="step-chip"><wa-tag variant="neutral" appearance="outlined" size="s" pill>Swap a card</wa-tag></a>
-        <wa-icon id="step-bar-hint" name="chevron-right" aria-hidden="true"></wa-icon>
-      </div>
+      <nav slot="subheader" id="step-bar" aria-label="Guide steps">
+        <a href="#read-a-sleeve" data-step="read-a-sleeve" class="step-chip"><wa-tag variant="neutral" appearance="outlined" size="s" pill>1. Read a sleeve</wa-tag></a>
+        <a href="#pool-and-core" data-step="pool-and-core" class="step-chip"><wa-tag variant="neutral" appearance="outlined" size="s" pill>2. Pool or Core</wa-tag></a>
+        <a href="#choose-slots" data-step="choose-slots" class="step-chip"><wa-tag variant="neutral" appearance="outlined" size="s" pill>3. Slots and corner</wa-tag></a>
+        <a href="#mark-a-session" data-step="mark-a-session" class="step-chip"><wa-tag variant="neutral" appearance="outlined" size="s" pill>4. Marking session</wa-tag></a>
+        <a href="#count-copies" data-step="count-copies" class="step-chip"><wa-tag variant="neutral" appearance="outlined" size="s" pill>5. Count copies</wa-tag></a>
+        <a href="#mark-variants" data-step="mark-variants" class="step-chip"><wa-tag variant="neutral" appearance="outlined" size="s" pill>6. Split groups</wa-tag></a>
+        <a href="#fix-a-mark" data-step="fix-a-mark" class="step-chip"><wa-tag variant="neutral" appearance="outlined" size="s" pill>7. Fix a mark</wa-tag></a>
+        <a href="#swap-a-card" data-step="swap-a-card" class="step-chip"><wa-tag variant="neutral" appearance="outlined" size="s" pill>8. Swap a card</wa-tag></a>
+      </nav>
 
-      <main style="max-width: 800px; margin: 0 auto;">
+      <main class="guide-layout">
+        <div class="guide-body">
         <!-- Page Header -->
         <div class="wa-stack wa-gap-xs" style="padding-block: var(--wa-space-xl);">
           <h1 class="wa-heading-2xl">Sleeve Marking Guide</h1>
@@ -179,8 +207,8 @@
 
         <section id="mark-a-session" class="wa-stack wa-gap-m guide-step">
           <h2 class="wa-heading-xl">Run a marking session</h2>
-          <p>A marking session is one sitting that takes a stack of cards from unmarked to marked. Work one card at a time, not one deck at a time. Mark the Pool cards first, because they carry the most marks. Make your first card a cheap one, a basic land or a bulk common that still carries several marks, so a miscount costs you a sleeve and not a Smothering Tithe.</p>
-          <p>PRISM builds an undone list of every card that still needs a mark, with the number of copies for each one. Turn on Undone only in Results, or use Copy undone list to take it with you, and work from it at the table.</p>
+          <p>A marking session is one sitting that takes a stack of cards from unmarked to marked. Work one card at a time, not one deck at a time. Every mark goes on the Perfect Fit inner, never the outer sleeve. Mark the Pool cards first, because they carry the most marks. Make your first card a cheap one, a basic land or a bulk common that still carries several marks, so a miscount costs you a sleeve and not a Smothering Tithe.</p>
+          <p>PRISM builds an undone list of every card that still needs a mark, with the number of copies for each one. Turn on Undone only in Filters on the Mark sleeves tab, or use Copy undone list to take it with you, and work from it at the table.</p>
           <wa-callout variant="danger">
             <wa-icon slot="icon" name="triangle-exclamation"></wa-icon>
             <strong>Finalize every decklist before you start.</strong> An edit made during a session changes the counts under you. Write the change down and make it after the pass.
@@ -226,7 +254,7 @@
             <img src="assets/count-copies.svg" alt="Twelve Islands, eight of them carrying a second deck's mark" style="max-inline-size: 100%; block-size: auto;" />
           </div>
           <p>PRISM calls each of those groups a marking batch. A batch is a number of copies that all take the same set of marks. The twelve Islands are two batches, one of eight and one of four. The boundary between batches falls where the decklist quantities differ, and that boundary is a quantity tier.</p>
-          <p>Add the batches together and you get the Physical total, which is the number of copies to own. For the Islands above, the Physical total is 12. The Total Cards figure on the Results tab adds up the Physical total of every card.</p>
+          <p>Add the batches together and you get the Physical total, which is the number of copies to own. For the Islands above, the Physical total is 12. The Total cards figure on the Mark sleeves tab adds up the Physical total of every card.</p>
           <p>You never mark all twelve Islands for both decks. Eight marked for Deck B is exactly enough, because Deck B never needs a ninth.</p>
           <p>Basic lands are the loudest case, not a special case. Any card you run more than one of works the same way. So does a card that one deck runs four of and another runs two.</p>
           <p>The One Mark at a Time filter shows exactly that. Each row is a single deck's mark on a number of copies, which is what your hand does at the table.</p>
@@ -298,6 +326,8 @@
             Build Your PRISM
           </wa-button>
         </section>
+        </div>
+        <nav id="step-list" aria-label="On this page"><strong>On this page</strong></nav>
       </main>
     </wa-page>
 
@@ -311,13 +341,28 @@
         const chips = Array.from(document.querySelectorAll('#step-bar a[data-step]'));
         const sections = chips.map((c) => document.getElementById(c.dataset.step)).filter(Boolean);
         if (!sections.length) return;
+        const list = document.getElementById('step-list');
+        chips.forEach((c) => {
+          const a = document.createElement('a');
+          a.href = c.getAttribute('href');
+          a.dataset.step = c.dataset.step;
+          a.textContent = c.textContent.trim();
+          list.append(a);
+        });
+        const bar = document.getElementById('step-bar');
         const setActive = (id) => {
+          list.querySelectorAll('a').forEach((a) => {
+            if (a.dataset.step === id) a.setAttribute('aria-current', 'true');
+            else a.removeAttribute('aria-current');
+          });
           chips.forEach((c) => {
             const tag = c.querySelector('wa-tag');
             if (!tag) return;
             const on = c.dataset.step === id;
             tag.setAttribute('variant', on ? 'brand' : 'neutral');
             tag.setAttribute('appearance', on ? 'accent' : 'outlined');
+            // Scroll the bar itself, never the page, so the active chip stays on screen.
+            if (on) bar.scrollTo({ left: c.offsetLeft - (bar.clientWidth - c.offsetWidth) / 2, behavior: 'smooth' });
           });
         };
         const observer = new IntersectionObserver(

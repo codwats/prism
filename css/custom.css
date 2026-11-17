@@ -75,6 +75,25 @@ wa-page[view='desktop'] [data-toggle-nav] {
   box-shadow: 0 0 0 2px var(--wa-color-brand-fill-subtle);
 }
 
+/* Custom color: the native picker, sized as one more swatch */
+.deck-color-custom {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 2px dashed var(--wa-color-neutral-border-normal);
+  border-radius: var(--wa-border-radius-s);
+  background: none;
+  cursor: pointer;
+}
+
+@media (pointer: coarse) {
+  .color-swatch,
+  .deck-color-custom {
+    width: 44px;
+    height: 44px;
+  }
+}
+
 /* ============================================================================
    Deck Color Indicators
    ============================================================================ */
@@ -104,8 +123,9 @@ wa-page[view='desktop'] [data-toggle-nav] {
 
 .results-table th,
 .results-table td {
-  padding: var(--wa-space-s) var(--wa-space-m);
+  padding: var(--wa-space-xs) var(--wa-space-m);
   text-align: left;
+  vertical-align: middle;
   border-bottom: 1px solid var(--wa-color-surface-border);
 }
 
@@ -142,7 +162,7 @@ wa-page[view='desktop'] [data-toggle-nav] {
   background: var(--prism-zebra);
 }
 
-/* No Pool row tint. Pool is already legible three ways: the Stripes column
+/* No Pool row tint. Pool is already legible three ways: the Marks column
    shows one mark per deck, the default sort puts many-mark cards on top, and
    the Pool filter isolates them. A fourth encoding on the row background
    added nothing, and it used the warning ramp — amber reading as caution on
@@ -228,9 +248,17 @@ wa-page[view='desktop'] [data-toggle-nav] {
   font-size: var(--wa-font-size-s);
 }
 
-/* Derived roll-up checkbox is informational, not a control */
-.results-table .batch-parent-check {
-  pointer-events: none;
+/* Derived roll-up tally ("1/4" batches done, #452): information, not a control */
+.results-table .batch-tally {
+  color: var(--wa-color-neutral-text-subtle);
+  font-size: var(--wa-font-size-s);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* A row tap opens its legend (or expands a multi-batch card) */
+.results-table tbody tr:not(.stripe-detail-row):not(.removed-row) {
+  cursor: pointer;
 }
 
 .results-table .card-copies {
@@ -481,7 +509,7 @@ wa-page[view='desktop'] [data-toggle-nav] {
 }
 
 /* Full-width row under the card, so the decode reads at the left edge instead
-   of inside the Stripes column, which sits past the right edge of a phone. */
+   of inside the Marks column. */
 .results-table .stripe-detail-row > td {
   background: var(--wa-color-surface-2);
   padding-top: var(--wa-space-xs);
@@ -515,6 +543,171 @@ wa-page[view='desktop'] [data-toggle-nav] {
 
 .stripe-detail-swatch-dot {
   border-radius: 50%;
+}
+
+.stripe-detail-body {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--wa-space-xs) var(--wa-space-m);
+}
+
+/* ============================================================================
+   Mark sleeves layout (#452): rail beside the table on desktop; on phone the
+   marks stack under the name, and progress plus Start marking sit in a bottom
+   bar whose "Totals and tools" sheet holds the rest (marking-layout.js).
+   ============================================================================ */
+
+.marking-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--wa-space-l);
+}
+
+.marking-main {
+  min-width: 0;
+}
+
+@media (min-width: 1024px) {
+  .marking-layout {
+    grid-template-columns: minmax(0, 1fr) 20rem;
+    align-items: start;
+  }
+  .marking-main {
+    grid-column: 1;
+    grid-row: 1;
+  }
+  .marking-rail {
+    grid-column: 2;
+    grid-row: 1;
+  }
+}
+
+.marking-prereq::part(base) {
+  padding: var(--wa-space-xs) var(--wa-space-s);
+}
+
+.marking-prereq-line {
+  display: flex;
+  align-items: center;
+  gap: var(--wa-space-xs);
+}
+
+.marking-prereq-line > span {
+  flex: 1;
+}
+
+.marking-bar {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  /* Everything in the rail has moved into the sheet */
+  .marking-rail,
+  #marking-actions {
+    display: none;
+  }
+
+  .marking-prereq {
+    font-size: var(--wa-font-size-s);
+  }
+
+  /* Progress across the top, the two buttons share the row under it */
+  .marking-bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--wa-space-xs) var(--wa-space-s);
+    position: sticky;
+    bottom: 0;
+    z-index: 1;
+    padding: var(--wa-space-s) 0;
+    background: var(--wa-color-surface-default);
+    border-top: 1px solid var(--wa-color-surface-border);
+  }
+
+  .marking-bar-progress {
+    flex: 1 1 100%;
+    min-width: 0;
+  }
+  .marking-bar > wa-button {
+    flex: 1 1 0;
+  }
+  /* Both labels fit one row at 375px only without their icons */
+  .marking-bar > wa-button wa-icon {
+    display: none;
+  }
+
+  /* Owner decision (#452) over DESIGN.md's "never reflow": each row is a
+     two-column grid, Done beside the name with its marks stacked under it,
+     so a phone never scrolls sideways to reach the marks. */
+  .results-table,
+  .results-table thead,
+  .results-table tbody {
+    display: block;
+  }
+  .results-table tr {
+    display: grid;
+    grid-template-columns: 3.5rem minmax(0, 1fr);
+    align-items: center;
+    border-bottom: 1px solid var(--wa-color-surface-border);
+  }
+  /* The grid above would beat [hidden]; legend rows stay closed until tapped */
+  .results-table tr[hidden] {
+    display: none;
+  }
+  .results-table th,
+  .results-table td {
+    border-bottom: 0;
+  }
+  .results-table thead tr {
+    background: var(--wa-color-surface-2);
+  }
+  /* Header is one line: Done, Card name, Marks side by side (#477) */
+  .results-table thead tr:not(.removed-head) {
+    grid-template-columns: 3.5rem minmax(0, 1fr) auto;
+  }
+  .results-table thead tr:not(.removed-head) > th:not([colspan]) {
+    grid-row: auto;
+    display: flex;
+    align-items: center;
+    padding-block: var(--wa-space-xs);
+  }
+  /* Done is 3.5rem wide, like the checkbox column below it */
+  .results-table thead tr:not(.removed-head) > :first-child {
+    justify-content: center;
+    padding-inline: 0;
+  }
+  .results-table tr > :first-child:not([colspan]) {
+    grid-row: span 2;
+  }
+  .results-table tr > [colspan] {
+    grid-column: 1 / -1;
+  }
+  .results-table tr > :nth-child(2):not(:last-child) {
+    padding-bottom: 0;
+  }
+  /* Marks to Clear: name over "Remove from", Clear button at the end */
+  .results-table tr.removed-row,
+  .results-table tr.removed-head {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+  .results-table tr.removed-row > :first-child,
+  .results-table tr.removed-head > :first-child {
+    grid-row: auto;
+    padding-bottom: 0;
+  }
+  .results-table tr.removed-row > :nth-child(2),
+  .results-table tr.removed-head > :nth-child(2) {
+    grid-column: 1;
+    grid-row: 2;
+  }
+  .results-table tr.removed-row > :nth-child(3),
+  .results-table tr.removed-head > :nth-child(3) {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+  }
 }
 
 /* ============================================================================
@@ -577,7 +770,8 @@ wa-page[view='desktop'] [data-toggle-nav] {
    screen. WA caps the menu at this variable with !important, and only sets it
    for horizontal auto-size, which dropdowns don't use. */
 #prism-overflow::part(menu),
-#account-menu::part(menu) {
+#account-menu::part(menu),
+#bulk-mark-dropdown::part(menu) {
   --auto-size-available-width: min(28rem, calc(100vw - 2 * var(--wa-space-m)));
 }
 
@@ -613,6 +807,40 @@ wa-page[view='desktop'] [data-toggle-nav] {
   flex: 1 1 auto;
 }
 
+/* Legend: one line per deck, name truncates before the slot wraps (Marking screen 1q). */
+.legend-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  column-gap: var(--wa-space-s);
+  align-items: center;
+}
+.legend-row-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.legend-row-slot { font-family: var(--wa-font-family-code); font-size: var(--wa-font-size-xs); white-space: nowrap; color: var(--wa-color-neutral-text-subtle); }
+
+#results-stats .stat-note { color: var(--wa-color-neutral-text-subtle); }
+
+/* Plain neutral-on-quiet reads as disabled; the title is the page heading. */
+.prism-title-trigger::part(base) {
+  color: var(--wa-color-text-normal);
+}
+
+/* Deck count is plain text beside the name, not a status tag (Top strip 3). */
+.deck-count {
+  color: var(--wa-color-neutral-text-subtle);
+  white-space: nowrap;
+}
+.deck-count.is-full {
+  color: var(--wa-color-warning-on-quiet);
+}
+
+/* Phone: the header logo sits right above, so the title drops its own. */
+@media (max-width: 768px) {
+  .prism-title-row > img,
+  .wa-dark .prism-title-row > img {
+    display: none;
+  }
+}
+
 .prism-name-input {
   flex: 1 1 16rem;
 }
@@ -632,36 +860,54 @@ wa-page[view='desktop'] [data-toggle-nav] {
    Deck Cards
    ============================================================================ */
 
-.deck-card {
-  transition: box-shadow 0.15s ease;
+/* One flat list (Deck list 2a, 2k): rows split by a rule, not separate cards. */
+#decks-list {
+  gap: 0;
+  border-top: 1px solid var(--wa-color-surface-border);
 }
-
-.deck-card:hover {
-  box-shadow: var(--wa-shadow-m);
-}
-
-/* Deck action buttons: inline cluster on desktop, kebab dropdown on mobile */
-.deck-actions-kebab {
+/* wa-stack's display beats [hidden]; the empty state must not draw the rule */
+#decks-list[hidden] {
   display: none;
 }
 
-.deck-actions-kebab-menu {
-  min-width: 12rem;
-  padding: var(--wa-space-2xs);
+.deck-card {
+  border-bottom: 1px solid var(--wa-color-surface-border);
 }
 
-.deck-actions-kebab-menu .kebab-item::part(button) {
-  width: 100%;
-  justify-content: flex-start;
+/* Swatch, name and actions on one line at every width; tags and meta under the name. */
+.deck-row {
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr) auto;
+  column-gap: var(--wa-space-s);
+  align-items: center;
+  padding: var(--wa-space-xs) var(--wa-space-2xs) var(--wa-space-xs) var(--wa-space-s);
 }
 
-@media (max-width: 768px) {
-  .deck-actions-inline {
-    display: none;
-  }
-  .deck-actions-kebab {
-    display: inline-flex;
-  }
+.deck-row-name {
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.deck-row-meta {
+  grid-column: 2 / -1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--wa-space-2xs);
+  padding-block-end: var(--wa-space-2xs);
+}
+
+.deck-row-sub {
+  color: var(--wa-color-neutral-text-subtle);
+}
+
+.deck-row-actions {
+  flex-wrap: nowrap;
+}
+
+@media (max-width: 640px) {
+  #btn-open-add-deck { flex: 1; }
 }
 
 /* ============================================================================
@@ -673,6 +919,11 @@ wa-page[view='desktop'] [data-toggle-nav] {
   /* space-m, not space-s: at the 1.125 scale s is 13.5px, under the 16px body-text floor */
   wa-page > main {
     padding-inline: var(--wa-space-m);
+  }
+  /* build.html: the first card row needs the first screen (Marking screen 1a) */
+  wa-page > main.build-main {
+    padding-block-start: var(--wa-space-s);
+    gap: var(--wa-space-m);
   }
 }
 
@@ -718,22 +969,7 @@ wa-page[view='desktop'] [data-toggle-nav] {
    Deck Filter Dropdown
    ============================================================================ */
 
-/* Deck filter menu mirrors the deck-actions kebab menu styling */
-.deck-filter-menu {
-  min-width: 14rem;
-  padding: var(--wa-space-2xs);
-}
-
-.deck-filter-menu wa-button::part(button) {
-  width: 100%;
-  justify-content: flex-start;
-}
-
-.deck-filter-menu wa-divider {
-  margin: var(--wa-space-2xs) 0;
-}
-
-.deck-filter-menu .deck-color-indicator {
+.deck-filter-item .deck-color-indicator {
   display: inline-block;
   vertical-align: middle;
   flex-shrink: 0;
@@ -773,7 +1009,7 @@ wa-page[view='desktop'] [data-toggle-nav] {
 }
 
 /* ============================================================================
-   Deck Overlap Matrix
+   Deck overlap matrix
    ============================================================================ */
 
 .overlap-matrix-table {
@@ -1032,28 +1268,16 @@ wa-page[view='desktop'] [data-toggle-nav] {
    Split Groups & Side A/B Indicators
    ============================================================================ */
 
-.split-group-card {
-  border: 1px solid var(--wa-color-brand-stroke-subtle);
-}
-
-.split-group-header {
-  padding-bottom: var(--wa-space-s);
-  border-bottom: 1px solid var(--wa-color-surface-border);
-  margin-bottom: var(--wa-space-s);
-}
-
+/* Split group: one parent row, variants nested and indented under it. */
 .split-children {
   display: flex;
   flex-direction: column;
-  gap: var(--wa-space-s);
-  padding-left: var(--wa-space-m);
-  border-left: 2px solid var(--wa-color-brand-stroke-subtle);
 }
 
 .split-child-card {
-  padding: var(--wa-space-s);
+  padding-inline-start: calc(24px + var(--wa-space-s));
   background: var(--wa-color-surface-2);
-  border-radius: var(--wa-border-radius-s);
+  border-top: 1px solid var(--wa-color-surface-border);
 }
 
 /* Side B stripe indicators - dashed border to distinguish from Side A */
@@ -1227,95 +1451,149 @@ wa-page[view='desktop'] [data-toggle-nav] {
 }
 
 
-/* Slot list beside the sleeve picture (under it on phone, where the picture is
-   a preview). The rows are the touch targets, not the 10px picture slots. */
+/* Move dialog (#473 follow-up, Slot picker 4a-4l). Desktop: picture and text
+   keys in a narrow column, side switch and list beside it. Phone: a small
+   preview beside the keys, the list fills the rest and scrolls. */
+.slot-picker-layout {
+  display: grid;
+  grid-template-columns: 15rem auto minmax(0, 1fr);
+  grid-template-areas:
+    "sleeve side free"
+    "sleeve list list"
+    "keys   list list";
+  grid-template-rows: auto auto 1fr;
+  gap: var(--wa-space-s) var(--wa-space-l);
+  align-items: start;
+}
+.slot-picker-layout > .stripe-reorder-sleeve-wrapper { grid-area: sleeve; }
+.slot-picker-side { grid-area: side; }
+.slot-picker-aside { display: contents; }
+.slot-picker-free { grid-area: free; justify-self: end; align-self: center; }
+.slot-picker-keys { grid-area: keys; display: flex; flex-direction: column; gap: var(--wa-space-xs); }
+.slot-picker-list { grid-area: list; }
+
+.slot-picker-layout .stripe-reorder-sleeve { min-height: 0; }
+.slot-picker-layout .stripe-reorder-card-body { min-height: 18rem; }
+
+.slot-picker-key {
+  display: grid;
+  grid-template-columns: 18px max-content minmax(0, 1fr);
+  column-gap: var(--wa-space-s);
+  align-items: center;
+}
+.slot-picker-key-now { box-shadow: 0 0 0 2px var(--wa-color-success-70); }
+.slot-picker-key:not(.is-empty) .slot-picker-key-to { box-shadow: 0 0 0 2px var(--wa-color-brand-fill); }
+.slot-picker-key-value { font-size: var(--wa-font-size-s); white-space: nowrap; }
+.slot-picker-key.is-empty .slot-picker-key-value { color: var(--wa-color-neutral-text-subtle); }
+
 .slot-picker-list {
   display: flex;
   flex-direction: column;
-  gap: var(--wa-space-2xs);
+  height: 23rem;
+  overflow-y: auto;
+  border: 1px solid var(--wa-color-surface-border);
+  border-radius: var(--wa-border-radius-m);
 }
 
 .slot-picker-row {
-  display: flex;
+  display: grid;
+  grid-template-columns: 18px max-content minmax(0, 1fr) auto;
+  column-gap: var(--wa-space-s);
   align-items: center;
-  gap: var(--wa-space-s);
-  padding: var(--wa-space-xs) var(--wa-space-s);
-  border: 1px solid var(--wa-color-surface-border);
-  border-radius: var(--wa-border-radius-m);
-  background: var(--wa-color-surface-default);
+  flex: none;
+  min-height: 46px;
+  box-sizing: border-box;
+  padding: var(--wa-space-3xs) var(--wa-space-m);
+  border-bottom: 1px solid var(--wa-color-surface-border);
   cursor: pointer;
 }
-
-.slot-picker-row:hover {
-  border-color: var(--wa-color-warning-70);
-}
-
-.slot-picker-row[aria-disabled="true"] {
-  cursor: default;
-  background: var(--wa-color-surface-2);
-}
-
-.slot-picker-row:focus-visible {
-  outline: 2px solid var(--wa-color-brand-fill);
-  outline-offset: 2px;
-}
-
-.slot-picker-swatch {
-  flex-shrink: 0;
-  width: var(--wa-space-m);
-  height: var(--wa-space-m);
-  border-radius: var(--wa-border-radius-s);
-  border: 1px dashed var(--wa-color-neutral-40);
-}
-
-.slot-picker-swatch[style] {
-  border: 1px solid var(--wa-color-surface-border);
-}
+.slot-picker-row:hover { background: var(--wa-color-surface-2); }
+.slot-picker-row[aria-disabled="true"] { cursor: default; background: none; }
+.slot-picker-row.is-current .slot-picker-title { color: var(--wa-color-neutral-text-subtle); }
+.slot-picker-row:focus-visible { outline: 2px solid var(--wa-color-brand-fill); outline-offset: -2px; }
 
 .slot-picker-detail {
   color: var(--wa-color-neutral-text-subtle);
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
+.slot-picker-list > p.slot-picker-detail { white-space: normal; margin: 0; padding: var(--wa-space-m); }
+
+.slot-picker-check { font-size: 1.25em; color: var(--wa-color-brand-fill); visibility: hidden; }
 
 /* The chosen slot, in the list and ringed on the picture. */
-.slot-picker-row.is-selected,
+.slot-picker-row.is-selected {
+  background: var(--wa-color-brand-fill-quiet);
+  box-shadow: inset 0 0 0 2px var(--wa-color-brand-fill);
+}
+.slot-picker-row.is-selected .slot-picker-title { font-weight: var(--wa-font-weight-semibold); }
+.slot-picker-row.is-selected .slot-picker-check { visibility: visible; }
 .stripe-reorder-slot.is-selected {
   border-color: var(--wa-color-brand-fill);
   box-shadow: 0 0 0 2px var(--wa-color-brand-fill);
 }
 
-.slot-picker-row.is-selected {
-  background: var(--wa-color-brand-fill-quiet);
+.slot-picker-footer {
+  display: flex;
+  align-items: center;
+  gap: var(--wa-space-m);
+  width: 100%;
 }
+#slot-picker-summary { flex: 1; min-width: 0; text-align: start; }
+#slot-picker-summary.stripe-reorder-swap-confirm { padding: var(--wa-space-xs) var(--wa-space-s); }
 
 @media (pointer: coarse) {
-  .slot-picker-row {
-    min-height: 52px;
-  }
+  .slot-picker-row { min-height: 52px; }
 }
 
-/* Phone: the list is the touch target, so the sleeve shrinks to a preview
-   and the list starts near the top of the dialog. */
 @media (max-width: 768px) {
-  .stripe-reorder-sleeve {
-    min-height: 0;
+  /* Full screen, so the list can take every pixel left and scroll on its own. */
+  #stripe-reorder-dialog::part(dialog) {
+    max-inline-size: none; max-block-size: none;
+    inline-size: 100vw; block-size: 100dvh;
+    margin: 0; border-radius: 0;
   }
-  .stripe-reorder-edge {
-    gap: 1px;
-    padding: 2px;
-  }
-  .stripe-reorder-slot {
-    height: 5px;
-  }
-  .stripe-reorder-card-hint {
-    display: none;
-  }
-}
+  #stripe-reorder-dialog::part(title) { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #stripe-reorder-dialog::part(body) { display: flex; flex-direction: column; padding-block-start: 0; }
+  #stripe-reorder-content { flex: 1; min-height: 0; gap: var(--wa-space-s); }
 
-@media (min-width: 769px) {
-  .slot-picker-list {
-    max-height: 24rem;
-    overflow-y: auto;
+  .slot-picker-layout {
+    flex: 1;
+    min-height: 0;
+    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-areas:
+      "sleeve aside"
+      "side   side"
+      "list   list";
+    grid-template-rows: auto auto minmax(0, 1fr);
+    column-gap: var(--wa-space-m);
   }
+  .slot-picker-aside { grid-area: aside; display: flex; flex-direction: column-reverse; align-items: flex-start; gap: var(--wa-space-s); }
+  .slot-picker-free { align-self: flex-start; }
+  .slot-picker-key { grid-template-columns: 18px minmax(0, 1fr); }
+  .slot-picker-key > .stripe-indicator { grid-row: 1 / span 2; }
+  .slot-picker-key > .slot-picker-detail { grid-column: 2; font-size: var(--wa-font-size-s); }
+  .stripe-reorder-edge-range { display: none; }
+  .slot-picker-list { height: auto; min-height: 0; }
+  .slot-picker-row { grid-template-columns: 18px minmax(0, 1fr) auto; }
+  .slot-picker-row .slot-picker-title { grid-column: 2; grid-row: 1; }
+  .slot-picker-row .slot-picker-detail { grid-column: 2; grid-row: 2; }
+  .slot-picker-row > :last-child { grid-column: 3; grid-row: 1 / span 2; }
+  .slot-picker-row > .stripe-indicator { grid-row: 1 / span 2; }
+
+  /* The picture becomes a preview: small, and the list is the touch target. */
+  .slot-picker-layout .stripe-reorder-sleeve { width: 108px; border-radius: 8px; pointer-events: none; }
+  .slot-picker-layout .stripe-reorder-card-body { min-height: 0; }
+  .stripe-reorder-edge { gap: 1px; padding: 3px; }
+  .stripe-reorder-slot { width: 16px; height: 5px; border-radius: 1.5px; border-width: 1px; }
+  .stripe-reorder-card-hint { display: none; }
+  .stripe-reorder-edge-labels { padding: 0; }
+  .slot-picker-footer { flex-wrap: wrap; gap: var(--wa-space-xs) var(--wa-space-s); }
+  #slot-picker-summary { flex-basis: 100%; }
+  #slot-picker-summary:empty { display: none; }
+  .slot-picker-footer > wa-button { flex: 1 1 0; }
 }
 
 @media (max-width: 768px) {
@@ -2125,21 +2403,17 @@ wa-page[view='desktop'] [data-toggle-nav] {
   align-self: start;
 }
 
-/* Separate Delete deck from Edit deck */
-.deck-actions-kebab-menu .kebab-item-danger {
-  margin-block-start: var(--wa-space-xs);
-  border-block-start: var(--wa-border-width-s) var(--wa-border-style) var(--wa-color-neutral-border-quiet);
-  padding-block-start: var(--wa-space-2xs);
-}
-
 /* 44px touch targets (same input-method gate as .mark-checkbox-hit) */
 @media (pointer: coarse) {
-  wa-button[size="s"]::part(button),
-  .deck-actions-kebab-menu .kebab-item::part(button) {
+  wa-button[size="s"]::part(button) {
     min-block-size: 44px;
   }
+  .deck-actions-kebab wa-dropdown-item,
   #account-menu wa-dropdown-item,
-  #prism-overflow wa-dropdown-item {
+  #prism-overflow wa-dropdown-item,
+  #deck-filter-dropdown wa-dropdown-item,
+  #export-dropdown wa-dropdown-item,
+  #bulk-mark-dropdown wa-dropdown-item {
     min-block-size: 44px;
   }
   /* no documented part for the button-appearance radio, so the host */
@@ -2154,3 +2428,49 @@ wa-page[view='desktop'] [data-toggle-nav] {
     min-block-size: 44px;
   }
 }
+
+/* Card-by-card marking (#453): card and legend stack on phone, sit side by side from 768px. */
+/* Card-by-card marking fills the screen; WA otherwise caps the panel and centers it */
+#scry-dialog::part(dialog) { max-inline-size: none; max-block-size: none; inline-size: 100vw; block-size: 100dvh; margin: 0; border-radius: 0; }
+.scry-content { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--wa-space-l); min-height: 200px; }
+.scry-legend { align-self: stretch; max-inline-size: 28rem; }
+.scry-copies { margin: 0 0 var(--wa-space-xs); font-weight: var(--wa-font-weight-bold); font-size: var(--wa-font-size-l); }
+.scry-actions { display: grid; grid-template-columns: 1fr 1fr; gap: var(--wa-space-s); inline-size: 100%; }
+.scry-actions wa-button::part(base) { min-block-size: 56px; }
+/* #478: lives in the header, so it costs the card no height; matches float over the card. */
+.scry-search { position: relative; inline-size: min(16rem, 38vw); align-self: center; }
+#scry-dialog::part(title) { white-space: nowrap; }
+.scry-search-results { position: absolute; inset-inline-end: 0; inset-block-start: 100%; z-index: 1; inline-size: min(20rem, 75vw); max-block-size: 50dvh; overflow-y: auto; margin: var(--wa-space-2xs) 0 0; padding: var(--wa-space-xs); list-style: none; background: var(--wa-color-surface-raised); border: var(--wa-border-width-s) solid var(--wa-color-surface-border); border-radius: var(--wa-border-radius-m); box-shadow: var(--wa-shadow-m); }
+.scry-search-results wa-button { inline-size: 100%; }
+.scry-search-results wa-button::part(base) { justify-content: flex-start; block-size: auto; min-block-size: 44px; padding-block: var(--wa-space-xs); text-align: start; }
+.scry-search-results wa-button::part(label) { white-space: normal; }
+.scry-search-empty { padding: var(--wa-space-xs); color: var(--wa-color-text-quiet); }
+@media (min-width: 768px) {
+  .scry-content { flex-direction: row; gap: var(--wa-space-2xl); }
+  .scry-legend { align-self: center; }
+  .scry-legend .stripe-detail { flex-direction: column; font-size: var(--wa-font-size-m); color: var(--wa-color-text-normal); }
+  .scry-legend .stripe-detail-swatch { inline-size: 16px; block-size: 16px; }
+  .scry-actions { grid-template-columns: repeat(2, minmax(10rem, 14rem)); justify-content: center; }
+}
+
+/* Phone: "Decks" and "Mark sleeves" fit at 375px without tab scroll arrows */
+@media (max-width: 768px) {
+  #main-tabs wa-tab::part(base) {
+    padding-inline: var(--wa-space-m);
+  }
+  #main-tabs .tab-icon {
+    display: none;
+  }
+  /* Less air under the tab strip, so the first card row clears the bottom bar (#477) */
+  #main-tabs wa-tab-panel {
+    --padding: var(--wa-space-s) 0 0;
+  }
+}
+
+/* Audit end screen (#457): the wrong rows with their legend. */
+.audit-end { align-self: stretch; max-inline-size: 36rem; margin-inline: auto; padding: var(--wa-space-l) 0; }
+.audit-end p { margin: 0; }
+.audit-end-icon { font-size: var(--wa-font-size-4xl); color: var(--wa-color-success-fill-loud); }
+.audit-wrong-list { list-style: none; margin: 0; padding: 0; }
+.audit-wrong { border-block-start: var(--wa-border-width-s) solid var(--wa-color-surface-border); padding-block-start: var(--wa-space-m); }
+.audit-end .audit-wrong-name { font-weight: var(--wa-font-weight-bold); margin-block-end: var(--wa-space-xs); }

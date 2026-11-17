@@ -6,7 +6,7 @@ import { state } from '../core/state.js';
 import { downloadCSV, downloadJSON, openPrintableGuide, downloadUndoneTxt, copyUndoneToClipboard } from '../modules/export.js';
 import { wireCardPreview, refreshOpenPreview } from '../modules/card-preview.js';
 import {
-  handleDeckSubmit,
+  handleDeckFormSubmit,
   resetDeckForm,
   updateColorSwatchSelection,
   checkColorWarning,
@@ -14,12 +14,16 @@ import {
   syncCommanderFieldsFromText,
   applyCommanderFieldsToText,
   handleTwoCommandersToggle,
-  addCommanderRefs,
-  editCommanderRefs,
+  commanderRefs,
+  openAddDeckDialog,
+  closeDeckDialog,
+  endDeckFormSession,
+  handleChangeSlot,
 } from './deck-form.js';
-import { handleFileUpload, handleJsonImport, handleMoxfieldImport, handleEditFileUpload, handleEditUrlImport, openCubeDialog, handleLoadCube, updateCubeCapacity, setAllCubeTags, handleCreateCubePrism } from './deck-import.js';
-import { handleDeleteConfirm, handleEditConfirm, handleNewPrism, handleSplitConfirm, handleEditGroupConfirm, handleClearAllRemoved } from './deck-list.js';
-import { renderResults } from './results.js';
+import { handleFileUpload, handleJsonImport, handleDeckUrlImport, openCubeDialog, handleLoadCube, updateCubeCapacity, setAllCubeTags, handleCreateCubePrism } from './deck-import.js';
+import { handleDeleteConfirm, handleNewPrism, handleSplitConfirm, handleEditGroupConfirm, handleClearAllRemoved } from './deck-list.js';
+import { renderResults, syncMarkingPrereq } from './results.js';
+import { dismissMarkingPrereq } from '../core/marking-prereq.js';
 import { openScryMode } from './scry-mode.js';
 import { renderOverlapMatrix } from './analysis.js';
 import { debounce, clickItemsOnKeyboardSelect } from '../core/utils.js';
@@ -71,22 +75,29 @@ export function setupEventListeners() {
   state.elements.btnRenamePrism?.addEventListener('click', startRename);
   if (state.elements.prismOverflow) clickItemsOnKeyboardSelect(state.elements.prismOverflow);
 
-  // Deck form submission
+  // Deck form (#450): one form, Add or Edit by state.deckFormMode
   if (state.elements.deckForm) {
-    state.elements.deckForm.addEventListener('submit', handleDeckSubmit);
+    state.elements.deckForm.addEventListener('submit', handleDeckFormSubmit);
   }
 
   if (state.elements.btnResetForm) {
     state.elements.btnResetForm.addEventListener('click', resetDeckForm);
   }
+  state.elements.btnOpenAddDeck?.addEventListener('click', openAddDeckDialog);
+  state.elements.btnCancelDeckForm?.addEventListener('click', closeDeckDialog);
+  // Escape or the close button: drop whatever the session left pending.
+  // wa-hide bubbles from components inside the form, so check the target.
+  state.elements.deckDialog?.addEventListener('wa-hide', (e) => {
+    if (e.target === state.elements.deckDialog) endDeckFormSession();
+  });
+  state.elements.btnChangeSlot?.addEventListener('click', handleChangeSlot);
 
-  // Commander fields <-> decklist text sync (#147), Add form and Edit dialog
-  for (const refs of [addCommanderRefs(), editCommanderRefs()]) {
-    refs.textarea?.addEventListener('change', () => syncCommanderFieldsFromText(refs));
-    refs.field1?.addEventListener('change', () => applyCommanderFieldsToText(refs));
-    refs.field2?.addEventListener('change', () => applyCommanderFieldsToText(refs));
-    refs.toggle?.addEventListener('change', () => handleTwoCommandersToggle(refs));
-  }
+  // Commander fields <-> decklist text sync (#147)
+  const refs = commanderRefs();
+  refs.textarea?.addEventListener('change', () => syncCommanderFieldsFromText(refs));
+  refs.field1?.addEventListener('change', () => applyCommanderFieldsToText(refs));
+  refs.field2?.addEventListener('change', () => applyCommanderFieldsToText(refs));
+  refs.toggle?.addEventListener('change', () => handleTwoCommandersToggle(refs));
 
   // Dedicated commander copies — per-PRISM synced setting; write path per #145
   // (flag + its own merge timestamp + prism.updatedAt, mirroring mark-toggle)
@@ -113,9 +124,10 @@ export function setupEventListeners() {
     });
   }
 
-  // File upload (wa-file-input handles its own UI)
+  // File upload: the button opens the hidden native file input
   if (state.elements.deckFileInput) {
     state.elements.deckFileInput.addEventListener('change', handleFileUpload);
+    state.elements.btnDeckFile?.addEventListener('click', () => state.elements.deckFileInput.click());
   }
 
   // JSON import (wa-file-input handles its own UI); close the dialog once a file is chosen
@@ -158,19 +170,24 @@ export function setupEventListeners() {
     state.elements.cubeDialog?.removeAttribute('open');
   });
 
-  // Moxfield import
-  if (state.elements.btnImportMoxfield) {
-    state.elements.btnImportMoxfield.addEventListener('click', handleMoxfieldImport);
-  }
-  if (state.elements.moxfieldUrl) {
-    // Also allow pressing Enter to import
-    state.elements.moxfieldUrl.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') {
-        e.preventDefault();
-        handleMoxfieldImport();
-      }
-    });
-  }
+  // Deck URL import (Moxfield / Archidekt / DeckCheck)
+  state.elements.btnImportDeckUrl?.addEventListener('click', () => handleDeckUrlImport());
+  state.elements.btnRefreshSource?.addEventListener('click', () => {
+    const deck = state.currentPrism.decks.find((d) => d.id === state.deckToEdit);
+    if (deck?.sourceUrl) handleDeckUrlImport(deck.sourceUrl, state.elements.btnRefreshSource);
+  });
+  // Enter imports instead of submitting the form
+  state.elements.deckUrl?.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleDeckUrlImport();
+    }
+  });
+
+  state.elements.markingPrereqDismiss?.addEventListener('click', () => {
+    dismissMarkingPrereq(state.currentPrism.id);
+    syncMarkingPrereq();
+  });
 
   // SCRY-Mode launch
   if (state.elements.btnScry) {
@@ -191,12 +208,22 @@ export function setupEventListeners() {
   if (state.elements.resultsSearch) {
     state.elements.resultsSearch.addEventListener('input', debounce(renderResults, 150));
   }
-  if (state.elements.showAllSlots) {
-    state.elements.showAllSlots.addEventListener('change', renderResults);
-  }
-  if (state.elements.undoneFilter) {
-    state.elements.undoneFilter.addEventListener('change', () => {
-      updatePreferences({ undoneOnly: state.elements.undoneFilter.checked });
+  // Filters: every entry is a wa-dropdown-item, so mouse and keyboard both
+  // land here. Checkbox items toggle `checked` before wa-select;
+  // preventDefault keeps the menu open so the new state shows.
+  if (state.elements.deckFilterDropdown) {
+    state.elements.deckFilterDropdown.addEventListener('wa-select', (e) => {
+      const item = e.detail?.item;
+      if (!item) return;
+      e.preventDefault();
+      if (item === state.elements.undoneFilter) {
+        updatePreferences({ undoneOnly: !!item.checked });
+      } else if (item.id === 'deck-filter-clear') {
+        state.selectedDeckIds.clear();
+      } else if (item.dataset.deckId) {
+        if (item.checked) state.selectedDeckIds.add(item.dataset.deckId);
+        else state.selectedDeckIds.delete(item.dataset.deckId);
+      }
       renderResults();
     });
   }
@@ -209,6 +236,8 @@ export function setupEventListeners() {
   }
 
   // Export buttons — each logs an 'export' funnel event (GA + app_logs)
+  const exportDropdown = document.getElementById('export-dropdown');
+  if (exportDropdown) clickItemsOnKeyboardSelect(exportDropdown);
   if (state.elements.btnExportCSV) {
     state.elements.btnExportCSV.addEventListener('click', () => {
       downloadCSV(state.currentPrism);
@@ -286,40 +315,6 @@ export function setupEventListeners() {
     state.elements.btnConfirmClearAllRemoved.addEventListener('click', handleClearAllRemoved);
   }
 
-  // Edit dialog
-  if (state.elements.btnCancelEdit) {
-    state.elements.btnCancelEdit.addEventListener('click', () => {
-      state.elements.editDialog.removeAttribute('open');
-    });
-  }
-  if (state.elements.btnConfirmEdit) {
-    state.elements.btnConfirmEdit.addEventListener('click', handleEditConfirm);
-  }
-
-  // Edit dialog file upload (wa-file-input handles its own UI)
-  if (state.elements.editDeckFileInput) {
-    state.elements.editDeckFileInput.addEventListener('change', handleEditFileUpload);
-  }
-
-  // Edit dialog URL import
-  if (state.elements.btnEditImportUrl) {
-    state.elements.btnEditImportUrl.addEventListener('click', () => handleEditUrlImport());
-  }
-  if (state.elements.btnEditRefreshSource) {
-    state.elements.btnEditRefreshSource.addEventListener('click', () => {
-      const deck = state.currentPrism.decks.find((d) => d.id === state.deckToEdit);
-      if (deck?.sourceUrl) handleEditUrlImport(deck.sourceUrl, state.elements.btnEditRefreshSource);
-    });
-  }
-  if (state.elements.editImportUrl) {
-    state.elements.editImportUrl.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') {
-        e.preventDefault();
-        handleEditUrlImport();
-      }
-    });
-  }
-
   // Edit group dialog
   if (state.elements.btnCancelEditGroup) {
     state.elements.btnCancelEditGroup.addEventListener('click', () => {
@@ -378,7 +373,7 @@ export function setupEventListeners() {
     // A batch sub-row previews only its batch's marks, never the card's union
     wireCardPreview(state.elements.resultsTbody, (name, cell) => {
       const card = (state.processedCards || []).find(c => c.name === name);
-      const batchKey = cell.closest('tr.batch-subrow')?.dataset.cardKey;
+      const batchKey = cell.dataset.batchKey || cell.closest('tr.batch-subrow')?.dataset.cardKey;
       return (batchKey && card?.batches?.find(b => b.key === batchKey)?.stripes) || card?.stripes || [];
     });
   }

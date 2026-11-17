@@ -8,10 +8,13 @@ import { createPrism, getUsedPositions, MAX_STRIPE_SLOTS, applyCommanderFallback
 import { getCurrentPrism, savePrism, setCurrentPrism, getPreferences, onSyncStatusChange, forceSyncCurrentPrism, getAllPrisms, isCloudWritePaused, getLastCloudSyncDate, isPrismLocalOnly } from '../modules/storage.js';
 import { startAuth, getCurrentUser, onAuthChange } from '../modules/auth.js';
 import { logToSupabase } from '../modules/supabase-client.js';
-import { initColorSwatches } from './deck-form.js';
+import { initColorSwatches, placeDeckForm } from './deck-form.js';
 import { renderDecksList, handleSwitchPrism } from './deck-list.js';
 import { setupStripeReorderDialog } from './stripe-reorder-dialog.js';
 import { setupScryMode } from './scry-mode.js';
+import { setupBulkMark } from './bulk-mark.js';
+import { setupAudit } from './audit.js';
+import { setupMarkingLayout } from './marking-layout.js';
 import { renderResults, updateRemovedFilterBadge } from './results.js';
 import { renderExport } from './export-view.js';
 import { setupEventListeners } from './events.js';
@@ -31,29 +34,45 @@ function getElements() {
     // Tabs
     mainTabs: document.getElementById('main-tabs'),
 
-    // Deck form
+    // Deck form (#450): one form for Add and Edit
     deckForm: document.getElementById('deck-form'),
+    deckFormInlineHost: document.getElementById('deck-form-inline-host'),
+    deckFormActions: document.getElementById('deck-form-actions'),
+    addDeckCard: document.getElementById('add-deck-card'),
+    addDeckBar: document.getElementById('add-deck-bar'),
+    btnOpenAddDeck: document.getElementById('btn-open-add-deck'),
+    deckDialog: document.getElementById('deck-dialog'),
     deckName: document.getElementById('deck-name'),
     deckCommander: document.getElementById('deck-commander'),
     deckCommander2: document.getElementById('deck-commander-2'),
     deckTwoCommanders: document.getElementById('deck-two-commanders'),
     deckBracket: document.getElementById('deck-bracket'),
     deckColor: document.getElementById('deck-color'),
+    deckColorName: document.getElementById('deck-color-name'),
     deckList: document.getElementById('deck-list'),
+    deckListUpdated: document.getElementById('deck-list-updated'),
     deckFileInput: document.getElementById('deck-file-input'),
+    btnDeckFile: document.getElementById('btn-deck-file'),
     dedicatedCommanderToggle: document.getElementById('dedicated-commander-copies'),
     colorSwatches: document.getElementById('color-swatches'),
     colorWarning: document.getElementById('color-warning'),
     parseErrors: document.getElementById('parse-errors'),
-    btnAddDeck: document.getElementById('btn-add-deck'),
+    deckSlotLabel: document.getElementById('deck-slot-label'),
+    deckSlotHint: document.getElementById('deck-slot-hint'),
+    btnChangeSlot: document.getElementById('btn-change-slot'),
+    btnSubmitDeck: document.getElementById('btn-submit-deck'),
+    deckSubmitLabel: document.getElementById('deck-submit-label'),
+    deckSubmitIcon: document.getElementById('deck-submit-icon'),
     btnResetForm: document.getElementById('btn-reset-form'),
+    btnCancelDeckForm: document.getElementById('btn-cancel-deck-form'),
 
-    // Moxfield import
-    moxfieldUrl: document.getElementById('moxfield-url'),
-    btnImportMoxfield: document.getElementById('btn-import-moxfield'),
-    moxfieldError: document.getElementById('moxfield-error'),
-    moxfieldSuccess: document.getElementById('moxfield-success'),
-    moxfieldImportSection: document.getElementById('moxfield-import-section'),
+    // Deck URL import
+    deckUrl: document.getElementById('deck-url'),
+    deckUrlHint: document.getElementById('deck-url-hint'),
+    btnImportDeckUrl: document.getElementById('btn-import-deck-url'),
+    btnRefreshSource: document.getElementById('btn-refresh-source'),
+    deckUrlError: document.getElementById('deck-url-error'),
+    deckUrlSuccess: document.getElementById('deck-url-success'),
 
     // Decks list
     decksList: document.getElementById('decks-list'),
@@ -70,13 +89,16 @@ function getElements() {
     resultsSearch: document.getElementById('results-search'),
     showAllSlots: document.getElementById('show-all-slots'),
     undoneFilter: document.getElementById('undone-filter'),
+    oneMarkFilter: document.getElementById('one-mark-filter'),
     deckFilterDropdown: document.getElementById('deck-filter-dropdown'),
-    deckFilterMenu: document.getElementById('deck-filter-menu'),
+    markingLayout: document.getElementById('marking-layout'),
+    barMarked: document.getElementById('bar-marked'),
+    barProgress: document.getElementById('bar-progress'),
     resultsTbody: document.getElementById('results-tbody'),
     noResults: document.getElementById('no-results'),
     btnGoToDecks: document.getElementById('btn-go-to-decks'),
 
-    // Export (Legend + Export dropdowns in the Results toolbar)
+    // Legend (rail / sheet) and Export dropdown on the Mark sleeves tab
     deckLegend: document.getElementById('deck-legend'),
     btnExportCSV: document.getElementById('btn-export-csv'),
     btnExportJSON: document.getElementById('btn-export-json'),
@@ -122,31 +144,6 @@ function getElements() {
     btnCancelClearAllRemoved: document.getElementById('btn-cancel-clear-all-removed'),
     btnConfirmClearAllRemoved: document.getElementById('btn-confirm-clear-all-removed'),
 
-    // Edit dialog
-    editDialog: document.getElementById('edit-dialog'),
-    editDeckForm: document.getElementById('edit-deck-form'),
-    editDeckId: document.getElementById('edit-deck-id'),
-    editDeckName: document.getElementById('edit-deck-name'),
-    editDeckCommander: document.getElementById('edit-deck-commander'),
-    editDeckCommander2: document.getElementById('edit-deck-commander-2'),
-    editDeckTwoCommanders: document.getElementById('edit-deck-two-commanders'),
-    editDeckBracket: document.getElementById('edit-deck-bracket'),
-    editDeckColor: document.getElementById('edit-deck-color'),
-    editDeckList: document.getElementById('edit-deck-list'),
-    editDeckListUpdated: document.getElementById('edit-deck-list-updated'),
-    editDeckFileInput: document.getElementById('edit-deck-file-input'),
-    editParseErrors: document.getElementById('edit-parse-errors'),
-    btnCancelEdit: document.getElementById('btn-cancel-edit'),
-    btnConfirmEdit: document.getElementById('btn-confirm-edit'),
-
-    // Edit dialog URL import
-    editImportSection: document.getElementById('edit-import-section'),
-    editImportUrl: document.getElementById('edit-import-url'),
-    btnEditImportUrl: document.getElementById('btn-edit-import-url'),
-    btnEditRefreshSource: document.getElementById('btn-edit-refresh-source'),
-    editImportError: document.getElementById('edit-import-error'),
-    editImportSuccess: document.getElementById('edit-import-success'),
-
     // Edit group dialog
     editGroupDialog: document.getElementById('edit-group-dialog'),
     editGroupId: document.getElementById('edit-group-id'),
@@ -167,13 +164,21 @@ function getElements() {
     // Stripe reorder dialog
     stripeReorderDialog: document.getElementById('stripe-reorder-dialog'),
 
+    // Pre-marking warning (#476)
+    markingPrereq: document.getElementById('marking-prereq-callout'),
+    markingPrereqDismiss: document.getElementById('marking-prereq-dismiss'),
+
     // SCRY-Mode
     btnScry: document.getElementById('btn-scry'),
     scryDialog: document.getElementById('scry-dialog'),
     scryContent: document.getElementById('scry-content'),
     scryProgress: document.getElementById('scry-progress'),
+    scryBar: document.getElementById('scry-bar'),
     btnScrySkip: document.getElementById('btn-scry-skip'),
     btnScryDone: document.getElementById('btn-scry-done'),
+    scrySearch: document.getElementById('scry-search'),
+    scrySearchInput: document.getElementById('scry-search-input'),
+    scrySearchResults: document.getElementById('scry-search-results'),
 
     // Sync status
     syncStatus: document.getElementById('sync-status'),
@@ -242,8 +247,11 @@ export async function init() {
 
   // Set up event listeners
   setupEventListeners();
+  setupMarkingLayout();
   setupStripeReorderDialog();
   setupScryMode();
+  setupBulkMark();
+  setupAudit();
   setupSyncStatus();
   initMembershipDrawer();
 
@@ -263,6 +271,7 @@ export function renderAll() {
     state.elements.dedicatedCommanderToggle.checked = !!state.currentPrism?.useDedicatedCommanderCopies;
   }
   renderDecksList();
+  placeDeckForm();
   renderResults();
   renderExport();
   updateRemovedFilterBadge();
@@ -336,16 +345,11 @@ function renderPrismHeader() {
     const logicalCount = getLogicalDeckCount(state.currentPrism);
     state.elements.deckCountTag.textContent = `${logicalCount} ${logicalCount === 1 ? 'deck' : 'decks'}`;
 
-    // Variant reflects physical slot fullness (capacity is 48 stripe slots),
-    // not the logical deck count — dot variants pack 2 decks into one slot.
-    const usedSlots = getUsedPositions(state.currentPrism).size;
-    if (usedSlots >= MAX_STRIPE_SLOTS) {
-      state.elements.deckCountTag.variant = 'warning';
-    } else if (usedSlots >= 40) {
-      state.elements.deckCountTag.variant = 'neutral';
-    } else {
-      state.elements.deckCountTag.variant = 'success';
-    }
+    // Plain text; it turns to warning only when all 48 physical slots are used
+    // (dot variants pack 2 decks into one slot, so the deck count can't tell).
+    state.elements.deckCountTag.classList.toggle('is-full', getUsedPositions(state.currentPrism).size >= MAX_STRIPE_SLOTS);
+    const explainer = document.getElementById('prism-explainer');
+    if (explainer) explainer.hidden = logicalCount > 0;
   }
 }
 

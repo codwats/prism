@@ -3,9 +3,10 @@
  */
 
 import { state } from '../core/state.js';
-import { escapeHtml, stripeNumberLabel, countVisibleMarks, STRIPE_SPARSE_MAX, isCardDone } from '../core/utils.js';
+import { escapeHtml, stripeNumberLabel, countVisibleMarks, STRIPE_SPARSE_MAX, isCardDone, batchTally } from '../core/utils.js';
+import { markingPrereqVisible, retireMarkingPrereq } from '../core/marking-prereq.js';
 import { getStripeNumbersMode } from '../modules/storage.js';
-import { processCards, formatSlotLabel } from '../modules/processor.js';
+import { processCards, formatSlotLabel, getColorName } from '../modules/processor.js';
 import { normalizeCardName } from '../modules/parser.js';
 import { removalOpenCopies, openRemovals } from '../modules/swap.js';
 import { planSleeveReuse } from '../modules/sleeve-reuse.js';
@@ -82,6 +83,37 @@ function renderSlot(slot, opts) {
 // disclosure state survives re-renders within the session.
 const expandedCards = new Set();
 
+export function toggleCardExpanded(name) {
+  if (expandedCards.has(name)) expandedCards.delete(name);
+  else expandedCards.add(name);
+}
+
+// The row's markedCards key: pass rows `<name>|<deckName>`, others the name.
+const rowKey = (card) => (card.isPassRow ? `${card.displayName}|${card.deckName}` : card.name);
+
+// Cards the last render left after view, filters, search and sort.
+let shownCards = [];
+
+/**
+ * Keys of the checkbox rows the current view shows, for the bulk actions.
+ * Marks to Clear rows and multi-batch parents have no checkbox and are
+ * skipped; a collapsed parent's batch rows are hidden, so they are skipped
+ * too and counted in `collapsed`.
+ * @returns {{ keys: string[], collapsed: number }}
+ */
+export function shownMarkRows() {
+  const keys = [];
+  let collapsed = 0;
+  for (const card of shownCards) {
+    if (card.isRemoved) continue;
+    const batches = card.batches || [];
+    if (card.isPassRow || batches.length <= 1) keys.push(rowKey(card));
+    else if (expandedCards.has(card.name)) keys.push(...batches.map(b => b.key));
+    else collapsed++;
+  }
+  return { keys, collapsed };
+}
+
 // ============================================================================
 // Chunked row rendering
 // ============================================================================
@@ -113,9 +145,7 @@ function bindResultsDelegation(tbody) {
   tbody.addEventListener('click', (e) => {
     const batchToggle = e.target.closest('.batch-toggle');
     if (batchToggle) {
-      const name = batchToggle.dataset.cardName;
-      if (expandedCards.has(name)) expandedCards.delete(name);
-      else expandedCards.add(name);
+      toggleCardExpanded(batchToggle.dataset.cardName);
       // Preserve depth: expanding a card at row 400 must not yank the list
       // back to the first 60 rows.
       renderResults({ preserveRows: true });
@@ -135,7 +165,18 @@ function bindResultsDelegation(tbody) {
     }
 
     const clearBtn = e.target.closest('.btn-clear-removed');
-    if (clearBtn) handleClearRemoved(clearBtn.dataset.cardName, clearBtn.dataset.deckId);
+    if (clearBtn) {
+      handleClearRemoved(clearBtn.dataset.cardName, clearBtn.dataset.deckId);
+      return;
+    }
+
+    // Tapping a row opens its legend (#452); a multi-batch parent has no
+    // marks of its own, so its row expands the batches instead. The checkbox
+    // and every button keep their own job. Keyboard users have the
+    // stripe-cell-toggle and batch-toggle buttons, so this is pointer only.
+    if (e.target.closest('label, input, button, wa-button, a, .stripe-detail-row')) return;
+    const row = e.target.closest('tr');
+    (row?.querySelector('.batch-toggle') || row?.querySelector('.stripe-cell-toggle'))?.click();
   });
 
   tbody.addEventListener('change', (e) => {
@@ -176,7 +217,7 @@ export function updateRemovedFilterBadge() {
 // Marked progress (sleeves done)
 // ============================================================================
 
-// Sums totalQuantity for marked vs all rows — matches Total Cards stat.
+// Sums totalQuantity for marked vs all rows — matches Total cards stat.
 // Uses cached state.processedCards so it can run on mark toggle without reprocessing.
 export function updateMarkedProgress() {
   const cards = state.processedCards || [];
@@ -195,14 +236,33 @@ export function updateMarkedProgress() {
   }, 0);
 
   if (state.elements.statMarked) state.elements.statMarked.textContent = `${markedCount}/${totalCount}`;
-  if (state.elements.markedProgress) {
-    state.elements.markedProgress.value = totalCount > 0 ? Math.round((markedCount / totalCount) * 100) : 0;
-  }
+  const percent = totalCount > 0 ? Math.round((markedCount / totalCount) * 100) : 0;
+  if (state.elements.markedProgress) state.elements.markedProgress.value = percent;
+  // Phone bottom bar mirrors the Marked stat, which lives in the sheet there
+  if (state.elements.barMarked) state.elements.barMarked.textContent = `${markedCount}/${totalCount}`;
+  if (state.elements.barProgress) state.elements.barProgress.value = percent;
 }
 
 // ============================================================================
 // Results rendering
 // ============================================================================
+
+// The view switch holds All cards / Pool / Marks to Clear; One Mark at a Time
+// is a Filters item (#452) that turns either card view into the pass view.
+// The pass view keeps its internal value, `basics-by-deck`.
+function resultsFilterValue() {
+  const view = state.elements.resultsFilter?.value || 'all';
+  if (view !== 'removed' && state.elements.oneMarkFilter?.checked) return 'basics-by-deck';
+  return view;
+}
+
+/** Show or hide the pre-marking warning for the current PRISM (#476). */
+export function syncMarkingPrereq() {
+  const callout = state.elements.markingPrereq;
+  if (!callout) return;
+  retireMarkingPrereq(state.currentPrism);
+  callout.style.display = markingPrereqVisible(state.currentPrism) ? '' : 'none';
+}
 
 export function renderResults({ preserveRows = false } = {}) {
   // Any re-render invalidates the pending tail observer; a new one is attached
@@ -213,9 +273,10 @@ export function renderResults({ preserveRows = false } = {}) {
 
   const processedCards = processCards(state.currentPrism);
   state.processedCards = processedCards;
+  shownCards = [];
   const totalCardCount = processedCards.reduce((sum, c) => sum + c.totalQuantity, 0);
   // Pool/core belongs to batches (#146): A5/B3 contributes 3 pool + 2 core,
-  // not 5 pool — so Pool Cards sums pool-batch quantities.
+  // not 5 pool — so Pool cards sums pool-batch quantities.
   const sharedCardCount = processedCards.reduce(
     (sum, c) => sum + (c.batches || []).reduce((s, b) => s + (b.isPool ? b.copyCount : 0), 0),
     0,
@@ -227,25 +288,17 @@ export function renderResults({ preserveRows = false } = {}) {
   updateMarkedProgress();
 
   // Show/hide based on deck count
-  if (state.currentPrism.decks.length === 0) {
-    if (state.elements.resultsStats) state.elements.resultsStats.style.display = 'none';
-    if (state.elements.noResults) state.elements.noResults.style.display = 'flex';
-    const tableContainer = document.getElementById('results-table-container');
-    if (tableContainer) tableContainer.style.display = 'none';
-    const filterParent = state.elements.resultsFilter?.parentElement;
-    if (filterParent) filterParent.style.display = 'none';
-    return;
-  }
-
-  if (state.elements.resultsStats) state.elements.resultsStats.style.display = '';
-  if (state.elements.noResults) state.elements.noResults.style.display = 'none';
-  const tableContainer = document.getElementById('results-table-container');
-  if (tableContainer) tableContainer.style.display = '';
-  const filterParent = state.elements.resultsFilter?.parentElement;
-  if (filterParent) filterParent.style.display = '';
+  // The layout holds toolbar, table, rail and phone bar. Stats are hidden on
+  // their own too, since on phone they live in the sheet outside the layout.
+  const hasDecks = state.currentPrism.decks.length > 0;
+  if (state.elements.markingLayout) state.elements.markingLayout.style.display = hasDecks ? '' : 'none';
+  if (state.elements.resultsStats) state.elements.resultsStats.style.display = hasDecks ? '' : 'none';
+  if (state.elements.noResults) state.elements.noResults.style.display = hasDecks ? 'none' : 'flex';
+  syncMarkingPrereq();
+  if (!hasDecks) return;
 
   // Apply filters
-  const filter = state.elements.resultsFilter?.value || 'all';
+  const filter = resultsFilterValue();
   const search = (state.elements.resultsSearch?.value || '').toLowerCase().trim();
 
   let filteredCards = [...processedCards];
@@ -262,7 +315,11 @@ export function renderResults({ preserveRows = false } = {}) {
     // over 5 copies", "a child-indicator pass over the 3 A-only copies".
     // Row keys stay `<name>|<deckName>` (#151), shared with passKeysForCard.
     displayCards = [];
-    for (const card of filteredCards) {
+    // With the Pool view on, passes cover Pool cards only.
+    const passSource = state.elements.resultsFilter?.value === 'shared'
+      ? filteredCards.filter(c => c.logicalDeckCount > 1)
+      : filteredCards;
+    for (const card of passSource) {
       if (card.totalQuantity <= 1) continue; // single physical copy — no pass needed
       const passes = new Map(); // deckName -> { stripe, copies }
       for (const batch of card.batches || []) {
@@ -380,6 +437,7 @@ export function renderResults({ preserveRows = false } = {}) {
 
   // Apply sorting
   displayCards = sortCards(displayCards, state.sortState.column, state.sortState.direction);
+  shownCards = displayCards;
 
   // Snapshot for SCRY-Mode — reflects exact list visible to user (all
   // filters/sort applied). Multi-batch cards flatten to one entry per batch
@@ -463,11 +521,12 @@ export function renderResults({ preserveRows = false } = {}) {
         isDot: s.markType === 'dot',
       }));
 
+  // Color name, deck, slot: the three things a player checks against the pen
   const describeMark = (m) =>
-    `${m.isDot ? 'Dot, ' : ''}${formatSlotLabel(m.position)}, ${m.deckName}`;
+    `${getColorName(m.color)}${m.isDot ? ' dot' : ''}, ${m.deckName}, ${formatSlotLabel(m.position)}`;
 
   let detailRowSeq = 0;
-  // Done / Card Name / Stripes. The stale-marks view uses its own row markup,
+  // Done / Card name / Marks. The stale-marks view uses its own row markup,
   // so this is stable.
   const detailColspan = 3;
 
@@ -476,7 +535,9 @@ export function renderResults({ preserveRows = false } = {}) {
   // NOT live inside the stripes <td>: on a phone the table scrolls horizontally
   // and that column sits past the right edge, so text placed there would be
   // unreadable without scrolling and would inflate the row height besides.
-  const stripesCell = (stripes, band = '') => {
+  // previewName/batchKey feed Show card, which opens wireCardPreview with the
+  // same marks as the row (a batch row previews only its batch, never the union).
+  const stripesCell = (stripes, band, previewName, batchKey = '') => {
     const marks = markDescriptors(stripes);
     const strip = `<div class="stripe-indicators">${stripeHtml(stripes)}</div>`;
     if (marks.length === 0) return { cell: `<td>${strip}</td>`, detailRow: '' };
@@ -499,7 +560,16 @@ export function renderResults({ preserveRows = false } = {}) {
         <button type="button" class="stripe-cell-toggle" aria-expanded="false" aria-controls="${id}" aria-label="${escapeHtml(summary)}">${strip}</button>
       </td>`,
       detailRow: `<tr class="stripe-detail-row${band}" id="${id}" hidden>
-        <td colspan="${detailColspan}"><ul class="stripe-detail">${items}</ul></td>
+        <td colspan="${detailColspan}">
+          <div class="stripe-detail-body">
+            <ul class="stripe-detail">${items}</ul>
+            <wa-button size="s" appearance="outlined" variant="neutral" class="card-name-cell card-show-btn"
+              data-card-name="${escapeHtml(previewName)}"${batchKey ? ` data-batch-key="${escapeHtml(batchKey)}"` : ''}>
+              <wa-icon slot="start" name="image"></wa-icon>
+              Show card
+            </wa-button>
+          </div>
+        </td>
       </tr>`,
     };
   };
@@ -565,35 +635,35 @@ export function renderResults({ preserveRows = false } = {}) {
     if (!multiBatch) {
       // Singleton path — exactly today's row (#149). Pass rows keep their
       // `<name>|<deckName>` key.
-      const cardKey = card.isPassRow ? `${card.displayName}|${card.deckName}` : card.name;
+      const cardKey = rowKey(card);
       const isMarked = markedSetForRows.has(cardKey);
-      const stripes = stripesCell(card.stripes, band);
+      const previewName = card.isPassRow ? card.displayName : card.name;
+      const stripes = stripesCell(card.stripes, band, previewName);
       return `
         <tr class="${isMarked ? 'marked-row' : ''}${band}" data-card-key="${escapeHtml(cardKey)}">
           <td style="text-align: center;">
             <label class="mark-checkbox-hit"><input type="checkbox" class="mark-checkbox" aria-label="Mark ${escapeHtml(card.name)} done" ${isMarked ? "checked" : ""}></label>
           </td>
-          <td class="${nameClass} card-name-cell" data-card-name="${escapeHtml(card.isPassRow ? card.displayName : card.name)}">${escapeHtml(card.name)}${basicTag}${copiesTag(card.totalQuantity)}</td>
+          <td class="${nameClass} card-name-cell" data-preview="hover" data-card-name="${escapeHtml(previewName)}">${escapeHtml(card.name)}${basicTag}${copiesTag(card.totalQuantity)}</td>
           ${stripes.cell}
         </tr>
         ${stripes.detailRow}
       `;
     }
 
-    // Multi-batch card: parent row with derived (non-clickable) checkbox and
-    // no mark union — the union is the over-marking trap (#149). Marking
-    // requires expanding and checking each batch.
-    const doneCount = batches.filter(b => markedSetForRows.has(b.key)).length;
-    const allDone = doneCount === batches.length;
+    // Multi-batch card: parent row with a derived, never-clickable tally of
+    // done batches (#452, was a disabled checkbox) and no mark union — the
+    // union is the over-marking trap (#149). Marking requires expanding and
+    // checking each batch.
+    const tally = batchTally(card, markedSetForRows);
+    const allDone = tally.done === tally.total;
     const isExpanded = expandedCards.has(card.name);
     const parentRow = `
       <tr class="${allDone ? 'marked-row' : ''} batch-parent${band}">
         <td style="text-align: center;">
-          <input type="checkbox" class="batch-parent-check" disabled
-            aria-label="${escapeHtml(card.name)} roll-up: ${doneCount} of ${batches.length} batches done"
-            ${allDone ? 'checked' : ''} ${doneCount > 0 && !allDone ? 'data-indeterminate="1"' : ''}>
+          <span class="batch-tally"><span aria-hidden="true">${tally.done}/${tally.total}</span><span class="visually-hidden">${escapeHtml(card.name)}: ${tally.done} of ${tally.total} batches done</span></span>
         </td>
-        <td class="${nameClass} card-name-cell" data-card-name="${escapeHtml(card.name)}">
+        <td class="${nameClass} card-name-cell" data-preview="hover" data-card-name="${escapeHtml(card.name)}">
           <button type="button" class="batch-toggle" data-card-name="${escapeHtml(card.name)}" aria-expanded="${isExpanded}" title="${isExpanded ? 'Collapse' : 'Expand'} batches">
             <wa-icon name="${isExpanded ? 'chevron-down' : 'chevron-right'}"></wa-icon>
           </button>
@@ -612,13 +682,13 @@ export function renderResults({ preserveRows = false } = {}) {
         ? 'Core (dedicated)'
         : `${b.isPool ? 'Pool' : 'Core'}${b.isSeparateSleeve ? ' (separate sleeve)' : ''}`;
       const markNames = b.stripes.filter(s => s.markType !== 'membership').map(s => s.deckName).join(' + ');
-      const stripes = stripesCell(b.stripes, band);
+      const stripes = stripesCell(b.stripes, band, card.name, b.key);
       return `
         <tr class="batch-subrow ${marked ? 'marked-row' : ''}${band}" data-card-key="${escapeHtml(b.key)}">
           <td style="text-align: center;">
             <label class="mark-checkbox-hit"><input type="checkbox" class="mark-checkbox" aria-label="Mark ${b.copyCount} ${batchLabel} ${escapeHtml(card.name)} copies (${escapeHtml(markNames)}) done" ${marked ? "checked" : ""}></label>
           </td>
-          <td class="batch-subrow-label card-name-cell" data-card-name="${escapeHtml(card.name)}">${b.copyCount} ${b.copyCount === 1 ? 'copy' : 'copies'}, ${batchLabel}</td>
+          <td class="batch-subrow-label card-name-cell" data-preview="hover" data-card-name="${escapeHtml(card.name)}">${b.copyCount} ${b.copyCount === 1 ? 'copy' : 'copies'}, ${batchLabel}</td>
           ${stripes.cell}
         </tr>
         ${stripes.detailRow}
@@ -627,15 +697,6 @@ export function renderResults({ preserveRows = false } = {}) {
   };
 
   const tbody = state.elements.resultsTbody;
-
-  // `indeterminate` is a property, not an attribute, so the parent roll-up
-  // checkboxes have to be set after their markup lands — for appended chunks
-  // too. Idempotent, so re-running it over the whole tbody is fine.
-  const applyRowState = () => {
-    tbody.querySelectorAll('.batch-parent-check[data-indeterminate="1"]').forEach(cb => {
-      cb.indeterminate = true;
-    });
-  };
 
   // Watch a row a few short of the end so the next chunk lands before the user
   // reaches blank space. Stripe-detail rows are `hidden` and never intersect,
@@ -665,7 +726,6 @@ export function renderResults({ preserveRows = false } = {}) {
         .join(''),
     );
     renderedRowCount = next;
-    applyRowState();
     // Re-observing an anchor that is already on screen fires immediately, so
     // this cascades until the tail is genuinely below the fold.
     observeTail();
@@ -679,7 +739,6 @@ export function renderResults({ preserveRows = false } = {}) {
   );
   tbody.innerHTML = displayCards.slice(0, initialRows).map(rowHtml).join('');
   renderedRowCount = initialRows;
-  applyRowState();
   observeTail();
 
   // Add event listener for "Clear All" removed button (opens a confirm dialog —
@@ -694,7 +753,7 @@ export function renderResults({ preserveRows = false } = {}) {
   // Handle empty states
   if (displayCards.length === 0) {
     renderedRowCount = 0;
-    let emptyMessage = 'No cards match your filters. Clear All Filters shows every card again.';
+    let emptyMessage = 'No cards match your filters. Clear them in Filters to see every card again.';
 
     if (filter === 'removed') {
       emptyMessage = 'No marks to clear. A mark to clear is paint for a deck that no longer needs the card.';
@@ -782,8 +841,7 @@ function renderResultsHeader() {
   const thead = document.querySelector('#results-table thead');
   if (!thead) return;
 
-  const filter = state.elements.resultsFilter?.value || 'all';
-  const isRemovedFilter = filter === 'removed';
+  const isRemovedFilter = resultsFilterValue() === 'removed';
 
   const getSortIcon = (column) => {
     if (state.sortState.column !== column) return 'sort';
@@ -797,13 +855,13 @@ function renderResultsHeader() {
   // Different header for removed cards view
   if (isRemovedFilter) {
     thead.innerHTML = `
-      <tr>
+      <tr class="removed-head">
         <th class="sortable ${getSortedClass('name')}" data-sort="name">
-          Card Name
+          Card name
           <wa-icon name="${getSortIcon('name')}" class="sort-icon"></wa-icon>
         </th>
-        <th>Remove Mark From</th>
-        <th style="width: 80px; text-align: center;">
+        <th>Remove mark from</th>
+        <th style="text-align: center;">
           <wa-button id="clear-all-removed-btn" appearance="outlined" variant="danger" size="s">Clear All</wa-button>
         </th>
       </tr>
@@ -811,16 +869,16 @@ function renderResultsHeader() {
   } else {
     thead.innerHTML = `
       <tr>
-        <th class="sortable ${getSortedClass('marked')}" data-sort="marked" style="width: 60px; text-align: center;">
+        <th class="sortable ${getSortedClass('marked')}" data-sort="marked" style="text-align: center;">
           Done
           <wa-icon name="${getSortIcon('marked')}" class="sort-icon"></wa-icon>
         </th>
         <th class="sortable ${getSortedClass('name')}" data-sort="name">
-          Card Name
+          Card name
           <wa-icon name="${getSortIcon('name')}" class="sort-icon"></wa-icon>
         </th>
         <th class="sortable ${getSortedClass('deckCount')}" data-sort="deckCount">
-          Stripes
+          Marks
           <wa-icon name="${getSortIcon('deckCount')}" class="sort-icon"></wa-icon>
         </th>
       </tr>
@@ -856,64 +914,32 @@ function renderResultsHeader() {
 // Deck filter menu
 // ============================================================================
 
+// Deck items are checkbox wa-dropdown-items appended straight into the
+// Filters dropdown (it only sees direct-child items), so a keyboard choice
+// works; events.js handles every choice on wa-select. Rebuilt only when the
+// decks change: replacing items on every render would drop keyboard focus
+// out of the open menu.
+let deckFilterSignature = null;
+
 function renderDeckFilterMenu() {
-  if (!state.elements.deckFilterMenu) return;
+  const dropdown = state.elements.deckFilterDropdown;
+  if (!dropdown) return;
 
   const sortedDecks = [...state.currentPrism.decks].sort((a, b) => a.stripePosition - b.stripePosition);
-
-  // No zero-deck branch: results.js:155 hides the cluster holding this menu
-  // when there are no decks, so an empty state here is unreachable (#161).
-
-  // Plain wa-buttons (not wa-menu-item) to match the deck-actions kebab menu
-  // styling and dodge the flaky wa-menu CDN autoload (see CLAUDE.md).
-  state.elements.deckFilterMenu.innerHTML = `
-    <wa-button class="deck-filter-clear" appearance="plain" variant="neutral" size="s">
-      <wa-icon slot="start" name="xmark"></wa-icon>
-      Clear All Filters
-    </wa-button>
-    <wa-divider></wa-divider>
-    ${sortedDecks.map(deck => {
-      const selected = state.selectedDeckIds.has(deck.id);
-      return `
-      <wa-button class="deck-filter-item" data-deck-id="${deck.id}"
-        appearance="plain" variant="neutral" size="s">
-        <wa-icon slot="start" name="check" style="visibility: ${selected ? 'visible' : 'hidden'};"></wa-icon>
+  const signature = sortedDecks.map(d => `${d.id}:${d.name}:${d.color}`).join('|');
+  if (signature !== deckFilterSignature) {
+    deckFilterSignature = signature;
+    dropdown.querySelectorAll('.deck-filter-item').forEach(item => item.remove());
+    dropdown.insertAdjacentHTML('beforeend', sortedDecks.map(deck => `
+      <wa-dropdown-item class="deck-filter-item" type="checkbox" data-deck-id="${escapeHtml(deck.id)}">
         <span class="deck-color-indicator small" style="background-color: ${deck.color};"></span>
         ${escapeHtml(deck.name)}
-      </wa-button>
-    `;
-    }).join('')}
-  `;
-
-  // Toggle selection on item click; plain buttons keep the dropdown open.
-  state.elements.deckFilterMenu.querySelectorAll('.deck-filter-item').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const deckId = btn.dataset.deckId;
-      if (state.selectedDeckIds.has(deckId)) {
-        state.selectedDeckIds.delete(deckId);
-      } else {
-        state.selectedDeckIds.add(deckId);
-      }
-      const icon = btn.querySelector('wa-icon[slot="start"]');
-      if (icon) icon.style.visibility = state.selectedDeckIds.has(deckId) ? 'visible' : 'hidden';
-      updateDeckFilterButtonLabel();
-      renderResults();
-    });
+      </wa-dropdown-item>`).join(''));
+  }
+  dropdown.querySelectorAll('.deck-filter-item').forEach(item => {
+    item.checked = state.selectedDeckIds.has(item.dataset.deckId);
   });
 
-  // Clear all listener
-  const clearBtn = state.elements.deckFilterMenu.querySelector('.deck-filter-clear');
-  if (clearBtn) {
-    clearBtn.addEventListener('click', () => {
-      state.selectedDeckIds.clear();
-      state.elements.deckFilterMenu.querySelectorAll('.deck-filter-item wa-icon[slot="start"]')
-        .forEach(icon => { icon.style.visibility = 'hidden'; });
-      updateDeckFilterButtonLabel();
-      renderResults();
-    });
-  }
-
-  // Update button label to show how many filters active
   updateDeckFilterButtonLabel();
 }
 
@@ -926,6 +952,7 @@ function updateDeckFilterButtonLabel() {
   const facets = [];
   if (state.selectedDeckIds.size > 0) facets.push(`Decks (${state.selectedDeckIds.size})`);
   if (state.elements.undoneFilter?.checked) facets.push('Undone');
+  if (state.elements.oneMarkFilter?.checked) facets.push('One Mark at a Time');
   if (state.elements.showAllSlots?.checked) facets.push('All slots');
 
   let label;

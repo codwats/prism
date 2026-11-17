@@ -474,8 +474,8 @@ export function generatePrintableGuide(prism) {
   <table>
     <thead>
       <tr>
-        <th>Card Name</th>
-        <th>Stripe Positions</th>
+        <th>Card name</th>
+        <th>Slots</th>
       </tr>
     </thead>
     <tbody>

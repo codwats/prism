@@ -353,7 +353,7 @@ function renderSwapPreview(value) {
     ? `${incoming} goes into the ${outgoing} sleeve, which already carries these decks' marks.${alreadyHere ? ` Your other ${incoming} sleeve stays as it is.` : ''}`
     : alreadyHere
       ? `The ${incoming} sleeve you already have takes the new marks.`
-      : `${incoming} gets its own sleeve.${summary.staleMarks ? ` The ${outgoing} sleeve's old marks show under Marks to Clear on the Results tab.` : ''}`;
+      : `${incoming} gets its own sleeve.${summary.staleMarks ? ` The ${outgoing} sleeve's old marks show under Marks to Clear on the Mark sleeves tab.` : ''}`;
 
   const scopeDecks = scope.deckIds.map((id) => decks.get(id));
   const commanders = [...new Set(scopeDecks.flatMap((d) => d.cards.filter((c) => c.isCommander).map((c) => c.name)))];
