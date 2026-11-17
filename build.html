@@ -69,7 +69,7 @@
   </head>
   <body>
     <wa-page mobile-breakpoint="768">
-      <main class="wa-stack wa-gap-xl">
+      <main class="wa-stack wa-gap-xl build-main">
         <!-- PRISM name: the page title and the PRISM menu trigger. Rename swaps
              the menu for #prism-name in place (startRename in features/events.js). -->
         <section class="wa-stack wa-gap-s">
@@ -132,10 +132,11 @@
               <wa-button id="btn-sync-now" size="s" appearance="plain" variant="neutral" title="Sync now" aria-label="Sync now" style="display: none;">
                 <wa-icon name="arrows-rotate"></wa-icon>
               </wa-button>
-              <wa-tag id="deck-count-tag" variant="neutral" size="s">0 decks</wa-tag>
+              <span id="deck-count-tag" class="deck-count wa-caption-m">0 decks</span>
             </div>
           </div>
-          <p class="wa-caption-s" style="color: var(--wa-color-neutral-text-subtle); margin: 0;">
+          <!-- Explainer shows only while the PRISM has no decks (renderPrismHeader) -->
+          <p id="prism-explainer" class="wa-caption-s" style="color: var(--wa-color-neutral-text-subtle); margin: 0;">
             A PRISM is one named container of decks and their marks. You can keep more than one.
           </p>
         </section>
@@ -373,55 +374,30 @@
               <div id="marking-layout" class="marking-layout">
                 <!-- Rail: totals and legend beside the table. On phone both move into the sheet. -->
                 <aside class="marking-rail wa-stack wa-gap-m" aria-label="Totals and legend">
-                  <div id="results-stats" class="wa-grid wa-gap-m" style="--min-column-size: 14rem;" data-phone-slot="sheet" data-phone-order="40">
-                    <wa-card>
-                      <div class="wa-flank wa-align-items-start">
-                        <wa-avatar shape="circle">
-                          <wa-icon slot="icon" name="box-open"></wa-icon>
-                        </wa-avatar>
-                        <div class="wa-stack wa-gap-2xs">
-                          <p class="wa-caption-s" style="margin: 0;">Total cards</p>
-                          <div class="wa-cluster wa-gap-xs">
-                            <span class="wa-heading-xl" id="stat-total">0</span>
-                            <wa-badge variant="neutral" appearance="outlined" pill>
-                              Pool+Core
-                            </wa-badge>
-                          </div>
+                  <!-- One totals card (Marking screen 1q): Marked first, then Total and Pool side by side -->
+                  <wa-card id="results-stats" data-phone-slot="sheet" data-phone-order="40">
+                    <div class="wa-stack wa-gap-m">
+                      <div class="wa-cluster wa-gap-m wa-align-items-center" style="flex-wrap: nowrap;">
+                        <wa-progress-ring value="0" id="marked-progress" label="Sleeves marked" style="--track-width: 6px; --indicator-width: 8px; --size: 48px;"></wa-progress-ring>
+                        <div class="wa-stack wa-gap-3xs">
+                          <span class="wa-caption-s">Marked</span>
+                          <span><span class="wa-heading-l" id="stat-marked">0/0</span> sleeves done</span>
                         </div>
                       </div>
-                    </wa-card>
-                    <wa-card>
-                      <div class="wa-flank wa-align-items-start">
-                        <wa-avatar shape="circle">
-                          <wa-icon slot="icon" name="object-group"></wa-icon>
-                        </wa-avatar>
-                        <div class="wa-stack wa-gap-2xs">
-                          <p class="wa-caption-s" style="margin: 0;">Pool cards</p>
-                          <div class="wa-cluster wa-gap-xs">
-                            <span class="wa-heading-xl" id="stat-shared">0</span>
-                            <wa-badge variant="neutral" appearance="outlined" pill>
-                              Copies in 2+ decks
-                            </wa-badge>
-                          </div>
+                      <div class="wa-grid wa-gap-s" style="--min-column-size: 7rem;">
+                        <div class="wa-stack wa-gap-3xs">
+                          <span class="wa-caption-s">Total cards</span>
+                          <span class="wa-heading-l" id="stat-total">0</span>
+                          <span class="wa-caption-s stat-note">Pool+Core</span>
+                        </div>
+                        <div class="wa-stack wa-gap-3xs">
+                          <span class="wa-caption-s">Pool cards</span>
+                          <span class="wa-heading-l" id="stat-shared">0</span>
+                          <span class="wa-caption-s stat-note">Copies in 2+ decks</span>
                         </div>
                       </div>
-                    </wa-card>
-                    <wa-card>
-                      <div class="wa-flank wa-align-items-start">
-                        <wa-progress-ring value="0" id="marked-progress" style="--track-width: 6px; --indicator-width: 8px; --size: 48px;">
-                        </wa-progress-ring>
-                        <div class="wa-stack wa-gap-2xs">
-                          <p class="wa-caption-s" style="margin: 0;">Marked</p>
-                          <div class="wa-cluster wa-gap-xs">
-                            <span class="wa-heading-xl" id="stat-marked">0/0</span>
-                            <wa-badge variant="neutral" appearance="outlined" pill>
-                              Sleeves done
-                            </wa-badge>
-                          </div>
-                        </div>
-                      </div>
-                    </wa-card>
-                  </div>
+                    </div>
+                  </wa-card>
                   <!-- Deck legend (prints on the guide) -->
                   <wa-card data-phone-slot="sheet" data-phone-order="50">
                     <div class="wa-stack wa-gap-s">
@@ -722,7 +698,8 @@
       <div id="stripe-reorder-content" class="wa-stack wa-gap-l">
         <!-- Content injected by stripe-reorder-dialog.js -->
       </div>
-      <div slot="footer" class="wa-cluster wa-gap-s">
+      <div slot="footer" class="slot-picker-footer">
+        <div id="slot-picker-summary" aria-live="polite"></div>
         <wa-button id="stripe-reorder-cancel" variant="neutral" appearance="outlined">Cancel</wa-button>
         <wa-button id="stripe-reorder-move" variant="brand" disabled>Move</wa-button>
       </div>

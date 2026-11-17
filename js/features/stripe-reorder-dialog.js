@@ -14,7 +14,6 @@ import { escapeHtml, isCardDone } from '../core/utils.js';
 
 // Module-level state for the currently open dialog session
 let activeGroupId = null;
-let pendingTargetPosition = null;
 // The deck (or group, as a synthetic deck) being moved, plus what the picker shows.
 const picker = { entity: null, slotMap: null, side: 'a', freeOnly: true, selected: null };
 
@@ -300,16 +299,38 @@ function syncSelection() {
     el.setAttribute('aria-checked', String(on));
     el.classList.toggle('is-selected', on);
   }
-  document.getElementById('stripe-reorder-move')?.toggleAttribute('disabled', picker.selected === null);
+  const sel = picker.selected;
+  const info = sel === null ? null : picker.slotMap.get(sel);
+  const move = document.getElementById('stripe-reorder-move');
+  if (move) {
+    move.toggleAttribute('disabled', sel === null);
+    move.textContent = info ? 'Swap' : 'Move';
+  }
+  const to = document.getElementById('slot-picker-to');
+  if (to) {
+    to.querySelector('.slot-picker-key-value').textContent = sel === null ? 'Choose a slot' : formatSlotLabel(sel);
+    to.classList.toggle('is-empty', sel === null);
+    setSwatch(to.querySelector('.stripe-indicator'), info?.color);
+  }
+  const summary = document.getElementById('slot-picker-summary');
+  if (summary) {
+    const from = escapeHtml(formatSlotLabel(picker.entity.stripePosition));
+    const target = sel === null ? '' : escapeHtml(formatSlotLabel(sel));
+    summary.className = info ? 'stripe-reorder-swap-confirm wa-body-s' : 'wa-caption-m';
+    // Today's swap sentence, shown before anything moves.
+    summary.innerHTML = sel === null ? ''
+      : info ? `<strong>${target}</strong> is used by <strong>${escapeHtml(info.name)}</strong>. Swap positions?`
+        : `Moves from <strong>${from}</strong> to <strong>${target}</strong>.`;
+  }
 }
 
-function clearSwapBar() {
-  document.querySelector('#stripe-reorder-content .stripe-reorder-swap-confirm')?.remove();
-  pendingTargetPosition = null;
+function setSwatch(el, color) {
+  if (!el) return;
+  el.style.backgroundColor = color || '';
+  el.classList.toggle('stripe-empty', !color);
 }
 
 function selectPosition(position) {
-  clearSwapBar();
   picker.selected = position;
   if (sideOf(position) !== picker.side) {
     picker.side = sideOf(position);
@@ -320,18 +341,12 @@ function selectPosition(position) {
   syncSelection();
 }
 
-/** Move button: an empty slot moves now, a taken one asks to swap first. */
+/** Move (or Swap, once the footer has asked) commits the chosen slot. */
 function handleMove() {
   const position = picker.selected;
   if (position === null) return;
-  const info = picker.slotMap.get(position);
-  if (!info) {
-    executeMove(picker.entity.id, position);
-    state.elements.stripeReorderDialog.removeAttribute('open');
-  } else {
-    pendingTargetPosition = position;
-    showSwapConfirmation(picker.entity, info, position);
-  }
+  executeMove(picker.entity.id, position);
+  state.elements.stripeReorderDialog.removeAttribute('open');
 }
 
 // ============================================================================
@@ -346,7 +361,7 @@ function renderRow({ position, info, isCurrent }) {
   row.setAttribute('aria-checked', 'false');
   row.tabIndex = -1;
   const label = formatSlotLabel(position);
-  const detail = isCurrent ? 'Current slot' : info ? info.name : 'Free';
+  const detail = isCurrent ? picker.entity.name : info ? `Used by ${info.name}` : 'Free';
   if (isCurrent) {
     row.setAttribute('aria-disabled', 'true');
     row.setAttribute('aria-label', `${label}, current slot of ${picker.entity.name}`);
@@ -356,12 +371,14 @@ function renderRow({ position, info, isCurrent }) {
       : `${label}, free`);
     row.addEventListener('click', () => selectPosition(position));
   }
+  if (isCurrent) row.classList.add('is-current');
   row.innerHTML = `
-    <span class="slot-picker-swatch"${info?.color ? ` style="background-color:${escapeHtml(info.color)}"` : ''}></span>
-    <span class="wa-stack wa-gap-0">
-      <strong>${escapeHtml(label)}</strong>
-      <span class="wa-caption-s slot-picker-detail">${escapeHtml(detail)}</span>
-    </span>`;
+    <span class="stripe-indicator${info?.color ? '' : ' stripe-empty'}"${info?.color ? ` style="background-color:${escapeHtml(info.color)}"` : ''}></span>
+    <span class="slot-picker-title">${escapeHtml(label)}</span>
+    <span class="wa-caption-m slot-picker-detail">${escapeHtml(detail)}</span>
+    ${isCurrent
+    ? '<wa-tag size="s" variant="success" appearance="outlined">Current</wa-tag>'
+    : '<wa-icon class="slot-picker-check" name="circle-check" label="Chosen"></wa-icon>'}`;
   return row;
 }
 
@@ -373,13 +390,12 @@ function renderList() {
   if (picker.selected !== null && sideOf(picker.selected) === picker.side
     && !rows.some((r) => r.position === picker.selected)) {
     picker.selected = null;
-    clearSwapBar();
   }
   list.replaceChildren(...rows.map(renderRow));
   if (rows.every((r) => r.isCurrent)) {
     const empty = document.createElement('p');
     empty.className = 'wa-caption-m slot-picker-detail';
-    empty.textContent = 'No free slots on this side. Turn off "Free slots only" to swap with a deck.';
+    empty.textContent = 'No free slots on this side. Turn off Free slots only to swap with a deck.';
     list.appendChild(empty);
   }
   wireListRoving(list);
@@ -418,71 +434,45 @@ function wireListRoving(list) {
   });
 }
 
+/** The side switch, Free slots only, the text keys and the list, as grid children. */
 function renderPicker() {
   const counts = freeSlotCounts(picker.slotMap);
-  const col = document.createElement('div');
-  col.className = 'wa-stack wa-gap-s';
-  col.innerHTML = `
-    <wa-radio-group id="slot-picker-side" label="Side" size="s" orientation="horizontal" value="${picker.side}">
-      <wa-radio appearance="button" value="a">Side A (${counts.a} free)</wa-radio>
-      <wa-radio appearance="button" value="b">Side B (${counts.b} free)</wa-radio>
-    </wa-radio-group>
-    <wa-switch id="slot-picker-free-only" size="s"${picker.freeOnly ? ' checked' : ''}>Free slots only</wa-switch>
+  const { sideARight } = getCornerConfig();
+  // Side buttons follow the picture, left edge first.
+  const radios = [
+    `<wa-radio appearance="button" value="a">Side A · ${counts.a} free</wa-radio>`,
+    `<wa-radio appearance="button" value="b">Side B · ${counts.b} free</wa-radio>`,
+  ];
+  if (sideARight) radios.reverse();
+  const current = picker.slotMap.get(picker.entity.stripePosition);
+  const frag = document.createElement('template');
+  frag.innerHTML = `
+    <wa-radio-group id="slot-picker-side" class="slot-picker-side" aria-label="Side" size="s" orientation="horizontal" value="${picker.side}">${radios.join('')}</wa-radio-group>
+    <div class="slot-picker-aside">
+    <wa-switch id="slot-picker-free-only" class="slot-picker-free" size="s"${picker.freeOnly ? ' checked' : ''}>Free slots only</wa-switch>
+    <div class="slot-picker-keys">
+      <div class="slot-picker-key">
+        <span class="stripe-indicator slot-picker-key-now"${current?.color ? ` style="background-color:${escapeHtml(current.color)}"` : ''}></span>
+        <span class="wa-caption-m slot-picker-detail">Now</span>
+        <span class="slot-picker-key-value">${escapeHtml(formatSlotLabel(picker.entity.stripePosition))}</span>
+      </div>
+      <div class="slot-picker-key is-empty" id="slot-picker-to">
+        <span class="stripe-indicator stripe-empty slot-picker-key-to"></span>
+        <span class="wa-caption-m slot-picker-detail">Move to</span>
+        <span class="slot-picker-key-value">Choose a slot</span>
+      </div>
+    </div>
+    </div>
     <div id="slot-picker-list" class="slot-picker-list" role="radiogroup" aria-label="Slots for ${escapeHtml(picker.entity.name)}"></div>`;
-  col.querySelector('#slot-picker-side').addEventListener('change', (e) => {
+  frag.content.querySelector('#slot-picker-side').addEventListener('change', (e) => {
     picker.side = e.target.value;
     renderList();
   });
-  col.querySelector('#slot-picker-free-only').addEventListener('change', (e) => {
+  frag.content.querySelector('#slot-picker-free-only').addEventListener('change', (e) => {
     picker.freeOnly = e.target.checked;
     renderList();
   });
-  return col;
-}
-
-// ============================================================================
-// Inline swap confirmation bar
-// ============================================================================
-
-function showSwapConfirmation(activeDeck, targetInfo, targetPosition) {
-  const content = document.getElementById('stripe-reorder-content');
-  if (!content) return;
-
-  // Remove any previous confirmation
-  content.querySelector('.stripe-reorder-swap-confirm')?.remove();
-
-  const bar = document.createElement('div');
-  bar.className = 'stripe-reorder-swap-confirm';
-  bar.innerHTML = `
-    <div class="wa-cluster wa-gap-s wa-align-items-center" style="flex-wrap: wrap;">
-      <span class="wa-body-s">
-        <strong>${escapeHtml(formatSlotLabel(targetPosition))}</strong> is used by
-        <strong>${escapeHtml(targetInfo.name)}</strong>. Swap positions?
-      </span>
-      <div class="wa-cluster wa-gap-xs">
-        <wa-button size="s" variant="neutral" appearance="outlined" class="btn-swap-cancel">Cancel</wa-button>
-        <wa-button size="s" variant="brand" class="btn-swap-confirm">Swap</wa-button>
-      </div>
-    </div>
-  `;
-
-  bar.querySelector('.btn-swap-cancel').addEventListener('click', () => {
-    bar.remove();
-    pendingTargetPosition = null;
-  });
-
-  bar.querySelector('.btn-swap-confirm').addEventListener('click', () => {
-    if (pendingTargetPosition !== null) {
-      executeMove(activeDeck.id, pendingTargetPosition);
-      state.elements.stripeReorderDialog.removeAttribute('open');
-      pendingTargetPosition = null;
-    }
-  });
-
-  // Above the picker, scrolled into view: on phone the list is long and the
-  // bar must not sit off screen below it.
-  content.prepend(bar);
-  bar.scrollIntoView({ block: 'nearest' });
+  return frag.content;
 }
 
 // ============================================================================
@@ -558,8 +548,10 @@ function renderSleeveVisualization(activeDeck, slotMap) {
   wrapper.appendChild(sleeve);
 
   // Edge labels
-  const leftLabel = sideARight ? 'Side B (25–48)' : 'Side A (1–24)';
-  const rightLabel = sideARight ? 'Side A (1–24)' : 'Side B (25–48)';
+  const a = 'Side A<span class="stripe-reorder-edge-range"> (1–24)</span>';
+  const b = 'Side B<span class="stripe-reorder-edge-range"> (25–48)</span>';
+  const leftLabel = sideARight ? b : a;
+  const rightLabel = sideARight ? a : b;
   const labels = document.createElement('div');
   labels.className = 'stripe-reorder-edge-labels';
   labels.innerHTML = `
@@ -610,7 +602,7 @@ function showPicker(content, prism, entity, deckIds) {
     content.appendChild(note);
   }
   const layout = document.createElement('div');
-  layout.className = 'wa-grid slot-picker-layout';
+  layout.className = 'slot-picker-layout';
   layout.appendChild(renderSleeveVisualization(entity, slotMap));
   layout.appendChild(renderPicker());
   content.appendChild(layout);
@@ -623,7 +615,6 @@ export function openStripeReorderDialog(deckId) {
   if (!deck) return;
 
   activeGroupId = null;
-  pendingTargetPosition = null;
 
   const dialog = state.elements.stripeReorderDialog;
   if (!dialog) return;
@@ -643,7 +634,6 @@ export function openGroupReorderDialog(groupId) {
   if (!group) return;
 
   activeGroupId = groupId;
-  pendingTargetPosition = null;
 
   const dialog = state.elements.stripeReorderDialog;
   if (!dialog) return;
@@ -673,7 +663,6 @@ export function setupStripeReorderDialog() {
   const cancelBtn = document.getElementById('stripe-reorder-cancel');
   if (cancelBtn) {
     cancelBtn.addEventListener('click', () => {
-      pendingTargetPosition = null;
       if (state.elements.stripeReorderDialog) {
         state.elements.stripeReorderDialog.removeAttribute('open');
       }

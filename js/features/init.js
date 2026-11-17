@@ -345,16 +345,11 @@ function renderPrismHeader() {
     const logicalCount = getLogicalDeckCount(state.currentPrism);
     state.elements.deckCountTag.textContent = `${logicalCount} ${logicalCount === 1 ? 'deck' : 'decks'}`;
 
-    // Variant reflects physical slot fullness (capacity is 48 stripe slots),
-    // not the logical deck count — dot variants pack 2 decks into one slot.
-    const usedSlots = getUsedPositions(state.currentPrism).size;
-    if (usedSlots >= MAX_STRIPE_SLOTS) {
-      state.elements.deckCountTag.variant = 'warning';
-    } else if (usedSlots >= 40) {
-      state.elements.deckCountTag.variant = 'neutral';
-    } else {
-      state.elements.deckCountTag.variant = 'success';
-    }
+    // Plain text; it turns to warning only when all 48 physical slots are used
+    // (dot variants pack 2 decks into one slot, so the deck count can't tell).
+    state.elements.deckCountTag.classList.toggle('is-full', getUsedPositions(state.currentPrism).size >= MAX_STRIPE_SLOTS);
+    const explainer = document.getElementById('prism-explainer');
+    if (explainer) explainer.hidden = logicalCount > 0;
   }
 }
 

@@ -38,10 +38,10 @@ export function renderExport() {
     legendItems.sort((a, b) => a.sortPos - b.sortPos);
 
     const legendRow = (color, name, slotLabel) => `
-      <div class="wa-cluster wa-gap-s wa-align-items-center">
+      <div class="legend-row">
         <div class="deck-color-indicator" style="background-color: ${color};"></div>
-        <span style="flex: 1 1 8rem; min-width: 0;">${escapeHtml(name)}</span>
-        <span class="wa-caption-s" style="font-family: var(--wa-font-family-code); white-space: nowrap; margin-inline-start: auto;">${escapeHtml(slotLabel)}</span>
+        <span class="legend-row-name" title="${escapeHtml(name)}">${escapeHtml(name)}</span>
+        <span class="wa-caption-s legend-row-slot">${escapeHtml(slotLabel)}</span>
       </div>`;
 
     state.elements.deckLegend.innerHTML = legendItems.map(item => {

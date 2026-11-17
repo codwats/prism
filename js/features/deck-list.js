@@ -795,6 +795,21 @@ function deckMetaLine(deck, processedCards) {
   return [commanderNames(deck).join(' / '), counts].filter(Boolean).join(' • ');
 }
 
+// One flat list row (#451 follow-up): swatch, name and actions on the first
+// line at every width; slot and bracket tags and the meta line under the name.
+function deckRowHtml({ color, nameTag, nameClass, name, tags, meta, actions }) {
+  return `
+      <div class="deck-row">
+        <div class="deck-color-indicator" style="background-color: ${color};" title="${getColorName(color)}"></div>
+        <${nameTag} class="${nameClass} deck-row-name">${name}</${nameTag}>
+        ${actions ? `<div class="wa-cluster wa-gap-2xs deck-row-actions">${actions}</div>` : ""}
+        <div class="deck-row-meta">
+          <div class="wa-cluster wa-gap-xs">${tags}</div>
+          <div class="wa-caption-m deck-row-sub">${meta}</div>
+        </div>
+      </div>`;
+}
+
 export function renderDeckCard(deck, showActions = true, processedCards = null) {
   const isInGroup = !!deck.splitGroupId;
   const isDot = isDotVariant(deck, state.currentPrism);
@@ -804,32 +819,19 @@ export function renderDeckCard(deck, showActions = true, processedCards = null) 
 
   return `
     <div class="deck-card-inner ${isInGroup ? "split-child-card" : ""}" data-deck-id="${deck.id}">
-      <div class="deck-row">
-        <div class="wa-cluster wa-gap-m wa-align-items-center deck-row-main">
-          <div class="deck-color-indicator" style="background-color: ${deck.color};" title="${getColorName(deck.color)}"></div>
-          <div class="wa-stack wa-gap-2xs">
-            <div class="wa-cluster wa-gap-s wa-align-items-center">
-              <${isInGroup ? "h4" : "h3"} class="${isInGroup ? "wa-heading-s" : "wa-heading-m"}" style="margin: 0;">${escapeHtml(deck.name)}</${isInGroup ? "h4" : "h3"}>
-              ${slotTagHtml}
-              <wa-tag size="s" variant="neutral">Bracket ${deck.bracket}</wa-tag>
-            </div>
-            <div class="wa-caption-m" style="color: var(--wa-color-neutral-text-subtle);">
-              ${escapeHtml(deckMetaLine(deck, processedCards))}
-            </div>
-          </div>
-        </div>
-        ${
-          showActions
-            ? `
-        <div class="wa-cluster wa-gap-2xs deck-row-actions">
-          ${iconButton("btn-edit-deck", "data-deck-id", deck.id, "Edit deck", `Edit ${escapeHtml(deck.name)}`, "pen-to-square")}
+      ${deckRowHtml({
+        color: deck.color,
+        nameTag: isInGroup ? "h4" : "h3",
+        nameClass: isInGroup ? "wa-heading-s" : "wa-heading-m",
+        name: escapeHtml(deck.name),
+        tags: `${slotTagHtml}<wa-tag size="s" variant="neutral">Bracket ${deck.bracket}</wa-tag>`,
+        meta: escapeHtml(deckMetaLine(deck, processedCards)),
+        actions: showActions
+          ? `${iconButton("btn-edit-deck", "data-deck-id", deck.id, "Edit deck", `Edit ${escapeHtml(deck.name)}`, "pen-to-square")}
           ${getMoveButtonHtml(deck, isInGroup)}
-          ${getDeckActionsKebabHtml(deck, isInGroup)}
-        </div>
-        `
-            : ""
-        }
-      </div>
+          ${getDeckActionsKebabHtml(deck, isInGroup)}`
+          : "",
+      })}
       <div class="what-if-container" id="what-if-${deck.id}" style="display: none;"></div>
     </div>
   `;
@@ -877,7 +879,7 @@ export function renderDecksList() {
 
   const htmlParts = renderItems.map((item) => {
     if (item.type === "standalone") {
-      return `<wa-card class="deck-card" data-deck-id="${item.deck.id}">${renderDeckCard(item.deck, true, processed)}</wa-card>`;
+      return `<div class="deck-card" data-deck-id="${item.deck.id}">${renderDeckCard(item.deck, true, processed)}</div>`;
     }
     const group = item.group;
     const children = group.childDeckIds
@@ -885,15 +887,14 @@ export function renderDecksList() {
       .filter(Boolean);
 
     return `
-      <wa-card class="deck-card split-group-card" data-group-id="${group.id}">
+      <div class="deck-card split-group-card" data-group-id="${group.id}">
         <div class="split-group-header">
-          <div class="deck-row">
-            <div class="wa-cluster wa-gap-m wa-align-items-center deck-row-main">
-              <div class="deck-color-indicator" style="background-color: ${group.sideAColor};" title="${getColorName(group.sideAColor)}"></div>
-              <div class="wa-stack wa-gap-2xs">
-                <div class="wa-cluster wa-gap-s wa-align-items-center">
-                  <h3 class="wa-heading-m" style="margin: 0;">${escapeHtml(group.name)}</h3>
-                  <wa-tag size="s" variant="neutral">${formatSlotLabel(group.sideAPosition, "a")}</wa-tag>
+          ${deckRowHtml({
+            color: group.sideAColor,
+            nameTag: "h3",
+            nameClass: "wa-heading-m",
+            name: escapeHtml(group.name),
+            tags: `<wa-tag size="s" variant="neutral">${formatSlotLabel(group.sideAPosition, "a")}</wa-tag>
                   <wa-tag size="s" variant="brand" appearance="outlined">
                     <wa-icon name="code-branch" style="font-size: 0.8em;"></wa-icon>
                     ${children.length} variants
@@ -901,28 +902,21 @@ export function renderDecksList() {
                   <wa-tag size="s" variant="${(group.splitStyle || 'stripes') === 'dots' ? 'success' : 'neutral'}" appearance="outlined">
                     <wa-icon name="${(group.splitStyle || 'stripes') === 'dots' ? 'ellipsis' : 'grip-lines'}" style="font-size: 0.8em;"></wa-icon>
                     ${(group.splitStyle || 'stripes') === 'dots' ? 'Dots' : 'Stripes'}
-                  </wa-tag>
-                </div>
-                <div class="wa-caption-m" style="color: var(--wa-color-neutral-text-subtle);">
-                  ${escapeHtml([children[0] ? commanderNames(children[0]).join(' / ') : "", "Split deck group"].filter(Boolean).join(' • '))}
-                </div>
-              </div>
-            </div>
-            <div class="wa-cluster wa-gap-2xs deck-row-actions">
-              ${iconButton("btn-edit-group", "data-group-id", group.id, "Edit group name and color", `Edit ${escapeHtml(group.name)} name and color`, "pen-to-square")}
+                  </wa-tag>`,
+            meta: escapeHtml([children[0] ? commanderNames(children[0]).join(' / ') : "", "Split deck group"].filter(Boolean).join(' • ')),
+            actions: `${iconButton("btn-edit-group", "data-group-id", group.id, "Edit group name and color", `Edit ${escapeHtml(group.name)} name and color`, "pen-to-square")}
               ${iconButton("btn-move-group", "data-group-id", group.id, "Move group to a different slot", `Move ${escapeHtml(group.name)} to a different slot`, "up-down-left-right")}
               <wa-dropdown class="deck-actions-kebab" placement="bottom-end">
                 ${kebabTrigger(escapeHtml(group.name))}
                 ${(group.splitStyle || 'stripes') === 'dots' && group.childDeckIds.length >= 2 ? "" : kebabItem(group.id, "data-group-id", "btn-add-split", "plus", "Add another variant")}
                 ${kebabItem(group.id, "data-group-id", "btn-unsplit", "code-merge", "Merge back into one deck")}
-              </wa-dropdown>
-            </div>
-          </div>
+              </wa-dropdown>`,
+          })}
         </div>
         <div class="split-children">
           ${children.map((child) => renderDeckCard(child, true, processed)).join("")}
         </div>
-      </wa-card>
+      </div>
     `;
   });
 
