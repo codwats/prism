@@ -49,6 +49,7 @@ import {
   commanderRefs,
   setDeckFormMode,
   closeDeckDialog,
+  currentFormSession,
   updateColorSwatchSelection,
   checkColorWarning,
   showParseErrors,
@@ -348,6 +349,10 @@ export async function handleEditConfirm() {
   }
 
   const parseResult = parseDecklist(decklistText);
+  // Cancel during the Scryfall wait still saves this edit, but must not touch
+  // the next form session (its source URL or its open dialog).
+  const session = currentFormSession();
+  const editSourceUrl = state.editSourceUrl;
 
   // Spinner for the Scryfall round-trip — the only network-bound wait here.
   const saveBtn = state.elements.btnSubmitDeck;
@@ -399,8 +404,9 @@ export async function handleEditConfirm() {
   deck.color = color;
   deck.cards = parseResult.cards;
   // A URL re-import repoints the source; a manual edit keeps it (#377)
-  if (state.editSourceUrl) deck.sourceUrl = state.editSourceUrl;
-  state.editSourceUrl = null;
+  if (editSourceUrl) deck.sourceUrl = editSourceUrl;
+  const current = session === currentFormSession();
+  if (current) state.editSourceUrl = null;
   deck.updatedAt = now;
   if (cardsChanged) deck.cardsUpdatedAt = now;
 
@@ -418,8 +424,10 @@ export async function handleEditConfirm() {
 
   state.currentPrism.updatedAt = now;
   savePrism(state.currentPrism);
-  state.deckToEdit = null;
-  closeDeckDialog();
+  if (current) {
+    state.deckToEdit = null;
+    closeDeckDialog();
+  }
 
   renderAll();
 

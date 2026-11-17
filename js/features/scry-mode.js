@@ -29,6 +29,8 @@ const DEFAULT_OPTS = {
   renderEnd: null, // (contentEl) => void, replaces the default end screen
 };
 let scryOpts = DEFAULT_OPTS;
+// Bumped by each render and on close: an image that arrives late is dropped.
+let renderToken = 0;
 
 /** One legend line per rendered mark: color name, deck, slot (same as Mark sleeves). */
 export function scryLegend(stripes) {
@@ -109,7 +111,9 @@ export function computeScale(w = window.innerWidth, h = window.innerHeight, avai
   const phone = w < 768;
   const height = availH ?? h - (phone ? 360 : 240);
   const fit = Math.min(height / 340, (w - 48) / 244);
-  return phone ? Math.min(2.0, Math.max(0.4, fit)) * 0.85 : Math.min(3.0, Math.max(0.4, fit)) * 0.95;
+  const scale = phone ? Math.min(2.0, Math.max(0.4, fit)) * 0.85 : Math.min(3.0, Math.max(0.4, fit)) * 0.95;
+  // The 0.4 floor must not push the card past the height actually measured
+  return availH === null ? scale : Math.min(scale, availH / 340);
 }
 
 /** Height left for the card inside the open dialog body, or null before the dialog has laid out. */
@@ -176,14 +180,17 @@ async function renderCurrentScryCard() {
   loadInner.appendChild(createLoadingElement());
   scryContent.appendChild(loadOuter);
 
-  // Stale-check token
-  const capturedIndex = session.index;
+  // Stale-check: same session, same screen, and no newer render or close since
+  const token = ++renderToken;
+  const s = session;
+  const capturedIndex = s.index;
+  const stale = () => token !== renderToken || session !== s || s.index !== capturedIndex;
 
   try {
     const stripes = card.stripes || [];
     const el = await buildCardWithStripes(displayName, stripes);
 
-    if (session.index !== capturedIndex) return;
+    if (stale()) return;
 
     scryContent.innerHTML = '';
     const { outer, inner } = makeScaledWrapper(scale);
@@ -191,7 +198,7 @@ async function renderCurrentScryCard() {
     scryContent.append(outer, side);
   } catch (err) {
     console.warn(`SCRY: failed to load card image for "${displayName}":`, err);
-    if (session.index !== capturedIndex) return;
+    if (stale()) return;
 
     scryContent.innerHTML = '';
     const { outer, inner } = makeScaledWrapper(scale);
@@ -246,7 +253,14 @@ export function scryAnswer(s, opts, kind) {
   scryAct(s, kind === 'done' || !!opts.skipAnswers);
 }
 
+const searchOpen = () => {
+  const r = state.elements.scrySearchResults;
+  return !!r && !r.hidden;
+};
+
 function answer(kind) {
+  // Matches cover the card: Done or Skip would act on a card the player cannot see
+  if (searchOpen()) return;
   const found = session.returnTo !== null;
   scryAnswer(session, scryOpts, kind);
   if (found) resetSearchField(); // back on the walk, so the search is over
@@ -309,6 +323,7 @@ function handleScryKeydown(e) {
   if (!dialog || !dialog.hasAttribute('open')) return;
   // Typing a name, or Enter on a match, must not skip or mark the card (#478).
   if (state.elements.scrySearch && e.composedPath().includes(state.elements.scrySearch)) return;
+  if (searchOpen()) return;
 
   switch (e.key) {
     case 'ArrowRight':
@@ -375,7 +390,9 @@ export function setupScryMode() {
 
   if (scryDialog) {
     // Re-render results once when dialog closes to sync marked rows
-    scryDialog.addEventListener('wa-hide', () => {
+    scryDialog.addEventListener('wa-hide', (e) => {
+      if (e.target !== scryDialog) return;
+      renderToken++; // a card still loading must not paint into the next session
       renderResults({ preserveRows: true });
     });
   }

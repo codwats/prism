@@ -255,7 +255,9 @@ export async function handleDeckUrlImport(urlOrId = state.elements.deckUrl?.valu
   }
 
   hideImportMessages();
-  const generation = ++importGeneration;
+  // Supersede any import in flight, spinner included (Refresh over Import)
+  cancelDeckUrlImport();
+  const generation = importGeneration;
   const editing = state.deckFormMode === 'edit';
   if (btn) btn.loading = true;
 

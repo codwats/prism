@@ -15,3 +15,8 @@ test('measured space wins: a landscape phone (844x390) with 200px free gets a ca
 test('phone scale unchanged at 375x667', () => {
   assert.equal(computeScale(375, 667), (307 / 340) * 0.85);
 });
+
+test('measured space below the 0.4 floor still fits: the floor never overflows the card area', () => {
+  const card = 340 * computeScale(1280, 800, 100);
+  assert.ok(card <= 100, `card ${card}px`);
+});

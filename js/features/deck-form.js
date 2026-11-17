@@ -47,7 +47,12 @@ const SLOTS_FULL_MESSAGE = `All ${MAX_STRIPE_SLOTS} slots in this PRISM carry a 
  * import never reaches an Edit save or the reverse (#377), and an import
  * still in flight is dropped.
  */
+let formSession = 0;
+/** Bumped by every close, cancel and mode change; a save that awaited across one is stale. */
+export const currentFormSession = () => formSession;
+
 export function endDeckFormSession() {
+  formSession++;
   cancelDeckUrlImport();
   state.deckFormMode = "add";
   state.deckToEdit = null;
@@ -425,6 +430,10 @@ export async function handleDeckSubmit(e) {
       return;
     }
 
+    // The form can close or reopen during the Scryfall wait; this save keeps its own URL
+    const session = currentFormSession();
+    const sourceUrl = state.addSourceUrl;
+
     // Canonicalize card names via Scryfall
     try {
       await canonicalizeCards(parseResult.cards);
@@ -464,7 +473,7 @@ export async function handleDeckSubmit(e) {
       color,
       stripePosition: getNextStripePosition(state.currentPrism),
       cards: parseResult.cards,
-      sourceUrl: state.addSourceUrl,
+      sourceUrl,
     });
 
     // Add to PRISM
@@ -484,10 +493,12 @@ export async function handleDeckSubmit(e) {
     debugLog("PRISM: Deck added:", deck.name);
     logToSupabase('info', 'deck_added', { name: deck.name, commander: commanderNames(deck).join(' / '), bracket: deck.bracket, cardCount: parseResult.uniqueCards });
 
-    // Reset form and re-render; the first deck moves the form into the dialog
-    resetDeckForm();
+    // Reset form and re-render; the first deck moves the form into the dialog.
+    // A newer form session keeps its own fields and stays open.
+    const stale = session !== currentFormSession();
+    if (!stale) resetDeckForm();
     renderAll();
-    closeDeckDialog();
+    if (!stale) closeDeckDialog();
 
     // Show success feedback
     let message = `Added "${name}" with ${parseResult.uniqueCards} cards.`;
