@@ -10,7 +10,8 @@ import { processCards, formatSlotLabel, getColorName } from '../modules/processo
 import { normalizeCardName } from '../modules/parser.js';
 import { removalOpenCopies, openRemovals } from '../modules/swap.js';
 import { planSleeveReuse } from '../modules/sleeve-reuse.js';
-import { prefetchCards } from '../modules/scryfall.js';
+import { prefetchCards, getCardAttributes } from '../modules/scryfall.js';
+import { savedCopiesByCard, savedDollars } from '../modules/savings.js';
 import { handleMarkToggle, handleClearRemoved, handleClearAllRemovedClick } from './deck-list.js';
 import { renderOverlapMatrix } from './analysis.js';
 
@@ -285,6 +286,7 @@ export function renderResults({ preserveRows = false } = {}) {
   // Update stats
   if (state.elements.statTotal) state.elements.statTotal.textContent = totalCardCount;
   if (state.elements.statShared) state.elements.statShared.textContent = sharedCardCount;
+  updateSavedStat(state.currentPrism, processedCards);
   updateMarkedProgress();
 
   // Show/hide based on deck count
@@ -961,4 +963,23 @@ function updateDeckFilterButtonLabel() {
   else label = `Filters (${facets.length})`;
 
   btn.innerHTML = `<wa-icon slot="start" name="filter"></wa-icon>${label}`;
+}
+
+// "This PRISM saved ≈ $N": copies saved priced from the card-attribute cache.
+// A newer render wins; a Scryfall failure hides the stat rather than showing $0.
+let savedStatRun = 0;
+function updateSavedStat(prism, processedCards) {
+  const { statSaved, statSavedWrap } = state.elements;
+  if (!statSaved || !statSavedWrap) return;
+  const run = ++savedStatRun;
+  const saved = savedCopiesByCard(prism, processedCards);
+  if (saved.size === 0) { statSavedWrap.hidden = true; return; }
+  getCardAttributes([...saved.keys()]).then((attributes) => {
+    if (run !== savedStatRun) return;
+    const usd = savedDollars(saved, (name) => attributes.get(name)?.usd);
+    statSaved.textContent = `$${Math.round(usd).toLocaleString('en-US')}`;
+    statSavedWrap.hidden = usd < 1;
+  }).catch(() => {
+    if (run === savedStatRun) statSavedWrap.hidden = true;
+  });
 }

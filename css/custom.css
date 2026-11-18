@@ -429,8 +429,9 @@ wa-page[view='desktop'] [data-toggle-nav] {
 }
 
 /* Home page site-wide savings counter. Tabular numerals keep the width still while it counts. */
-#site-savings[hidden] {
-  display: none; /* wa-cluster's display: flex beats [hidden]; a failed fetch must show nothing */
+#site-savings[hidden],
+#stat-saved-wrap[hidden] {
+  display: none; /* wa-cluster/wa-stack's display: flex beats [hidden]; a failed fetch must show nothing */
 }
 
 .site-savings-value {
