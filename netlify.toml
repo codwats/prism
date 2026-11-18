@@ -49,7 +49,6 @@
 [[edge_functions]]
   path = "/api/prism-savings"
   function = "prism-savings-edge"
-  cache = "manual"
 
 # Headers for the functions
 [[headers]]
