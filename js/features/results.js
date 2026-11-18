@@ -974,6 +974,7 @@ function updateSavedStat(prism, processedCards) {
   const run = ++savedStatRun;
   const saved = savedCopiesByCard(prism, processedCards);
   if (saved.size === 0) { statSavedWrap.hidden = true; return; }
+  statSavedWrap.hidden = true; // never show the previous amount while this run prices
   getCardAttributes([...saved.keys()]).then((attributes) => {
     if (run !== savedStatRun) return;
     const usd = savedDollars(saved, (name) => attributes.get(name)?.usd);

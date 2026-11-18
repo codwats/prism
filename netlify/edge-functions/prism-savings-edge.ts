@@ -61,7 +61,8 @@ export default async function handler(request: Request, context?: { waitUntil?: 
 
     // Stale or missing: stamp the old totals as fresh first, so requests arriving during
     // the ~25 s rebuild serve them instead of starting their own Scryfall run.
-    await save({ usd: stored?.usd ?? 0, copies: stored?.copies ?? 0, computed_at: new Date().toISOString() });
+    // With nothing stored there is no total to stamp: a fake zero would read as a valid cache.
+    if (stored) await save({ usd: stored.usd, copies: stored.copies, computed_at: new Date().toISOString() });
     const refresh = computeTotals(supabaseUrl, service).then(async (fresh) => { await save(fresh); return fresh; })
       .catch(async (error) => {
         console.error('PRISM savings refresh failed:', error);
@@ -80,11 +81,18 @@ export default async function handler(request: Request, context?: { waitUntil?: 
 }
 
 async function computeTotals(supabaseUrl: string, service: Record<string, string>): Promise<Totals> {
-  const res = await fetch(`${supabaseUrl}/rest/v1/rpc/site_card_savings?order=saved_copies.desc`, {
-    method: 'POST', headers: service, body: '{}',
-  });
-  if (!res.ok) throw new Error(`Supabase site_card_savings failed: ${res.status}`);
-  const rows: { card_name: string; saved_copies: number }[] = await res.json();
+  // PostgREST caps a response (1000 rows by default), so page until a short page.
+  const PAGE = 1000;
+  const rows: { card_name: string; saved_copies: number }[] = [];
+  for (let offset = 0; ; offset += PAGE) {
+    const res = await fetch(`${supabaseUrl}/rest/v1/rpc/site_card_savings?order=saved_copies.desc,card_name.asc&limit=${PAGE}&offset=${offset}`, {
+      method: 'POST', headers: service, body: '{}',
+    });
+    if (!res.ok) throw new Error(`Supabase site_card_savings failed: ${res.status}`);
+    const page = await res.json();
+    rows.push(...page);
+    if (page.length < PAGE) break;
+  }
 
   const prices = new Map<string, number>();
   const priced = rows.slice(0, MAX_PRICED);
@@ -95,8 +103,8 @@ async function computeTotals(supabaseUrl: string, service: Record<string, string
       headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'User-Agent': 'PRISM/1.0' },
       body: JSON.stringify({ identifiers: priced.slice(i, i + BATCH).map(r => ({ name: r.card_name.split(' // ')[0] })) }), // Scryfall matches DFCs by front face only
     });
-    // A failed batch leaves its cards unpriced rather than failing the whole count.
-    if (!scry.ok) { console.error('PRISM savings: Scryfall', scry.status); if (scry.status === 429) break; continue; }
+    // A failed batch must not cache an undercount as fresh: throw so the caller restores the old total and the next request retries.
+    if (!scry.ok) throw new Error(`Scryfall pricing failed: ${scry.status}`);
     for (const card of ((await scry.json()).data ?? []) as ScryCard[]) {
       const price = priceOf(card);
       // Stored names may be the full "Front // Back" name or the front face alone.

@@ -62,9 +62,13 @@ endpointTest('prices each saved copy at its Scryfall USD price and counts every 
   assert.ok(res.requests.some(r => /rpc\/site_card_savings\?order=saved_copies\.desc/.test(r.url)));
 });
 
-endpointTest('a Scryfall failure counts copies but leaves them unpriced', async t => {
-  const res = await get(t, { rows: [{ card_name: 'Sol Ring', saved_copies: 4 }], cards: [{ name: 'Sol Ring', prices: { usd: '1' } }], scryStatus: 500 });
-  assert.deepEqual(res.body, { usd: 0, copies: 4 });
+endpointTest('a Scryfall failure keeps the stored total instead of caching an undercount', async t => {
+  const res = await get(t, {
+    rows: [{ card_name: 'Sol Ring', saved_copies: 4 }], scryStatus: 500, waitUntil: true,
+    stored: { usd: 500, copies: 40, computed_at: hoursAgo(30) },
+  });
+  assert.deepEqual(res.body, { usd: 500, copies: 40 });
+  assert.equal(res.db.row.usd, 500);
 });
 
 endpointTest('batches 75 names per Scryfall request', async t => {
