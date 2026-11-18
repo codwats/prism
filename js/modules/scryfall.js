@@ -385,16 +385,16 @@ function saveAttributes(cache) {
  * /cards/collection (75 per request, on the shared rate chain). Multi-face
  * names are sent as their front face.
  * @param {string[]} names
- * @returns {Promise<Map<string, {colorIdentity: string[], typeLine: string, manaCost: string, cmc: number, oracleId: string}|null>>}
+ * @returns {Promise<Map<string, {colorIdentity: string[], typeLine: string, manaCost: string, cmc: number, oracleId: string, usd: number|null}|null>>}
  *   keyed by the input name; null = Scryfall couldn't match it
  * @throws when a request fails (network, 429, 5xx), so a failure never reads as a miss
  */
 export async function getCardAttributes(names) {
   const cache = loadAttributes();
   const asWritten = new Map(names.map((n) => [attributeKey(n), n]));
-  // Entries cached before manaCost joined the record, or before it fell back
+  // Entries cached before manaCost or usd joined the record, or before it fell back
   // to the front face (a nonland multi-face card with no cost), are fetched again once.
-  const stale = (a) => !('manaCost' in a)
+  const stale = (a) => !('manaCost' in a) || !('usd' in a)
     || (!a.manaCost && a.typeLine.includes(' // ') && !a.typeLine.split(' // ')[0].includes('Land'));
   const uncached = [...asWritten.keys()].filter((k) => !cache[k] || stale(cache[k]));
 
@@ -417,6 +417,9 @@ export async function getCardAttributes(names) {
           manaCost: card.mana_cost || card.card_faces?.[0]?.mana_cost || '',
           cmc: card.cmc ?? 0,
           oracleId: card.oracle_id,
+          // Default printing's price, for the Saved stat; null when Scryfall has none.
+          // shortcut: cached forever like the rest, so it drifts; add a TTL if it matters.
+          usd: Number(card.prices?.usd ?? card.prices?.usd_foil ?? card.prices?.usd_etched) || null,
         };
         found.set(attributeKey(card.name), attrs);
         found.set(attributeKey(card.name.split(' // ')[0]), attrs);

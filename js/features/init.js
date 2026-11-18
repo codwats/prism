@@ -83,6 +83,8 @@ function getElements() {
     resultsStats: document.getElementById('results-stats'),
     statTotal: document.getElementById('stat-total'),
     statShared: document.getElementById('stat-shared'),
+    statSaved: document.getElementById('stat-saved'),
+    statSavedWrap: document.getElementById('stat-saved-wrap'),
     statMarked: document.getElementById('stat-marked'),
     markedProgress: document.getElementById('marked-progress'),
     resultsFilter: document.getElementById('results-filter'),

@@ -16,8 +16,8 @@ globalThis.localStorage = {
 const CARDS = {
 	'Delver of Secrets // Insectile Aberration': { color_identity: ['U'], type_line: 'Creature — Human Wizard // Creature — Human Insect', cmc: 1, oracle_id: 'o-delver', card_faces: [{ mana_cost: '{U}' }, { mana_cost: '' }] },
 	'Branchloft Pathway // Boulderloft Pathway': { color_identity: ['G', 'W'], type_line: 'Land // Land', cmc: 0, oracle_id: 'o-pathway', card_faces: [{ mana_cost: '' }, { mana_cost: '' }] },
-	'Meren of Clan Nel Toth': { color_identity: ['B', 'G'], type_line: 'Legendary Creature — Human Shaman', mana_cost: '{2}{B}{G}', cmc: 4, oracle_id: 'o-meren' },
-	'Tymna the Weaver': { color_identity: ['W', 'B'], type_line: 'Legendary Creature — Human Cleric', cmc: 3, oracle_id: 'o-tymna' },
+	'Meren of Clan Nel Toth': { color_identity: ['B', 'G'], type_line: 'Legendary Creature — Human Shaman', mana_cost: '{2}{B}{G}', cmc: 4, oracle_id: 'o-meren', prices: { usd: null, usd_foil: '0.90' } },
+	'Tymna the Weaver': { color_identity: ['W', 'B'], type_line: 'Legendary Creature — Human Cleric', cmc: 3, oracle_id: 'o-tymna', prices: { usd: '4.25' } },
 };
 
 const requests = [];
@@ -49,7 +49,7 @@ test('multi-face names go out as their front face and match either form, costed 
 	const attrs = await getCardAttributes(['Delver of Secrets // Insectile Aberration']);
 	assert.deepEqual(requests, [['Delver of Secrets']]);
 	assert.deepEqual(attrs.get('Delver of Secrets // Insectile Aberration'), {
-		colorIdentity: ['U'], typeLine: 'Creature — Human Wizard // Creature — Human Insect', manaCost: '{U}', cmc: 1, oracleId: 'o-delver',
+		colorIdentity: ['U'], typeLine: 'Creature — Human Wizard // Creature — Human Insect', manaCost: '{U}', cmc: 1, oracleId: 'o-delver', usd: null,
 	});
 });
 
@@ -61,6 +61,18 @@ test('an entry cached without manaCost is fetched again once', async () => {
 	const attrs = await getCardAttributes(['Meren of Clan Nel Toth']);
 	assert.equal(attrs.get('Meren of Clan Nel Toth').manaCost, '{2}{B}{G}');
 	await getCardAttributes(['Meren of Clan Nel Toth']);
+	assert.equal(requests.length, 1);
+});
+
+test('price is the default printing USD, foil as fallback; an entry cached without one is fetched again once', async () => {
+	reset();
+	store.set('prism_card_attributes', JSON.stringify({
+		'tymna the weaver': { colorIdentity: ['W', 'B'], typeLine: 'Legendary Creature — Human Cleric', manaCost: '{1}{W}{B}', cmc: 3, oracleId: 'o-tymna' },
+	}));
+	const attrs = await getCardAttributes(['Tymna the Weaver', 'Meren of Clan Nel Toth']);
+	assert.equal(attrs.get('Tymna the Weaver').usd, 4.25);
+	assert.equal(attrs.get('Meren of Clan Nel Toth').usd, 0.9);
+	await getCardAttributes(['Tymna the Weaver', 'Meren of Clan Nel Toth']);
 	assert.equal(requests.length, 1);
 });
 
@@ -117,8 +129,8 @@ test('a failed request throws instead of reading as a miss, and caches nothing',
 test('a multi-face entry cached with no cost is fetched again once; a multi-face land is not', async () => {
 	reset();
 	store.set('prism_card_attributes', JSON.stringify({
-		'delver of secrets // insectile aberration': { colorIdentity: ['U'], typeLine: 'Creature — Human Wizard // Creature — Human Insect', manaCost: '', cmc: 1, oracleId: 'o-delver' },
-		'branchloft pathway // boulderloft pathway': { colorIdentity: ['G', 'W'], typeLine: 'Land // Land', manaCost: '', cmc: 0, oracleId: 'o-pathway' },
+		'delver of secrets // insectile aberration': { colorIdentity: ['U'], typeLine: 'Creature — Human Wizard // Creature — Human Insect', manaCost: '', cmc: 1, oracleId: 'o-delver', usd: null },
+		'branchloft pathway // boulderloft pathway': { colorIdentity: ['G', 'W'], typeLine: 'Land // Land', manaCost: '', cmc: 0, oracleId: 'o-pathway', usd: null },
 	}));
 	const names = ['Delver of Secrets // Insectile Aberration', 'Branchloft Pathway // Boulderloft Pathway'];
 	const attrs = await getCardAttributes(names);

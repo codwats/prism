@@ -71,7 +71,7 @@
     <wa-page mobile-breakpoint="768">
       <main>
         <!-- Hero Section -->
-        <section class="wa-stack wa-gap-m wa-align-items-center" style="padding-block: var(--wa-space-3xl);">
+        <section class="wa-stack wa-gap-m wa-align-items-center" style="padding-block: clamp(var(--wa-space-s), 8vw, var(--wa-space-3xl));">
           <!-- Eyebrow role per DESIGN.md §3: halyard-micro 14px/500, 0.05em tracking.
                This string is named there as the eyebrow, so it takes the body face,
                not the heading serif it was rendering in. -->
@@ -189,6 +189,24 @@
 
         <wa-divider style="--spacing: var(--wa-space-2xl);"></wa-divider>
 
+        <!-- Site-wide total from /api/prism-savings (cached daily). Hidden until
+             it loads, so a failed fetch shows nothing rather than $0. -->
+        <!-- A row: the figure, then what it means. wa-cluster is Web Awesome's
+             row layout; it wraps to two lines on a phone. -->
+        <section id="site-savings" class="wa-cluster wa-gap-l wa-justify-content-center wa-align-items-center" style="padding-block: var(--wa-space-xl) var(--wa-space-2xl);" hidden>
+          <p class="site-savings-value" style="margin: 0;">
+            <span id="site-savings-usd" aria-hidden="true">$0</span>
+            <span id="site-savings-label" class="wa-visually-hidden"></span>
+          </p>
+          <div class="wa-stack wa-gap-3xs" style="max-width: 32ch;">
+            <p class="wa-body-l" style="margin: 0; font-weight: 500;">saved by PRISM players</p>
+            <p class="wa-caption-s" style="color: var(--wa-color-neutral-text-subtle); margin: 0;">
+              <span id="site-savings-copies"></span> duplicate copies across every synced PRISM. Approximate, priced at each card’s default-printing USD price (foil or etched if no regular price).
+            </p>
+          </div>
+        </section>
+
+        <wa-divider style="--spacing: var(--wa-space-2xl);"></wa-divider>
    <!-- Before / After -->
         <section class="wa-stack wa-gap-l wa-align-items-center" style="max-width: 900px; margin: 0 auto;">
           <h2 class="wa-heading-2xl" style="text-align: center;">One Box Instead of Five</h2>
@@ -268,7 +286,7 @@
             <div class="wa-stack wa-gap-xs wa-align-items-center">
               <wa-button href="https://cardconduit.com/defcat" target="_blank" rel="noopener" appearance="outlined">
                 <wa-icon slot="start" name="box-open"></wa-icon>
-                Sell Your Duplicates with Card Conduit
+                Sell Duplicates with Card Conduit
               </wa-button>
               <p class="wa-caption-s" style="text-align: center; color: var(--wa-color-neutral-text-subtle); margin: 0;">
                 Support your local game store, or use the affiliate link above to help cover hosting costs.
@@ -390,7 +408,52 @@
 
     <script type="module">
       import { initLayout } from './js/layout.js';
+      import { formatUsd as usd } from './js/modules/savings.js';
       initLayout({ activePage: 'home' });
+
+      // Site savings counter: counts up once, when it first scrolls into view.
+      fetch('/api/prism-savings').then(r => (r.ok ? r.json() : null)).then(data => {
+        if (!data || !(data.usd > 0)) return;
+        const box = document.getElementById('site-savings');
+        const out = document.getElementById('site-savings-usd');
+        document.getElementById('site-savings-label').textContent = usd(data.usd);
+        document.getElementById('site-savings-copies').textContent = data.copies.toLocaleString('en-US');
+        box.hidden = false;
+        if (matchMedia('(prefers-reduced-motion: reduce)').matches) { out.textContent = usd(data.usd); return; }
+        new IntersectionObserver(([entry], observer) => {
+          if (!entry.isIntersecting) return;
+          observer.disconnect();
+          const start = performance.now();
+          const tick = now => {
+            const t = Math.min((now - start) / 1200, 1);
+            out.textContent = usd(data.usd * (1 - (1 - t) ** 3));
+            if (t < 1) requestAnimationFrame(tick);
+            else sparkle(out);
+          };
+          requestAnimationFrame(tick);
+        }).observe(box);
+      }).catch(() => {});
+
+      // One burst of WUBRG sparkles from the figure's top corners when the count lands.
+      function sparkle(el) {
+        const colors = ['#EEB41B', '#3995D9', '#8662D2', '#E2484B', '#4FAB33'];
+        for (let i = 0; i < 10; i++) {
+          const right = i >= 5;
+          const s = document.createElement('span');
+          s.className = 'savings-sparkle';
+          s.style.background = colors[i % 5];
+          s.style.left = `${el.offsetLeft + (right ? el.offsetWidth - 6 : 6)}px`;
+          s.style.top = `${el.offsetTop + el.offsetHeight * 0.2}px`; // line box top sits above the digits' cap height
+          const a = ((right ? -45 : -135) + (Math.random() - 0.5) * 70) * Math.PI / 180;
+          const d = 55 + Math.random() * 55;
+          el.parentElement.append(s);
+          s.animate([
+            { transform: 'translate(0, 0) scale(0) rotate(0deg)', opacity: 1 },
+            { transform: `translate(${Math.cos(a) * d * 0.7}px, ${Math.sin(a) * d * 0.7}px) scale(1) rotate(90deg)`, opacity: 1, offset: 0.5 },
+            { transform: `translate(${Math.cos(a) * d}px, ${Math.sin(a) * d}px) scale(0) rotate(180deg)`, opacity: 0 },
+          ], { duration: 700 + Math.random() * 300, delay: Math.random() * 120, easing: 'ease-out', fill: 'backwards' }).onfinish = () => s.remove();
+        }
+      }
     </script>
   </body>
 </html>

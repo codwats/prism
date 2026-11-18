@@ -428,6 +428,31 @@ wa-page[view='desktop'] [data-toggle-nav] {
   white-space: nowrap;
 }
 
+/* Home page site-wide savings counter. Tabular numerals keep the width still while it counts. */
+#site-savings[hidden],
+#stat-saved-wrap[hidden] {
+  display: none; /* wa-cluster/wa-stack's display: flex beats [hidden]; a failed fetch must show nothing */
+}
+
+.site-savings-value {
+  font-family: var(--wa-font-family-heading);
+  font-size: clamp(3rem, 16vw, 4rem); /* 16vw: ~62px on a 390px phone; $1,000,000 still fits at 320px */
+  font-weight: var(--wa-font-weight-heading);
+  line-height: 1.1;
+  color: var(--wa-color-brand-text);
+  font-variant-numeric: tabular-nums;
+  position: relative; /* anchors .savings-sparkle */
+}
+
+.savings-sparkle {
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  margin: -9px;
+  pointer-events: none;
+  clip-path: polygon(50% 0, 62% 38%, 100% 50%, 62% 62%, 50% 100%, 38% 62%, 0 50%, 38% 38%);
+}
+
 .impact-table .impact-value {
   font-family: var(--wa-font-family-heading);
   font-size: var(--wa-font-size-2xl);
