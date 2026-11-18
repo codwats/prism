@@ -11,7 +11,7 @@ import { normalizeCardName } from '../modules/parser.js';
 import { removalOpenCopies, openRemovals } from '../modules/swap.js';
 import { planSleeveReuse } from '../modules/sleeve-reuse.js';
 import { prefetchCards, getCardAttributes } from '../modules/scryfall.js';
-import { savedCopiesByCard, savedDollars } from '../modules/savings.js';
+import { savedCopiesByCard, savedDollars, formatUsd } from '../modules/savings.js';
 import { handleMarkToggle, handleClearRemoved, handleClearAllRemovedClick } from './deck-list.js';
 import { renderOverlapMatrix } from './analysis.js';
 
@@ -978,7 +978,7 @@ function updateSavedStat(prism, processedCards) {
   getCardAttributes([...saved.keys()]).then((attributes) => {
     if (run !== savedStatRun) return;
     const usd = savedDollars(saved, (name) => attributes.get(name)?.usd);
-    statSaved.textContent = `$${Math.round(usd).toLocaleString('en-US')}`;
+    statSaved.textContent = formatUsd(usd);
     statSavedWrap.hidden = usd < 1;
   }).catch(() => {
     if (run === savedStatRun) statSavedWrap.hidden = true;

@@ -408,12 +408,12 @@
 
     <script type="module">
       import { initLayout } from './js/layout.js';
+      import { formatUsd as usd } from './js/modules/savings.js';
       initLayout({ activePage: 'home' });
 
       // Site savings counter: counts up once, when it first scrolls into view.
       fetch('/api/prism-savings').then(r => (r.ok ? r.json() : null)).then(data => {
         if (!data || !(data.usd > 0)) return;
-        const usd = n => `$${Math.round(n).toLocaleString('en-US')}`;
         const box = document.getElementById('site-savings');
         const out = document.getElementById('site-savings-usd');
         document.getElementById('site-savings-label').textContent = usd(data.usd);

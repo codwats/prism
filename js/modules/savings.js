@@ -34,6 +34,9 @@ export function savedCopiesByCard(prism, processedCards) {
   return saved;
 }
 
+/** Whole dollars with thousands separators: "$1,637". */
+export const formatUsd = (n) => `$${Math.round(n).toLocaleString('en-US')}`;
+
 /** Σ copies saved × price; cards with no price add nothing. */
 export function savedDollars(saved, priceOf) {
   let usd = 0;
