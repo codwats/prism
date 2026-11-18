@@ -46,6 +46,11 @@
   path = "/api/gallery-notify"
   function = "gallery-notify-edge"
 
+[[edge_functions]]
+  path = "/api/prism-savings"
+  function = "prism-savings-edge"
+  cache = "manual"
+
 # Headers for the functions
 [[headers]]
   for = "/.netlify/functions/*"

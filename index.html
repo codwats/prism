@@ -189,6 +189,23 @@
 
         <wa-divider style="--spacing: var(--wa-space-2xl);"></wa-divider>
 
+        <!-- Site-wide total from /api/prism-savings (cached daily). Hidden until
+             it loads, so a failed fetch shows nothing rather than $0. -->
+        <!-- A row: the figure, then what it means. wa-cluster is Web Awesome's
+             row layout; it wraps to two lines on a phone. -->
+        <section id="site-savings" class="wa-cluster wa-gap-l wa-justify-content-center wa-align-items-center" style="padding-block: var(--wa-space-xl) var(--wa-space-2xl);" hidden>
+          <p class="site-savings-value" style="margin: 0;">
+            <span id="site-savings-usd" aria-hidden="true">$0</span>
+            <span id="site-savings-label" class="wa-visually-hidden"></span>
+          </p>
+          <div class="wa-stack wa-gap-3xs" style="max-width: 32ch;">
+            <p class="wa-body-l" style="margin: 0; font-weight: 500;">saved by PRISM players</p>
+            <p class="wa-caption-s" style="color: var(--wa-color-neutral-text-subtle); margin: 0;">
+              <span id="site-savings-copies"></span> duplicate copies across every synced PRISM. Approximate, based on average printing and condition.
+            </p>
+          </div>
+        </section>
+
    <!-- Before / After -->
         <section class="wa-stack wa-gap-l wa-align-items-center" style="max-width: 900px; margin: 0 auto;">
           <h2 class="wa-heading-2xl" style="text-align: center;">One Box Instead of Five</h2>
@@ -391,6 +408,29 @@
     <script type="module">
       import { initLayout } from './js/layout.js';
       initLayout({ activePage: 'home' });
+
+      // Site savings counter: counts up once, when it first scrolls into view.
+      fetch('/api/prism-savings').then(r => (r.ok ? r.json() : null)).then(data => {
+        if (!data || !(data.usd > 0)) return;
+        const usd = n => `$${Math.round(n).toLocaleString('en-US')}`;
+        const box = document.getElementById('site-savings');
+        const out = document.getElementById('site-savings-usd');
+        document.getElementById('site-savings-label').textContent = usd(data.usd);
+        document.getElementById('site-savings-copies').textContent = data.copies.toLocaleString('en-US');
+        box.hidden = false;
+        if (matchMedia('(prefers-reduced-motion: reduce)').matches) { out.textContent = usd(data.usd); return; }
+        new IntersectionObserver(([entry], observer) => {
+          if (!entry.isIntersecting) return;
+          observer.disconnect();
+          const start = performance.now();
+          const tick = now => {
+            const t = Math.min((now - start) / 1200, 1);
+            out.textContent = usd(data.usd * (1 - (1 - t) ** 3));
+            if (t < 1) requestAnimationFrame(tick);
+          };
+          requestAnimationFrame(tick);
+        }).observe(box);
+      }).catch(() => {});
     </script>
   </body>
 </html>

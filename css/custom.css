@@ -428,6 +428,20 @@ wa-page[view='desktop'] [data-toggle-nav] {
   white-space: nowrap;
 }
 
+/* Home page site-wide savings counter. Tabular numerals keep the width still while it counts. */
+#site-savings[hidden] {
+  display: none; /* wa-cluster's display: flex beats [hidden]; a failed fetch must show nothing */
+}
+
+.site-savings-value {
+  font-family: var(--wa-font-family-heading);
+  font-size: clamp(2.5rem, 8vw, 4rem);
+  font-weight: var(--wa-font-weight-heading);
+  line-height: 1.1;
+  color: var(--wa-color-brand-text);
+  font-variant-numeric: tabular-nums;
+}
+
 .impact-table .impact-value {
   font-family: var(--wa-font-family-heading);
   font-size: var(--wa-font-size-2xl);

@@ -1628,3 +1628,42 @@ BEGIN;
   ALTER TABLE gallery_artists ADD CONSTRAINT gallery_artists_urls_https
     CHECK (gallery_artist_urls_https(avatar_url, links));
 COMMIT;
+
+-- ============================================
+-- MIGRATION: site-wide duplicates saved (home page counter)
+-- ============================================
+-- Per card name, the copies every synced PRISM no longer needs: a card in N
+-- logical decks needs its largest deck's copies, not the sum. A split group is
+-- one logical deck (its variants share copies), so it counts its largest
+-- variant. Basic lands are left out. Only synced PRISMs are in the database,
+-- so local-only collections are not counted. Aggregates only; no user, PRISM
+-- or deck is named. Service role only: /api/prism-savings prices the result.
+-- Tests: tests/site-card-savings.sql.
+BEGIN;
+  CREATE OR REPLACE FUNCTION site_card_savings()
+    RETURNS TABLE (card_name TEXT, saved_copies BIGINT)
+    LANGUAGE sql
+    STABLE
+    SET search_path = public, pg_temp
+  AS $$
+    WITH per_deck AS (  -- separate-sleeve rows of one card are summed first
+      SELECT d.prism_id, coalesce(d.split_group_id, d.id) AS logical_id, c.card_name, sum(c.quantity) AS qty
+      FROM deck_cards c JOIN decks d ON d.id = c.deck_id
+      WHERE NOT c.is_basic_land
+      GROUP BY d.prism_id, d.id, c.card_name
+    ), per_logical AS (
+      SELECT prism_id, logical_id, card_name, max(qty) AS qty
+      FROM per_deck GROUP BY prism_id, logical_id, card_name
+    ), per_prism AS (
+      SELECT card_name, sum(qty) - max(qty) AS saved
+      FROM per_logical GROUP BY prism_id, card_name
+    )
+    SELECT card_name, sum(saved)::bigint
+    FROM per_prism GROUP BY card_name HAVING sum(saved) > 0
+  $$;
+
+  REVOKE EXECUTE ON FUNCTION site_card_savings() FROM public;
+  REVOKE EXECUTE ON FUNCTION site_card_savings() FROM anon;
+  REVOKE EXECUTE ON FUNCTION site_card_savings() FROM authenticated;
+  GRANT EXECUTE ON FUNCTION site_card_savings() TO service_role;
+COMMIT;
