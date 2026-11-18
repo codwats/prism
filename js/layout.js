@@ -471,7 +471,7 @@ function injectHeader(ctaConfig) {
           <wa-tag size="s" variant="brand" appearance="outlined" title="PRISM is in open beta — expect rough edges and tell us about them">Beta</wa-tag>
         </div>
         <div class="wa-cluster wa-gap-xs wa-align-items-center">
-          ${suppressCta ? '' : `<wa-button${ctaId}${ctaHref} variant="${ctaVariant}"${ctaAppearanceAttr} size="s">
+          ${suppressCta ? '' : `<wa-button${ctaId}${ctaHref} variant="${ctaVariant}"${ctaAppearanceAttr} size="s"${ctaConfig ? '' : ' class="wa-desktop-only"'}>
             <wa-icon slot="start" name="${ctaIcon}"></wa-icon>
             ${ctaLabel}
           </wa-button>`}
