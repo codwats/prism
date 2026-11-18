@@ -428,10 +428,32 @@
             const t = Math.min((now - start) / 1200, 1);
             out.textContent = usd(data.usd * (1 - (1 - t) ** 3));
             if (t < 1) requestAnimationFrame(tick);
+            else sparkle(out);
           };
           requestAnimationFrame(tick);
         }).observe(box);
       }).catch(() => {});
+
+      // One burst of WUBRG sparkles from the figure's top corners when the count lands.
+      function sparkle(el) {
+        const colors = ['#EEB41B', '#3995D9', '#8662D2', '#E2484B', '#4FAB33'];
+        for (let i = 0; i < 10; i++) {
+          const right = i >= 5;
+          const s = document.createElement('span');
+          s.className = 'savings-sparkle';
+          s.style.background = colors[i % 5];
+          s.style.left = `${el.offsetLeft + (right ? el.offsetWidth - 6 : 6)}px`;
+          s.style.top = `${el.offsetTop + el.offsetHeight * 0.2}px`; // line box top sits above the digits' cap height
+          const a = ((right ? -45 : -135) + (Math.random() - 0.5) * 70) * Math.PI / 180;
+          const d = 55 + Math.random() * 55;
+          el.parentElement.append(s);
+          s.animate([
+            { transform: 'translate(0, 0) scale(0) rotate(0deg)', opacity: 1 },
+            { transform: `translate(${Math.cos(a) * d * 0.7}px, ${Math.sin(a) * d * 0.7}px) scale(1) rotate(90deg)`, opacity: 1, offset: 0.5 },
+            { transform: `translate(${Math.cos(a) * d}px, ${Math.sin(a) * d}px) scale(0) rotate(180deg)`, opacity: 0 },
+          ], { duration: 700 + Math.random() * 300, delay: Math.random() * 120, easing: 'ease-out', fill: 'backwards' }).onfinish = () => s.remove();
+        }
+      }
     </script>
   </body>
 </html>

@@ -441,6 +441,16 @@ wa-page[view='desktop'] [data-toggle-nav] {
   line-height: 1.1;
   color: var(--wa-color-brand-text);
   font-variant-numeric: tabular-nums;
+  position: relative; /* anchors .savings-sparkle */
+}
+
+.savings-sparkle {
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  margin: -9px;
+  pointer-events: none;
+  clip-path: polygon(50% 0, 62% 38%, 100% 50%, 62% 62%, 50% 100%, 38% 62%, 0 50%, 38% 38%);
 }
 
 .impact-table .impact-value {
