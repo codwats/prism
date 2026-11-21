@@ -47,6 +47,7 @@ function getElements() {
     deckCommander2: document.getElementById('deck-commander-2'),
     deckTwoCommanders: document.getElementById('deck-two-commanders'),
     deckBracket: document.getElementById('deck-bracket'),
+    deckFormat: document.getElementById('deck-format'),
     deckColor: document.getElementById('deck-color'),
     deckColorName: document.getElementById('deck-color-name'),
     deckList: document.getElementById('deck-list'),
@@ -110,6 +111,7 @@ function getElements() {
 
     // Import backup dialog (opened from the PRISM menu)
     btnImportBackup: document.getElementById('btn-import-backup'),
+    btnComparePrisms: document.getElementById('btn-compare-prisms'),
     importDialog: document.getElementById('import-dialog'),
     btnCancelImport: document.getElementById('btn-cancel-import'),
     prismJsonInput: document.getElementById('prism-json-input'),

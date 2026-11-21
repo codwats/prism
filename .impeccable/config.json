@@ -43,6 +43,18 @@
         "value": "#00ff00",
         "createdAt": "2026-11-15T19:51:48.229Z",
         "reason": "User confirmed #00FF00 is intentional"
+      },
+      {
+        "rule": "design-system-font",
+        "value": "roboto",
+        "createdAt": "2026-11-21T20:59:55.032Z",
+        "reason": "Claude: Roboto is one entry in the system-sans fallback stack (SANS in scripts/build-email-templates.mjs, present before #494); CLAUDE.md #341 sets email templates to Georgia/system-sans fallbacks"
+      },
+      {
+        "rule": "design-system-font",
+        "value": "menlo",
+        "createdAt": "2026-11-21T21:02:57.962Z",
+        "reason": "Claude: Menlo is the monospace for the one-time code in the reauthentication email (scripts/build-email-templates.mjs:78, present before this session); email clients need named fallbacks"
       }
     ]
   }

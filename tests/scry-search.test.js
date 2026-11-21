@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createScrySession, scryMatches, scryJump, scryAct, scryAnswer, scryClearSearch } from '../js/features/scry-mode.js';
+import { createScrySession, scryMatches, scryJump, scryAct, scryAnswer, scryClearSearch, scryTally, scryBarValue } from '../js/features/scry-mode.js';
 
 const rows = [
   { name: 'Sol Ring' },
@@ -81,4 +81,42 @@ test('acting on the card the player was already on moves on to the next open one
   scryJump(s, 0);
   scryAct(s);
   assert.equal(s.index, 1);
+});
+
+test('tally counts a card answered by search, and Skip does not (#491)', () => {
+  const s = createScrySession(rows);
+  assert.equal(scryTally(s), 0);
+  scryJump(s, 5);
+  scryAnswer(s, { onDone() {}, onSkip() {} }, 'skip');
+  assert.equal(scryTally(s), 0, 'plain skip is not an answer');
+  scryJump(s, 5);
+  scryAnswer(s, { onDone() {}, onSkip() {} }, 'done');
+  assert.equal(scryTally(s), 1);
+  assert.equal(s.index, 0, 'walk position unchanged');
+});
+
+test('tally counts Audit Wrong via skipAnswers (#491)', () => {
+  const s = createScrySession(rows);
+  scryJump(s, 5);
+  scryAnswer(s, { onDone() {}, onSkip() {}, skipAnswers: true }, 'skip');
+  assert.equal(scryTally(s), 1);
+});
+
+test('a plain Skip during the walk does not move the tally (#491)', () => {
+  const s = createScrySession(rows);
+  scryAnswer(s, { onDone() {}, onSkip() {} }, 'skip');
+  assert.equal(s.index, 1, 'the walk moves on');
+  assert.equal(scryTally(s), 0, 'nothing answered yet');
+  scryAnswer(s, { onDone() {}, onSkip() {} }, 'done');
+  assert.equal(scryTally(s), 1);
+});
+
+test('bar stays at the answered percentage after a final plain Skip (#491)', () => {
+  const s = createScrySession(rows);
+  const o = { onDone() {}, onSkip() {} };
+  rows.forEach((_, i) => { scryJump(s, i); scryAnswer(s, o, i === rows.length - 1 ? 'skip' : 'done'); });
+  assert.equal(scryBarValue(s), Math.round(((rows.length - 1) / rows.length) * 100));
+  scryJump(s, rows.length - 1);
+  scryAnswer(s, o, 'done');
+  assert.equal(scryBarValue(s), 100);
 });

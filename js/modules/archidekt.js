@@ -57,14 +57,21 @@ export function transformArchidektDeck(archidektDeck) {
     .filter(cat => cat.includedInDeck === false)
     .map(cat => cat.name));
 
+  // A deck with no commander is Constructed (#29): its Sideboard shares the
+  // deck box, so those cards stay, flagged. A Commander deck drops them.
+  const entries = Array.isArray(archidektDeck.cards) ? archidektDeck.cards : [];
+  const isSideboardEntry = (e) => (e.categories?.[0] || '').trim().toLowerCase() === 'sideboard';
+  const keepSideboard = !entries.some(e => (e.categories || []).some(cat => cat.trim().toLowerCase() === 'commander'));
+
   // Process cards from the deck
-  if (archidektDeck.cards && Array.isArray(archidektDeck.cards)) {
-    for (const cardEntry of archidektDeck.cards) {
+  if (entries.length > 0) {
+    for (const cardEntry of entries) {
       const card = cardEntry.card;
       const quantity = cardEntry.quantity || 1;
       const categories = cardEntry.categories || [];
+      const isSideboard = keepSideboard && isSideboardEntry(cardEntry);
       // Archidekt files a card under its first category
-      if (outOfDeck.has(categories[0])) continue;
+      if (outOfDeck.has(categories[0]) && !isSideboard) continue;
 
       // Exact `Commander` category only (#148): loose substring matching
       // flagged user-authored categories like "Commander Damage" or
@@ -79,7 +86,8 @@ export function transformArchidektDeck(archidektDeck) {
         name: card.oracleCard?.name || card.name,
         quantity,
         isCommander,
-        isBasicLand
+        isBasicLand,
+        ...(isSideboard ? { isSideboard } : {})
       });
     }
   }

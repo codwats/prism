@@ -35,8 +35,9 @@ export async function fetchDeckCheckDeck(deckUrl) {
 }
 
 /**
- * Transform DeckCheck deck data to PRISM format. Only the commanders and
- * mainboard boards count; sideboard and considering are out of the deck.
+ * Transform DeckCheck deck data to PRISM format. The commanders and mainboard
+ * boards count, and the sideboard of a deck with no commander; considering is
+ * out of the deck.
  * @param {Object} deckCheckDeck - Raw DeckCheck API response
  * @returns {Object} PRISM-compatible deck data
  */
@@ -48,14 +49,20 @@ export function transformDeckCheckDeck(deckCheckDeck) {
     cards.push({ name: entry.card.name, quantity: entry.quantity || 1, isCommander: true, isBasicLand: false });
   }
 
-  for (const entry of Object.values(boards.mainboard?.cards || {})) {
-    const typeLine = (entry.card.typeLine || '').toLowerCase();
-    cards.push({
-      name: entry.card.name,
-      quantity: entry.quantity || 1,
-      isCommander: false,
-      isBasicLand: typeLine.includes('basic') && typeLine.includes('land')
-    });
+  // A deck with no commander is Constructed (#29) and keeps its sideboard, flagged
+  const keepSideboard = Object.keys(boards.commanders?.cards || {}).length === 0;
+  const zones = [['mainboard', false], ...(keepSideboard ? [['sideboard', true]] : [])];
+  for (const [board, isSideboard] of zones) {
+    for (const entry of Object.values(boards[board]?.cards || {})) {
+      const typeLine = (entry.card.typeLine || '').toLowerCase();
+      cards.push({
+        name: entry.card.name,
+        quantity: entry.quantity || 1,
+        isCommander: false,
+        isBasicLand: typeLine.includes('basic') && typeLine.includes('land'),
+        ...(isSideboard ? { isSideboard } : {})
+      });
+    }
   }
 
   return {

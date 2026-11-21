@@ -5,10 +5,11 @@
 import { state } from "../core/state.js";
 import { showError, showSuccess } from "../core/notifications.js";
 import { escapeHtml, debugLog, markSingleBatchDone, clickItemsOnKeyboardSelect } from "../core/utils.js";
-import { parseDecklist, validateDecklist, cardsToDecklistText, normalizeCardName } from "../modules/parser.js";
+import { parseDecklist, validateDecklist, cardsToDecklistText, normalizeCardName, markingCards, cardRowKey } from "../modules/parser.js";
 import {
   processCards,
   commanderNames,
+  isConstructedDeck,
   removeDeckFromPrism,
   moveStripeToPosition,
   getColorName,
@@ -53,6 +54,8 @@ import {
   updateColorSwatchSelection,
   checkColorWarning,
   showParseErrors,
+  setDeckFormat,
+  isConstructedForm,
 } from "./deck-form.js";
 import { renderAll } from "./init.js";
 import { openStripeReorderDialog, openGroupReorderDialog } from "./stripe-reorder-dialog.js";
@@ -72,7 +75,7 @@ function cardListChanged(oldCards, newCards) {
   if (oldCards.length !== newCards.length) return true;
   const toMap = (cards) => {
     const m = new Map();
-    for (const c of cards) m.set(c.name.toLowerCase(), c.quantity);
+    for (const c of cards) m.set(cardRowKey(c), c.quantity);
     return m;
   };
   const oldMap = toMap(oldCards);
@@ -94,7 +97,7 @@ export function autoClearRemovedCards(newCards) {
   // normalizeCardName (not bare toLowerCase) so printing suffixes, back faces
   // and stray whitespace match the same way processCards dedups cards.
   const newByName = new Map(
-    newCards.map((c) => [normalizeCardName(c.name), c]),
+    markingCards(newCards).map((c) => [normalizeCardName(c.name), c]),
   );
 
   const before = state.currentPrism.removedCards.length;
@@ -296,6 +299,8 @@ export function handleEditClick(deckId) {
     // Sections carry the commander flags through the textarea round-trip (#147)
     state.elements.deckList.value = cardsToDecklistText(deck.cards);
   }
+  // Not stored (#29): a deck with no commander opens as Constructed
+  setDeckFormat(isConstructedDeck(deck) ? "constructed" : "commander");
   syncCommanderFieldsFromText(commanderRefs());
 
   if (state.elements.deckListUpdated) {
@@ -326,7 +331,8 @@ export async function handleEditConfirm() {
 
   const name = (state.elements.deckName?.value || "").trim();
   const commander = (state.elements.deckCommander?.value || "").trim();
-  const bracket = state.elements.deckBracket?.value || "2";
+  const constructed = isConstructedForm();
+  const bracket = constructed ? "2" : state.elements.deckBracket?.value || "2";
   const color = state.elements.deckColor?.value || deck.color;
   const decklistText = state.elements.deckList?.value || "";
 
@@ -334,7 +340,7 @@ export async function handleEditConfirm() {
     showError("Please enter a deck name.");
     return;
   }
-  if (!commander) {
+  if (!commander && !constructed) {
     showError("Please enter a commander name.");
     return;
   }
@@ -348,7 +354,7 @@ export async function handleEditConfirm() {
     return;
   }
 
-  const parseResult = parseDecklist(decklistText);
+  const parseResult = parseDecklist(decklistText, { keepSideboard: constructed });
   // Cancel during the Scryfall wait still saves this edit, but must not touch
   // the next form session (its source URL or its open dialog).
   const session = currentFormSession();
@@ -441,21 +447,12 @@ export async function handleEditConfirm() {
   showSuccess(message);
 }
 
-export function handleDeleteConfirm() {
-  if (!state.deckToDelete) return;
-
-  const deck = state.currentPrism.decks.find(
-    (d) => d.id === state.deckToDelete,
-  );
-  if (!deck) return;
-
+// Removal rows for every card of a deck leaving the PRISM. Returns the count of new rows.
+function trackDeckRemoval(deck, beforeCards, now) {
   if (!state.currentPrism.removedCards) state.currentPrism.removedCards = [];
-
-  const now = new Date().toISOString();
   let removedCount = 0;
-  const beforeCards = deck.splitGroupId ? processCards(state.currentPrism) : [];
-
-  for (const card of deck.cards) {
+  // One row per card: main and Sideboard copies (#29) share the mark
+  for (const card of markingCards(deck.cards)) {
     const mark = removalMark(state.currentPrism, beforeCards, deck, card.name, card.quantity || 1, 0);
     if (!mark) continue;
     const isNew = trackRemovedCard(state.currentPrism, {
@@ -469,6 +466,20 @@ export function handleDeleteConfirm() {
     });
     if (isNew) removedCount++;
   }
+  return removedCount;
+}
+
+export function handleDeleteConfirm() {
+  if (!state.deckToDelete) return;
+
+  const deck = state.currentPrism.decks.find(
+    (d) => d.id === state.deckToDelete,
+  );
+  if (!deck) return;
+
+  const now = new Date().toISOString();
+  const beforeCards = deck.splitGroupId ? processCards(state.currentPrism) : [];
+  const removedCount = trackDeckRemoval(deck, beforeCards, now);
 
   const deckName = deck.name;
   const isSplitChild = !!deck.splitGroupId;
@@ -477,6 +488,8 @@ export function handleDeleteConfirm() {
       state.currentPrism,
       state.deckToDelete,
     );
+    // Cards the remaining variants now all share leave child marks painted (#428).
+    trackStaleChildMarks(state.currentPrism, beforeCards, now);
   } else {
     state.currentPrism = removeDeckFromPrism(
       state.currentPrism,
@@ -569,7 +582,16 @@ export function handleUnsplit(groupId) {
   if (!group) return;
 
   const groupName = group.name;
+  // Unsplit keeps the first variant's cards: the other variants leave like a
+  // delete, and the first one's child marks go stale (#428).
+  const now = new Date().toISOString();
+  const beforeCards = processCards(state.currentPrism);
+  for (const id of group.childDeckIds.slice(1)) {
+    const deck = state.currentPrism.decks.find((d) => d.id === id);
+    if (deck) trackDeckRemoval(deck, beforeCards, now);
+  }
   state.currentPrism = unsplitGroup(state.currentPrism, groupId);
+  trackStaleChildMarks(state.currentPrism, beforeCards, now);
   savePrism(state.currentPrism);
   renderAll();
   showSuccess(`Merged "${groupName}" back into a single deck.`);
@@ -799,7 +821,7 @@ function getDeckActionsKebabHtml(deck, isInGroup) {
 function deckMetaLine(deck, processedCards) {
   const counts = processedCards
     ? (({ pool, core }) => `${pool} pool • ${core} core`)(getDeckPoolCoreCounts(deck, processedCards))
-    : `${deck.cards.length} cards`;
+    : `${markingCards(deck.cards).length} cards`;
   return [commanderNames(deck).join(' / '), counts].filter(Boolean).join(' • ');
 }
 
@@ -832,7 +854,8 @@ export function renderDeckCard(deck, showActions = true, processedCards = null) 
         nameTag: isInGroup ? "h4" : "h3",
         nameClass: isInGroup ? "wa-heading-s" : "wa-heading-m",
         name: escapeHtml(deck.name),
-        tags: `${slotTagHtml}<wa-tag size="s" variant="neutral">Bracket ${deck.bracket}</wa-tag>`,
+        // A Constructed deck (no commander, #29) has no bracket to show
+        tags: `${slotTagHtml}${isConstructedDeck(deck) ? "" : `<wa-tag size="s" variant="neutral">Bracket ${deck.bracket}</wa-tag>`}`,
         meta: escapeHtml(deckMetaLine(deck, processedCards)),
         actions: showActions
           ? `${iconButton("btn-edit-deck", "data-deck-id", deck.id, "Edit deck", `Edit ${escapeHtml(deck.name)}`, "pen-to-square")}

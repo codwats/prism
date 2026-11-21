@@ -5,7 +5,7 @@
  */
 
 import { createPrism, createDeck, applyCommanderFallback, generateId } from './processor.js';
-import { normalizeCardName } from './parser.js';
+import { cardRowKey } from './parser.js';
 
 /**
  * Validate and construct a PRISM object from parsed backup JSON.
@@ -76,7 +76,8 @@ export function buildPrismFromJson(jsonData, { preserveId = true } = {}) {
       if (!row || typeof row.name !== 'string' || !row.name.trim()) continue;
       const n = Number(row.quantity);
       const quantity = Number.isInteger(n) && n > 0 ? n : 1;
-      const key = normalizeCardName(row.name); // processCards' card identity
+      // processCards' card identity; a Sideboard row (#29) stays its own row
+      const key = cardRowKey(row);
       const existing = byName.get(key);
       if (!existing) {
         byName.set(key, { ...row, quantity });

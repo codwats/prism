@@ -24,6 +24,8 @@ export function membershipContent({ entitled, signedIn, createdName = null, peri
         <p>Add your stripe marks to MPC Autofill images before you order. Needs a finished MPC Autofill order and Chrome.</p>
         <a href="swap-planner.html">Swap Planner</a>
         <p>Find the cards a new card could replace across your decks, and what each Swap costs in marks.</p>
+        <a href="compare-prisms.html">Compare PRISMs</a>
+        <p>See what to add, remove and re-mark to turn the sleeves of one PRISM into another.</p>
       </section>
     </div>`;
   }

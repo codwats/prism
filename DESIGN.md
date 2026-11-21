@@ -1,6 +1,6 @@
 ---
 name: PRISM
-description: Sleeve marking tool for MTG Commander players who share cards across decks.
+description: Sleeve marking tool for MTG players who share cards across decks.
 colors:
   primary: "#4d4169"
   primary-hover: "#3a2e55"
@@ -545,7 +545,7 @@ Motion  0.1–0.15s ease, color + shadow only
 > "Own one copy of each card. Mark your sleeves to show which decks it belongs to. Fan, pull, play."
 > "Stop buying duplicates. Start sharing cards across decks with confidence."
 > "Add a new deck later? PRISM shows what changed so you only mark new cards."
-> Footer: "Made for Commander players, by Commander players"
+> Footer: "Made for Magic players, by Magic players"
 
 ---
 

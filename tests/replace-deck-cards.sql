@@ -2,7 +2,7 @@
 -- Supabase project's SQL editor after supabase-schema.sql.
 -- Never run on production. Fixtures roll back.
 -- replace_deck_cards (#395): writes exactly the given rows, sleeve (#309)
--- included; an empty array clears the deck; SECURITY INVOKER plus RLS means a
+-- and is_sideboard (#29) included; an empty array clears the deck; SECURITY INVOKER plus RLS means a
 -- caller who doesn't own the deck changes nothing.
 BEGIN;
 
@@ -30,14 +30,15 @@ BEGIN
   PERFORM public.replace_deck_cards('39500000-0000-0000-0002-000000000001', '[
     {"card_name": "Sol Ring", "quantity": 2, "sleeve": "s1"},
     {"card_name": "Atraxa, Praetors'' Voice", "is_commander": true},
-    {"card_name": "Forest", "quantity": 30, "is_basic_land": true}
+    {"card_name": "Forest", "quantity": 30, "is_basic_land": true},
+    {"card_name": "Sol Ring", "quantity": 1, "is_sideboard": true}
   ]'::jsonb, '2026-01-02T03:04:05Z');
 
-  SELECT string_agg(format('%s|%s|%s|%s|%s|%s', card_name, quantity, is_commander,
-                           is_basic_land, coalesce(sleeve, '-'), created_at = '2026-01-02T03:04:05Z'),
-                    ';' ORDER BY card_name)
+  SELECT string_agg(format('%s|%s|%s|%s|%s|%s|%s', card_name, quantity, is_commander,
+                           is_basic_land, coalesce(sleeve, '-'), is_sideboard, created_at = '2026-01-02T03:04:05Z'),
+                    ';' ORDER BY card_name, is_sideboard)
     INTO got FROM public.deck_cards WHERE deck_id = '39500000-0000-0000-0002-000000000001';
-  ASSERT got = 'Atraxa, Praetors'' Voice|1|t|f|-|t;Forest|30|f|t|-|t;Sol Ring|2|f|f|s1|t',
+  ASSERT got = 'Atraxa, Praetors'' Voice|1|t|f|-|f|t;Forest|30|f|t|-|f|t;Sol Ring|2|f|f|s1|f|t;Sol Ring|1|f|f|-|t|t',
     'replace must write exactly the given rows, got ' || coalesce(got, 'nothing');
   ASSERT (SELECT card_name FROM public.deck_cards WHERE deck_id = '39500000-0000-0000-0002-000000000002') = 'Kept card',
     'replacing one deck must not touch another deck''s cards';

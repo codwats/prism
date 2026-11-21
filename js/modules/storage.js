@@ -279,6 +279,13 @@ function recordLocalPrismChanges(storage, previousPrism, nextPrism) {
     delete baseline.deletedSplitGroups[groupId];
   }
 
+  // A key this save marks again outranks its own un-mark tombstone, or the
+  // next merge would drop the re-mark (#416).
+  const previousMarks = new Set(previousPrism?.markedCards || []);
+  for (const key of nextPrism.markedCards || []) {
+    if (!previousMarks.has(key)) delete baseline.unmarkedCards[key];
+  }
+
   // A removed or applied Planned swap is tombstoned at the wall clock, not
   // prism.updatedAt: queue edits don't bump it, and an applied swap that came
   // back from a stale copy could be applied twice (#364).
@@ -390,7 +397,8 @@ function buildPrismFromRow(prism) {
         quantity: card.quantity,
         isCommander: card.is_commander,
         isBasicLand: card.is_basic_land,
-        ...(card.sleeve ? { sleeve: card.sleeve } : {})
+        ...(card.sleeve ? { sleeve: card.sleeve } : {}),
+        ...(card.is_sideboard ? { isSideboard: true } : {})
       }))
     })).sort((a, b) => a.stripePosition - b.stripePosition)
   };
@@ -541,7 +549,8 @@ const PRISM_SELECT = `
       quantity,
       is_commander,
       is_basic_land,
-      sleeve
+      sleeve,
+      is_sideboard
     )
   )
 `;
@@ -599,6 +608,7 @@ async function replaceDeckCardsFallback(supabase, deckId, localCards, deckUpdate
       is_commander: !!card.isCommander,
       is_basic_land: !!card.isBasicLand,
       sleeve: card.sleeve || null,
+      is_sideboard: !!card.isSideboard,
       created_at: deckUpdatedAt
     })));
 
@@ -824,7 +834,8 @@ async function savePrismToSupabase(prism) {
             quantity: card.quantity || 1,
             is_commander: card.isCommander || false,
             is_basic_land: card.isBasicLand || false,
-            sleeve: card.sleeve || null
+            sleeve: card.sleeve || null,
+            is_sideboard: !!card.isSideboard
           })),
           p_created_at: deckUpdatedAt
         });

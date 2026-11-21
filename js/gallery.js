@@ -934,11 +934,24 @@ function rememberArtistName(name) {
   try { localStorage.setItem(ARTIST_NAME_KEY, name); } catch { /* storage unavailable */ }
 }
 
+// The schema refuses an 11th pending upload or resubmit with 42501 (#437).
+const PENDING_CAP = 10;
+const PENDING_CAP_MESSAGE = `You have ${PENDING_CAP} uploads waiting for review. Upload more once one is reviewed.`;
+
+// 42501 is any RLS refusal: name the pending cap only when the account is at it.
+async function refusalMessage(err, fallback) {
+  if (err?.code !== '42501') return fallback;
+  const { count } = await getSupabase().from('gallery_artworks')
+    .select('id', { count: 'exact', head: true })
+    .eq('uploader_id', getCurrentUser()?.id).eq('status', 'pending');
+  return count >= PENDING_CAP ? PENDING_CAP_MESSAGE : fallback;
+}
+
 /** Metadata fields shared by the upload and edit forms. */
 function artworkFieldsHtml(v = {}) {
   const aiValue = v.isAI === true ? 'yes' : v.isAI === false ? 'no' : '';
   return `
-      <wa-input id="up-title" label="Title" placeholder="e.g. Sol Ring — Ornate" value="${escapeHtml(v.title || '')}" required></wa-input>
+      <wa-input id="up-title" label="Title" placeholder="e.g. Sol Ring — Ornate" value="${escapeHtml(v.title || '')}" maxlength="120" required></wa-input>
       <wa-radio-group id="up-type" label="Type" value="${escapeHtml(v.type || 'proxy')}" orientation="horizontal">
         <wa-radio value="proxy">Proxy</wa-radio>
         <wa-radio value="token">Token</wa-radio>
@@ -951,13 +964,13 @@ function artworkFieldsHtml(v = {}) {
         <span slot="hint">Off: the photo is shown only. On: signed-in visitors can download it for personal use.</span>
       </wa-switch>
       <div class="card-suggest">
-        <wa-input id="up-card" label="Original card (optional)" placeholder="Start typing a card name" autocomplete="off" value="${escapeHtml(v.originalCard?.name || '')}">
+        <wa-input id="up-card" label="Original card (optional)" placeholder="Start typing a card name" autocomplete="off" maxlength="200" value="${escapeHtml(v.originalCard?.name || '')}">
           <wa-icon slot="start" name="magnifying-glass"></wa-icon>
           <span slot="hint">Leave blank for tokens or original art with no source card.</span>
         </wa-input>
         <div class="card-suggest-list" id="up-card-suggest" hidden></div>
       </div>
-      <wa-textarea id="up-desc" label="Description" placeholder="Tell players about this piece (optional)" rows="3" value="${escapeHtml(v.description || '')}"></wa-textarea>
+      <wa-textarea id="up-desc" label="Description" placeholder="Tell players about this piece (optional)" rows="3" maxlength="2000" value="${escapeHtml(v.description || '')}"></wa-textarea>
       <div>
         <wa-radio-group id="up-ai" label="AI-generated?" orientation="horizontal"${aiValue ? ` value="${aiValue}"` : ''}>
           <wa-radio value="no">No</wa-radio>
@@ -965,7 +978,7 @@ function artworkFieldsHtml(v = {}) {
         </wa-radio-group>
         <p class="wa-caption-s" style="color: var(--wa-color-neutral-text-subtle); margin: var(--wa-space-2xs) 0 0;"><wa-icon name="robot"></wa-icon> AI art is allowed but must be labeled.</p>
       </div>
-      <wa-input id="up-artist" label="Display name" placeholder="e.g. deckbrewer" value="${escapeHtml(v.artistName || '')}">
+      <wa-input id="up-artist" label="Display name" placeholder="e.g. deckbrewer" maxlength="80" value="${escapeHtml(v.artistName || '')}">
         <span slot="hint">Shown publicly next to the artwork — use a pseudonym or handle, not your email. Crediting someone else? Only with their permission.</span>
       </wa-input>`;
 }
@@ -1115,7 +1128,7 @@ function renderUpload(root) {
       renderPending(root);
     } catch (err) {
       console.error('Gallery upload failed:', err);
-      showError('Upload failed — try again.');
+      showError(await refusalMessage(err, 'Upload failed — try again.'));
       submitBtn.removeAttribute('loading');
       submitBtn.removeAttribute('disabled');
     }
@@ -1614,7 +1627,7 @@ async function renderMyUploads(root) {
     btn.setAttribute('loading', '');
     btn.setAttribute('disabled', '');
     const { error: err } = await sb.rpc('resubmit_own_gallery_artwork', { p_artwork_id: btn.dataset.resubmit });
-    if (err) { btn.removeAttribute('loading'); btn.removeAttribute('disabled'); showError('Could not resubmit — try again.'); return; }
+    if (err) { btn.removeAttribute('loading'); btn.removeAttribute('disabled'); showError(await refusalMessage(err, 'Could not resubmit — try again.')); return; }
     showSuccess('Resubmitted for review');
     render();
   }));
