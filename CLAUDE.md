@@ -1,6 +1,6 @@
-# PRISM — MTG Commander Sleeve Marking Tool
+# PRISM — MTG Sleeve Marking Tool
 
-Helps MTG Commander players who share cards across decks mark sleeves with colored stripes, so each sleeve's deck is identifiable at a glance.
+Helps MTG players who share cards across decks mark sleeves with colored stripes, so each sleeve's deck is identifiable at a glance.
 
 ## Read before touching
 
@@ -16,7 +16,7 @@ New domain facts go in the matching `docs/agents/*.md`, not here.
 ## Tech Stack
 
 - **Frontend:** Vanilla JS, ES modules, no bundler, no build step
-- **UI:** [Web Awesome 3.14.0](https://www.webawesome.com/) via CDN kit. WA CSS, autoloader, fonts, `custom.css` are **static tags in every page's `<head>`** (preload scanner starts them at byte 0); `injectHeadResources` in layout.js skips present tags, fallback only. Bump versions in static blocks and layout.js URLs together.
+- **UI:** [Web Awesome 3.15.0](https://www.webawesome.com/) via CDN kit. WA CSS, autoloader, fonts, `custom.css` are **static tags in every page's `<head>`** (preload scanner starts them at byte 0); `injectHeadResources` in layout.js skips present tags, fallback only. Bump versions in static blocks and layout.js URLs together.
 - **Styling:** `css/custom.css` + WA tokens (`--wa-color-*`, `--wa-space-*`)
 - **Persistence:** localStorage-first (`prism_data`), optional Supabase sync when authed, merge-before-write
 - **Auth:** Supabase Auth (email/password). SDK is **lazy**: layout.js eager-loads only when `hasStoredSession()` (sync localStorage check for `sb-<ref>-auth-token`) or `access_token` URL hash; anonymous visitors get it on demand via `ensureAuthReady()` (login click, or top of `signUp`/`signIn`/`resetPassword`). Init details in `docs/agents/sync.md`.
@@ -69,13 +69,14 @@ Prism: { id, name, decks[], splitGroups[], markedCards[], removedCards[], planne
          useDedicatedCommanderCopies, useDedicatedCommanderCopiesUpdatedAt, createdAt, updatedAt }
 Deck:  { id, name, bracket (1-5), color (hex), stripePosition (1-48), cards[], splitGroupId?, sourceUrl?, cardsUpdatedAt? }
 SplitGroup: { id, name, sideAPosition, sideAColor, childDeckIds[], splitStyle ('stripes'|'dots'), createdAt?, updatedAt? }
-Card:  { name, quantity, isCommander, isBasicLand, sleeve? }
+Card:  { name, quantity, isCommander, isBasicLand, sleeve?, isSideboard? }
 Preferences: { colorScheme, defaultColors, stripeStartCorner ('top-right'|'top-left'|'bottom-right'|'bottom-left') }
 ```
 
 - **Commander role** — per-card `isCommander` flags are sole source of truth (#147). No `deck.commander` field; read via `commanderNames(deck)` in `processor.js` (alphabetical, derived). Decklist textarea carries N flags losslessly through `Commander`/`Deck` section headers (`cardsToDecklistText`/`rewriteDecklistCommanders` in `parser.js`); parsed text is sole save-time authority, Add/Edit commander fields synced both ways (`syncCommanderFieldsFromText`/`applyCommanderFieldsToText` in `deck-form.js`). `parseDecklist(text)` takes no commander-name argument. Archidekt import flags only exact `Commander` category. Legacy scalar-only decks normalized once at build-page load (`applyCommanderFallback`).
 - **useDedicatedCommanderCopies** (#145/#150) — synced per-PRISM boolean with own merge timestamp (never rides whole-prism LWW; mark-toggle bumps `prism.updatedAt` too often). Toggle is a checkbox item in build.html's PRISM menu (`wa-select` handler in events.js); write path = flag + its timestamp + `prism.updatedAt` + `savePrism()`. When on, each (commander card, logical deck) pair emits **dedicated batches** — quantity tiers over that logical deck's parts (#424), one batch when quantities match — and leaves shared threshold derivation (replace, not add on top). Split group dedicates as a whole when flagged in ≥1 variant, never per variant. Dedicated-ness derived at processing time (`isDedicated` on batch), never stored.
 - **Separate sleeve** (#309) — optional `sleeve` id on card row (`deck_cards.sleeve`, written by `replace_deck_cards`). Rows of one card sharing an id get their own quantity tiers (`isSeparateSleeve`, #424; one batch when quantities match), removed from shared threshold derivation after dedication (dedication wins). Rides the deck, merges with deck's `updatedAt` — no `mergePrismVersions` branch. Decklist text can't hold it: `keepSeparateSleeves(oldCards, newCards)` in swap.js carries it by name in `handleEditConfirm`, which every card-replacing edit path (form, URL re-import, file upload) goes through. Sleeve swap (`applySwap(..., { sleeve: true })`) creates one when incoming card already in PRISM.
+- **Constructed deck / Sideboard** (#29) — a deck with no commander is Constructed; no stored format. build.html's deck form has a Commander | Constructed picker (`#deck-format`, `setDeckFormat`/`isConstructedForm` in deck-form.js), derived on open and on URL import from `isCommander` flags; Constructed hides commander fields and bracket (saved as placeholder 2), and parses with `parseDecklist(text, { keepSideboard: true })`, which keeps Sideboard/`SB:` cards as `isSideboard` rows (Commander decks still exclude them). `cardsToDecklistText` emits a `Sideboard` section, so the text carries the flag through every edit path (no carry helper). Column `deck_cards.is_sideboard`, written by `replace_deck_cards`, rides the deck like `sleeve`. A card can have a main and a sideboard row in one deck: `markingCards(cards)` (parser.js) sums them for `processCards`, removals and returns; sideboard cards are ordinary cards for marking. URL imports keep the sideboard only for decks with no commander.
 - **Stripe positions** 1–24 (Side A), 25–48 (Side B) — 48 physical slots, real capacity limit (`MAX_STRIPE_SLOTS` in `processor.js`). Stripe-only decks/variants consume one slot each (up to 48 decks); dot variants share a Side A slot (up to 96). No fixed "logical deck" cap — adding standalone deck gated on `getUsedPositions(prism).size >= MAX_STRIPE_SLOTS`.
 - **Split groups** — one deck slot, 2–8 (stripes) or exactly 2 (dots) variants sharing Side A position. Group holds `name`, `sideAColor`, `sideAPosition`, editable via ✎ on group card header (`handleEditGroupClick`/`handleEditGroupConfirm` in `deck-list.js`, `updateSplitGroupInPrism` in `processor.js`).
 - **Split styles** — `'stripes'` (Side B marks on opposite edge) or `'dots'` (one colored dot beside Side A stripe square). Dots capped at 2 variants (physical 1-hole limit). Child marks decided in **post-loop pass**, shared-vs-subset:

@@ -67,15 +67,18 @@ export function parseLine(line) {
  *   sideboard cards
  *   Commander
  *   commander card
- * Only includes cards from maindeck and commander sections.
+ * Only includes cards from maindeck and commander sections, plus the
+ * sideboard (flagged isSideboard) when `keepSideboard` is set: a Constructed
+ * deck's sideboard shares its deck box (#29); a Commander deck's is a maybe pile.
  * Cards under a `Commander` header are flagged isCommander (unbounded count) —
  * the parsed text is the sole commander authority (#147).
  * @param {string} decklist - The full decklist text
+ * @param {{ keepSideboard?: boolean }} [options]
  * @returns {Object} Result with cards array, errors, and excludedLines
  *   (verbatim lines of non-included sections, headers included, so rewrites
  *   can preserve sideboard/maybeboard text)
  */
-export function parseDecklist(decklist) {
+export function parseDecklist(decklist, { keepSideboard = false } = {}) {
   const lines = decklist.split('\n');
   const cards = [];
   const errors = [];
@@ -85,17 +88,25 @@ export function parseDecklist(decklist) {
   let currentSection = 'main';
 
   // Sections whose cards we want to include
-  const includeSections = new Set(['main', 'commander', 'companion']);
+  const includeSections = new Set(['main', 'commander', 'companion', ...(keepSideboard ? ['sideboard'] : [])]);
 
   for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
+    let line = lines[i];
     const trimmedLine = line.trim();
     const upperLine = trimmedLine.toUpperCase();
 
-    // Check for section headers
-    if (upperLine.startsWith('SIDEBOARD') || upperLine === 'SB:' || upperLine.startsWith('SB:')) {
+    // Check for section headers. MTGO's `SB: 2 Duress` is a header and a card.
+    if (upperLine.startsWith('SB:')) {
       currentSection = 'sideboard';
-      excludedLines.push(trimmedLine);
+      line = trimmedLine.slice(3);
+      if (!keepSideboard) {
+        excludedLines.push(trimmedLine);
+        continue;
+      }
+      if (!line.trim()) continue;
+    } else if (upperLine.startsWith('SIDEBOARD')) {
+      currentSection = 'sideboard';
+      if (!keepSideboard) excludedLines.push(trimmedLine);
       continue;
     }
     if (upperLine.startsWith('COMMANDER')) {
@@ -142,9 +153,13 @@ export function parseDecklist(decklist) {
     if (currentSection === 'commander') {
       result.isCommander = true;
     }
+    if (currentSection === 'sideboard') result.isSideboard = true;
 
+    // Main and sideboard copies of one card stay separate rows (the text and
+    // export keep the split); processCards sums them for marking.
     const normalizedName = result.name.toLowerCase().trim();
-    const existingCard = cards.find(c => c.name.toLowerCase().trim() === normalizedName);
+    const existingCard = cards.find(c => c.name.toLowerCase().trim() === normalizedName
+      && !!c.isSideboard === !!result.isSideboard);
     if (existingCard) {
       // Same section twice = separate printings (e.g. Archidekt basics per set): sum them.
       // Commander also listed in Deck = one card: flag it, don't double-count.
@@ -171,18 +186,43 @@ export function parseDecklist(decklist) {
 /**
  * Serialize cards to decklist text with a Commander/Deck section structure.
  * The Commander section is the lossless carrier for N commander flags (#147);
- * it is omitted when no card is flagged.
- * @param {Array} cards - Card objects ({ name, quantity, isCommander })
+ * it is omitted when no card is flagged. A trailing Sideboard section carries
+ * isSideboard rows (#29).
+ * @param {Array} cards - Card objects ({ name, quantity, isCommander, isSideboard? })
  * @returns {string}
  */
 export function cardsToDecklistText(cards) {
   const line = (c) => `${c.quantity} ${c.name}`;
-  const commanders = (cards || []).filter(c => c.isCommander);
-  const rest = (cards || []).filter(c => !c.isCommander);
-  if (commanders.length === 0) return rest.map(line).join('\n');
-  const head = ['Commander', ...commanders.map(line)];
-  if (rest.length === 0) return head.join('\n');
-  return [...head, '', 'Deck', ...rest.map(line)].join('\n');
+  const side = (cards || []).filter(c => c.isSideboard);
+  const commanders = (cards || []).filter(c => c.isCommander && !c.isSideboard);
+  const rest = (cards || []).filter(c => !c.isCommander && !c.isSideboard);
+  const sections = [];
+  if (commanders.length > 0) {
+    sections.push(['Commander', ...commanders.map(line)]);
+    if (rest.length > 0) sections.push(['Deck', ...rest.map(line)]);
+  } else if (rest.length > 0) {
+    sections.push(rest.map(line));
+  }
+  if (side.length > 0) sections.push(['Sideboard', ...side.map(line)]);
+  return sections.map(s => s.join('\n')).join('\n\n');
+}
+
+/**
+ * A deck's cards as one row per card (#29): a card's main and sideboard rows
+ * share the deck's mark, so marking, removals and returns see their summed
+ * copies. The first row's other fields win; the inputs are not mutated.
+ * @param {Array} cards - a deck's card rows
+ * @returns {Array}
+ */
+export function markingCards(cards) {
+  const byName = new Map();
+  for (const card of cards || []) {
+    const key = normalizeCardName(card.name);
+    const hit = byName.get(key);
+    if (hit) hit.quantity += card.quantity || 1;
+    else byName.set(key, { ...card, quantity: card.quantity || 1 });
+  }
+  return [...byName.values()];
 }
 
 /**

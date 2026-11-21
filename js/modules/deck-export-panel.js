@@ -40,7 +40,7 @@ function view(deck, result, sourced, uid) {
 
   if (!result.changes) return `<div class="wa-stack wa-gap-m">${picker}${notice}${full}</div>`;
 
-  const none = result.changes.commander.length === 0 && result.changes.deck.length === 0;
+  const none = Object.values(result.changes).every((list) => list.length === 0);
   const changes = none
     ? `<p>Nothing to change: the ${siteName} deck already matches ${escapeHtml(deck.name)}.</p>`
     : listBlock(`${uid}-changes`, `Changes to make on ${siteName}`,
