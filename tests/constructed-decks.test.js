@@ -146,3 +146,23 @@ test('a stale child mark counts a variant\'s main and sideboard copies', () => {
 	assert.deepEqual(openRemovals(next).filter((r) => r.cardName === 'Sol Ring')
 		.map((r) => [r.deckId, r.stillInDeck, removalOpenCopies(r)]), [['G1', true, 2]]);
 });
+
+test('the printable guide shows no bracket for a Constructed deck', async () => {
+	const store = new Map();
+	globalThis.localStorage ??= {
+		getItem: (k) => (store.has(k) ? store.get(k) : null),
+		setItem: (k, v) => store.set(k, String(v)),
+		removeItem: (k) => store.delete(k),
+	};
+	// escapeHtml's text node: enough of document for the guide's markup
+	globalThis.document ??= { createElement: () => ({
+		set textContent(t) { this.innerHTML = String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); },
+	}) };
+	const { generatePrintableGuide } = await import('../js/modules/export.js');
+	const prism = twoDecks();
+	prism.decks.push(createDeck({ name: 'Krenko', bracket: 4, color: '#00FF00', stripePosition: 3,
+		cards: [{ ...row('Krenko, Mob Boss', 1), isCommander: true }] }));
+	const html = generatePrintableGuide(prism);
+	assert.match(html, /Krenko \(Bracket 4\)/);
+	assert.doesNotMatch(html, /Burn[^<]*Bracket/);
+});

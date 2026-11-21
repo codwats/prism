@@ -132,6 +132,11 @@ export function commanderNames(deck) {
 	return (deck.cards || []).filter(c => c.isCommander).map(c => c.name).sort();
 }
 
+// A deck with no commander is Constructed (#29): not stored, no bracket.
+export function isConstructedDeck(deck) {
+	return !(deck.cards || []).some(c => c.isCommander);
+}
+
 /**
  * One-time normalization for decks that carry only the legacy commander
  * scalar (form-added, typed name absent from the pasted list). Flags the
