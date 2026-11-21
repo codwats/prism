@@ -659,11 +659,9 @@ CREATE POLICY "Users submit artworks for review"
     -- The image must sit in the caller's own folder: an admin deleting the row
     -- also removes its image, so a borrowed path would delete someone else's.
     AND (storage.foldername(image_path))[1] = auth.uid()::text
-    -- 10 pending per account (#437); each one emails every admin. Approved and
-    -- rejected rows don't count. shortcut: concurrent inserts can overshoot by a
-    -- few; fine for a review-email ceiling, use a locking RPC if it matters.
-    AND (SELECT count(*) FROM gallery_artworks a
-          WHERE a.uploader_id = auth.uid() AND a.status = 'pending') < 10
+    -- The 10-pending cap (#437) is the gallery_artworks_pending_cap trigger: a
+    -- count here sees the statement-start snapshot, so one multi-row INSERT
+    -- would pass it whole.
   );
 
 DROP POLICY IF EXISTS "Admins moderate artworks" ON gallery_artworks;
@@ -1723,6 +1721,39 @@ BEGIN;
   CREATE TRIGGER gallery_artworks_text_lengths
     BEFORE INSERT OR UPDATE OF title, description, artist_name, original_card_name ON gallery_artworks
     FOR EACH ROW EXECUTE FUNCTION gallery_artworks_check_text_lengths();
+COMMIT;
+
+-- ============================================
+-- MIGRATION: Gallery pending-upload cap (#437)
+-- ============================================
+-- At most 10 pending artworks per uploader; each one emails every admin.
+-- Approved and rejected rows don't count. A row-level BEFORE trigger, not the
+-- INSERT policy: it sees the rows the same statement already inserted, so a
+-- multi-row INSERT past the cap fails and rolls back whole. The resubmit RPC
+-- checks the same cap. shortcut: two concurrent transactions can still
+-- overshoot by a few; fine for a review-email ceiling, add a lock if it matters.
+-- Errors: 42501 (the client shows the cap message). Tests: tests/gallery-artists.sql.
+BEGIN;
+  CREATE OR REPLACE FUNCTION gallery_artworks_check_pending_cap()
+    RETURNS trigger
+    LANGUAGE plpgsql
+    SET search_path = public, pg_temp
+  AS $$
+  BEGIN
+    IF NEW.status = 'pending' AND (
+      SELECT count(*) FROM gallery_artworks a
+      WHERE a.uploader_id = NEW.uploader_id AND a.status = 'pending'
+    ) >= 10 THEN
+      RAISE EXCEPTION 'Already 10 uploads waiting for review' USING ERRCODE = 'insufficient_privilege';
+    END IF;
+    RETURN NEW;
+  END;
+  $$;
+
+  DROP TRIGGER IF EXISTS gallery_artworks_pending_cap ON gallery_artworks;
+  CREATE TRIGGER gallery_artworks_pending_cap
+    BEFORE INSERT ON gallery_artworks
+    FOR EACH ROW EXECUTE FUNCTION gallery_artworks_check_pending_cap();
 COMMIT;
 
 -- ============================================

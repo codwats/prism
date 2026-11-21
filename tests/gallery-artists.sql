@@ -1850,4 +1850,34 @@ BEGIN
     'a legacy over-length row must still take likes';
 END $$;
 
+-- ---- One multi-row INSERT: 10 fit, 11 roll back whole ----
+INSERT INTO auth.users (id, email, email_confirmed_at) VALUES
+  ('43700000-0000-0000-0000-00000000000c', 'cap-c@example.invalid', now()),
+  ('43700000-0000-0000-0000-00000000000e', 'cap-e@example.invalid', now());
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', '43700000-0000-0000-0000-00000000000c', true);
+DO $$
+BEGIN
+  INSERT INTO public.gallery_artworks (title, type, uploader_id, image_path)
+  SELECT 'bulk ' || i, 'proxy', auth.uid(), auth.uid()::text || '/bulk' || i || '.png'
+  FROM generate_series(1, 10) AS i;
+  ASSERT (SELECT count(*) FROM public.gallery_artworks WHERE uploader_id = auth.uid() AND status = 'pending') = 10,
+    'one statement of 10 uploads must fit an empty queue';
+END $$;
+
+SELECT set_config('request.jwt.claim.sub', '43700000-0000-0000-0000-00000000000e', true);
+DO $$
+BEGIN
+  BEGIN
+    INSERT INTO public.gallery_artworks (title, type, uploader_id, image_path)
+    SELECT 'bulk ' || i, 'proxy', auth.uid(), auth.uid()::text || '/bulk' || i || '.png'
+    FROM generate_series(1, 11) AS i;
+    RAISE EXCEPTION 'one statement of 11 uploads was accepted';
+  EXCEPTION WHEN insufficient_privilege THEN NULL;
+  END;
+  ASSERT (SELECT count(*) FROM public.gallery_artworks WHERE uploader_id = auth.uid()) = 0,
+    'a refused multi-row upload must insert nothing';
+END $$;
+RESET ROLE;
+
 ROLLBACK;

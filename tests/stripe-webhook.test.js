@@ -51,6 +51,8 @@ for (const type of ['updated', 'deleted', 'paused', 'resumed']) {
   endpointTest(`customer.subscription.${type} upserts the row only if older than the event`, async t => {
     const requests = await deliver(t, { type: `customer.subscription.${type}`, data: { object: sub } });
     const [insert, update] = writes(requests);
+    // Insert-if-missing: a stored row must never be overwritten by the insert
+    assert.equal(insert.options.headers.Prefer, 'resolution=ignore-duplicates');
     assert.deepEqual(JSON.parse(insert.options.body), row);
     assert.equal(update.options.method, 'PATCH');
     assert.match(update.url, new RegExp(`user_id=eq\\.u1&updated_at=lt\\.${encodeURIComponent(row.updated_at)}$`));
