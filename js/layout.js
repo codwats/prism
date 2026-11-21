@@ -43,6 +43,7 @@ const NAV_LINKS = [
 const EXTRAS_LINKS = [
   { href: 'swap-planner.html', label: 'Swap Planner', icon: 'right-left' },
   { href: 'mpc-stripes.html', label: 'MPC Stripes', icon: 'wand-magic-sparkles' },
+  { href: 'compare-prisms.html', label: 'Compare PRISMs', icon: 'code-compare' },
 ];
 
 /**
@@ -90,6 +91,8 @@ async function updateNavExtras() {
   const entitled = user ? await isEntitled() : false;
   if (user !== getCurrentUser()) return;
   group.hidden = !entitled;
+  const compare = document.getElementById('btn-compare-prisms');
+  if (compare) compare.hidden = !entitled;
   if (!entitled) return;
 
   const badge = document.getElementById('nav-extras-reuse');
