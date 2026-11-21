@@ -390,7 +390,8 @@ function buildPrismFromRow(prism) {
         quantity: card.quantity,
         isCommander: card.is_commander,
         isBasicLand: card.is_basic_land,
-        ...(card.sleeve ? { sleeve: card.sleeve } : {})
+        ...(card.sleeve ? { sleeve: card.sleeve } : {}),
+        ...(card.is_sideboard ? { isSideboard: true } : {})
       }))
     })).sort((a, b) => a.stripePosition - b.stripePosition)
   };
@@ -541,7 +542,8 @@ const PRISM_SELECT = `
       quantity,
       is_commander,
       is_basic_land,
-      sleeve
+      sleeve,
+      is_sideboard
     )
   )
 `;
@@ -599,6 +601,7 @@ async function replaceDeckCardsFallback(supabase, deckId, localCards, deckUpdate
       is_commander: !!card.isCommander,
       is_basic_land: !!card.isBasicLand,
       sleeve: card.sleeve || null,
+      is_sideboard: !!card.isSideboard,
       created_at: deckUpdatedAt
     })));
 
@@ -824,7 +827,8 @@ async function savePrismToSupabase(prism) {
             quantity: card.quantity || 1,
             is_commander: card.isCommander || false,
             is_basic_land: card.isBasicLand || false,
-            sleeve: card.sleeve || null
+            sleeve: card.sleeve || null,
+            is_sideboard: !!card.isSideboard
           })),
           p_created_at: deckUpdatedAt
         });
