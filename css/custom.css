@@ -894,6 +894,12 @@ wa-page[view='desktop'] [data-toggle-nav] {
 #decks-list[hidden] {
   display: none;
 }
+/* Constructed (#29) hides the commander fields and bracket; a component's :host display would beat [hidden] */
+#deck-form wa-radio-group[hidden],
+#deck-form wa-input[hidden],
+#deck-form wa-switch[hidden] {
+  display: none;
+}
 
 .deck-card {
   border-bottom: 1px solid var(--wa-color-surface-border);

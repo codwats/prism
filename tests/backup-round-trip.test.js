@@ -64,6 +64,14 @@ for (const preserveId of [true, false]) {
 	});
 }
 
+test('a backup keeps a card\'s main and Sideboard rows apart (#29)', () => {
+	const p = prism();
+	p.decks[1].cards.push({ name: 'Mind Stone', quantity: 2, isCommander: false, isBasicLand: false, isSideboard: true });
+	const restored = buildPrismFromJson(JSON.parse(exportToJSON(p)));
+	assert.deepEqual(restored.decks[1].cards.map((c) => [c.name, c.quantity, !!c.isSideboard]),
+		[['Mind Stone', 1, false], ['Mind Stone', 2, true]]);
+});
+
 test('malformed Planned swaps are dropped on import', () => {
 	const json = JSON.parse(exportToJSON(prism()));
 	json.prism.plannedSwaps.push(

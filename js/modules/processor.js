@@ -3,7 +3,7 @@
  * Handles card deduplication and stripe assignment across multiple decks
  */
 
-import { normalizeCardName } from "./parser.js";
+import { normalizeCardName, markingCards } from "./parser.js";
 
 /**
  * Default color palette - paint pen colors
@@ -289,7 +289,7 @@ export function processCards(prism) {
 	for (const deck of decks) {
 		const group = groupOf(deck, groupMap);
 
-		for (const card of deck.cards) {
+		for (const card of markingCards(deck.cards)) {
 			const normalizedName = normalizeCardName(card.name);
 
 			if (!cardMap.has(normalizedName)) {
@@ -958,10 +958,10 @@ export function updateDeckInPrism(prism, deckId, updates) {
  * @returns {Array} Array of removed card names
  */
 export function calculateRemovedCards(oldCards, newCards) {
-	const newByName = new Map(newCards.map((c) => [normalizeCardName(c.name), c]));
+	const newByName = new Map(markingCards(newCards).map((c) => [normalizeCardName(c.name), c]));
 	const removedCards = [];
 
-	for (const card of oldCards) {
+	for (const card of markingCards(oldCards)) {
 		const normalizedName = normalizeCardName(card.name);
 		const newCard = newByName.get(normalizedName);
 		const previousQuantity = card.quantity || 1;

@@ -10,7 +10,7 @@
  */
 
 import { processCards } from "./processor.js";
-import { isBasicLand, normalizeCardName } from "./parser.js";
+import { isBasicLand, normalizeCardName, markingCards } from "./parser.js";
 import { deckColorIdentity } from "./scryfall.js";
 import { canSleeveSwap } from "./swap.js";
 
@@ -69,7 +69,7 @@ export function rankComparables(prism, incoming, attributes, jobIndex) {
   const candidates = new Map();
   for (const deck of prism.decks) {
     if (!eligibleIds.has(deck.id)) continue;
-    for (const card of deck.cards) {
+    for (const card of markingCards(deck.cards)) { // main + Sideboard copies are one card (#29)
       if (card.isCommander || card.isBasicLand || card.quantity !== 1) continue;
       if (!candidates.has(card.name)) candidates.set(card.name, new Set());
       candidates.get(card.name).add(deck.id);

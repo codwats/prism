@@ -49,6 +49,7 @@ CREATE TABLE IF NOT EXISTS deck_cards (
   is_commander BOOLEAN DEFAULT false,
   is_basic_land BOOLEAN DEFAULT false,
   sleeve TEXT DEFAULT NULL,
+  is_sideboard BOOLEAN DEFAULT false,
   created_at TIMESTAMPTZ DEFAULT now()
 );
 
@@ -192,7 +193,7 @@ AS $$
 BEGIN
   DELETE FROM deck_cards WHERE deck_id = p_deck_id;
 
-  INSERT INTO deck_cards (deck_id, card_name, quantity, is_commander, is_basic_land, sleeve, created_at)
+  INSERT INTO deck_cards (deck_id, card_name, quantity, is_commander, is_basic_land, sleeve, is_sideboard, created_at)
   SELECT
     p_deck_id,
     (c->>'card_name')::TEXT,
@@ -200,6 +201,7 @@ BEGIN
     COALESCE((c->>'is_commander')::BOOLEAN, false),
     COALESCE((c->>'is_basic_land')::BOOLEAN, false),
     c->>'sleeve',
+    COALESCE((c->>'is_sideboard')::BOOLEAN, false),
     p_created_at
   FROM jsonb_array_elements(p_cards) AS c
   WHERE jsonb_array_length(p_cards) > 0;
@@ -1721,4 +1723,17 @@ BEGIN;
   CREATE TRIGGER gallery_artworks_text_lengths
     BEFORE INSERT OR UPDATE OF title, description, artist_name, original_card_name ON gallery_artworks
     FOR EACH ROW EXECUTE FUNCTION gallery_artworks_check_text_lengths();
+COMMIT;
+
+-- ============================================
+-- MIGRATION: Add deck_cards.is_sideboard (#29)
+-- ============================================
+-- A Constructed deck's Sideboard card: it shares the deck box, so it gets the
+-- deck's mark; the flag only keeps the main/side split for the decklist text
+-- and export. Rides the deck row, so it merges with the deck, like sleeve.
+-- replace_deck_cards writes it. Schema-first: PRISM_SELECT reads the column.
+-- Safe to re-run (IF NOT EXISTS).
+BEGIN;
+  ALTER TABLE deck_cards
+    ADD COLUMN IF NOT EXISTS is_sideboard BOOLEAN DEFAULT false;
 COMMIT;

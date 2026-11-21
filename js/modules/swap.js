@@ -6,7 +6,7 @@
  */
 
 import { processCards } from "./processor.js";
-import { normalizeCardName } from "./parser.js";
+import { normalizeCardName, markingCards } from "./parser.js";
 import { isCardDone, markSingleBatchDone } from "../core/utils.js";
 
 const sameName = (a, b) => normalizeCardName(a) === normalizeCardName(b);
@@ -107,7 +107,7 @@ export function removalMark(prism, before, deck, cardName, previousQuantity, new
   if (flagged?.stillInDeck && removalOpenCopies(flagged) > 0) return newQuantity > 0 ? null : own;
   if (childMarkCopies(findCard(before, cardName), deck.id) > 0) return own;
   if (prism.decks.some((d) => d.id !== deck.id && d.splitGroupId === deck.splitGroupId
-    && d.cards.some((c) => sameName(c.name, cardName) && (c.quantity || 1) >= previousQuantity))) return null;
+    && markingCards(d.cards).some((c) => sameName(c.name, cardName) && c.quantity >= previousQuantity))) return null;
   const group = (prism.splitGroups || []).find((g) => g.id === deck.splitGroupId);
   return group ? { deckName: group.name, deckColor: group.sideAColor, stripePosition: group.sideAPosition } : own;
 }
@@ -130,7 +130,7 @@ export function trackStaleChildMarks(prism, before, now) {
     const afterCard = findCard(after, card.name);
     for (const deck of prism.decks) {
       // A deck no longer split (Unsplit, #428) still has its old child marks painted.
-      const deckCard = deck.cards.find((c) => sameName(c.name, card.name));
+      const deckCard = markingCards(deck.cards).find((c) => sameName(c.name, card.name)); // main + Sideboard (#29)
       if (!deckCard) continue;
       const needed = childMarkCopies(afterCard, deck.id);
       // Only copies still in the deck: a copy that left has its own removal row.
@@ -186,7 +186,7 @@ export function markTallies(prism) {
 // mark is still on the sleeve and valid again (#307). Removes the rows from
 // prism.removedCards and returns them.
 export function clearReturnedRemovals(prism, deck) {
-  const quantities = new Map(deck.cards.map((c) => [normalizeCardName(c.name), c.quantity || 1]));
+  const quantities = new Map(markingCards(deck.cards).map((c) => [normalizeCardName(c.name), c.quantity]));
   const position = getRemovalStripePosition(prism, deck);
   const cleared = [];
   prism.removedCards = (prism.removedCards || []).filter((rc) => {
@@ -343,15 +343,25 @@ export function applySwap(prism, { outgoing, incoming, deckIds, copies = 1, slee
 
   for (const deckId of deckIds) {
     const deck = next.decks.find((d) => d.id === deckId);
-    const out = deck?.cards.find((c) => sameName(c.name, outgoing));
-    if (!out || out.quantity < copies) {
+    // A card's main and Sideboard rows (#29) are one card with one mark:
+    // copies leave the main row first.
+    const outRows = (deck?.cards || []).filter((c) => sameName(c.name, outgoing))
+      .sort((a, b) => !!a.isSideboard - !!b.isSideboard);
+    const out = outRows[0];
+    const previousQuantity = outRows.reduce((sum, c) => sum + (c.quantity || 1), 0);
+    if (!out || previousQuantity < copies) {
       throw new Error(`${deck?.name ?? deckId} doesn't run ${copies} ${outgoing}.`);
     }
-    if (out.isCommander) throw new Error(`${outgoing} is ${deck.name}'s commander.`);
+    if (outRows.some((c) => c.isCommander)) throw new Error(`${outgoing} is ${deck.name}'s commander.`);
 
-    const previousQuantity = out.quantity;
-    out.quantity -= copies;
-    if (out.quantity === 0) deck.cards = deck.cards.filter((c) => c !== out);
+    let left = copies;
+    for (const r of outRows) {
+      const take = Math.min(left, r.quantity || 1);
+      r.quantity = (r.quantity || 1) - take;
+      left -= take;
+    }
+    const newQuantity = previousQuantity - copies;
+    deck.cards = deck.cards.filter((c) => !outRows.includes(c) || c.quantity > 0);
     const existing = deck.cards.find((c) => sameName(c.name, incoming));
     if (existing) existing.quantity += copies;
     else deck.cards.push({
@@ -361,7 +371,7 @@ export function applySwap(prism, { outgoing, incoming, deckIds, copies = 1, slee
     deck.updatedAt = now;
     deck.cardsUpdatedAt = now;
 
-    const mark = !sleeveBatch && removalMark(next, before, deck, out.name, previousQuantity, out.quantity);
+    const mark = !sleeveBatch && removalMark(next, before, deck, out.name, previousQuantity, newQuantity);
     if (mark) {
       trackRemovedCard(next, {
         cardName: out.name,
@@ -369,8 +379,8 @@ export function applySwap(prism, { outgoing, incoming, deckIds, copies = 1, slee
         ...mark,
         removedAt: now,
         previousQuantity,
-        newQuantity: out.quantity,
-        isCommander: !!out.isCommander,
+        newQuantity,
+        isCommander: false, // a commander throws above
       });
     }
     if (!sleeveBatch) returned.push(...clearReturnedRemovals(next, deck));

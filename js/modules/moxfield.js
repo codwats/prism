@@ -92,6 +92,20 @@ export function transformMoxfieldDeck(moxfieldDeck) {
     }
   }
 
+  // A deck with no commander is Constructed (#29): its sideboard shares the
+  // deck box. A Commander deck's sideboard is usually a maybe pile.
+  if (!cards.some(c => c.isCommander)) {
+    for (const cardData of Object.values(moxfieldDeck.boards?.sideboard?.cards || {})) {
+      cards.push({
+        name: cardData.card.name,
+        quantity: cardData.quantity || 1,
+        isCommander: false,
+        isBasicLand: isBasicLandCard(cardData.card),
+        isSideboard: true
+      });
+    }
+  }
+
   return {
     name: moxfieldDeck.name || 'Imported Deck',
     format: moxfieldDeck.format || 'commander',

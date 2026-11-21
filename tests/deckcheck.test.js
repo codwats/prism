@@ -42,6 +42,15 @@ test('transformDeckCheckDeck: commanders flagged, basics detected, considering s
 	]);
 });
 
+test('transformDeckCheckDeck: a deck with no commander keeps its sideboard flagged; a Commander deck drops it (#29)', () => {
+	const sideboard = { count: 2, cards: { s: { ...entry('Duress', 2, 'Sorcery'), board: 'sideboard' } } };
+	const constructed = transformDeckCheckDeck({ ...sample, boards: { mainboard: sample.boards.mainboard, sideboard } });
+	assert.deepEqual(constructed.cards.filter((c) => c.isSideboard),
+		[{ name: 'Duress', quantity: 2, isCommander: false, isBasicLand: false, isSideboard: true }]);
+	const commander = transformDeckCheckDeck({ ...sample, boards: { ...sample.boards, sideboard } });
+	assert.ok(commander.cards.every((c) => !c.isSideboard && c.name !== 'Duress'));
+});
+
 test('resolveDeckSource fetches DeckCheck through its proxy; export treats it as unsourced', async () => {
 	const realFetch = globalThis.fetch;
 	globalThis.fetch = async (url, init) => {

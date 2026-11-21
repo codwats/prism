@@ -14,6 +14,7 @@ import {
   syncCommanderFieldsFromText,
   applyCommanderFieldsToText,
   handleTwoCommandersToggle,
+  setDeckFormat,
   commanderRefs,
   openAddDeckDialog,
   closeDeckDialog,
@@ -98,6 +99,7 @@ export function setupEventListeners() {
   refs.field1?.addEventListener('change', () => applyCommanderFieldsToText(refs));
   refs.field2?.addEventListener('change', () => applyCommanderFieldsToText(refs));
   refs.toggle?.addEventListener('change', () => handleTwoCommandersToggle(refs));
+  state.elements.deckFormat?.addEventListener('change', () => setDeckFormat(state.elements.deckFormat.value));
 
   // Dedicated commander copies — per-PRISM synced setting; write path per #145
   // (flag + its own merge timestamp + prism.updatedAt, mirroring mark-toggle)
