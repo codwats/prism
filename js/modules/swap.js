@@ -78,10 +78,12 @@ export function getRemovalStripePosition(prism, deck) {
   return group?.sideAPosition ?? null;
 }
 
+const isChildMark = (s, deckId) => s.side === 'b' && s.deckId === deckId && s.markType !== 'membership';
+
 // Copies of a card that carry a split variant's child mark (Side B stripe or dot).
 function childMarkCopies(card, deckId) {
   return (card?.batches || [])
-    .filter((b) => b.stripes.some((s) => s.side === 'b' && s.deckId === deckId && s.markType !== 'membership'))
+    .filter((b) => b.stripes.some((s) => isChildMark(s, deckId)))
     .reduce((n, b) => n + b.copyCount, 0);
 }
 
@@ -127,12 +129,15 @@ export function trackStaleChildMarks(prism, before, now) {
   for (const card of before) {
     const afterCard = findCard(after, card.name);
     for (const deck of prism.decks) {
-      const deckCard = deck.splitGroupId && deck.cards.find((c) => sameName(c.name, card.name));
+      // A deck no longer split (Unsplit, #428) still has its old child marks painted.
+      const deckCard = deck.cards.find((c) => sameName(c.name, card.name));
       if (!deckCard) continue;
       const needed = childMarkCopies(afterCard, deck.id);
       // Only copies still in the deck: a copy that left has its own removal row.
       const stale = Math.min(childMarkCopies(card, deck.id), deckCard.quantity || 1) - needed;
       if (stale <= 0) continue;
+      // Slot and color as painted: an unsplit deck has moved to the group's Side A.
+      const mark = card.batches.flatMap((b) => b.stripes).find((s) => isChildMark(s, deck.id));
       const existing = removalRowFor(prism, card.name, deck.id);
       let left = 0;
       if (existing && !existing.stillInDeck) {
@@ -143,8 +148,8 @@ export function trackStaleChildMarks(prism, before, now) {
         cardName: card.name,
         deckId: deck.id,
         deckName: deck.name,
-        deckColor: deck.color,
-        stripePosition: getRemovalStripePosition(prism, deck),
+        deckColor: mark.color,
+        stripePosition: mark.position,
         removedAt: now,
         previousQuantity: needed + stale + left,
         newQuantity: needed,
