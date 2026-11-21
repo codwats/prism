@@ -1,0 +1,519 @@
+// #416: scripted two-device interleavings through the real sync paths
+// (forceSyncCurrentPrism = the debounced save sync, syncWithSupabase = page
+// load) against an in-memory cloud. Each scenario asks whether an edit made on
+// one device is lost, or a removed thing comes back, once both have synced.
+// Skipped tests reproduce open bugs; the skip names the issue.
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { on, reset, cloudRow, failCardsOnce } from './helpers/two-devices.mjs';
+
+const { ensureAuthReady } = await import('../js/modules/auth.js');
+const S = await import('../js/modules/storage.js');
+const P = await import('../js/modules/processor.js');
+const { trackRemovedCard, removalMark, openRemovals } = await import('../js/modules/swap.js');
+const { queueSwap, removeSwap } = await import('../js/modules/swap-queue.js');
+
+await ensureAuthReady();
+
+const T = (min) => new Date(Date.parse('2026-11-01T10:00:00.000Z') + min * 60000).toISOString();
+const card = (name, quantity = 1) => ({ name, quantity, isCommander: false, isBasicLand: false });
+const sync = () => S.forceSyncCurrentPrism();
+const load = () => S.syncWithSupabase();
+const prism = () => S.getCurrentPrism();
+const deck = (p, name) => p.decks.find((d) => d.name === name);
+const cardNames = (d) => d.cards.map((c) => c.name).sort();
+const flush = () => new Promise((resolve) => setImmediate(resolve));
+
+// User actions, written the way build.html writes them, on the active device.
+function editCards(name, cards) {
+	const p = prism();
+	S.savePrism(P.updateDeckInPrism(p, deck(p, name).id, { cards }));
+}
+
+function addDeck(name, cards) {
+	const p = prism();
+	S.savePrism(P.addDeckToPrism(p, P.createDeck({
+		name, bracket: 3, color: P.getNextColor(p), stripePosition: P.getNextStripePosition(p), cards,
+	})));
+}
+
+// handleDeleteConfirm: a removal row per card, then the deck goes.
+function deleteDeck(name) {
+	let p = prism();
+	const d = deck(p, name);
+	const before = d.splitGroupId ? P.processCards(p) : [];
+	const now = new Date().toISOString();
+	for (const c of d.cards) {
+		const mark = removalMark(p, before, d, c.name, c.quantity, 0);
+		if (mark) trackRemovedCard(p, { cardName: c.name, deckId: d.id, ...mark, removedAt: now, previousQuantity: c.quantity, newQuantity: 0, isCommander: false });
+	}
+	p = d.splitGroupId ? P.removeSplitChild(p, d.id) : P.removeDeckFromPrism(p, d.id);
+	S.savePrism(p);
+}
+
+// setCardsMarked: tombstones before the save, then both timestamps.
+function setMarked(keys, marked) {
+	const p = prism();
+	if (marked) {
+		p.markedCards = [...new Set([...p.markedCards, ...keys])];
+	} else {
+		p.markedCards = p.markedCards.filter((k) => !keys.includes(k));
+		S.recordUnmarkedCards(p.id, keys);
+	}
+	const now = new Date().toISOString();
+	p.updatedAt = now;
+	p.markedCardsUpdatedAt = now;
+	S.savePrism(p);
+}
+
+// The PRISM menu's Dedicated commander copies checkbox.
+function setDedicated(value) {
+	const p = prism();
+	const now = new Date().toISOString();
+	p.useDedicatedCommanderCopies = value;
+	p.useDedicatedCommanderCopiesUpdatedAt = now;
+	p.updatedAt = now;
+	S.savePrism(p);
+}
+
+function rename(name) {
+	const p = prism();
+	p.name = name;
+	p.updatedAt = new Date().toISOString();
+	S.savePrism(p);
+}
+
+// Shared PRISM synced to both devices: Alpha (slot 1) and Beta (slot 2) both
+// run Sol Ring. A uploads it at T(0), B pulls it at T(1).
+async function seed({ marked = [], split = 0 } = {}) {
+	reset();
+	await on('A', T(0), async () => {
+		let p = P.createPrism('Shared');
+		p = P.addDeckToPrism(p, P.createDeck({ name: 'Alpha', bracket: 3, color: '#FF0000', stripePosition: 1, cards: [card('Sol Ring'), card('Alpha Card')] }));
+		p = P.addDeckToPrism(p, P.createDeck({ name: 'Beta', bracket: 3, color: '#00FF00', stripePosition: 2, cards: [card('Sol Ring'), card('Beta Card')] }));
+		if (split) p = P.splitDeck(p, deck(p, 'Alpha').id, split);
+		p.markedCards = marked;
+		S.savePrism(p);
+		S.setCurrentPrism(p.id);
+		await sync();
+	});
+	await on('B', T(1), load);
+	return prism().id;
+}
+
+// Slot invariants a merge must keep: one occupant per Side A slot, and no
+// split group left with a single variant (removeSplitChild unsplits at 1).
+function assertStructure(p) {
+	const sideA = [
+		...p.decks.filter((d) => !d.splitGroupId).map((d) => d.stripePosition),
+		...p.splitGroups.map((g) => g.sideAPosition),
+	];
+	assert.equal(new Set(sideA).size, sideA.length, `two occupants share a Side A slot: ${sideA}`);
+	for (const g of p.splitGroups) {
+		assert.ok(g.childDeckIds.length >= 2, `split group "${g.name}" was left with ${g.childDeckIds.length} variant`);
+	}
+	for (const d of p.decks) {
+		if (d.splitGroupId) assert.ok(p.splitGroups.some((g) => g.id === d.splitGroupId), `"${d.name}" points at a deleted split group`);
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Offline edits on both devices
+// ---------------------------------------------------------------------------
+
+test('offline edits to different decks on each device both survive', async () => {
+	const id = await seed();
+	await on('A', T(10), () => editCards('Alpha', [card('Sol Ring'), card('Alpha New')]));
+	await on('B', T(11), () => editCards('Beta', [card('Sol Ring'), card('Beta New')]));
+	await on('A', T(12), sync);
+	await on('B', T(13), sync);
+	await on('A', T(14), load);
+
+	for (const name of ['A', 'B']) {
+		await on(name, T(15), () => {
+			assert.deepEqual(cardNames(deck(prism(), 'Alpha')), ['Alpha New', 'Sol Ring'], name);
+			assert.deepEqual(cardNames(deck(prism(), 'Beta')), ['Beta New', 'Sol Ring'], name);
+		});
+	}
+	assert.equal(cloudRow(id).decks.length, 2);
+});
+
+test('the same deck edited on both devices converges on the later edit', async () => {
+	await seed();
+	await on('A', T(10), () => editCards('Alpha', [card('From A')]));
+	await on('B', T(11), () => editCards('Alpha', [card('From B')]));
+	// The earlier edit syncs last, so it holds the cloud for a round.
+	await on('B', T(12), sync);
+	await on('A', T(13), sync);
+	await on('B', T(14), load);
+	await on('A', T(15), load);
+
+	for (const name of ['A', 'B']) {
+		await on(name, T(16), () => assert.deepEqual(cardNames(deck(prism(), 'Alpha')), ['From B'], name));
+	}
+});
+
+test('a deck added on each device while offline keeps both decks', async () => {
+	await seed();
+	await on('A', T(10), () => addDeck('Gamma', [card('Gamma Card')]));
+	await on('B', T(11), () => addDeck('Delta', [card('Delta Card')]));
+	await on('A', T(12), sync);
+	await on('B', T(13), sync);
+	await on('A', T(14), load);
+
+	await on('A', T(15), () => assert.deepEqual(prism().decks.map((d) => d.name).sort(), ['Alpha', 'Beta', 'Delta', 'Gamma']));
+});
+
+test('decks added on each device while offline get different slots', { skip: '#505' }, async () => {
+	await seed();
+	await on('A', T(10), () => addDeck('Gamma', [card('Gamma Card')]));
+	await on('B', T(11), () => addDeck('Delta', [card('Delta Card')]));
+	await on('A', T(12), sync);
+	await on('B', T(13), sync);
+	await on('A', T(14), load);
+
+	// Both took slot 3, the next free one on each device.
+	await on('A', T(15), () => assertStructure(prism()));
+});
+
+test('a PRISM rename on one device survives a later mark on the other', { skip: '#506' }, async () => {
+	await seed();
+	await on('A', T(10), () => rename('Renamed on A'));
+	await on('B', T(11), () => setMarked(['Sol Ring'], true));
+	await on('A', T(12), sync);
+	await on('B', T(13), sync);
+	await on('A', T(14), load);
+
+	for (const name of ['A', 'B']) {
+		await on(name, T(15), () => assert.equal(prism().name, 'Renamed on A', name));
+	}
+});
+
+// ---------------------------------------------------------------------------
+// Deletions vs edits
+// ---------------------------------------------------------------------------
+
+test('a deck deleted on A and edited later on B comes back with the edit', async () => {
+	const id = await seed();
+	await on('A', T(10), () => deleteDeck('Beta'));
+	await on('A', T(11), sync);
+	await on('B', T(12), () => editCards('Beta', [card('Sol Ring'), card('Beta New')]));
+	await on('B', T(13), sync);
+	await on('A', T(14), load);
+
+	await on('A', T(15), () => assert.deepEqual(cardNames(deck(prism(), 'Beta')), ['Beta New', 'Sol Ring']));
+	assert.ok(cloudRow(id).decks.some((d) => d.name === 'Beta'));
+});
+
+test('a deck that comes back from the other device does not keep its delete-time Marks to Clear', { skip: '#507' }, async () => {
+	await seed();
+	await on('A', T(10), () => deleteDeck('Beta'));
+	await on('A', T(11), sync);
+	await on('B', T(12), () => editCards('Beta', [card('Sol Ring'), card('Beta New')]));
+	await on('B', T(13), sync);
+	await on('A', T(14), load);
+
+	await on('A', T(15), () => {
+		const p = prism();
+		const beta = deck(p, 'Beta');
+		assert.ok(beta, 'Beta came back');
+		// Marks to Clear would have the user strip Beta's stripe off sleeves Beta still uses.
+		assert.deepEqual(openRemovals(p).filter((r) => r.deckId === beta.id).map((r) => r.cardName), []);
+	});
+});
+
+test('a deck edited on B and deleted later on A stays deleted once both have synced', async () => {
+	const id = await seed();
+	await on('B', T(10), () => editCards('Beta', [card('Sol Ring'), card('Beta New')]));
+	await on('A', T(11), () => deleteDeck('Beta'));
+	// The delete syncs first; B's older edit puts the deck back for a round.
+	await on('A', T(12), sync);
+	await on('B', T(13), sync);
+	await on('A', T(14), load);
+	await on('B', T(15), load);
+
+	for (const name of ['A', 'B']) {
+		await on(name, T(16), () => assert.equal(deck(prism(), 'Beta'), undefined, name));
+	}
+	assert.ok(!cloudRow(id).decks.some((d) => d.name === 'Beta'));
+});
+
+test('a PRISM deleted on A after an edit on B stays deleted once both have synced', async () => {
+	const id = await seed();
+	await on('B', T(10), () => editCards('Beta', [card('Beta New')]));
+	await on('A', T(11), async () => { S.deletePrism(id); await flush(); });
+	assert.equal(cloudRow(id), null, 'the delete reached the cloud');
+	await on('B', T(12), sync); // the debounced sync finds no cloud copy and re-uploads
+	await on('A', T(13), async () => { await load(); await flush(); });
+	await on('B', T(14), load);
+
+	for (const name of ['A', 'B']) {
+		await on(name, T(15), () => assert.equal(S.getPrism(id), null, name));
+	}
+	assert.equal(cloudRow(id), null);
+});
+
+// ---------------------------------------------------------------------------
+// markedCards and un-mark tombstones
+// ---------------------------------------------------------------------------
+
+test('a mark on each device while offline keeps both marks', async () => {
+	await seed();
+	await on('A', T(10), () => setMarked(['Alpha Card'], true));
+	await on('B', T(11), () => setMarked(['Beta Card'], true));
+	await on('A', T(12), sync);
+	await on('B', T(13), sync);
+	await on('A', T(14), load);
+
+	for (const name of ['A', 'B']) {
+		await on(name, T(15), () => assert.deepEqual([...prism().markedCards].sort(), ['Alpha Card', 'Beta Card'], name));
+	}
+});
+
+test('an un-mark on A is not undone by B, which still holds the mark', { skip: '#500' }, async () => {
+	const id = await seed({ marked: ['Sol Ring'] });
+	await on('A', T(10), () => setMarked(['Sol Ring'], false));
+	await on('A', T(11), sync);
+	await on('B', T(12), load); // B only opens the app
+
+	await on('B', T(13), () => assert.deepEqual(prism().markedCards, [], 'B'));
+	assert.deepEqual(cloudRow(id).marked_cards, [], 'cloud');
+});
+
+test('un-marking then re-marking before the sync keeps the mark', async () => {
+	await seed({ marked: ['Sol Ring'] });
+	await on('A', T(10), () => setMarked(['Sol Ring'], false));
+	await on('A', T(10.5), () => setMarked(['Sol Ring'], true)); // misclick, re-checked inside the debounce
+	await on('A', T(11), sync);
+
+	await on('A', T(12), () => assert.deepEqual(prism().markedCards, ['Sol Ring']));
+});
+
+test('a re-mark on B newer than an un-mark on A wins', { skip: '#500' }, async () => {
+	const id = await seed({ marked: ['Sol Ring'] });
+	await on('A', T(10), () => setMarked(['Sol Ring'], false));
+	await on('B', T(11), () => setMarked(['Sol Ring'], false));
+	await on('B', T(12), () => setMarked(['Sol Ring'], true));
+	await on('B', T(13), sync);
+	await on('A', T(14), sync); // A's older tombstone drops B's newer re-mark
+
+	await on('A', T(15), () => assert.deepEqual(prism().markedCards, ['Sol Ring'], 'A'));
+	assert.deepEqual(cloudRow(id).marked_cards, ['Sol Ring'], 'cloud');
+});
+
+// ---------------------------------------------------------------------------
+// Clock skew: B's clock runs an hour fast
+// ---------------------------------------------------------------------------
+
+test('clock skew: an un-mark on the device whose clock is behind sticks', { skip: '#502' }, async () => {
+	const id = await seed({ marked: ['Sol Ring'] });
+	await on('B', T(65), () => setMarked(['Beta Card'], true)); // real T(5)
+	await on('B', T(66), sync);
+	await on('A', T(7), load);
+	await on('A', T(10), () => setMarked(['Sol Ring'], false));
+	await on('A', T(11), sync);
+
+	await on('A', T(12), () => assert.deepEqual(prism().markedCards, ['Beta Card']));
+	assert.deepEqual(cloudRow(id).marked_cards, ['Beta Card']);
+});
+
+test('clock skew: a deck edit on the device whose clock is behind sticks', { skip: '#502' }, async () => {
+	await seed();
+	await on('B', T(65), () => editCards('Alpha', [card('From B')])); // real T(5)
+	await on('B', T(66), sync);
+	await on('A', T(7), load);
+	await on('A', T(10), () => editCards('Alpha', [card('From A')]));
+	await on('A', T(11), sync);
+
+	await on('A', T(12), () => assert.deepEqual(cardNames(deck(prism(), 'Alpha')), ['From A']));
+});
+
+// ---------------------------------------------------------------------------
+// useDedicatedCommanderCopies: own timestamp, not prism.updatedAt
+// ---------------------------------------------------------------------------
+
+test('Dedicated commander copies turned on at A survives a later mark on B', async () => {
+	await seed();
+	await on('A', T(10), () => setDedicated(true));
+	await on('B', T(11), () => setMarked(['Sol Ring'], true));
+	await on('A', T(12), sync);
+	await on('B', T(13), sync);
+	await on('A', T(14), load);
+
+	for (const name of ['A', 'B']) {
+		await on(name, T(15), () => assert.equal(prism().useDedicatedCommanderCopies, true, name));
+	}
+});
+
+test('Dedicated commander copies toggled on both devices takes the later toggle', async () => {
+	await seed();
+	await on('A', T(10), () => setDedicated(true));
+	await on('B', T(11), () => setDedicated(true));
+	await on('B', T(12), () => setDedicated(false));
+	await on('B', T(13), sync);
+	await on('A', T(14), sync);
+	await on('B', T(15), load);
+
+	for (const name of ['A', 'B']) {
+		await on(name, T(16), () => assert.equal(prism().useDedicatedCommanderCopies, false, name));
+	}
+});
+
+// ---------------------------------------------------------------------------
+// removedCards
+// ---------------------------------------------------------------------------
+
+test('copies a Sleeve reuse cleared on A stay cleared when B re-tracks the row', async () => {
+	await seed();
+	await on('A', T(10), () => deleteDeck('Beta'));
+	await on('A', T(11), sync);
+	await on('B', T(12), load);
+	await on('A', T(13), () => {
+		const p = prism();
+		p.removedCards.find((r) => r.cardName === 'Beta Card').clearedQuantity = 1;
+		p.updatedAt = new Date().toISOString();
+		S.savePrism(p);
+	});
+	await on('B', T(14), () => {
+		const p = prism();
+		const row = p.removedCards.find((r) => r.cardName === 'Beta Card');
+		trackRemovedCard(p, { ...row, removedAt: new Date().toISOString(), previousQuantity: 1, newQuantity: 0 });
+		p.updatedAt = new Date().toISOString();
+		S.savePrism(p);
+	});
+	await on('B', T(15), sync);
+	await on('A', T(16), sync);
+
+	await on('A', T(17), () => assert.equal(openRemovals(prism()).some((r) => r.cardName === 'Beta Card'), false));
+});
+
+test('Marks to Clear rows cleared on A stay cleared after sync', { skip: '#501' }, async () => {
+	const id = await seed();
+	await on('A', T(10), () => deleteDeck('Beta'));
+	await on('A', T(11), sync);
+	await on('B', T(12), load);
+	// handleClearAllRemoved
+	await on('A', T(13), () => {
+		const p = prism();
+		p.removedCards = [];
+		p.updatedAt = new Date().toISOString();
+		S.savePrism(p);
+	});
+	await on('A', T(14), sync);
+	await on('B', T(15), load);
+
+	for (const name of ['A', 'B']) {
+		await on(name, T(16), () => assert.deepEqual(prism().removedCards, [], name));
+	}
+	assert.deepEqual(cloudRow(id).removed_cards, []);
+});
+
+// ---------------------------------------------------------------------------
+// Planned swaps
+// ---------------------------------------------------------------------------
+
+test('a Planned swap removed on A stays gone while one queued on B arrives', async () => {
+	await seed();
+	await on('A', T(5), () => S.savePrism(queueSwap(prism(), { incoming: 'Arcane Signet', deckId: deck(prism(), 'Alpha').id })));
+	await on('A', T(6), sync);
+	await on('B', T(7), load);
+	await on('A', T(10), () => S.savePrism(removeSwap(prism(), prism().plannedSwaps[0].id)));
+	await on('B', T(11), () => S.savePrism(queueSwap(prism(), { incoming: 'Mind Stone', deckId: deck(prism(), 'Beta').id })));
+	await on('A', T(12), sync);
+	await on('B', T(13), sync);
+	await on('A', T(14), load);
+
+	for (const name of ['A', 'B']) {
+		await on(name, T(15), () => assert.deepEqual(prism().plannedSwaps.map((s) => s.incoming), ['Mind Stone'], name));
+	}
+});
+
+// ---------------------------------------------------------------------------
+// Split groups vs variant edits
+// ---------------------------------------------------------------------------
+
+test('a split on A and a card edit to that deck on B leave a whole split group', { skip: '#504' }, async () => {
+	await seed();
+	await on('A', T(10), () => S.savePrism(P.splitDeck(prism(), deck(prism(), 'Alpha').id, 2)));
+	await on('B', T(11), () => editCards('Alpha', [card('Sol Ring'), card('Alpha New')]));
+	await on('A', T(12), sync);
+	await on('B', T(13), sync);
+	await on('A', T(14), load);
+
+	await on('A', T(15), () => assertStructure(prism()));
+});
+
+test('different variants removed on each device leave no one-variant group', { skip: '#504' }, async () => {
+	await seed({ split: 3 });
+	const variants = await on('A', T(2), () => prism().splitGroups[0].childDeckIds.map((cid) => prism().decks.find((d) => d.id === cid).name));
+	await on('A', T(10), () => deleteDeck(variants[1]));
+	await on('B', T(11), () => deleteDeck(variants[2]));
+	await on('A', T(12), sync);
+	await on('B', T(13), sync);
+	await on('A', T(14), load);
+
+	await on('A', T(15), () => assertStructure(prism()));
+});
+
+test('a variant edited on B after A removed it comes back into the group', async () => {
+	await seed({ split: 3 });
+	const variants = await on('A', T(2), () => prism().splitGroups[0].childDeckIds.map((cid) => prism().decks.find((d) => d.id === cid).name));
+	await on('A', T(10), () => deleteDeck(variants[2]));
+	await on('A', T(11), sync);
+	await on('B', T(12), () => editCards(variants[2], [card('Sol Ring'), card('Variant New')]));
+	await on('B', T(13), sync);
+	await on('A', T(14), load);
+
+	await on('A', T(15), () => {
+		const p = prism();
+		assert.deepEqual(cardNames(deck(p, variants[2])), ['Sol Ring', 'Variant New']);
+		assert.equal(p.splitGroups[0].childDeckIds.length, 3);
+		assertStructure(p);
+	});
+});
+
+// ---------------------------------------------------------------------------
+// Deck cards ride the deck's updatedAt
+// ---------------------------------------------------------------------------
+
+test('a card upload that failed once still converges both devices on the edit', { skip: '#503' }, async () => {
+	await seed();
+	const alphaId = await on('A', T(2), () => deck(prism(), 'Alpha').id);
+	await on('A', T(10), () => editCards('Alpha', [card('Sol Ring'), card('Alpha New')]));
+	failCardsOnce.add(alphaId);
+	await on('A', T(11), sync); // deck row written, its cards not
+	await on('B', T(12), load);
+	await on('A', T(13), sync); // retry succeeds
+	await on('B', T(14), load);
+	await on('A', T(15), load);
+
+	for (const name of ['A', 'B']) {
+		await on(name, T(16), () => assert.deepEqual(cardNames(deck(prism(), 'Alpha')), ['Alpha New', 'Sol Ring'], name));
+	}
+});
+
+// ---------------------------------------------------------------------------
+// The open build page holds state.currentPrism across background syncs
+// ---------------------------------------------------------------------------
+
+test('a deck B added survives the next edit on A\'s open build page', { skip: '#499' }, async () => {
+	const id = await seed();
+	// A has build.html open: state.currentPrism is read once at load.
+	let page = await on('A', T(2), prism);
+	await on('B', T(3), () => addDeck('Gamma', [card('Gamma Card')]));
+	await on('B', T(4), sync);
+	await on('A', T(5), () => {
+		page = P.updateDeckInPrism(page, deck(page, 'Alpha').id, { bracket: 4 });
+		S.savePrism(page);
+	});
+	await on('A', T(6), sync); // the debounced sync merges Gamma into storage, not into the page
+	await on('A', T(7), () => {
+		page = P.updateDeckInPrism(page, deck(page, 'Beta').id, { bracket: 4 });
+		S.savePrism(page);
+	});
+	await on('A', T(8), sync);
+	await on('B', T(9), load);
+
+	await on('B', T(10), () => assert.ok(deck(prism(), 'Gamma'), 'Gamma is gone from B'));
+	assert.ok(cloudRow(id).decks.some((d) => d.name === 'Gamma'), 'Gamma is gone from the cloud');
+});
