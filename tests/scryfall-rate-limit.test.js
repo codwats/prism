@@ -130,3 +130,25 @@ test('a 429 fails without a retry, and every path then fails without a request',
 	assert.equal(calls.length, 1, 'nothing reached Scryfall during the lockout');
 	assert.ok(Date.now() - start < 100, 'locked-out requests fail without waiting on the rate gate');
 });
+
+// In a browser, Scryfall's 429 has no CORS headers, so fetch rejects with a
+// TypeError instead of returning status 429. That must lock out too, or the
+// queue keeps hitting Scryfall through the penalty. Fresh module instance:
+// the lockout above is module state.
+test('a CORS-blocked 429 (network error) also locks out', async () => {
+	const { fetchCard: freshFetchCard } = await import('../js/modules/scryfall.js?cors-429');
+	store.clear();
+	calls.length = 0;
+	const realFetch = globalThis.fetch;
+	globalThis.fetch = async () => {
+		calls.push(Date.now());
+		throw new TypeError('Failed to fetch');
+	};
+	try {
+		await assert.rejects(freshFetchCard('Fellwar Stone'), /Failed to fetch/);
+		await assert.rejects(freshFetchCard('Birds of Paradise'), /Rate limited/);
+		assert.equal(calls.length, 1, 'nothing reached Scryfall after the blocked response');
+	} finally {
+		globalThis.fetch = realFetch;
+	}
+});
