@@ -935,7 +935,17 @@ function rememberArtistName(name) {
 }
 
 // The schema refuses an 11th pending upload or resubmit with 42501 (#437).
-const PENDING_CAP_MESSAGE = 'You have 10 uploads waiting for review. Upload more once one is reviewed.';
+const PENDING_CAP = 10;
+const PENDING_CAP_MESSAGE = `You have ${PENDING_CAP} uploads waiting for review. Upload more once one is reviewed.`;
+
+// 42501 is any RLS refusal: name the pending cap only when the account is at it.
+async function refusalMessage(err, fallback) {
+  if (err?.code !== '42501') return fallback;
+  const { count } = await getSupabase().from('gallery_artworks')
+    .select('id', { count: 'exact', head: true })
+    .eq('uploader_id', getCurrentUser()?.id).eq('status', 'pending');
+  return count >= PENDING_CAP ? PENDING_CAP_MESSAGE : fallback;
+}
 
 /** Metadata fields shared by the upload and edit forms. */
 function artworkFieldsHtml(v = {}) {
@@ -1118,7 +1128,7 @@ function renderUpload(root) {
       renderPending(root);
     } catch (err) {
       console.error('Gallery upload failed:', err);
-      showError(err?.code === '42501' ? PENDING_CAP_MESSAGE : 'Upload failed — try again.');
+      showError(await refusalMessage(err, 'Upload failed — try again.'));
       submitBtn.removeAttribute('loading');
       submitBtn.removeAttribute('disabled');
     }
@@ -1617,7 +1627,7 @@ async function renderMyUploads(root) {
     btn.setAttribute('loading', '');
     btn.setAttribute('disabled', '');
     const { error: err } = await sb.rpc('resubmit_own_gallery_artwork', { p_artwork_id: btn.dataset.resubmit });
-    if (err) { btn.removeAttribute('loading'); btn.removeAttribute('disabled'); showError(err.code === '42501' ? PENDING_CAP_MESSAGE : 'Could not resubmit — try again.'); return; }
+    if (err) { btn.removeAttribute('loading'); btn.removeAttribute('disabled'); showError(await refusalMessage(err, 'Could not resubmit — try again.')); return; }
     showSuccess('Resubmitted for review');
     render();
   }));
