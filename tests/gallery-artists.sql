@@ -1723,3 +1723,60 @@ BEGIN
 END $$;
 
 ROLLBACK;
+
+-- ============================================
+-- Downloads (#441): one counted download per account per artwork; the record
+-- is private (gallery_downloads: RLS on, no policies)
+-- ============================================
+BEGIN;
+
+INSERT INTO auth.users (id, email, email_confirmed_at) VALUES
+  ('44100000-0000-0000-0000-00000000000a', 'dl-a@example.invalid', now()),
+  ('44100000-0000-0000-0000-00000000000b', 'dl-b@example.invalid', now());
+INSERT INTO public.gallery_artworks (id, title, type, artist_name, image_path, status) VALUES
+  ('44100000-0000-0000-0001-000000000001', 'Downloaded Piece', 'proxy', 'Some Artist', 'x/dl.png', 'approved');
+
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', '44100000-0000-0000-0000-00000000000a', true);
+SELECT public.increment_gallery_download('44100000-0000-0000-0001-000000000001');
+SELECT public.increment_gallery_download('44100000-0000-0000-0001-000000000001');
+DO $$
+BEGIN
+  ASSERT (SELECT downloads_count FROM public.gallery_artworks WHERE id = '44100000-0000-0000-0001-000000000001') = 1,
+    'two calls by one account must raise downloads_count by exactly one';
+
+  -- The record is private: no select, no insert.
+  BEGIN
+    -- RLS with no policy hides rows rather than raising; a revoked grant raises.
+    ASSERT (SELECT count(*) FROM public.gallery_downloads) = 0, 'a client read gallery_downloads';
+  EXCEPTION WHEN insufficient_privilege THEN NULL;
+  END;
+  BEGIN
+    INSERT INTO public.gallery_downloads (user_id, artwork_id)
+    VALUES ('44100000-0000-0000-0000-00000000000a', '44100000-0000-0000-0001-000000000001');
+    RAISE EXCEPTION 'a client wrote gallery_downloads';
+  EXCEPTION WHEN insufficient_privilege THEN NULL;
+  END;
+END $$;
+
+SELECT set_config('request.jwt.claim.sub', '44100000-0000-0000-0000-00000000000b', true);
+SELECT public.increment_gallery_download('44100000-0000-0000-0001-000000000001');
+RESET ROLE;
+
+DO $$
+BEGIN
+  ASSERT (SELECT downloads_count FROM public.gallery_artworks WHERE id = '44100000-0000-0000-0001-000000000001') = 2,
+    'a second account must raise downloads_count to two';
+END $$;
+
+-- anon still cannot call the RPC.
+SET LOCAL ROLE anon;
+DO $$
+BEGIN
+  PERFORM public.increment_gallery_download('44100000-0000-0000-0001-000000000001');
+  RAISE EXCEPTION 'anon called increment_gallery_download';
+EXCEPTION WHEN insufficient_privilege THEN NULL;
+END $$;
+RESET ROLE;
+
+ROLLBACK;
