@@ -28,7 +28,7 @@ New domain facts go in the matching `docs/agents/*.md`, not here.
 
 `js/core/` shared helpers, `js/features/` build.html modules, `js/modules/` business logic shared across pages, `netlify/edge-functions/` Deno proxies + Stripe/gallery endpoints. Non-obvious pages:
 
-- `mpc-stripes.html`, `swap-planner.html` — paid Extras, Members-only via `initExtraGate()` in membership.js (soft gate, ADR 0003). Swap Planner's `initExtraGate(onTool)` starts Scryfall/tag fetches for Members only.
+- `mpc-stripes.html`, `swap-planner.html`, `compare-prisms.html` (#446) — paid Extras, Members-only via `initExtraGate()` in membership.js (soft gate, ADR 0003). Swap Planner's `initExtraGate(onTool)` starts Scryfall/tag fetches for Members only.
 - `swap-planner.js`: search → `rankComparables` → rows; "Other swaps" costs fill in after render (`applySwap` per deck); confirm dialog previews and applies through same `applySwap` call, then `recordUnmarkedCards` → `savePrism`. `oracle-tags.js` builds 51 pinned Tagger jobs + land families from Oracle Tags bulk file, IndexedDB, daily.
 - `card-preview.js`: `wireCardPreview(root, stripesFor)` wires hover tooltip / mobile tap-to-open on any page.
 - `links.html` (#243) — standalone: no layout.js, no nav, own inlined tokens, so it moves domains unchanged.
