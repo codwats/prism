@@ -6,8 +6,8 @@ import { initLayout } from './layout.js';
 import { initExtraGate } from './modules/membership.js';
 import { getAllPrisms, getCurrentPrism, getPrism, savePrism, recordUnmarkedCards } from './modules/storage.js';
 import { buildPrismFromJson } from './modules/prism-import.js';
-import { processCards, formatSlotLabel, getColorName } from './modules/processor.js';
-import { comparePrisms, carryDone } from './modules/compare-prisms.js';
+import { processCards } from './modules/processor.js';
+import { comparePrisms, carryDone, markLabel, rowFingerprint } from './modules/compare-prisms.js';
 import { wireCardPreview } from './modules/card-preview.js';
 import { escapeHtml } from './core/utils.js';
 import { showError, showSuccess } from './core/notifications.js';
@@ -104,14 +104,15 @@ function saveTicks() {
 
 function markText(m) {
   const dot = m.markType === 'dot';
-  return `<span class="wa-cluster wa-gap-2xs wa-align-items-center"><span class="stripe-detail-swatch${dot ? ' stripe-detail-swatch-dot' : ''}" style="background:${escapeHtml(m.color)}"></span>${escapeHtml(getColorName(m.color))} ${formatSlotLabel(m.position)}${dot ? ', dot' : ''}</span>`;
+  return `<span class="wa-cluster wa-gap-2xs wa-align-items-center"><span class="stripe-detail-swatch${dot ? ' stripe-detail-swatch-dot' : ''}" style="background:${escapeHtml(m.color)}"></span>${escapeHtml(markLabel(m))}</span>`;
 }
 
 const batchText = (b) => `<span class="wa-cluster wa-gap-xs wa-align-items-center">${b.copies}×
   ${b.marks.length ? b.marks.map(markText).join('<span>+</span>') : '<span>no marks</span>'}</span>`;
 const batchesText = (batches) => batches.map(batchText).join('<span>and</span>');
 
-function row(key, title, detail) {
+function row(baseKey, fingerprintOf, title, detail) {
+  const key = `${baseKey}#${rowFingerprint(fingerprintOf)}`;
   return `<li class="queue-swap wa-stack wa-gap-xs">
     <wa-checkbox data-tick="${escapeHtml(key)}" ${ticks.has(key) ? 'checked' : ''}>${title}</wa-checkbox>
     <div class="wa-cluster wa-gap-xs wa-align-items-center wa-caption-s">${detail}</div>
@@ -135,13 +136,13 @@ function render() {
   const result = comparePrisms(from.prism, to);
   stripesByName = new Map([...processCards(from.prism), ...processCards(to)].map((c) => [c.name, c.stripes]));
 
-  renderList('compare-add', result.add.map((r) => row(`add|${r.name}`,
+  renderList('compare-add', result.add.map((r) => row(`add|${r.name}`, r.batches,
     `${r.copies}× ${nameCell(r.name)}`, `Paint: ${batchesText(r.batches)}`)));
   renderList('compare-remove', result.remove.map((r) => (r.stillPainted
-    ? row(`remove|${r.name}|${r.deckName}`, `${r.copies}× ${nameCell(r.name)}`,
+    ? row(`remove|${r.name}|${r.deckName}`, r.batches, `${r.copies}× ${nameCell(r.name)}`,
       `Clear: ${batchesText(r.batches)} <span class="wa-color-text-quiet">(${escapeHtml(r.deckName || '')}, still painted from an earlier edit)</span>`)
-    : row(`remove|${r.name}`, `${r.copies}× ${nameCell(r.name)}`, `Clear from: ${batchesText(r.batches)}`))));
-  renderList('compare-remark', result.remark.map((r) => row(`remark|${r.name}`,
+    : row(`remove|${r.name}`, r.batches, `${r.copies}× ${nameCell(r.name)}`, `Clear from: ${batchesText(r.batches)}`))));
+  renderList('compare-remark', result.remark.map((r) => row(`remark|${r.name}`, [r.from, r.to],
     `${r.copies}× ${nameCell(r.name)}`,
     `${batchesText(r.from)}<wa-icon name="arrow-right" label="becomes"></wa-icon>${batchesText(r.to)}`)));
 

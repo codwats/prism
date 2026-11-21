@@ -183,3 +183,18 @@ test('carryDone leaves cards it was not given', () => {
   const { markedCards } = carryDone(to, ['Sol Ring']);
   assert.ok(!isCardDone(processCards(to).find((c) => c.name === 'Mana Crypt'), new Set(markedCards)));
 });
+
+test('markLabel keeps the mark side: Side B stripe reads Side B, dot reads Side A', async () => {
+  const { markLabel } = await import('../js/modules/compare-prisms.js');
+  assert.match(markLabel(stripe(30, RED, 'b')), /Side B - Slot 30/);
+  assert.match(markLabel(stripe(3, RED, 'a')), /Side A - Slot 3/);
+  assert.match(markLabel(stripe(3, RED, 'b', 'dot')), /Side A - Slot 3.*dot/);
+});
+
+test('rowFingerprint changes when copies or marks change, not otherwise', async () => {
+  const { rowFingerprint } = await import('../js/modules/compare-prisms.js');
+  const rows = (color, copies = 1) => [{ copies, marks: [stripe(3, color)] }];
+  assert.equal(rowFingerprint(rows(BLUE)), rowFingerprint(rows(BLUE)));
+  assert.notEqual(rowFingerprint(rows(BLUE)), rowFingerprint(rows(GREEN)));
+  assert.notEqual(rowFingerprint(rows(BLUE)), rowFingerprint(rows(BLUE, 2)));
+});

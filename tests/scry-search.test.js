@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createScrySession, scryMatches, scryJump, scryAct, scryAnswer, scryClearSearch, scryTally } from '../js/features/scry-mode.js';
+import { createScrySession, scryMatches, scryJump, scryAct, scryAnswer, scryClearSearch, scryTally, scryBarValue } from '../js/features/scry-mode.js';
 
 const rows = [
   { name: 'Sol Ring' },
@@ -109,4 +109,14 @@ test('a plain Skip during the walk does not move the tally (#491)', () => {
   assert.equal(scryTally(s), 0, 'nothing answered yet');
   scryAnswer(s, { onDone() {}, onSkip() {} }, 'done');
   assert.equal(scryTally(s), 1);
+});
+
+test('bar stays at the answered percentage after a final plain Skip (#491)', () => {
+  const s = createScrySession(rows);
+  const o = { onDone() {}, onSkip() {} };
+  rows.forEach((_, i) => { scryJump(s, i); scryAnswer(s, o, i === rows.length - 1 ? 'skip' : 'done'); });
+  assert.equal(scryBarValue(s), Math.round(((rows.length - 1) / rows.length) * 100));
+  scryJump(s, rows.length - 1);
+  scryAnswer(s, o, 'done');
+  assert.equal(scryBarValue(s), 100);
 });

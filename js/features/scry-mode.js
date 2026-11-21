@@ -52,6 +52,7 @@ export function getScryCardKey(card) {
 
 /** Screens answered (#491): Done/Matches, and Audit's Wrong; a plain Skip is not an answer. */
 export const scryTally = (s) => s.acted.size;
+export const scryBarValue = (s) => (s.rows.length ? Math.round((scryTally(s) / s.rows.length) * 100) : 100);
 
 /** rows: the screens fixed at Start marking or Audit. acted: indexes already answered. */
 export function createScrySession(rows) {
@@ -165,7 +166,7 @@ async function renderCurrentScryCard() {
   const answered = scryTally(session);
   scryProgress.textContent = `${answered} of ${session.rows.length} answered: ${displayName}${copiesNote}`;
   const bar = state.elements.scryBar;
-  if (bar) bar.setAttribute('value', String(Math.round((answered / session.rows.length) * 100)));
+  if (bar) bar.setAttribute('value', String(scryBarValue(session)));
 
   const scale = computeScale(window.innerWidth, window.innerHeight, measureCardHeight());
   scryContent.innerHTML = '';
@@ -219,7 +220,7 @@ async function renderCurrentScryCard() {
 function showCompletionState() {
   const { scryProgress, scryContent, btnScryDone, btnScrySkip } = state.elements;
   if (scryProgress) scryProgress.textContent = scryOpts.endLabel;
-  state.elements.scryBar?.setAttribute('value', '100');
+  state.elements.scryBar?.setAttribute('value', String(scryBarValue(session)));
   if (scryContent && scryOpts.renderEnd) {
     scryContent.innerHTML = '';
     scryOpts.renderEnd(scryContent);

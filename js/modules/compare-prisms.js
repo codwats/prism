@@ -9,7 +9,7 @@
  * which batch is the player's call, so a re-mark row shows both sides whole.
  */
 
-import { processCards } from './processor.js';
+import { processCards, formatSlotLabel, getColorName } from './processor.js';
 import { markId, openRemovals, removalOpenCopies } from './swap.js';
 import { isCardDone, markSingleBatchDone } from '../core/utils.js';
 
@@ -129,4 +129,18 @@ export function carryDone(toPrism, names) {
     }
   }
   return { markedCards, unmarkedKeys, count };
+}
+
+// A mark's checklist text. A dot sits beside the Side A square, whatever side its anchor carries.
+export function markLabel(m) {
+  const dot = m.markType === 'dot';
+  return `${getColorName(m.color)} ${formatSlotLabel(m.position, dot ? undefined : m.side)}${dot ? ', dot' : ''}`;
+}
+
+// Short hash of a row's batches (copies + marks): a tick only holds while the work is the same.
+export function rowFingerprint(batches) {
+  const s = JSON.stringify(batches);
+  let h = 5381;
+  for (let i = 0; i < s.length; i++) h = ((h * 33) ^ s.charCodeAt(i)) >>> 0;
+  return h.toString(36);
 }
