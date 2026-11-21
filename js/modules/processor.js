@@ -655,44 +655,6 @@ export function isDotVariant(deck, prism) {
 }
 
 /**
- * Get a map of all occupied stripe positions with their occupant info
- * @param {Object} prism - The PRISM object
- * @returns {Map<number, {type: string, id: string, name: string, color: string}>}
- */
-export function getPositionOccupants(prism) {
-	const occupants = new Map();
-
-	// Add split group Side A positions
-	if (prism.splitGroups) {
-		for (const group of prism.splitGroups) {
-			occupants.set(group.sideAPosition, {
-				type: 'group',
-				id: group.id,
-				name: group.name,
-				color: group.sideAColor,
-			});
-		}
-	}
-
-	// Add deck positions (skip split group children for Side A — they share the group's position)
-	if (prism.decks) {
-		for (const deck of prism.decks) {
-			// Don't overwrite a group's Side A entry with a child deck
-			if (!occupants.has(deck.stripePosition)) {
-				occupants.set(deck.stripePosition, {
-					type: 'deck',
-					id: deck.id,
-					name: deck.name,
-					color: deck.color,
-				});
-			}
-		}
-	}
-
-	return occupants;
-}
-
-/**
  * Move a deck's stripe to a specific position, swapping with any occupant
  * @param {Object} prism - The PRISM object
  * @param {string} deckId - The deck ID to move
@@ -1031,29 +993,6 @@ export function updateSplitGroupInPrism(prism, groupId, updates) {
 		}),
 		updatedAt: now,
 	};
-}
-
-/**
- * Check if a card is still used in any other deck besides the specified one
- * @param {Object} prism - The PRISM object
- * @param {string} cardName - The card name to check
- * @param {string} excludeDeckId - The deck ID to exclude from check
- * @returns {boolean} True if the card is used in another deck
- */
-export function isCardInOtherDecks(prism, cardName, excludeDeckId) {
-	const normalizedName = normalizeCardName(cardName);
-
-	for (const deck of prism.decks) {
-		if (deck.id === excludeDeckId) continue;
-
-		for (const card of deck.cards) {
-			if (normalizeCardName(card.name) === normalizedName) {
-				return true;
-			}
-		}
-	}
-
-	return false;
 }
 
 // ============================================================================

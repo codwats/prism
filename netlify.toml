@@ -1,13 +1,5 @@
 [build]
   publish = "."
-  functions = "netlify/functions"
-
-[functions]
-  node_bundler = "esbuild"
-  included_files = ["netlify/functions/**"]
-
-[context.production]
-  environment = { AWS_LAMBDA_JS_RUNTIME = "nodejs18.x" }
 
 # Edge Functions
 [[edge_functions]]
@@ -49,14 +41,6 @@
 [[edge_functions]]
   path = "/api/prism-savings"
   function = "prism-savings-edge"
-
-# Headers for the functions
-[[headers]]
-  for = "/.netlify/functions/*"
-  [headers.values]
-    Access-Control-Allow-Origin = "*"
-    Access-Control-Allow-Headers = "Content-Type"
-    Access-Control-Allow-Methods = "GET, POST, OPTIONS"
 
 # ============================================================
 # Stop serving repo internals
