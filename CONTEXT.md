@@ -1,6 +1,6 @@
 # PRISM
 
-PRISM models Commander decks and the physical sleeved cards shared between them, and hosts the community gallery of artwork for those cards.
+PRISM models Commander decks (and Constructed decks) and the physical sleeved cards shared between them, and hosts the community gallery of artwork for those cards.
 
 ## Language
 
@@ -11,8 +11,23 @@ A card assigned to a deck's command zone. A deck may have one or more commanders
 A deck with more than one commander, regardless of the game mechanic that permits it.
 _Avoid_: Partner deck, when referring to all multi-commander mechanics
 
+**Constructed deck**:
+A deck with no commander, such as a 60-card deck. It is not a separate kind of deck: a deck with no commander is a Constructed deck, and gets the same marks as any other deck.
+_Avoid_: 60-card deck, when the deck size is not the point
+
+**Sideboard**:
+The cards a Constructed deck keeps outside its main deck. They live in the same deck box, so they get the deck's mark. A Commander deck has no sideboard.
+_Avoid_: Maybeboard, which holds cards not in the deck at all
+
+**Token type**:
+One kind of token a card can create, told apart by its name, power and toughness, colors and rules text. Different printings of the same token are one Token type.
+
+**Token pack**:
+A PRISM's list of the Token types its decks need, so the player keeps one shared set of tokens instead of one per deck. Each physical token gets the marks of every deck that needs it. A double-sided token is two Token types the player has paired, and gets the marks of every deck that needs either side.
+_Avoid_: token box, token list
+
 **Decklist**:
-The user-supplied list of cards and quantities for a deck. PRISM treats it as authoritative and does not adjudicate Commander legality.
+The user-supplied list of cards and quantities for a deck. PRISM treats it as authoritative and does not adjudicate legality: deck size, format or Commander rules.
 
 **PRISM**:
 A named container of decks, split groups, and their marks. A user may keep several. The product and the container share the name, so reader-facing prose introduces the container sense on first use.
