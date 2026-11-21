@@ -1,6 +1,6 @@
-# PRISM — MTG Commander Sleeve Marking Tool
+# PRISM — MTG Sleeve Marking Tool
 
-Helps MTG Commander players who share cards across decks mark sleeves with colored stripes, so each sleeve's deck is identifiable at a glance.
+Helps MTG players who share cards across decks mark sleeves with colored stripes, so each sleeve's deck is identifiable at a glance.
 
 ## Read before touching
 

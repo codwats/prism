@@ -6,7 +6,7 @@
 [![Live Site](https://img.shields.io/badge/Live%20Site-prismmtg.com-a78bfa?style=for-the-badge)](https://prismmtg.com) [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg?style=for-the-badge)](LICENSE)
 </h5>
 
-Share Commander cards across all your decks without buying duplicates. Mark each sleeve once, and every card shows which decks it belongs to.
+Share MTG cards across all your decks without buying duplicates. Mark each sleeve once, and every card shows which decks it belongs to.
 
 ---
 
@@ -78,7 +78,7 @@ Sell the duplicates and put the money into your next deck.
 
 ## Contributing
 
-PRISM is built for Commander players, and contributions are welcome.
+PRISM is built for Magic players, and contributions are welcome.
 
 - **Bug reports and feature ideas:** open an issue.
 - **Pull requests:** fork, branch, open a PR.
@@ -102,6 +102,6 @@ PRISM is built for Commander players, and contributions are welcome.
 ---
 
 <p align="center">
-  <strong>Made for Commander players, by Commander players</strong><br>
+  <strong>Made for Magic players, by Magic players</strong><br>
   <a href="https://prismmtg.com">prismmtg.com</a>
 </p>
