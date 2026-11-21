@@ -5,7 +5,7 @@
 import { state } from "../core/state.js";
 import { showError, showSuccess } from "../core/notifications.js";
 import { escapeHtml, debugLog, markSingleBatchDone, clickItemsOnKeyboardSelect } from "../core/utils.js";
-import { parseDecklist, validateDecklist, cardsToDecklistText, normalizeCardName } from "../modules/parser.js";
+import { parseDecklist, validateDecklist, cardsToDecklistText, normalizeCardName, markingCards } from "../modules/parser.js";
 import {
   processCards,
   commanderNames,
@@ -53,6 +53,8 @@ import {
   updateColorSwatchSelection,
   checkColorWarning,
   showParseErrors,
+  setDeckFormat,
+  isConstructedForm,
 } from "./deck-form.js";
 import { renderAll } from "./init.js";
 import { openStripeReorderDialog, openGroupReorderDialog } from "./stripe-reorder-dialog.js";
@@ -72,7 +74,7 @@ function cardListChanged(oldCards, newCards) {
   if (oldCards.length !== newCards.length) return true;
   const toMap = (cards) => {
     const m = new Map();
-    for (const c of cards) m.set(c.name.toLowerCase(), c.quantity);
+    for (const c of cards) m.set(`${c.name.toLowerCase()}${c.isSideboard ? "|sb" : ""}`, c.quantity);
     return m;
   };
   const oldMap = toMap(oldCards);
@@ -94,7 +96,7 @@ export function autoClearRemovedCards(newCards) {
   // normalizeCardName (not bare toLowerCase) so printing suffixes, back faces
   // and stray whitespace match the same way processCards dedups cards.
   const newByName = new Map(
-    newCards.map((c) => [normalizeCardName(c.name), c]),
+    markingCards(newCards).map((c) => [normalizeCardName(c.name), c]),
   );
 
   const before = state.currentPrism.removedCards.length;
@@ -296,6 +298,8 @@ export function handleEditClick(deckId) {
     // Sections carry the commander flags through the textarea round-trip (#147)
     state.elements.deckList.value = cardsToDecklistText(deck.cards);
   }
+  // Not stored (#29): a deck with no commander opens as Constructed
+  setDeckFormat(deck.cards.some((c) => c.isCommander) ? "commander" : "constructed");
   syncCommanderFieldsFromText(commanderRefs());
 
   if (state.elements.deckListUpdated) {
@@ -326,7 +330,8 @@ export async function handleEditConfirm() {
 
   const name = (state.elements.deckName?.value || "").trim();
   const commander = (state.elements.deckCommander?.value || "").trim();
-  const bracket = state.elements.deckBracket?.value || "2";
+  const constructed = isConstructedForm();
+  const bracket = constructed ? "2" : state.elements.deckBracket?.value || "2";
   const color = state.elements.deckColor?.value || deck.color;
   const decklistText = state.elements.deckList?.value || "";
 
@@ -334,7 +339,7 @@ export async function handleEditConfirm() {
     showError("Please enter a deck name.");
     return;
   }
-  if (!commander) {
+  if (!commander && !constructed) {
     showError("Please enter a commander name.");
     return;
   }
@@ -348,7 +353,7 @@ export async function handleEditConfirm() {
     return;
   }
 
-  const parseResult = parseDecklist(decklistText);
+  const parseResult = parseDecklist(decklistText, { keepSideboard: constructed });
   // Cancel during the Scryfall wait still saves this edit, but must not touch
   // the next form session (its source URL or its open dialog).
   const session = currentFormSession();
@@ -832,7 +837,8 @@ export function renderDeckCard(deck, showActions = true, processedCards = null) 
         nameTag: isInGroup ? "h4" : "h3",
         nameClass: isInGroup ? "wa-heading-s" : "wa-heading-m",
         name: escapeHtml(deck.name),
-        tags: `${slotTagHtml}<wa-tag size="s" variant="neutral">Bracket ${deck.bracket}</wa-tag>`,
+        // A Constructed deck (no commander, #29) has no bracket to show
+        tags: `${slotTagHtml}${deck.cards.some((c) => c.isCommander) ? `<wa-tag size="s" variant="neutral">Bracket ${deck.bracket}</wa-tag>` : ""}`,
         meta: escapeHtml(deckMetaLine(deck, processedCards)),
         actions: showActions
           ? `${iconButton("btn-edit-deck", "data-deck-id", deck.id, "Edit deck", `Edit ${escapeHtml(deck.name)}`, "pen-to-square")}

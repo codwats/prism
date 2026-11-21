@@ -47,6 +47,7 @@ function getElements() {
     deckCommander2: document.getElementById('deck-commander-2'),
     deckTwoCommanders: document.getElementById('deck-two-commanders'),
     deckBracket: document.getElementById('deck-bracket'),
+    deckFormat: document.getElementById('deck-format'),
     deckColor: document.getElementById('deck-color'),
     deckColorName: document.getElementById('deck-color-name'),
     deckList: document.getElementById('deck-list'),

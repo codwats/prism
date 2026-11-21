@@ -16,6 +16,7 @@ import {
   initColorSwatches,
   syncCommanderFieldsFromText,
   commanderRefs,
+  setDeckFormat,
 } from './deck-form.js';
 import { renderAll } from './init.js';
 
@@ -274,6 +275,8 @@ export async function handleDeckUrlImport(urlOrId = state.elements.deckUrl?.valu
     else state.addSourceUrl = deckData.sourceUrl || null;
     // Commander fields auto-fill from the text's Commander section (#147)
     syncCommanderFieldsFromText(commanderRefs());
+    // A deck with no commander is Constructed (#29); its importer kept the Sideboard
+    setDeckFormat(deckData.cards.some((c) => c.isCommander) ? 'commander' : 'constructed');
 
     if (!editing) logToSupabase('info', 'url_import', { service: serviceName, name: deckData.name, cardCount: deckData.cards.length });
     showImportSuccess(editing
