@@ -11,26 +11,9 @@
  */
 
 import { isMissingCustomer, missingEnv, safeReturnPath } from './lib/stripe-helpers.js';
+import { corsHelpers } from './lib/cors.js';
 
-function getCorsHeaders(request: Request): Record<string, string> {
-  const origin = request.headers.get('origin') || 'https://prismmtg.com';
-  const allowedOrigin = Deno.env.get('CONTEXT') === 'production'
-    ? 'https://prismmtg.com'
-    : origin;
-  return {
-    'Access-Control-Allow-Origin': allowedOrigin,
-    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-    'Access-Control-Allow-Methods': 'POST, OPTIONS',
-    'Vary': 'Origin',
-  };
-}
-
-function jsonResponse(request: Request, status: number, body: unknown): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { ...getCorsHeaders(request), 'Content-Type': 'application/json' }
-  });
-}
+const { getCorsHeaders, jsonResponse } = corsHelpers({ methods: 'POST, OPTIONS', headers: 'Content-Type, Authorization' });
 
 function serviceHeaders(): Record<string, string> {
   const key = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
