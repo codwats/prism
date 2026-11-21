@@ -116,7 +116,7 @@ test('deck identity is the union of its commanders, or null when unknown', async
 });
 
 test('a failed request throws instead of reading as a miss, and caches nothing', async () => {
-	for (const status of [503, 'network']) {
+	for (const status of [503]) {
 		reset();
 		failWith = status;
 		await assert.rejects(getCardAttributes(['Meren of Clan Nel Toth']));
@@ -138,4 +138,18 @@ test('a multi-face entry cached with no cost is fetched again once; a multi-face
 	assert.equal(attrs.get(names[0]).manaCost, '{U}');
 	await getCardAttributes(names);
 	assert.equal(requests.length, 1);
+});
+
+// A network error is how a browser sees Scryfall's CORS-less 429, so it locks
+// out like one: the retry fails without a request, and nothing was cached.
+// Runs last: the lockout outlives the test.
+test('a network failure locks out instead of being retried at once', async () => {
+	reset();
+	failWith = 'network';
+	await assert.rejects(getCardAttributes(['Meren of Clan Nel Toth']), /Failed to fetch/);
+	failWith = null;
+	const before = requests.length;
+	await assert.rejects(getCardAttributes(['Meren of Clan Nel Toth']), /Rate limited/);
+	assert.equal(requests.length, before, 'nothing reached Scryfall during the lockout');
+	assert.deepEqual(JSON.parse(store.get('prism_card_attributes') ?? '{}'), {}, 'nothing cached');
 });

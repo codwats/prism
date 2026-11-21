@@ -125,7 +125,15 @@ async function scryfallFetch(url, options) {
   if (lockedOut()) throw new Error('Rate limited by Scryfall');
   await rateLimit();
   if (lockedOut()) throw new Error('Rate limited by Scryfall');
-  const response = await fetch(url, options);
+  let response;
+  try {
+    response = await fetch(url, options);
+  } catch (error) {
+    // Scryfall's 429 carries no CORS headers, so a browser sees a network
+    // error, never status 429. Lock out on it too, or the queue keeps firing.
+    lockedUntil = Date.now() + LOCKOUT_MS;
+    throw error;
+  }
   if (response.status === 429) {
     lockedUntil = Date.now() + LOCKOUT_MS;
     logToSupabase('warn', 'scryfall_rate_limited', { url }).catch(() => {});
