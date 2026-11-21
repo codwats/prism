@@ -53,7 +53,7 @@ test('3 copies in From, 2 in To with different marks: 1 copy to remove, the card
   const to = prism([deck('B', 7, BLUE, [card('Forest', 2)])]);
   const { add, remove, remark } = comparePrisms(from, to);
   assert.deepEqual(add, []);
-  assert.deepEqual(remove, [{ name: 'Forest', copies: 1, batches: [{ copies: 3, marks: [stripe(3, RED)] }] }]);
+  assert.deepEqual(remove, [{ name: 'Forest', copies: 1, batches: [{ copies: 1, marks: [stripe(3, RED)] }] }]);
   assert.deepEqual(remark, [{
     name: 'Forest', copies: 2,
     from: [{ copies: 3, marks: [stripe(3, RED)] }],
@@ -102,6 +102,15 @@ test("From's open Marks to Clear rows show under To remove as still painted", ()
   }]);
 });
 
+test('2 copies in From, 3 in To with different marks: the add row lists only the 1 extra copy', () => {
+  const from = prism([deck('A', 3, RED, [card('Forest', 2)])]);
+  const to = prism([deck('B', 7, BLUE, [card('Forest', 3)])]);
+  const { add, remove, remark } = comparePrisms(from, to);
+  assert.deepEqual(add, [{ name: 'Forest', copies: 1, batches: [{ copies: 1, marks: [stripe(7, BLUE)] }] }]);
+  assert.deepEqual(remove, []);
+  assert.deepEqual(remark.map((r) => [r.name, r.copies]), [['Forest', 2]]);
+});
+
 function splitPrism(splitStyle, variants) {
   const group = createSplitGroup({ name: 'G', sideAPosition: 5, sideAColor: RED, splitStyle });
   const decks = variants.map(([name, pos, color, cards]) => Object.assign(deck(name, pos, color, cards), { splitGroupId: group.id }));
@@ -130,6 +139,29 @@ test('dots: a dot in a different variant color is a re-mark', () => {
   const { remark } = comparePrisms(from, to);
   assert.deepEqual(remark[0].from, [{ copies: 1, marks: [stripe(5, RED), stripe(5, BLUE, 'b', 'dot')] }]);
   assert.deepEqual(remark[0].to, [{ copies: 1, marks: [stripe(5, RED), stripe(5, GREEN, 'b', 'dot')] }]);
+});
+
+test("a dots variant's open Marks to Clear row is a still-painted dot, not a Side A stripe", () => {
+  const from = splitPrism('dots', [['G1', undefined, BLUE, []], ['G2', undefined, GREEN, []]]);
+  const [g1] = from.decks;
+  from.removedCards = [{
+    cardName: 'Mana Vault', deckId: g1.id, deckName: 'G1', deckColor: BLUE, stripePosition: 5,
+    previousQuantity: 1, newQuantity: 0,
+    splitGroup: { id: from.splitGroups[0].id, name: 'G', sideAPosition: 5, sideAColor: RED, splitStyle: 'dots', variants: [] },
+  }];
+  const { remove } = comparePrisms(from, prism([]));
+  assert.deepEqual(remove[0].batches, [{ copies: 1, marks: [stripe(5, BLUE, 'b', 'dot')] }]);
+});
+
+test("a dots group's parent-stripe Marks to Clear row stays a Side A stripe", () => {
+  const from = splitPrism('dots', [['G1', undefined, BLUE, []], ['G2', undefined, GREEN, []]]);
+  from.removedCards = [{
+    cardName: 'Mana Vault', deckId: from.decks[0].id, deckName: 'G', deckColor: RED, stripePosition: 5,
+    previousQuantity: 1, newQuantity: 0,
+    splitGroup: { id: from.splitGroups[0].id, name: 'G', sideAPosition: 5, sideAColor: RED, splitStyle: 'dots', variants: [] },
+  }];
+  const { remove } = comparePrisms(from, prism([]));
+  assert.deepEqual(remove[0].batches, [{ copies: 1, marks: [stripe(5, RED)] }]);
 });
 
 test('carryDone ticks the named cards in To with the keys Mark sleeves reads, and never un-ticks', () => {

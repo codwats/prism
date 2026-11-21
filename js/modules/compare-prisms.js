@@ -16,6 +16,32 @@ import { isCardDone, markSingleBatchDone } from '../core/utils.js';
 const markOf = (s) => ({ position: s.position, side: s.side, color: s.color.toUpperCase(), markType: s.markType || 'stripe' });
 const copiesOf = (list) => list.reduce((n, s) => n + s.copies, 0);
 
+// The first `n` copies of a sleeve list: To add / To remove state only the
+// copies beyond the other side's total; re-mark covers the rest.
+function take(list, n) {
+  const out = [];
+  for (const s of list) {
+    if (n <= 0) break;
+    out.push({ copies: Math.min(s.copies, n), marks: s.marks });
+    n -= s.copies;
+  }
+  return out;
+}
+
+// The paint a Marks to Clear row stands for. A dots variant's row records the
+// group's Side A slot: its mark is the dot, unless the row is the parent stripe.
+function rowMark(row) {
+  const g = row.splitGroup;
+  const sameColor = (row.deckColor || '').toUpperCase() === (g?.sideAColor || '').toUpperCase();
+  const dot = g?.splitStyle === 'dots' && !(row.deckName === g.name && sameColor);
+  return markOf({
+    position: row.stripePosition,
+    side: dot || row.stripePosition > 24 ? 'b' : 'a',
+    color: row.deckColor || '',
+    markType: dot ? 'dot' : 'stripe',
+  });
+}
+
 // A card's sleeves: mark-set id -> { copies, marks }.
 function sleevesOf(card) {
   const sleeves = new Map();
@@ -36,7 +62,7 @@ const unmatched = (a, b) => [...a]
 /**
  * @returns {{ add: Object[], remove: Object[], remark: Object[], unchanged: string[], unchangedCount: number }}
  *   add/remove rows: { name, copies, batches: [{ copies, marks }] } — the
- *   unmatched sleeves on that side. remove also holds From's open Marks to
+ *   copies beyond the other side's total, from that side's unmatched sleeves. remove also holds From's open Marks to
  *   Clear rows with `stillPainted: true` and `deckName`. remark rows:
  *   { name, copies, from, to } with each side's batches whole. `unchanged`
  *   lists To's names for cards whose batches match exactly.
@@ -64,17 +90,15 @@ export function comparePrisms(fromPrism, toPrism) {
       result.unchanged.push(name);
       continue;
     }
-    if (nTo > nFrom) result.add.push({ name, copies: nTo - nFrom, batches: extraTo });
-    if (nFrom > nTo) result.remove.push({ name, copies: nFrom - nTo, batches: extraFrom });
+    if (nTo > nFrom) result.add.push({ name, copies: nTo - nFrom, batches: take(extraTo, nTo - nFrom) });
+    if (nFrom > nTo) result.remove.push({ name, copies: nFrom - nTo, batches: take(extraFrom, nFrom - nTo) });
     const remarkCopies = Math.min(nFrom, nTo);
     if (remarkCopies) result.remark.push({ name, copies: remarkCopies, from: [...f.values()], to: [...t.values()] });
   }
 
   for (const row of openRemovals(fromPrism)) {
     const copies = removalOpenCopies(row);
-    const marks = row.stripePosition == null ? [] : [markOf({
-      position: row.stripePosition, side: row.stripePosition > 24 ? 'b' : 'a', color: row.deckColor || '',
-    })];
+    const marks = row.stripePosition == null ? [] : [rowMark(row)];
     result.remove.push({ name: row.cardName, copies, batches: [{ copies, marks }], stillPainted: true, deckName: row.deckName });
   }
 
