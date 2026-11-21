@@ -814,7 +814,7 @@ wa-page[view='desktop'] [data-toggle-nav] {
   font: inherit;
 }
 
-.prism-title-trigger::part(base) {
+.prism-title-trigger::part(button) {
   block-size: auto;
   padding-inline: var(--wa-space-xs);
 }
@@ -845,7 +845,7 @@ wa-page[view='desktop'] [data-toggle-nav] {
 #results-stats .stat-note { color: var(--wa-color-neutral-text-subtle); }
 
 /* Plain neutral-on-quiet reads as disabled; the title is the page heading. */
-.prism-title-trigger::part(base) {
+.prism-title-trigger::part(button) {
   color: var(--wa-color-text-normal);
 }
 
@@ -2073,6 +2073,7 @@ wa-page[view='desktop'] [data-toggle-nav] {
    Swap Planner (swap-planner.html)
    ============================================================================ */
 
+/* Compare PRISMs (compare-prisms.html, #446) reuses this column and the row styles */
 .swap-planner {
   max-width: 1000px;
   margin: 0 auto;
@@ -2451,11 +2452,11 @@ wa-page[view='desktop'] [data-toggle-nav] {
   wa-radio[appearance="button"] {
     min-block-size: 44px;
   }
-  wa-input::part(base),
+  wa-input::part(input-wrapper),
   wa-select::part(combobox) {
     min-block-size: 44px;
   }
-  wa-switch::part(base) {
+  wa-switch::part(switch) {
     min-block-size: 44px;
   }
 }
@@ -2467,13 +2468,13 @@ wa-page[view='desktop'] [data-toggle-nav] {
 .scry-legend { align-self: stretch; max-inline-size: 28rem; }
 .scry-copies { margin: 0 0 var(--wa-space-xs); font-weight: var(--wa-font-weight-bold); font-size: var(--wa-font-size-l); }
 .scry-actions { display: grid; grid-template-columns: 1fr 1fr; gap: var(--wa-space-s); inline-size: 100%; }
-.scry-actions wa-button::part(base) { min-block-size: 56px; }
+.scry-actions wa-button::part(button) { min-block-size: 56px; }
 /* #478: lives in the header, so it costs the card no height; matches float over the card. */
 .scry-search { position: relative; inline-size: min(16rem, 38vw); align-self: center; }
 #scry-dialog::part(title) { white-space: nowrap; }
 .scry-search-results { position: absolute; inset-inline-end: 0; inset-block-start: 100%; z-index: 1; inline-size: min(20rem, 75vw); max-block-size: 50dvh; overflow-y: auto; margin: var(--wa-space-2xs) 0 0; padding: var(--wa-space-xs); list-style: none; background: var(--wa-color-surface-raised); border: var(--wa-border-width-s) solid var(--wa-color-surface-border); border-radius: var(--wa-border-radius-m); box-shadow: var(--wa-shadow-m); }
 .scry-search-results wa-button { inline-size: 100%; }
-.scry-search-results wa-button::part(base) { justify-content: flex-start; block-size: auto; min-block-size: 44px; padding-block: var(--wa-space-xs); text-align: start; }
+.scry-search-results wa-button::part(button) { justify-content: flex-start; block-size: auto; min-block-size: 44px; padding-block: var(--wa-space-xs); text-align: start; }
 .scry-search-results wa-button::part(label) { white-space: normal; }
 .scry-search-empty { padding: var(--wa-space-xs); color: var(--wa-color-text-quiet); }
 @media (min-width: 768px) {
@@ -2486,7 +2487,7 @@ wa-page[view='desktop'] [data-toggle-nav] {
 
 /* Phone: "Decks" and "Mark sleeves" fit at 375px without tab scroll arrows */
 @media (max-width: 768px) {
-  #main-tabs wa-tab::part(base) {
+  #main-tabs wa-tab::part(tab) {
     padding-inline: var(--wa-space-m);
   }
   #main-tabs .tab-icon {

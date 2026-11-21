@@ -446,20 +446,10 @@ export async function handleEditConfirm() {
   showSuccess(message);
 }
 
-export function handleDeleteConfirm() {
-  if (!state.deckToDelete) return;
-
-  const deck = state.currentPrism.decks.find(
-    (d) => d.id === state.deckToDelete,
-  );
-  if (!deck) return;
-
+// Removal rows for every card of a deck leaving the PRISM. Returns the count of new rows.
+function trackDeckRemoval(deck, beforeCards, now) {
   if (!state.currentPrism.removedCards) state.currentPrism.removedCards = [];
-
-  const now = new Date().toISOString();
   let removedCount = 0;
-  const beforeCards = deck.splitGroupId ? processCards(state.currentPrism) : [];
-
   for (const card of deck.cards) {
     const mark = removalMark(state.currentPrism, beforeCards, deck, card.name, card.quantity || 1, 0);
     if (!mark) continue;
@@ -474,6 +464,20 @@ export function handleDeleteConfirm() {
     });
     if (isNew) removedCount++;
   }
+  return removedCount;
+}
+
+export function handleDeleteConfirm() {
+  if (!state.deckToDelete) return;
+
+  const deck = state.currentPrism.decks.find(
+    (d) => d.id === state.deckToDelete,
+  );
+  if (!deck) return;
+
+  const now = new Date().toISOString();
+  const beforeCards = deck.splitGroupId ? processCards(state.currentPrism) : [];
+  const removedCount = trackDeckRemoval(deck, beforeCards, now);
 
   const deckName = deck.name;
   const isSplitChild = !!deck.splitGroupId;
@@ -482,6 +486,8 @@ export function handleDeleteConfirm() {
       state.currentPrism,
       state.deckToDelete,
     );
+    // Cards the remaining variants now all share leave child marks painted (#428).
+    trackStaleChildMarks(state.currentPrism, beforeCards, now);
   } else {
     state.currentPrism = removeDeckFromPrism(
       state.currentPrism,
@@ -574,7 +580,16 @@ export function handleUnsplit(groupId) {
   if (!group) return;
 
   const groupName = group.name;
+  // Unsplit keeps the first variant's cards: the other variants leave like a
+  // delete, and the first one's child marks go stale (#428).
+  const now = new Date().toISOString();
+  const beforeCards = processCards(state.currentPrism);
+  for (const id of group.childDeckIds.slice(1)) {
+    const deck = state.currentPrism.decks.find((d) => d.id === id);
+    if (deck) trackDeckRemoval(deck, beforeCards, now);
+  }
   state.currentPrism = unsplitGroup(state.currentPrism, groupId);
+  trackStaleChildMarks(state.currentPrism, beforeCards, now);
   savePrism(state.currentPrism);
   renderAll();
   showSuccess(`Merged "${groupName}" back into a single deck.`);

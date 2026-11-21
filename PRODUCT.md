@@ -8,7 +8,7 @@ web
 
 ## Users
 
-Magic: The Gathering Commander players who own 5–30+ decks and share high-value staples (Sol Ring, Smothering Tithe, Command Tower, etc.) across most of them. Their job: stop buying duplicate copies of the same card for every deck, without constant re-sleeving (slow, annoying). Some fill gaps with proxies, and PRISM is indifferent to where a card came from and marks the sleeve either way, though proxies are not tournament legal. They own physical paint pens and are willing to hand-mark sleeve edges as a one-time setup cost per card.
+Magic: The Gathering players (mostly Commander) who own 5–30+ decks and share high-value staples (Sol Ring, Smothering Tithe, Command Tower, etc.) across most of them. Their job: stop buying duplicate copies of the same card for every deck, without constant re-sleeving (slow, annoying). Some fill gaps with proxies, and PRISM is indifferent to where a card came from and marks the sleeve either way, though proxies are not tournament legal. They own physical paint pens and are willing to hand-mark sleeve edges as a one-time setup cost per card.
 
 ## Product Purpose
 
@@ -38,7 +38,7 @@ The mechanism a spreadsheet or generic label system can't replicate: PRISM encod
 
 ## Brand Commitments
 
-- Name: PRISM ("Personal Reference Index & Sleeve Marking"). Tagline: "Share MTG Commander cards across multiple decks without buying duplicates."
+- Name: PRISM ("Personal Reference Index & Sleeve Marking"). Tagline: "Share MTG cards across multiple decks without buying duplicates."
 - Voice: no exclamation points in UI copy (an explicit house rule; violations are tracked as bugs in beta review).
 - Voice, money: five banned patterns in any surface that asks for money (sources inline — they are why a future reader believes the rule instead of relitigating it):
   1. **No time-unit anchoring below the billing period.** PRISM quotes $3 a month or $30 a year — the periods it actually charges. Never "$0.60 a week" for an annual price ([Evernote](https://mobbin.com/screens/392b54df-c819-4241-aa77-e72d6720cc38)).

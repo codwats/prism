@@ -659,6 +659,11 @@ CREATE POLICY "Users submit artworks for review"
     -- The image must sit in the caller's own folder: an admin deleting the row
     -- also removes its image, so a borrowed path would delete someone else's.
     AND (storage.foldername(image_path))[1] = auth.uid()::text
+    -- 10 pending per account (#437); each one emails every admin. Approved and
+    -- rejected rows don't count. shortcut: concurrent inserts can overshoot by a
+    -- few; fine for a review-email ceiling, use a locking RPC if it matters.
+    AND (SELECT count(*) FROM gallery_artworks a
+          WHERE a.uploader_id = auth.uid() AND a.status = 'pending') < 10
   );
 
 DROP POLICY IF EXISTS "Admins moderate artworks" ON gallery_artworks;
@@ -1298,7 +1303,8 @@ COMMIT;
 -- Replaces the "Owners resubmit rejected artworks" UPDATE policy, whose WITH
 -- CHECK can't stop other fields (created_at) changing too. Only the review
 -- fields move. The policy was dropped once this client was live (#393).
--- Errors: P0002 not the caller's rejected upload. Tests: tests/gallery-artists.sql.
+-- Errors: P0002 not the caller's rejected upload; 42501 already 10 pending (#437).
+-- Tests: tests/gallery-artists.sql.
 BEGIN;
   CREATE OR REPLACE FUNCTION resubmit_own_gallery_artwork(p_artwork_id UUID)
     RETURNS void
@@ -1307,6 +1313,11 @@ BEGIN;
     SET search_path = public, pg_temp
   AS $$
   BEGIN
+    -- Same 10-pending cap as the upload INSERT policy (#437).
+    IF (SELECT count(*) FROM gallery_artworks
+          WHERE uploader_id = auth.uid() AND status = 'pending') >= 10 THEN
+      RAISE EXCEPTION 'You already have 10 uploads waiting for review' USING ERRCODE = 'insufficient_privilege';
+    END IF;
     UPDATE gallery_artworks
       SET status = 'pending', reject_reason = NULL, reviewed_at = NULL, reviewed_by = NULL
       WHERE id = p_artwork_id AND uploader_id = auth.uid() AND status = 'rejected';
@@ -1680,6 +1691,38 @@ BEGIN;
   REVOKE EXECUTE ON FUNCTION site_card_savings() FROM anon;
   REVOKE EXECUTE ON FUNCTION site_card_savings() FROM authenticated;
   GRANT EXECUTE ON FUNCTION site_card_savings() TO service_role;
+COMMIT;
+
+-- ============================================
+-- MIGRATION: Gallery artwork text length limits (#437)
+-- ============================================
+-- title 120, description 2000, artist_name 80, original_card_name 200 on every
+-- new write (upload, owner-edit RPC, admin edit). A trigger, not a CHECK: a
+-- CHECK re-tests the whole row on every UPDATE, so an older over-length row
+-- would refuse likes and download counts. Only text a write changes is checked.
+-- Errors: 23514. Tests: tests/gallery-artists.sql.
+BEGIN;
+  CREATE OR REPLACE FUNCTION gallery_artworks_check_text_lengths()
+    RETURNS trigger
+    LANGUAGE plpgsql
+    SET search_path = public, pg_temp
+  AS $$
+  BEGIN
+    -- On INSERT, OLD is NULL, so every non-null field counts as changed.
+    IF (char_length(NEW.title) > 120 AND NEW.title IS DISTINCT FROM OLD.title)
+       OR (char_length(NEW.description) > 2000 AND NEW.description IS DISTINCT FROM OLD.description)
+       OR (char_length(NEW.artist_name) > 80 AND NEW.artist_name IS DISTINCT FROM OLD.artist_name)
+       OR (char_length(NEW.original_card_name) > 200 AND NEW.original_card_name IS DISTINCT FROM OLD.original_card_name) THEN
+      RAISE EXCEPTION 'Gallery artwork text is too long' USING ERRCODE = 'check_violation';
+    END IF;
+    RETURN NEW;
+  END;
+  $$;
+
+  DROP TRIGGER IF EXISTS gallery_artworks_text_lengths ON gallery_artworks;
+  CREATE TRIGGER gallery_artworks_text_lengths
+    BEFORE INSERT OR UPDATE OF title, description, artist_name, original_card_name ON gallery_artworks
+    FOR EACH ROW EXECUTE FUNCTION gallery_artworks_check_text_lengths();
 COMMIT;
 
 -- ============================================

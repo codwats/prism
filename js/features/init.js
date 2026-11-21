@@ -111,6 +111,7 @@ function getElements() {
 
     // Import backup dialog (opened from the PRISM menu)
     btnImportBackup: document.getElementById('btn-import-backup'),
+    btnComparePrisms: document.getElementById('btn-compare-prisms'),
     importDialog: document.getElementById('import-dialog'),
     btnCancelImport: document.getElementById('btn-cancel-import'),
     prismJsonInput: document.getElementById('prism-json-input'),

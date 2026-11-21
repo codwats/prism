@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en" class="wa-cloak">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- Unlisted utility page: not in nav, not for search engines -->
+    <meta name="robots" content="noindex,nofollow" />
+    <title>Compare PRISMs - PRISM</title>
+    <style>.wa-cloak { visibility: hidden; }</style>
+    <style>wa-page:not(:defined) { visibility: hidden; }</style>
+    <!-- CDN resilience. Both rules above hide the page until Web Awesome loads, and
+         nothing removes them if it never does, so a blocked or stalled kit leaves a
+         blank white document. Reveal at 5s regardless: unstyled but readable beats
+         invisible. WA removes the class itself on a normal load, well before this. -->
+    <style>
+      @keyframes prism-uncloak { to { visibility: visible; } }
+      .wa-cloak,
+      wa-page:not(:defined) { animation: prism-uncloak 0s linear 5s forwards; }
+    </style>
+    <!-- iOS Home Screen icon (layout.js injects these as a fallback) -->
+    <link rel="apple-touch-icon" href="./assets/apple-touch-icon.png" />
+    <link rel="manifest" href="./assets/site.webmanifest" />
+    <meta name="theme-color" content="#281645" />
+    <meta name="apple-mobile-web-app-title" content="PRISM" />
+    <!-- Preconnect to CDNs (Supabase SDK on cdn.jsdelivr.net is lazy-loaded for logged-in users) -->
+    <link rel="preconnect" href="https://ka-p.webawesome.com" />
+    <link rel="preconnect" href="https://ka-p.webawesome.com" crossorigin />
+    <link rel="preconnect" href="https://fonts.bunny.net" />
+    <link rel="preconnect" href="https://fonts.bunny.net" crossorigin />
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" />
+    <link rel="preconnect" href="https://use.typekit.net" />
+    <link rel="preconnect" href="https://use.typekit.net" crossorigin />
+    <!-- Web Awesome, fonts, and app CSS as static tags so the browser preload scanner
+         starts them immediately; layout.js injectHeadResources skips tags already present -->
+    <link rel="stylesheet" href="https://ka-p.webawesome.com/kit/da021fed1e5141f2/webawesome@3.15.0/styles/themes/default.css" />
+    <link rel="stylesheet" href="https://ka-p.webawesome.com/kit/da021fed1e5141f2/webawesome@3.15.0/styles/native.css" />
+    <link rel="stylesheet" href="https://ka-p.webawesome.com/kit/da021fed1e5141f2/webawesome@3.15.0/styles/utilities.css" />
+    <script type="module" src="https://ka-p.webawesome.com/kit/da021fed1e5141f2/webawesome@3.15.0/webawesome.loader.js"></script>
+    <link rel="stylesheet" href="https://fonts.bunny.net/css2?family=Geist+Mono:wght@100..900&display=swap" />
+    <link rel="stylesheet" href="https://use.typekit.net/gbw6ibc.css" />
+    <link rel="stylesheet" href="css/custom.css" />
+  </head>
+  <body>
+    <wa-page mobile-breakpoint="768">
+      <main class="swap-planner">
+        <div class="wa-stack wa-gap-xl">
+          <div class="wa-stack wa-gap-s">
+            <div>
+              <wa-button href="build.html" appearance="plain" size="s">
+                <wa-icon slot="start" name="arrow-left"></wa-icon>
+                Back to My PRISM
+              </wa-button>
+            </div>
+            <h1 class="wa-heading-xl">Compare PRISMs</h1>
+            <p class="wa-color-text-quiet" style="max-width: 70ch;">
+              Pick the PRISM your sleeves are painted for (From) and the PRISM you want them to fit (To).
+              The lists show, card by card, what to add, remove and re-mark. Only the paint counts:
+              the same slot and color match even under a different deck name.
+            </p>
+          </div>
+
+          <!-- Members-only Extra (ADR 0003): initExtraGate() in modules/membership.js
+               reveals exactly one of loading → tool | pitch. -->
+          <div data-extra-loading class="skeleton-deck-card" aria-hidden="true">
+            <wa-skeleton effect="pulse" class="skeleton-line-title"></wa-skeleton>
+            <wa-skeleton effect="pulse" class="skeleton-line"></wa-skeleton>
+            <wa-skeleton effect="pulse" class="skeleton-line-short"></wa-skeleton>
+          </div>
+
+          <wa-card data-extra-pitch hidden>
+            <div class="wa-stack wa-gap-m">
+              <p>Compare PRISMs is one of the Extras included with Membership.</p>
+              <div class="wa-cluster wa-gap-m">
+                <wa-button variant="brand" data-extra-signin>Log in</wa-button>
+                <wa-button variant="brand" data-open-membership>See Membership</wa-button>
+              </div>
+            </div>
+          </wa-card>
+
+          <div data-extra-tool hidden>
+          <div class="wa-stack wa-gap-l">
+            <div class="wa-grid wa-gap-m" style="--min-column-size: 16rem;">
+              <div class="wa-stack wa-gap-xs">
+                <wa-select id="compare-from" label="From" hint="The PRISM your sleeves are painted for, or a backup of it." placeholder="Choose a PRISM"></wa-select>
+                <!-- hidden on a plain wrapper: wa-cluster's display overrides [hidden] -->
+                <div id="compare-file-row" hidden>
+                  <div class="wa-cluster wa-gap-s wa-align-items-center">
+                    <wa-button id="compare-file-btn" size="s" appearance="outlined">
+                      <wa-icon slot="start" name="file-import"></wa-icon>
+                      Choose backup file
+                    </wa-button>
+                    <span id="compare-file-name" class="wa-caption-s wa-color-text-quiet"></span>
+                    <input type="file" id="compare-file" accept=".json,application/json" hidden />
+                  </div>
+                </div>
+              </div>
+              <wa-select id="compare-to" label="To" hint="The PRISM you want your sleeves to fit."></wa-select>
+            </div>
+
+            <div id="compare-result" hidden>
+            <div class="wa-stack wa-gap-l">
+              <div class="wa-cluster wa-gap-m wa-align-items-center">
+                <p id="compare-summary" class="wa-heading-m" role="status"></p>
+                <wa-button id="compare-carry" size="s" variant="brand" appearance="outlined">
+                  <wa-icon slot="start" name="check"></wa-icon>
+                  Mark matching cards done in To
+                </wa-button>
+                <wa-button id="compare-clear" size="s" appearance="plain">
+                  <wa-icon slot="start" name="rotate-left"></wa-icon>
+                  Clear checklist
+                </wa-button>
+              </div>
+              <p class="wa-caption-s wa-color-text-quiet">Ticks are a checklist on this device only. They are not synced.</p>
+
+              <div id="compare-lists" class="wa-stack wa-gap-xl">
+                <section id="compare-add" class="wa-stack wa-gap-xs" hidden>
+                  <h2 class="wa-heading-l">To add</h2>
+                  <p class="wa-color-text-quiet">Copies To needs beyond what From has, with the marks they need.</p>
+                  <ul id="compare-add-list" class="swap-rows"></ul>
+                </section>
+                <section id="compare-remove" class="wa-stack wa-gap-xs" hidden>
+                  <h2 class="wa-heading-l">To remove</h2>
+                  <p class="wa-color-text-quiet">Copies From has beyond what To needs, with the marks to clear.</p>
+                  <ul id="compare-remove-list" class="swap-rows"></ul>
+                </section>
+                <section id="compare-remark" class="wa-stack wa-gap-xs" hidden>
+                  <h2 class="wa-heading-l">To re-mark</h2>
+                  <p class="wa-color-text-quiet">Cards in both whose marks differ. From's sleeves are on the left, To's on the right. You choose which copy gets which marks.</p>
+                  <ul id="compare-remark-list" class="swap-rows"></ul>
+                </section>
+              </div>
+            </div>
+            </div>
+          </div>
+          </div>
+        </div>
+      </main>
+    </wa-page>
+
+    <div id="card-preview-tooltip" class="card-preview-tooltip" hidden></div>
+
+    <wa-drawer id="membership-drawer" label="Membership" placement="end">
+      <div data-membership-content></div>
+      <wa-button slot="footer" appearance="plain" data-drawer="close">Close</wa-button>
+    </wa-drawer>
+
+    <!-- Toast notification container -->
+    <wa-toast placement="bottom-end" id="toast-container"></wa-toast>
+
+    <script type="module" src="js/compare-prisms.js"></script>
+  </body>
+</html>
