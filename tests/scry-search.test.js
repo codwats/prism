@@ -101,3 +101,12 @@ test('tally counts Audit Wrong via skipAnswers (#491)', () => {
   scryAnswer(s, { onDone() {}, onSkip() {}, skipAnswers: true }, 'skip');
   assert.equal(scryTally(s), 1);
 });
+
+test('a plain Skip during the walk does not move the tally (#491)', () => {
+  const s = createScrySession(rows);
+  scryAnswer(s, { onDone() {}, onSkip() {} }, 'skip');
+  assert.equal(s.index, 1, 'the walk moves on');
+  assert.equal(scryTally(s), 0, 'nothing answered yet');
+  scryAnswer(s, { onDone() {}, onSkip() {} }, 'done');
+  assert.equal(scryTally(s), 1);
+});
