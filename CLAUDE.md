@@ -1,6 +1,6 @@
-# PRISM — MTG Commander Sleeve Marking Tool
+# PRISM — MTG Sleeve Marking Tool
 
-Helps MTG Commander players who share cards across decks mark sleeves with colored stripes, so each sleeve's deck is identifiable at a glance.
+Helps MTG players who share cards across decks mark sleeves with colored stripes, so each sleeve's deck is identifiable at a glance.
 
 ## Read before touching
 
@@ -16,7 +16,7 @@ New domain facts go in the matching `docs/agents/*.md`, not here.
 ## Tech Stack
 
 - **Frontend:** Vanilla JS, ES modules, no bundler, no build step
-- **UI:** [Web Awesome 3.14.0](https://www.webawesome.com/) via CDN kit. WA CSS, autoloader, fonts, `custom.css` are **static tags in every page's `<head>`** (preload scanner starts them at byte 0); `injectHeadResources` in layout.js skips present tags, fallback only. Bump versions in static blocks and layout.js URLs together.
+- **UI:** [Web Awesome 3.15.0](https://www.webawesome.com/) via CDN kit. WA CSS, autoloader, fonts, `custom.css` are **static tags in every page's `<head>`** (preload scanner starts them at byte 0); `injectHeadResources` in layout.js skips present tags, fallback only. Bump versions in static blocks and layout.js URLs together.
 - **Styling:** `css/custom.css` + WA tokens (`--wa-color-*`, `--wa-space-*`)
 - **Persistence:** localStorage-first (`prism_data`), optional Supabase sync when authed, merge-before-write
 - **Auth:** Supabase Auth (email/password). SDK is **lazy**: layout.js eager-loads only when `hasStoredSession()` (sync localStorage check for `sb-<ref>-auth-token`) or `access_token` URL hash; anonymous visitors get it on demand via `ensureAuthReady()` (login click, or top of `signUp`/`signIn`/`resetPassword`). Init details in `docs/agents/sync.md`.

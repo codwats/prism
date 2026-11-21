@@ -140,7 +140,7 @@ function injectHeadResources() {
   const head = document.head;
 
   // Web Awesome CDN — CSS links
-  const WA_BASE = 'https://ka-p.webawesome.com/kit/da021fed1e5141f2/webawesome@3.14.0';
+  const WA_BASE = 'https://ka-p.webawesome.com/kit/da021fed1e5141f2/webawesome@3.15.0';
   const waStyles = [
     `${WA_BASE}/styles/themes/default.css`,
     `${WA_BASE}/styles/native.css`,
@@ -568,7 +568,7 @@ function injectFooter() {
                 <img src="./assets/Prism-Icon-Main.svg" alt="" style="height:1em;" class="wa-border-radius-square theme-logo-light">
                 <span>PRISM</span>
                 <span style="color: var(--wa-color-neutral-text-subtle);">&bull;</span>
-                <span style="color: var(--wa-color-neutral-text-subtle);">Made for Commander players, by Commander players</span>
+                <span style="color: var(--wa-color-neutral-text-subtle);">Made for Magic players, by Magic players</span>
               </div>
               <div class="wa-cluster wa-gap-m" style="color: var(--wa-color-neutral-text-subtle);">
                 <a href="https://www.kickstarter.com/projects/prismmtg/prism-one-card-every-deck" target="_blank" rel="noopener" title="PRISM on Kickstarter" aria-label="PRISM on Kickstarter">
@@ -589,6 +589,7 @@ function injectFooter() {
               <a href="privacy.html" class="wa-caption-s" style="color: var(--wa-color-neutral-text-subtle);">Privacy Policy</a>
               <a href="terms.html" class="wa-caption-s" style="color: var(--wa-color-neutral-text-subtle);">Terms of Service</a>
             </div>
+            <p class="wa-caption-s" style="margin: 0; text-align: center; color: var(--wa-color-neutral-text-subtle);">PRISM is unofficial Fan Content permitted under the <a href="https://company.wizards.com/en/legal/fancontentpolicy" target="_blank" rel="noopener">Fan Content Policy</a>. Not approved/endorsed by Wizards. Portions of the materials used are property of Wizards of the Coast. &copy;Wizards of the Coast LLC. Card data and images from <a href="https://scryfall.com" target="_blank" rel="noopener">Scryfall</a>.</p>
           </div>`;
 
   main.appendChild(footer);
