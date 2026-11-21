@@ -111,6 +111,19 @@ test('a Swap on a Constructed deck takes copies from main and sideboard rows tog
 	assert.deepEqual(openRemovals(next).map((r) => [r.cardName, r.previousQuantity, r.newQuantity]), [['Duress', 4, 1]]);
 });
 
+test('a Swap of a sideboard-only card puts the incoming card on the sideboard', () => {
+	const prism = twoDecks();
+	const { prism: next } = applySwap(prism, { outgoing: 'Pyroblast', incoming: 'Opt', deckIds: [prism.decks[0].id], copies: 1 });
+	assert.deepEqual(next.decks[0].cards.filter((c) => c.name === 'Opt').map((c) => [c.quantity, !!c.isSideboard]), [[1, true]]);
+});
+
+test('a Swap taking main and sideboard copies puts the incoming copies in the zones they left', () => {
+	const prism = twoDecks();
+	const { prism: next } = applySwap(prism, { outgoing: 'Duress', incoming: 'Opt', deckIds: [prism.decks[0].id], copies: 3 });
+	assert.deepEqual(next.decks[0].cards.filter((c) => c.name === 'Opt').map((c) => [c.quantity, !!c.isSideboard]),
+		[[2, false], [1, true]]);
+});
+
 test('a Swap in brings copies into a card with main and sideboard rows without double rows', () => {
 	const prism = twoDecks();
 	const { prism: next } = applySwap(prism, { outgoing: 'Duress', incoming: 'Pyroblast', deckIds: [prism.decks[1].id], copies: 1 });

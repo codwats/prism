@@ -355,19 +355,24 @@ export function applySwap(prism, { outgoing, incoming, deckIds, copies = 1, slee
     if (outRows.some((c) => c.isCommander)) throw new Error(`${outgoing} is ${deck.name}'s commander.`);
 
     let left = copies;
+    const taken = []; // [isSideboard, copies]: the incoming card goes where the copies left
     for (const r of outRows) {
       const take = Math.min(left, r.quantity || 1);
       r.quantity = (r.quantity || 1) - take;
       left -= take;
+      if (take) taken.push([!!r.isSideboard, take]);
     }
     const newQuantity = previousQuantity - copies;
     deck.cards = deck.cards.filter((c) => !outRows.includes(c) || c.quantity > 0);
-    const existing = deck.cards.find((c) => sameName(c.name, incoming));
-    if (existing) existing.quantity += copies;
-    else deck.cards.push({
-      name: incoming, quantity: copies, isCommander: false, isBasicLand: false,
-      ...(separateSleeve ? { sleeve: separateSleeve } : {}),
-    });
+    for (const [isSideboard, n] of taken) {
+      const existing = deck.cards.find((c) => sameName(c.name, incoming) && !!c.isSideboard === isSideboard);
+      if (existing) existing.quantity += n;
+      else deck.cards.push({
+        name: incoming, quantity: n, isCommander: false, isBasicLand: false,
+        ...(isSideboard ? { isSideboard } : {}),
+        ...(separateSleeve ? { sleeve: separateSleeve } : {}),
+      });
+    }
     deck.updatedAt = now;
     deck.cardsUpdatedAt = now;
 
