@@ -138,6 +138,10 @@ export function setupEventListeners() {
     });
   }
 
+  state.elements.btnComparePrisms?.addEventListener('click', () => {
+    window.location.href = 'compare-prisms.html';
+  });
+
   // Import backup dialog (opened from the PRISM menu)
   if (state.elements.btnImportBackup) {
     state.elements.btnImportBackup.addEventListener('click', () => {
