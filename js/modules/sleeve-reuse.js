@@ -11,7 +11,7 @@
  */
 
 import { processCards, getColorName } from "./processor.js";
-import { normalizeCardName } from "./parser.js";
+import { normalizeCardName, markingCards } from "./parser.js";
 import { removalOpenCopies, markId } from "./swap.js";
 import { isCardDone, markSingleBatchDone } from "../core/utils.js";
 
@@ -57,7 +57,8 @@ function restoreGroup(decks, splitGroups, painted) {
 function oneCardPrism(prism, normalizedName, rows = []) {
   const decks = prism.decks.map((d) => ({
     ...d,
-    cards: d.cards.filter((c) => normalizeCardName(c.name) === normalizedName).map((c) => ({ ...c })),
+    // One row per deck: main and Sideboard copies (#29) are one card
+    cards: markingCards(d.cards.filter((c) => normalizeCardName(c.name) === normalizedName)),
   }));
   const splitGroups = (prism.splitGroups || []).map((g) => ({ ...g, childDeckIds: [...g.childDeckIds] }));
   for (const row of rows) {

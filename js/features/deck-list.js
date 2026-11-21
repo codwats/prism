@@ -450,7 +450,8 @@ export async function handleEditConfirm() {
 function trackDeckRemoval(deck, beforeCards, now) {
   if (!state.currentPrism.removedCards) state.currentPrism.removedCards = [];
   let removedCount = 0;
-  for (const card of deck.cards) {
+  // One row per card: main and Sideboard copies (#29) share the mark
+  for (const card of markingCards(deck.cards)) {
     const mark = removalMark(state.currentPrism, beforeCards, deck, card.name, card.quantity || 1, 0);
     if (!mark) continue;
     const isNew = trackRemovedCard(state.currentPrism, {
@@ -819,7 +820,7 @@ function getDeckActionsKebabHtml(deck, isInGroup) {
 function deckMetaLine(deck, processedCards) {
   const counts = processedCards
     ? (({ pool, core }) => `${pool} pool • ${core} core`)(getDeckPoolCoreCounts(deck, processedCards))
-    : `${deck.cards.length} cards`;
+    : `${markingCards(deck.cards).length} cards`;
   return [commanderNames(deck).join(' / '), counts].filter(Boolean).join(' • ');
 }
 

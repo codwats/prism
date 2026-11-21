@@ -96,3 +96,40 @@ test('a 300-card decklist saves and processes', () => {
 		cards: parseDecklist(text, { keepSideboard: true }).cards }));
 	assert.equal(processCards(prism).length, 300);
 });
+
+// Swaps and removal paths see a card's main + sideboard rows as one card.
+const { applySwap, openRemovals, removalOpenCopies } = await import('../js/modules/swap.js');
+const { createSplitGroup } = await import('../js/modules/processor.js');
+const { markingCards } = await import('../js/modules/parser.js');
+const totals = (deck) => Object.fromEntries(markingCards(deck.cards).map((c) => [c.name, c.quantity]));
+
+test('a Swap on a Constructed deck takes copies from main and sideboard rows together', () => {
+	const prism = twoDecks();
+	const { prism: next } = applySwap(prism, { outgoing: 'Duress', incoming: 'Opt', deckIds: [prism.decks[0].id], copies: 3 });
+	const burn = next.decks[0];
+	assert.deepEqual(totals(burn), { Duress: 1, Pyroblast: 3, Opt: 3 });
+	assert.deepEqual(openRemovals(next).map((r) => [r.cardName, r.previousQuantity, r.newQuantity]), [['Duress', 4, 1]]);
+});
+
+test('a Swap in brings copies into a card with main and sideboard rows without double rows', () => {
+	const prism = twoDecks();
+	const { prism: next } = applySwap(prism, { outgoing: 'Duress', incoming: 'Pyroblast', deckIds: [prism.decks[1].id], copies: 1 });
+	assert.deepEqual(totals(next.decks[1]), { Duress: 2, Pyroblast: 2 });
+	assert.equal(next.decks[1].cards.filter((c) => c.name === 'Pyroblast').length, 1);
+});
+
+test('a stale child mark counts a variant\'s main and sideboard copies', () => {
+	const prism = createPrism('T');
+	const g = createSplitGroup({ id: 'G', name: 'G', sideAPosition: 1, sideAColor: '#AAAAAA', splitStyle: 'stripes' });
+	prism.decks = [
+		createDeck({ id: 'G1', name: 'G1', bracket: 2, color: '#000001', stripePosition: 48, splitGroupId: 'G',
+			cards: [row('Sol Ring', 1), row('Sol Ring', 1, true)] }),
+		createDeck({ id: 'G2', name: 'G2', bracket: 2, color: '#000002', stripePosition: 47, splitGroupId: 'G',
+			cards: [row('Opt', 2)] }),
+	];
+	g.childDeckIds = ['G1', 'G2'];
+	prism.splitGroups.push(g);
+	const { prism: next } = applySwap(prism, { outgoing: 'Opt', incoming: 'Sol Ring', deckIds: ['G2'], copies: 2 });
+	assert.deepEqual(openRemovals(next).filter((r) => r.cardName === 'Sol Ring')
+		.map((r) => [r.deckId, r.stillInDeck, removalOpenCopies(r)]), [['G1', true, 2]]);
+});
