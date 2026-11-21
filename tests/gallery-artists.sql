@@ -1723,3 +1723,131 @@ BEGIN
 END $$;
 
 ROLLBACK;
+
+-- ============================================
+-- Upload limits (#437): at most 10 pending uploads per account; title,
+-- description, artist_name and original_card_name are length-bounded on new
+-- writes only, so older long rows stay valid and keep taking likes.
+-- ============================================
+BEGIN;
+
+INSERT INTO auth.users (id, email, email_confirmed_at) VALUES
+  ('43700000-0000-0000-0000-00000000000a', 'cap-a@example.invalid', now()),
+  ('43700000-0000-0000-0000-00000000000b', 'cap-b@example.invalid', now()),
+  ('43700000-0000-0000-0000-00000000000d', 'cap-admin@example.invalid', now());
+INSERT INTO public.gallery_admins (user_id) VALUES ('43700000-0000-0000-0000-00000000000d');
+
+-- A legacy over-length row, written before the limits existed (trigger off).
+ALTER TABLE public.gallery_artworks DISABLE TRIGGER gallery_artworks_text_lengths;
+INSERT INTO public.gallery_artworks (id, title, type, description, uploader_id, image_path, status)
+VALUES ('43700000-0000-0000-0002-000000000001', 'Legacy', 'proxy', repeat('d', 2500),
+        '43700000-0000-0000-0000-00000000000b', '43700000-0000-0000-0000-00000000000b/legacy.png', 'approved');
+ALTER TABLE public.gallery_artworks ENABLE TRIGGER gallery_artworks_text_lengths;
+
+-- ---- A fills the queue ----
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', '43700000-0000-0000-0000-00000000000a', true);
+DO $$
+BEGIN
+  FOR i IN 1..10 LOOP
+    INSERT INTO public.gallery_artworks (title, type, uploader_id, image_path)
+    VALUES ('cap ' || i, 'proxy', '43700000-0000-0000-0000-00000000000a',
+            '43700000-0000-0000-0000-00000000000a/' || i || '.png');
+  END LOOP;
+
+  BEGIN
+    INSERT INTO public.gallery_artworks (title, type, uploader_id, image_path)
+    VALUES ('cap 11', 'proxy', '43700000-0000-0000-0000-00000000000a', '43700000-0000-0000-0000-00000000000a/11.png');
+    RAISE EXCEPTION 'an 11th pending upload was accepted';
+  EXCEPTION WHEN insufficient_privilege THEN NULL;
+  END;
+END $$;
+
+-- ---- B is unaffected, and likes the legacy long row ----
+SELECT set_config('request.jwt.claim.sub', '43700000-0000-0000-0000-00000000000b', true);
+DO $$
+BEGIN
+  INSERT INTO public.gallery_artworks (title, type, uploader_id, image_path)
+  VALUES ('other account', 'proxy', '43700000-0000-0000-0000-00000000000b', '43700000-0000-0000-0000-00000000000b/1.png');
+  INSERT INTO public.gallery_likes (artwork_id, user_id)
+  VALUES ('43700000-0000-0000-0002-000000000001', '43700000-0000-0000-0000-00000000000b');
+END $$;
+
+-- ---- Admin approves cap 1 and rejects cap 2: two slots free ----
+SELECT set_config('request.jwt.claim.sub', '43700000-0000-0000-0000-00000000000d', true);
+UPDATE public.gallery_artworks SET status = 'approved'
+  WHERE uploader_id = '43700000-0000-0000-0000-00000000000a' AND title = 'cap 1';
+UPDATE public.gallery_artworks SET status = 'rejected'
+  WHERE uploader_id = '43700000-0000-0000-0000-00000000000a' AND title = 'cap 2';
+
+SELECT set_config('request.jwt.claim.sub', '43700000-0000-0000-0000-00000000000a', true);
+DO $$
+BEGIN
+  INSERT INTO public.gallery_artworks (title, type, uploader_id, image_path)
+  VALUES ('cap 11', 'proxy', '43700000-0000-0000-0000-00000000000a', '43700000-0000-0000-0000-00000000000a/11.png');
+  -- Title limit: 121 refused, 120 accepted (this fills the 10th slot again).
+  BEGIN
+    INSERT INTO public.gallery_artworks (title, type, uploader_id, image_path)
+    VALUES (repeat('t', 121), 'proxy', '43700000-0000-0000-0000-00000000000a', '43700000-0000-0000-0000-00000000000a/long.png');
+    RAISE EXCEPTION 'a 121-character title was accepted on insert';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+  INSERT INTO public.gallery_artworks (title, type, uploader_id, image_path)
+  VALUES (repeat('t', 120), 'proxy', '43700000-0000-0000-0000-00000000000a', '43700000-0000-0000-0000-00000000000a/12.png');
+
+  -- 10 pending again: resubmitting the rejected cap 2 is refused.
+  BEGIN
+    PERFORM public.resubmit_own_gallery_artwork(
+      (SELECT id FROM public.gallery_artworks WHERE uploader_id = auth.uid() AND title = 'cap 2'));
+    RAISE EXCEPTION 'a resubmit past 10 pending was accepted';
+  EXCEPTION WHEN insufficient_privilege THEN NULL;
+  END;
+  ASSERT (SELECT status FROM public.gallery_artworks WHERE uploader_id = auth.uid() AND title = 'cap 2') = 'rejected',
+    'a refused resubmit must leave the upload rejected';
+
+  -- Owner edit RPC: 121 refused, 120 accepted.
+  BEGIN
+    PERFORM public.update_own_gallery_artwork(
+      (SELECT id FROM public.gallery_artworks WHERE uploader_id = auth.uid() AND title = 'cap 3'),
+      repeat('e', 121), 'proxy', NULL, NULL, '', false, NULL, false);
+    RAISE EXCEPTION 'a 121-character title was accepted by the owner edit RPC';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+  PERFORM public.update_own_gallery_artwork(
+    (SELECT id FROM public.gallery_artworks WHERE uploader_id = auth.uid() AND title = 'cap 3'),
+    repeat('e', 120), 'proxy', NULL, NULL, '', false, NULL, false);
+END $$;
+
+-- ---- Admin edits are bound too; rejecting frees the slot for the resubmit ----
+SELECT set_config('request.jwt.claim.sub', '43700000-0000-0000-0000-00000000000d', true);
+DO $$
+BEGIN
+  BEGIN
+    UPDATE public.gallery_artworks SET title = repeat('a', 121)
+      WHERE uploader_id = '43700000-0000-0000-0000-00000000000a' AND title = 'cap 4';
+    RAISE EXCEPTION 'a 121-character title was accepted from an admin edit';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+  UPDATE public.gallery_artworks SET status = 'rejected'
+    WHERE uploader_id = '43700000-0000-0000-0000-00000000000a' AND title = 'cap 4';
+  -- Other fields of a legacy long row still change: only written text is checked.
+  UPDATE public.gallery_artworks SET highlighted = true WHERE id = '43700000-0000-0000-0002-000000000001';
+END $$;
+
+SELECT set_config('request.jwt.claim.sub', '43700000-0000-0000-0000-00000000000a', true);
+DO $$
+BEGIN
+  PERFORM public.resubmit_own_gallery_artwork(
+    (SELECT id FROM public.gallery_artworks WHERE uploader_id = auth.uid() AND title = 'cap 2'));
+  ASSERT (SELECT count(*) FROM public.gallery_artworks WHERE uploader_id = auth.uid() AND status = 'pending') = 10,
+    'with a slot free, a rejected upload must resubmit';
+END $$;
+RESET ROLE;
+
+DO $$
+BEGIN
+  ASSERT (SELECT likes_count FROM public.gallery_artworks WHERE id = '43700000-0000-0000-0002-000000000001') = 1,
+    'a legacy over-length row must still take likes';
+END $$;
+
+ROLLBACK;
