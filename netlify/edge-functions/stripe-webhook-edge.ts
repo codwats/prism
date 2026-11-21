@@ -60,7 +60,7 @@ async function findUserByCustomer(customerId: string): Promise<string | null> {
   return rows[0]?.user_id ?? null;
 }
 
-async function handleEvent(event: StripeObject): Promise<void> {
+export async function handleEvent(event: StripeObject): Promise<void> {
   const obj: StripeObject = event.data.object;
 
   switch (event.type) {
