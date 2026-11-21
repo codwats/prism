@@ -276,6 +276,9 @@ export function normalizeCardName(cardName) {
   return stripPrintingSuffix(cardName.split(' // ')[0].trim()).toLowerCase();
 }
 
+// A card row's identity within a deck: a Sideboard row (#29) is its own row.
+export const cardRowKey = (row) => `${normalizeCardName(row.name)}${row.isSideboard ? '|sb' : ''}`;
+
 /**
  * Strip set-code/collector-number/foil suffixes that some export formats
  * append, e.g. "Sol Ring (C21) 263" or "Sol Ring (C21) 263 *F*". Without

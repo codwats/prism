@@ -10,7 +10,7 @@ import { buildPrismFromJson } from '../modules/prism-import.js';
 import { toDecklistText } from '../modules/moxfield.js';
 import { resolveDeckSource } from '../modules/deck-source.js';
 import { extractCubeCobraId, fetchCube, cubeTags, cubeToPacks, packsToPrismJson } from '../modules/cubecobra.js';
-import { MAX_STRIPE_SLOTS } from '../modules/processor.js';
+import { MAX_STRIPE_SLOTS, isConstructedDeck } from '../modules/processor.js';
 import { escapeHtml } from '../core/utils.js';
 import {
   initColorSwatches,
@@ -276,7 +276,7 @@ export async function handleDeckUrlImport(urlOrId = state.elements.deckUrl?.valu
     // Commander fields auto-fill from the text's Commander section (#147)
     syncCommanderFieldsFromText(commanderRefs());
     // A deck with no commander is Constructed (#29); its importer kept the Sideboard
-    setDeckFormat(deckData.cards.some((c) => c.isCommander) ? 'commander' : 'constructed');
+    setDeckFormat(isConstructedDeck(deckData) ? 'constructed' : 'commander');
 
     if (!editing) logToSupabase('info', 'url_import', { service: serviceName, name: deckData.name, cardCount: deckData.cards.length });
     showImportSuccess(editing

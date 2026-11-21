@@ -5,10 +5,11 @@
 import { state } from "../core/state.js";
 import { showError, showSuccess } from "../core/notifications.js";
 import { escapeHtml, debugLog, markSingleBatchDone, clickItemsOnKeyboardSelect } from "../core/utils.js";
-import { parseDecklist, validateDecklist, cardsToDecklistText, normalizeCardName, markingCards } from "../modules/parser.js";
+import { parseDecklist, validateDecklist, cardsToDecklistText, normalizeCardName, markingCards, cardRowKey } from "../modules/parser.js";
 import {
   processCards,
   commanderNames,
+  isConstructedDeck,
   removeDeckFromPrism,
   moveStripeToPosition,
   getColorName,
@@ -74,7 +75,7 @@ function cardListChanged(oldCards, newCards) {
   if (oldCards.length !== newCards.length) return true;
   const toMap = (cards) => {
     const m = new Map();
-    for (const c of cards) m.set(`${c.name.toLowerCase()}${c.isSideboard ? "|sb" : ""}`, c.quantity);
+    for (const c of cards) m.set(cardRowKey(c), c.quantity);
     return m;
   };
   const oldMap = toMap(oldCards);
@@ -299,7 +300,7 @@ export function handleEditClick(deckId) {
     state.elements.deckList.value = cardsToDecklistText(deck.cards);
   }
   // Not stored (#29): a deck with no commander opens as Constructed
-  setDeckFormat(deck.cards.some((c) => c.isCommander) ? "commander" : "constructed");
+  setDeckFormat(isConstructedDeck(deck) ? "constructed" : "commander");
   syncCommanderFieldsFromText(commanderRefs());
 
   if (state.elements.deckListUpdated) {
@@ -854,7 +855,7 @@ export function renderDeckCard(deck, showActions = true, processedCards = null) 
         nameClass: isInGroup ? "wa-heading-s" : "wa-heading-m",
         name: escapeHtml(deck.name),
         // A Constructed deck (no commander, #29) has no bracket to show
-        tags: `${slotTagHtml}${deck.cards.some((c) => c.isCommander) ? `<wa-tag size="s" variant="neutral">Bracket ${deck.bracket}</wa-tag>` : ""}`,
+        tags: `${slotTagHtml}${isConstructedDeck(deck) ? "" : `<wa-tag size="s" variant="neutral">Bracket ${deck.bracket}</wa-tag>`}`,
         meta: escapeHtml(deckMetaLine(deck, processedCards)),
         actions: showActions
           ? `${iconButton("btn-edit-deck", "data-deck-id", deck.id, "Edit deck", `Edit ${escapeHtml(deck.name)}`, "pen-to-square")}
