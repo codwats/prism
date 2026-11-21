@@ -50,6 +50,14 @@ export function getScryCardKey(card) {
   return card.isPassRow ? `${card.displayName}|${card.deckName}` : card.name;
 }
 
+/** Screens passed: the walk position plus cards answered ahead of it via search (#491). */
+export function scryTally(s) {
+  const walk = s.returnTo ?? s.index;
+  let ahead = 0;
+  for (const i of s.acted) if (i > walk) ahead++;
+  return walk + ahead;
+}
+
 /** rows: the screens fixed at Start marking or Audit. acted: indexes already answered. */
 export function createScrySession(rows) {
   return { rows, index: 0, acted: new Set(), returnTo: null };
@@ -160,7 +168,7 @@ async function renderCurrentScryCard() {
   const copies = card.copyCount || card.totalQuantity || 1;
   const copiesNote = copies > 1 ? `, mark ${copies} copies` : '';
   // A found card shows where the walk is, not the found card's list index.
-  const walk = session.returnTo ?? session.index;
+  const walk = scryTally(session);
   scryProgress.textContent = `${walk + 1} of ${session.rows.length}: ${displayName}${copiesNote}`;
   const bar = state.elements.scryBar;
   if (bar) bar.setAttribute('value', String(Math.round((walk / session.rows.length) * 100)));
