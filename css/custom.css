@@ -2067,6 +2067,7 @@ wa-page[view='desktop'] [data-toggle-nav] {
    Swap Planner (swap-planner.html)
    ============================================================================ */
 
+/* Compare PRISMs (compare-prisms.html, #446) reuses this column and the row styles */
 .swap-planner {
   max-width: 1000px;
   margin: 0 auto;
