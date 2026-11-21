@@ -564,24 +564,6 @@ function renderSleeveVisualization(activeDeck, slotMap) {
 }
 
 // ============================================================================
-// Public helpers used by deck-list.js
-// ============================================================================
-
-export function isStripeVariantDeck(prism, deckId) {
-  const deck = prism.decks.find(d => d.id === deckId);
-  if (!deck?.splitGroupId) return false;
-  const group = prism.splitGroups?.find(g => g.id === deck.splitGroupId);
-  return !!(group && (group.splitStyle || 'stripes') === 'stripes');
-}
-
-export function isDotVariantChild(prism, deckId) {
-  const deck = prism.decks.find(d => d.id === deckId);
-  if (!deck?.splitGroupId) return false;
-  const group = prism.splitGroups?.find(g => g.id === deck.splitGroupId);
-  return !!(group && group.splitStyle === 'dots');
-}
-
-// ============================================================================
 // Main entry point
 //
 // openStripeReorderDialog(deckId) opens the picker for any deck by id (the Add
