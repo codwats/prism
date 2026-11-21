@@ -6,7 +6,7 @@
  */
 
 import { processCards } from "./processor.js";
-import { normalizeCardName } from "./parser.js";
+import { normalizeCardName, markingCards } from "./parser.js";
 import { isCardDone, markSingleBatchDone } from "../core/utils.js";
 
 const sameName = (a, b) => normalizeCardName(a) === normalizeCardName(b);
@@ -181,7 +181,7 @@ export function markTallies(prism) {
 // mark is still on the sleeve and valid again (#307). Removes the rows from
 // prism.removedCards and returns them.
 export function clearReturnedRemovals(prism, deck) {
-  const quantities = new Map(deck.cards.map((c) => [normalizeCardName(c.name), c.quantity || 1]));
+  const quantities = new Map(markingCards(deck.cards).map((c) => [normalizeCardName(c.name), c.quantity]));
   const position = getRemovalStripePosition(prism, deck);
   const cleared = [];
   prism.removedCards = (prism.removedCards || []).filter((rc) => {
