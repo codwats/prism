@@ -111,7 +111,7 @@ function render(t) {
         ${action}
       </td></tr>
       <tr><td class="subtle" style="padding: 20px 8px 0; font-family: ${SANS}; font-size: 12px; line-height: 1.5; color: ${C.subtle};">
-        ${t.why}<br><br>PRISM · Sleeve marking for Commander players · <a href="${SITE}" style="color: ${C.subtle};">prismmtg.com</a>
+        ${t.why}<br><br>PRISM · Sleeve marking for Magic players · <a href="${SITE}" style="color: ${C.subtle};">prismmtg.com</a>
       </td></tr>
     </table>
   </td></tr>
