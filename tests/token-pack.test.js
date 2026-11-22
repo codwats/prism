@@ -12,7 +12,7 @@ globalThis.localStorage = {
 };
 
 const { createPrism, createDeck, splitDeck, processCards } = await import('../js/modules/processor.js');
-const { tokenRows, pairTokens, unpairToken, setTokenHidden, setAddedToken } = await import('../js/modules/tokens.js');
+const { tokenRows, pairTokens, unpairToken, setTokenHidden, setAddedToken, addedTokenDecks, tokenDeckOptions } = await import('../js/modules/tokens.js');
 const { isCardDone } = await import('../js/core/utils.js');
 
 const card = (name, quantity = 1) => ({ name, quantity, isCommander: false, isBasicLand: false });
@@ -132,6 +132,20 @@ test('a token Done, then needed by another deck, reads undone with the new marks
 	const [after] = tokenRows(prism, tokensOf);
 	assert.deepEqual(marks(after), ['Alpha:a', 'Beta:a']);
 	assert.equal(isCardDone(after, marked), false);
+});
+
+test('Choose decks keeps a hand-added deck the player\'s to untick once a card in it makes the token', () => {
+	let prism = twoDecks([card('Sol Ring')], [card('Sol Ring')]);
+	const [alpha, beta] = prism.decks;
+	prism = setAddedToken(prism, TREASURE, [alpha.id]);
+	prism.decks[0].cards.push(card('Smothering Tithe'));
+	prism.decks[1].cards.push(card('Smothering Tithe'));
+
+	const options = tokenDeckOptions(prism, 'o-treasure', tokensOf);
+	assert.deepEqual(options.map((o) => [o.deck.name, o.checked, o.locked]), [['Alpha', true, false], ['Beta', true, true]]);
+	// The dialog saves the ticked boxes the player can change.
+	const saved = setAddedToken(prism, TREASURE, options.filter((o) => o.checked && !o.locked).map((o) => o.deck.id));
+	assert.deepEqual(addedTokenDecks(saved, 'o-treasure'), [alpha.id], `still hand-added for Alpha only, not ${beta.name}`);
 });
 
 // Total, Pool, Core, deck Pool/Core and the savings counters all read processCards.

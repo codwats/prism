@@ -1799,27 +1799,31 @@ COMMIT;
 -- ============================================
 -- MIGRATION: Token pack choices (#412)
 -- ============================================
--- One row per (prism, kind, Token type): a hand-added token and the decks
--- that need it ('added'), one side of a double-sided pairing ('paired'), or
--- a hide ('hidden'). oracle_id is Scryfall's. Deploy before the client that
--- selects it: the PRISM load embeds token_choices, so a missing table fails
--- every cloud read. The client merges rows by (kind, oracle_id) on updated_at,
--- newer wins, and only upserts: undoing a choice writes a newer row ({} decks,
+-- One row per (prism, kind, Token type, deck): a hand-added token for one
+-- deck ('added', included false = unticked), one side of a double-sided
+-- pairing ('paired'), or a hide ('hidden'); deck_id is '' off 'added'.
+-- oracle_id is Scryfall's. Deploy before the client that selects it: the
+-- PRISM load embeds token_choices, so a missing table fails every cloud read.
+-- The client merges rows by (kind, oracle_id, deck_id) on updated_at, newer
+-- wins, and only upserts: undoing a choice writes a newer row (included false,
 -- NULL paired_with, hidden false), so no row is deleted except by the PRISM's
--- cascade. The client supplies updated_at (no trigger, see above). Owner-only
--- through the prism, like planned_swaps. The Token pack is free, so INSERT has
--- no is_entitled() gate. Tests: tests/token-choices.sql.
+-- cascade. deck_id is TEXT with no foreign key on purpose: a row for a deck
+-- deleted elsewhere must still save, and the client ignores it. The client
+-- supplies updated_at (no trigger, see above). Owner-only through the prism,
+-- like planned_swaps. The Token pack is free, so INSERT has no is_entitled()
+-- gate. Tests: tests/token-choices.sql.
 BEGIN;
   CREATE TABLE IF NOT EXISTS token_choices (
     prism_id UUID REFERENCES prisms(id) ON DELETE CASCADE NOT NULL,
     kind TEXT NOT NULL CHECK (kind IN ('added', 'paired', 'hidden')),
     oracle_id TEXT NOT NULL CHECK (length(oracle_id) BETWEEN 1 AND 64),
+    deck_id TEXT NOT NULL DEFAULT '' CHECK (length(deck_id) <= 64 AND (kind = 'added') = (deck_id <> '')),
     name TEXT CHECK (length(name) <= 200),
-    deck_ids TEXT[],
+    included BOOLEAN,
     paired_with TEXT CHECK (length(paired_with) <= 64),
     hidden BOOLEAN,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    PRIMARY KEY (prism_id, kind, oracle_id)
+    PRIMARY KEY (prism_id, kind, oracle_id, deck_id)
   );
 
   ALTER TABLE token_choices ENABLE ROW LEVEL SECURITY;

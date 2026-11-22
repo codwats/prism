@@ -4,22 +4,38 @@
  * token parts) or the player hand-added it for that deck.
  *
  * The player's choices live in `prism.tokenChoices`, one entry per
- * (kind, oracleId), each with its own `updatedAt`:
- *   { kind: 'added',  oracleId, name, deckIds: [] }  hand-added; [] = removed
- *   { kind: 'paired', oracleId, pairedWith }         null = unpaired
- *   { kind: 'hidden', oracleId, hidden }             false = shown again
+ * (kind, oracleId, deckId), each with its own `updatedAt`:
+ *   { kind: 'added',  oracleId, deckId, name, included }  hand-added for one deck; false = unticked
+ *   { kind: 'paired', oracleId, pairedWith }              null = unpaired
+ *   { kind: 'hidden', oracleId, hidden }                  false = shown again
  * Nothing is ever deleted: undoing a choice writes a newer entry, so the sync
  * merge is a plain newer-wins per entry and needs no tombstones (storage.js).
+ * One entry per deck, so ticks for two decks on two devices both survive.
+ * Details: docs/agents/token-pack.md.
  */
 
 import { processCards } from './processor.js';
 
+/**
+ * Each kind's own fields and their token_choices columns. Shared by the sync
+ * (storage.js) and the backup import (prism-import.js), so the three agree.
+ */
+export const TOKEN_CHOICE_FIELDS = {
+  added: { deckId: 'deck_id', name: 'name', included: 'included' },
+  paired: { pairedWith: 'paired_with' },
+  hidden: { hidden: 'hidden' },
+};
+
+/** A choice's identity: the merge keeps the newest entry per key. */
+export const tokenChoiceKey = (c) => `${c.kind}|${c.oracleId}|${c.deckId || ''}`;
+
 const findChoice = (prism, kind, oracleId) =>
-  (prism.tokenChoices || []).find((c) => c.kind === kind && c.oracleId === oracleId);
+  (prism.tokenChoices || []).find((c) => tokenChoiceKey(c) === tokenChoiceKey({ kind, oracleId }));
 
 function setChoice(prism, kind, oracleId, fields) {
-  const rest = (prism.tokenChoices || []).filter((c) => !(c.kind === kind && c.oracleId === oracleId));
-  return { ...prism, tokenChoices: [...rest, { kind, oracleId, ...fields, updatedAt: new Date().toISOString() }] };
+  const choice = { kind, oracleId, ...fields, updatedAt: new Date().toISOString() };
+  const rest = (prism.tokenChoices || []).filter((c) => tokenChoiceKey(c) !== tokenChoiceKey(choice));
+  return { ...prism, tokenChoices: [...rest, choice] };
 }
 
 /** The other side of a Token type's pair, only while both sides point at each other. */
@@ -43,21 +59,35 @@ export function setTokenHidden(prism, oracleId, hidden) {
   return setChoice(prism, 'hidden', oracleId, { hidden });
 }
 
-/** The decks a hand-added token is needed by, exactly; [] removes it. */
-export function setAddedToken(prism, type, deckIds) {
-  return setChoice(prism, 'added', type.oracleId, { name: type.name, deckIds: [...deckIds] });
-}
+const addedEntries = (prism) => (prism.tokenChoices || []).filter((c) => c.kind === 'added' && c.included);
 
 /** Decks the player ticked for a hand-added token, or [] */
-export const addedTokenDecks = (prism, oracleId) => findChoice(prism, 'added', oracleId)?.deckIds || [];
+export const addedTokenDecks = (prism, oracleId) =>
+  addedEntries(prism).filter((c) => c.oracleId === oracleId).map((c) => c.deckId);
+
+/**
+ * The decks a hand-added token is needed by, exactly; [] removes it. Writes
+ * only the decks whose tick changed, so another device's tick for another
+ * deck is left alone.
+ */
+export function setAddedToken(prism, type, deckIds) {
+  const had = new Set(addedTokenDecks(prism, type.oracleId));
+  const want = new Set(deckIds);
+  let next = prism;
+  for (const deckId of new Set([...had, ...want])) {
+    if (had.has(deckId) !== want.has(deckId)) {
+      next = setChoice(next, 'added', type.oracleId, { deckId, name: type.name, included: want.has(deckId) });
+    }
+  }
+  return next;
+}
 
 /** Oracle ids the player hid. */
 export const hiddenTokenIds = (prism) =>
   (prism.tokenChoices || []).filter((c) => c.kind === 'hidden' && c.hidden).map((c) => c.oracleId);
 
 /** Oracle ids hand-added to at least one deck. */
-export const addedTokenIds = (prism) =>
-  (prism.tokenChoices || []).filter((c) => c.kind === 'added' && c.deckIds?.length).map((c) => c.oracleId);
+export const addedTokenIds = (prism) => [...new Set(addedEntries(prism).map((c) => c.oracleId))];
 
 /**
  * Every Token type some deck needs, hidden ones included: oracleId -> { type, deckIds }.
@@ -76,12 +106,24 @@ export function tokenNeeds(prism, tokensOf, typeOf = () => null) {
       for (const type of tokensOf(card.name) || []) need(type, deck.id);
     }
   }
-  for (const c of prism.tokenChoices || []) {
-    if (c.kind !== 'added') continue;
-    const type = typeOf(c.oracleId) || { oracleId: c.oracleId, name: c.name, detail: '' };
-    for (const deckId of c.deckIds || []) if (liveDecks.has(deckId)) need(type, deckId);
+  for (const c of addedEntries(prism)) {
+    if (liveDecks.has(c.deckId)) need(typeOf(c.oracleId) || { oracleId: c.oracleId, name: c.name, detail: '' }, c.deckId);
   }
   return needs;
+}
+
+/**
+ * The Choose decks list for one Token type: every deck, ticked when it needs
+ * the type, and locked only when a card of its own makes it and the player
+ * did not also add it, so a hand-added deck stays the player's to untick.
+ * @returns {Array<{ deck: Object, checked: boolean, locked: boolean }>}
+ */
+export function tokenDeckOptions(prism, oracleId, tokensOf) {
+  const derived = tokenNeeds({ ...prism, tokenChoices: [] }, tokensOf).get(oracleId)?.deckIds || new Set();
+  const added = new Set(addedTokenDecks(prism, oracleId));
+  return [...(prism.decks || [])]
+    .sort((a, b) => (a.stripePosition ?? 99) - (b.stripePosition ?? 99))
+    .map((deck) => ({ deck, checked: derived.has(deck.id) || added.has(deck.id), locked: derived.has(deck.id) && !added.has(deck.id) }));
 }
 
 /**

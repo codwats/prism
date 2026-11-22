@@ -477,6 +477,22 @@ test('a token hand-added on A and a pairing made on B both arrive on both device
 	}
 });
 
+test('a token hand-added for one deck on A and another deck on B keeps both decks', async () => {
+	const id = await seed();
+	const copy = { oracleId: 'o-copy', name: 'Copy' };
+	const [alphaId, betaId] = await on('A', T(2), () => [deck(prism(), 'Alpha').id, deck(prism(), 'Beta').id]);
+	await on('A', T(10), () => choose((p) => Tk.setAddedToken(p, copy, [alphaId])));
+	await on('B', T(11), () => choose((p) => Tk.setAddedToken(p, copy, [betaId])));
+	await on('A', T(12), sync);
+	await on('B', T(13), sync);
+	await on('A', T(14), load);
+
+	for (const name of ['A', 'B']) {
+		await on(name, T(15), () => assert.deepEqual(Tk.addedTokenDecks(prism(), 'o-copy').sort(), [alphaId, betaId].sort(), name));
+	}
+	assert.equal(cloudRow(id).token_choices.filter((c) => c.included).length, 2);
+});
+
 test('a later unhide on B beats an earlier hide on A that syncs last', async () => {
 	const id = await seed();
 	await on('A', T(10), () => choose((p) => Tk.setTokenHidden(p, 'o-treasure', true)));

@@ -96,15 +96,19 @@ test('a backup keeps the Token pack choices; malformed ones and gone decks are d
 	const p = prism();
 	const at = '2026-10-03T00:00:00Z';
 	p.tokenChoices = [
-		{ kind: 'added', oracleId: 'o-copy', name: 'Copy', deckIds: ['d2', 'gone'], updatedAt: at },
+		{ kind: 'added', oracleId: 'o-copy', deckId: 'd2', name: 'Copy', included: true, updatedAt: at },
+		{ kind: 'added', oracleId: 'o-copy', deckId: 'd1', name: 'Copy', included: false, updatedAt: at },
+		{ kind: 'added', oracleId: 'o-copy', deckId: 'gone', name: 'Copy', included: true, updatedAt: at },
 		{ kind: 'paired', oracleId: 'o-treasure', pairedWith: 'o-dino', updatedAt: at },
 		{ kind: 'hidden', oracleId: 'o-clue', hidden: true, updatedAt: at },
 	];
 	const json = JSON.parse(exportToJSON(p));
-	json.prism.tokenChoices.push(null, { kind: 'banned', oracleId: 'o-x' }, { kind: 'hidden', oracleId: '<img>', hidden: true });
+	json.prism.tokenChoices.push(null, { kind: 'banned', oracleId: 'o-x' }, { kind: 'hidden', oracleId: '<img>', hidden: true },
+		{ kind: 'added', oracleId: 'o-old', name: 'Old shape', deckIds: ['d1'] }); // no deckId
 	const restored = buildPrismFromJson(json);
 	assert.deepEqual(restored.tokenChoices, [
-		{ kind: 'added', oracleId: 'o-copy', name: 'Copy', deckIds: ['d2'], updatedAt: at },
+		{ kind: 'added', oracleId: 'o-copy', deckId: 'd2', name: 'Copy', included: true, updatedAt: at },
+		{ kind: 'added', oracleId: 'o-copy', deckId: 'd1', name: 'Copy', included: false, updatedAt: at },
 		{ kind: 'paired', oracleId: 'o-treasure', pairedWith: 'o-dino', updatedAt: at },
 		{ kind: 'hidden', oracleId: 'o-clue', hidden: true, updatedAt: at },
 	]);

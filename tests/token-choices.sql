@@ -2,8 +2,8 @@
 -- Supabase project's SQL editor after supabase-schema.sql.
 -- Never run on production. Fixtures roll back.
 -- Token pack (#412): token choices are owner-only through the prism, free
--- (no Membership needed to add one), go with their PRISM, and anon holds no
--- privilege on the table.
+-- (no Membership needed to add one), one row per deck a token is hand-added
+-- for, go with their PRISM, and anon holds no privilege on the table.
 BEGIN;
 
 INSERT INTO auth.users (id, email, email_confirmed_at) VALUES
@@ -28,17 +28,31 @@ SELECT set_config('request.jwt.claim.sub', '41200000-0000-0000-0000-000000000001
 DO $$
 BEGIN
   ASSERT NOT public.is_entitled(), 'fixture user must not be entitled';
-  INSERT INTO public.token_choices (prism_id, kind, oracle_id, name, deck_ids) VALUES
-    ('41200000-0000-0000-0001-000000000001', 'added', 'o-copy', 'Copy', ARRAY['d1']);
+  -- One row per deck a token is hand-added for.
+  INSERT INTO public.token_choices (prism_id, kind, oracle_id, deck_id, name, included) VALUES
+    ('41200000-0000-0000-0001-000000000001', 'added', 'o-copy', 'd1', 'Copy', true),
+    ('41200000-0000-0000-0001-000000000001', 'added', 'o-copy', 'd2', 'Copy', true);
   INSERT INTO public.token_choices (prism_id, kind, oracle_id, paired_with) VALUES
     ('41200000-0000-0000-0001-000000000001', 'paired', 'o-treasure', 'o-dino');
-  ASSERT (SELECT count(*) FROM public.token_choices) = 2, 'a user sees only their own token choices, and needs no Membership to add one';
+  ASSERT (SELECT count(*) FROM public.token_choices) = 3, 'a user sees only their own token choices, and needs no Membership to add one';
 
-  -- The client's upsert: the same (prism, kind, oracle_id) updates in place.
+  -- The client's upsert: the same (prism, kind, oracle_id, deck_id) updates in place.
   INSERT INTO public.token_choices (prism_id, kind, oracle_id, paired_with, updated_at) VALUES
     ('41200000-0000-0000-0001-000000000001', 'paired', 'o-treasure', NULL, now())
-    ON CONFLICT (prism_id, kind, oracle_id) DO UPDATE SET paired_with = EXCLUDED.paired_with, updated_at = EXCLUDED.updated_at;
+    ON CONFLICT (prism_id, kind, oracle_id, deck_id) DO UPDATE SET paired_with = EXCLUDED.paired_with, updated_at = EXCLUDED.updated_at;
   ASSERT (SELECT paired_with IS NULL FROM public.token_choices WHERE oracle_id = 'o-treasure'), 'an upsert updates the choice';
+  INSERT INTO public.token_choices (prism_id, kind, oracle_id, deck_id, name, included) VALUES
+    ('41200000-0000-0000-0001-000000000001', 'added', 'o-copy', 'd1', 'Copy', false)
+    ON CONFLICT (prism_id, kind, oracle_id, deck_id) DO UPDATE SET included = EXCLUDED.included;
+  ASSERT (SELECT array_agg(deck_id ORDER BY deck_id) FROM public.token_choices WHERE oracle_id = 'o-copy' AND included) = ARRAY['d2'],
+    'unticking one deck leaves the other deck''s row alone';
+
+  BEGIN
+    INSERT INTO public.token_choices (prism_id, kind, oracle_id, name, included) VALUES
+      ('41200000-0000-0000-0001-000000000001', 'added', 'o-nodeck', 'No deck', true);
+    RAISE EXCEPTION 'stored a hand-added token with no deck';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
 
   BEGIN
     INSERT INTO public.token_choices (prism_id, kind, oracle_id, hidden) VALUES

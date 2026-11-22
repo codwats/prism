@@ -19,7 +19,7 @@ globalThis.localStorage = {
 
 const tables = { prisms: new Map(), decks: new Map(), deck_cards: new Map(), planned_swaps: new Map(), token_choices: new Map() };
 // token_choices has a composite primary key; every other table has `id`.
-const keyOf = (table, r) => (table === 'token_choices' ? `${r.prism_id}|${r.kind}|${r.oracle_id}` : r.id);
+const keyOf = (table, r) => (table === 'token_choices' ? `${r.prism_id}|${r.kind}|${r.oracle_id}|${r.deck_id}` : r.id);
 // Deck ids whose next replace_deck_cards call fails, as a dropped request would.
 export const failCardsOnce = new Set();
 
