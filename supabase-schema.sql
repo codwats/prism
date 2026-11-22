@@ -508,23 +508,7 @@ CREATE TRIGGER trg_gallery_likes_counter
   AFTER INSERT OR DELETE ON gallery_likes
   FOR EACH ROW EXECUTE FUNCTION gallery_likes_counter();
 
--- Download counter, login-gated (authenticated only).
-CREATE OR REPLACE FUNCTION increment_gallery_download(p_artwork_id UUID)
-RETURNS void
-LANGUAGE sql
-SECURITY DEFINER
-SET search_path = public, pg_temp
-AS $$
-  UPDATE gallery_artworks
-  SET downloads_count = downloads_count + 1
-  WHERE id = p_artwork_id AND status = 'approved'
-    AND (type <> 'alter' OR downloads_enabled); -- display-only Alters never count (#342)
-$$;
-
--- Supabase grants anon directly, so revoking from public alone leaves it callable (#231, #357).
-REVOKE EXECUTE ON FUNCTION increment_gallery_download(UUID) FROM public;
-REVOKE EXECUTE ON FUNCTION increment_gallery_download(UUID) FROM anon;
-GRANT EXECUTE ON FUNCTION increment_gallery_download(UUID) TO authenticated;
+-- Download counter: see MIGRATION: one counted download per account (#441), near the end of this file.
 
 -- Owner metadata edits. A plain owner-UPDATE policy can't work here: RLS
 -- WITH CHECK can't compare OLD vs NEW, so any policy permissive enough to
@@ -1767,6 +1751,49 @@ COMMIT;
 BEGIN;
   ALTER TABLE deck_cards
     ADD COLUMN IF NOT EXISTS is_sideboard BOOLEAN DEFAULT false;
+COMMIT;
+
+-- ============================================
+-- MIGRATION: one counted download per account per artwork (#441)
+-- ============================================
+-- increment_gallery_download used to add one on every call, so any signed-in
+-- user could inflate downloads_count (the downloads sort). The first call by an
+-- account records (user, artwork) here and counts; repeats succeed and change
+-- nothing. Private: RLS on, no policies; only the SECURITY DEFINER RPC touches
+-- it. Existing counts are left as they are. Tests: tests/gallery-artists.sql.
+BEGIN;
+  CREATE TABLE IF NOT EXISTS gallery_downloads (
+    user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+    artwork_id UUID REFERENCES gallery_artworks(id) ON DELETE CASCADE,
+    created_at TIMESTAMPTZ DEFAULT now(),
+    PRIMARY KEY (user_id, artwork_id)
+  );
+  CREATE INDEX IF NOT EXISTS idx_gallery_downloads_artwork ON gallery_downloads(artwork_id);
+  ALTER TABLE gallery_downloads ENABLE ROW LEVEL SECURITY;
+
+  -- Login-gated (authenticated only).
+  CREATE OR REPLACE FUNCTION increment_gallery_download(p_artwork_id UUID)
+  RETURNS void
+  LANGUAGE sql
+  SECURITY DEFINER
+  SET search_path = public, pg_temp
+  AS $$
+    WITH first_time AS (
+      INSERT INTO gallery_downloads (user_id, artwork_id)
+      SELECT auth.uid(), id FROM gallery_artworks
+      WHERE id = p_artwork_id AND status = 'approved'
+        AND (type <> 'alter' OR downloads_enabled) -- display-only Alters never count (#342)
+      ON CONFLICT DO NOTHING
+      RETURNING artwork_id
+    )
+    UPDATE gallery_artworks SET downloads_count = downloads_count + 1
+    WHERE id IN (SELECT artwork_id FROM first_time);
+  $$;
+
+  -- Supabase grants anon directly, so revoking from public alone leaves it callable (#231, #357).
+  REVOKE EXECUTE ON FUNCTION increment_gallery_download(UUID) FROM public;
+  REVOKE EXECUTE ON FUNCTION increment_gallery_download(UUID) FROM anon;
+  GRANT EXECUTE ON FUNCTION increment_gallery_download(UUID) TO authenticated;
 COMMIT;
 
 -- ============================================

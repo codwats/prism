@@ -11,7 +11,6 @@ import {
   commanderNames,
   isConstructedDeck,
   removeDeckFromPrism,
-  moveStripeToPosition,
   getColorName,
   calculateRemovedCards,
   splitDeck,
@@ -679,53 +678,6 @@ export function handleSwitchPrism(prismId) {
   initColorSwatches();
   renderAll();
   showSuccess(`Switched to "${target.name}".`);
-}
-
-export function handleStripeReorder(deckId, direction) {
-  // Dot variants own no slot (stripePosition null) — exclude them so the
-  // neighbour-swap logic only ever targets decks with a real position.
-  const sortedDecks = state.currentPrism.decks
-    .filter((d) => typeof d.stripePosition === "number")
-    .sort((a, b) => a.stripePosition - b.stripePosition);
-  const currentIndex = sortedDecks.findIndex((d) => d.id === deckId);
-  if (currentIndex === -1) return;
-
-  const neighborIndex =
-    direction === "up" ? currentIndex - 1 : currentIndex + 1;
-  if (neighborIndex < 0 || neighborIndex >= sortedDecks.length) return;
-
-  // Swap positions with the nearest occupied neighbor
-  const targetPosition = sortedDecks[neighborIndex].stripePosition;
-  const result = moveStripeToPosition(
-    state.currentPrism,
-    deckId,
-    targetPosition,
-  );
-  state.currentPrism = result.prism;
-  savePrism(state.currentPrism);
-  renderAll();
-}
-
-export function handlePositionChange(deckId, newPosition) {
-  const deck = state.currentPrism.decks.find((d) => d.id === deckId);
-  if (!deck || deck.stripePosition === newPosition) return;
-
-  const result = moveStripeToPosition(
-    state.currentPrism,
-    deckId,
-    newPosition,
-  );
-  state.currentPrism = result.prism;
-  savePrism(state.currentPrism);
-  renderAll();
-
-  if (result.swapped) {
-    showSuccess(
-      `Swapped ${deck.name} with ${result.swappedWithName}`,
-    );
-  } else {
-    showSuccess(`Moved ${deck.name} to Slot ${newPosition}`);
-  }
 }
 
 // ============================================================================

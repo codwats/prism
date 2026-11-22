@@ -1534,21 +1534,6 @@ export function setColorScheme(scheme) {
 }
 
 /**
- * Clear all PRISM data (for debugging/reset)
- */
-export function clearAllData() {
-  localStorage.removeItem(STORAGE_KEY);
-}
-
-/**
- * Export all data as JSON (for backup)
- * @returns {string} JSON string of all data
- */
-export function exportAllData() {
-  return localStorage.getItem(STORAGE_KEY) || JSON.stringify(getDefaultStorage());
-}
-
-/**
  * Import data from JSON (for restore)
  * @param {string} jsonString - The JSON data to import
  * @returns {boolean} Success status
