@@ -27,6 +27,7 @@ import { getSupabase, hasStoredSession, SUPABASE_URL, SUPABASE_ANON_KEY } from '
 import { showSuccess, showError, showToast } from './core/notifications.js';
 import { wireCardAutocomplete as wireCardAutocompleteInput } from './modules/card-autocomplete.js';
 import { escapeHtml } from './core/utils.js';
+import { lightboxHtml } from './modules/gallery-lightbox.js';
 import { linkIcon } from './modules/gallery-links.js';
 import { artworksQuery, GRID_PAGE_SIZE } from './modules/gallery-query.js';
 
@@ -619,7 +620,7 @@ async function renderDetail(root, id) {
   root.innerHTML = `
     ${breadcrumbHtml([{ label: 'Gallery', href: 'gallery.html' }, { label: artwork.title }])}
     <div class="gallery-detail">
-      ${artPlaceholderHtml(artwork, 'gallery-art gallery-art--lg')}
+      ${lightboxHtml(artwork, artPlaceholderHtml(artwork, 'gallery-art gallery-art--lg'))}
       <div class="wa-stack wa-gap-s">
         <div class="wa-cluster wa-gap-xs wa-align-items-center">
           ${typeTagHtml(artwork.type)}
