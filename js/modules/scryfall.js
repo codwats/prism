@@ -511,14 +511,23 @@ function cacheTokenImages(types) {
  * identity of each hand-added oracle id. On the shared rate chain; cached.
  * @param {string[]} cardNames
  * @param {string[]} [oracleIds]
- * @returns {Promise<{byCard: Map<string, Array<Object>|null>, byOracle: Map<string, Object|null>}>}
- *   Token types are { oracleId, name, detail, typeLine, imageUri }; null = Scryfall couldn't match it
- * @throws when a request fails, as getCardAttributes does
+ * @returns {Promise<{byCard: Map<string, Array<Object>|null>, byOracle: Map<string, Object|null>, incomplete: boolean}>}
+ *   Token types are { oracleId, name, detail, typeLine, imageUri }; null = not known.
+ *   Never throws: when a request fails it answers from the caches, `incomplete`.
  */
 export async function getTokenTypes(cardNames, oracleIds = []) {
-  const attributes = await getCardAttributes(cardNames);
+  let incomplete = false;
+  const attributes = await getCardAttributes(cardNames).catch(() => {
+    incomplete = true;
+    const cached = loadAttributes();
+    return new Map(cardNames.map((n) => [n, cached[attributeKey(n)] || null]));
+  });
   const parts = [...attributes.values()].flatMap((a) => a?.tokens || []);
-  const cache = await lookupTokenTypes([...parts.map((p) => `id:${p.id}`), ...oracleIds.map((id) => `oracle:${id}`)]);
+  const cache = await lookupTokenTypes([...parts.map((p) => `id:${p.id}`), ...oracleIds.map((id) => `oracle:${id}`)])
+    .catch(() => {
+      incomplete = true;
+      return loadAttributes(TOKEN_TYPES_KEY);
+    });
   const byCard = new Map(cardNames.map((n) => {
     const a = attributes.get(n);
     const types = (a?.tokens || []).map((p) => cache[`id:${p.id}`]).filter(Boolean);
@@ -526,7 +535,7 @@ export async function getTokenTypes(cardNames, oracleIds = []) {
   }));
   const byOracle = new Map(oracleIds.map((id) => [id, cache[`oracle:${id}`] || null]));
   cacheTokenImages([...[...byCard.values()].flat(), ...byOracle.values()].filter(Boolean));
-  return { byCard, byOracle };
+  return { byCard, byOracle, incomplete };
 }
 
 /**

@@ -106,3 +106,14 @@ test('a hand-added Token type not cached here is fetched by oracle id', async ()
 	assert.equal(byOracle.get('o-soldier').detail, '1/1 white');
 	assert.deepEqual(requests, [[{ oracle_id: 'o-soldier' }]]);
 });
+
+// Runs last: the network failure locks the chain out for 30 s.
+test('offline with a card not cached yet, the cached tokens still list, flagged incomplete', async () => {
+	reset();
+	await getTokenTypes(['Smothering Tithe']);
+	offline = true;
+	const { byCard, incomplete } = await getTokenTypes(['Smothering Tithe', 'Dockside Extortionist']);
+	assert.equal(byCard.get('Smothering Tithe')[0].name, 'Treasure');
+	assert.equal(byCard.get('Dockside Extortionist'), null);
+	assert.equal(incomplete, true);
+});
