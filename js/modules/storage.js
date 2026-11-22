@@ -809,7 +809,7 @@ async function savePrismToSupabase(prism) {
 
     const { data: existingDeckRows, error: existingDecksError } = await supabase
       .from('decks')
-      .select('id, created_at')
+      .select('id, created_at, updated_at')
       .eq('prism_id', prism.id);
 
     if (existingDecksError) {
@@ -821,30 +821,32 @@ async function savePrismToSupabase(prism) {
     const localDeckIds = (prism.decks || []).map(deck => deck.id);
     const localDeckIdSet = new Set(localDeckIds);
 
+    // A deck row keeps its cloud updated_at (epoch for a new deck) until its
+    // cards are saved: a device pulling between a failed card write and the
+    // retry must not record the new timestamp with the old cards (#503).
+    const deckRow = (deck, updatedAt) => {
+      const deckUpdatedAt = deck.updatedAt || prismUpdatedAt;
+      return {
+        id: deck.id,
+        prism_id: prism.id,
+        name: deck.name,
+        color: deck.color,
+        bracket: deck.bracket,
+        stripe_position: deck.stripePosition,
+        sort_order: deck.stripePosition,
+        split_group_id: deck.splitGroupId || null,
+        created_at: deck.createdAt || existingDeckMap.get(deck.id)?.created_at || deckUpdatedAt,
+        updated_at: updatedAt,
+        cards_updated_at: deck.cardsUpdatedAt || null,
+        source_url: deck.sourceUrl || null
+      };
+    };
+    const stagedUpdatedAt = deck => existingDeckMap.get(deck.id)?.updated_at || new Date(0).toISOString();
+
     if ((prism.decks || []).length > 0) {
-      const decksToUpsert = (prism.decks || []).map(deck => {
-        const deckUpdatedAt = deck.updatedAt || prismUpdatedAt;
-        const existingDeck = existingDeckMap.get(deck.id);
-
-        return {
-          id: deck.id,
-          prism_id: prism.id,
-          name: deck.name,
-          color: deck.color,
-          bracket: deck.bracket,
-          stripe_position: deck.stripePosition,
-          sort_order: deck.stripePosition,
-          split_group_id: deck.splitGroupId || null,
-          created_at: deck.createdAt || existingDeck?.created_at || deckUpdatedAt,
-          updated_at: deckUpdatedAt,
-          cards_updated_at: deck.cardsUpdatedAt || null,
-          source_url: deck.sourceUrl || null
-        };
-      });
-
       const { error: decksUpsertError } = await supabase
         .from('decks')
-        .upsert(decksToUpsert, { onConflict: 'id' });
+        .upsert((prism.decks || []).map(deck => deckRow(deck, stagedUpdatedAt(deck))), { onConflict: 'id' });
 
       if (decksUpsertError) {
         console.error('Error upserting decks to Supabase:', decksUpsertError);
@@ -857,6 +859,7 @@ async function savePrismToSupabase(prism) {
     // If the RPC is missing from the project (schema migration not yet run),
     // fall back to a non-atomic DELETE + INSERT for the rest of this session.
     let anyCardFailed = false;
+    const cardsSavedDecks = [];
     for (const deck of prism.decks || []) {
       const deckUpdatedAt = deck.updatedAt || prismUpdatedAt;
       const localCards = deck.cards || [];
@@ -895,6 +898,18 @@ async function savePrismToSupabase(prism) {
         console.error('Error replacing cards for deck', deck.name, ':', cardError);
         anyCardFailed = true;
         // Continue rather than bailing — other decks should still be saved.
+      } else if (Date.parse(deckUpdatedAt) !== Date.parse(stagedUpdatedAt(deck))) {
+        cardsSavedDecks.push(deckRow(deck, deckUpdatedAt));
+      }
+    }
+
+    if (cardsSavedDecks.length > 0) {
+      const { error: stampError } = await supabase
+        .from('decks')
+        .upsert(cardsSavedDecks, { onConflict: 'id' });
+      if (stampError) {
+        console.error('Error stamping saved decks in Supabase:', stampError);
+        return false;
       }
     }
 
