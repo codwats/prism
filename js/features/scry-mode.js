@@ -47,7 +47,7 @@ export function scryLegend(stripes) {
 
 export function getScryCardKey(card) {
   if (card.batchKey) return card.batchKey; // one screen per batch (#149/#151)
-  return card.isPassRow ? `${card.displayName}|${card.deckName}` : card.name;
+  return card.isPassRow ? `${card.displayName}|${card.deckName}` : card.doneKey || card.name; // doneKey: token rows (#412)
 }
 
 /** Screens answered (#491): Done/Matches, and Audit's Wrong; a plain Skip is not an answer. */
@@ -60,6 +60,8 @@ export function createScrySession(rows) {
 }
 
 const screenName = (row) => (row.isPassRow ? row.displayName : row.name);
+// A token's image is cached under its imageName (#412), not its shown name.
+const screenImage = (row) => row.imageName || screenName(row);
 
 /** Unanswered screens whose name contains `query`, labelled so batches and passes can be told apart. */
 export function scryMatches(s, query) {
@@ -191,7 +193,7 @@ async function renderCurrentScryCard() {
 
   try {
     const stripes = card.stripes || [];
-    const el = await buildCardWithStripes(displayName, stripes);
+    const el = await buildCardWithStripes(screenImage(card), stripes);
 
     if (stale()) return;
 
@@ -212,6 +214,7 @@ async function renderCurrentScryCard() {
   // Prefetch next few cards so advance is snappy
   const nextNames = session.rows
     .slice(session.index + 1, session.index + 4)
+    .filter((row) => !row.isToken) // token images are cached already
     .map(screenName)
     .filter(Boolean);
   if (nextNames.length > 0) prefetchCards(nextNames).catch(() => {});

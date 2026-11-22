@@ -378,7 +378,8 @@ export function setupEventListeners() {
   if (state.elements.resultsTbody) {
     // A batch sub-row previews only its batch's marks, never the card's union
     wireCardPreview(state.elements.resultsTbody, (name, cell) => {
-      const card = (state.processedCards || []).find(c => c.name === name);
+      const card = (state.processedCards || []).find(c => c.name === name)
+        || (state.tokenRows || []).find(c => c.imageName === name); // token rows preview by imageName (#412)
       const batchKey = cell.dataset.batchKey || cell.closest('tr.batch-subrow')?.dataset.cardKey;
       return (batchKey && card?.batches?.find(b => b.key === batchKey)?.stripes) || card?.stripes || [];
     });
