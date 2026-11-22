@@ -253,6 +253,58 @@ function mergeEntityCollection({
   return uniqueById(merged);
 }
 
+// The stored PRISM a read handed out, as JSON. A save from a snapshot older
+// than storage (an open build page across a background merge or another tab's
+// save, #499) rebases its own changes onto storage rather than deleting what
+// it never saw. A Symbol rides the processor's spreads and never reaches JSON.
+const READ_AS = Symbol('prismReadAs');
+
+function stampRead(prism) {
+  if (prism) prism[READ_AS] = JSON.stringify(prism);
+  return prism;
+}
+
+const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+
+// Three-way by key: theirs, minus what mine removed since base, with mine's
+// edits and adds. Mine's edit to something theirs removed comes back only
+// when editWins (decks, like mergeEntityCollection; not Planned swaps).
+function rebaseByKey(base = [], mine = [], theirs = [], keyOf = item => item.id, editWins = true) {
+  const baseByKey = new Map(base.map(item => [keyOf(item), item]));
+  const mineByKey = new Map(mine.map(item => [keyOf(item), item]));
+  const theirKeys = new Set(theirs.map(keyOf));
+  const edited = item => !same(item, baseByKey.get(keyOf(item)));
+  return [
+    ...theirs
+      .filter(item => mineByKey.has(keyOf(item)) || !baseByKey.has(keyOf(item)))
+      .map(item => {
+        const own = mineByKey.get(keyOf(item));
+        return own && edited(own) ? own : item;
+      }),
+    ...mine.filter(item => !theirKeys.has(keyOf(item)) && (!baseByKey.has(keyOf(item)) || (editWins && edited(item)))),
+  ];
+}
+
+function rebasePrism(base, mine, theirs) {
+  const next = { ...theirs };
+  for (const key of new Set([...Object.keys(base), ...Object.keys(mine)])) {
+    if (same(mine[key], base[key])) continue;
+    if (key === 'decks' || key === 'splitGroups' || key === 'plannedSwaps') {
+      next[key] = rebaseByKey(base[key], mine[key], theirs[key], undefined, key !== 'plannedSwaps');
+    } else if (key === 'markedCards') {
+      next[key] = rebaseByKey(base[key], mine[key], theirs[key], cardKey => cardKey);
+    } else if (key === 'removedCards') {
+      next[key] = mergeRemovedCards(mine[key] || [], theirs[key] || []);
+    } else if (key === 'tokenChoices') {
+      next[key] = mergeTokenChoices(mine[key] || [], theirs[key] || []);
+    } else {
+      next[key] = mine[key];
+    }
+  }
+  next.splitGroups = normalizeSplitGroups(next, next.splitGroups, next.decks);
+  return next;
+}
+
 function recordLocalPrismChanges(storage, previousPrism, nextPrism) {
   const syncState = ensureSyncState(storage);
   delete syncState.deletedPrisms[nextPrism.id];
@@ -1356,7 +1408,7 @@ if (typeof window !== 'undefined') {
 export function getCurrentPrism() {
   const storage = loadStorage();
   if (!storage.currentPrismId) return null;
-  return storage.prisms[storage.currentPrismId] || null;
+  return stampRead(storage.prisms[storage.currentPrismId] || null);
 }
 
 /**
@@ -1376,10 +1428,16 @@ export function setCurrentPrism(prismId) {
 export function savePrism(prism) {
   const storage = loadStorage();
   const previousPrism = storage.prisms[prism.id] || null;
-  recordLocalPrismChanges(storage, previousPrism, prism);
-  storage.prisms[prism.id] = prism;
+  const readAs = prism[READ_AS];
+  const nextPrism = previousPrism && readAs && readAs !== JSON.stringify(previousPrism)
+    ? rebasePrism(JSON.parse(readAs), prism, previousPrism)
+    : prism;
+  recordLocalPrismChanges(storage, previousPrism, nextPrism);
+  storage.prisms[prism.id] = nextPrism;
   pruneSyncState(storage);
   saveStorage(storage);
+  // The caller now holds what it saved; storage may hold more it never saw.
+  stampRead(prism);
 
   // Sync to Supabase if logged in (debounced to avoid race conditions on rapid saves)
   if (shouldWriteToSupabase()) {
@@ -1479,7 +1537,7 @@ export function getAllPrisms() {
  */
 export function getPrism(prismId) {
   const storage = loadStorage();
-  return storage.prisms[prismId] || null;
+  return stampRead(storage.prisms[prismId] || null);
 }
 
 /**

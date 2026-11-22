@@ -595,7 +595,7 @@ test('a card upload that failed once still converges both devices on the edit', 
 // The open build page holds state.currentPrism across background syncs
 // ---------------------------------------------------------------------------
 
-test('a deck B added survives the next edit on A\'s open build page', { skip: '#499' }, async () => {
+test('a deck B added survives the next edit on A\'s open build page', async () => {
 	const id = await seed();
 	// A has build.html open: state.currentPrism is read once at load.
 	let page = await on('A', T(2), prism);
@@ -615,4 +615,84 @@ test('a deck B added survives the next edit on A\'s open build page', { skip: '#
 
 	await on('B', T(10), () => assert.ok(deck(prism(), 'Gamma'), 'Gamma is gone from B'));
 	assert.ok(cloudRow(id).decks.some((d) => d.name === 'Gamma'), 'Gamma is gone from the cloud');
+});
+
+test('a deck B deleted stays deleted after the next edits on A\'s open build page', async () => {
+	const id = await seed();
+	let page = await on('A', T(2), prism);
+	await on('B', T(3), () => deleteDeck('Beta'));
+	await on('B', T(4), sync);
+	await on('A', T(5), () => { page = bracketUp(page, 'Alpha'); S.savePrism(page); });
+	await on('A', T(6), sync); // drops Beta from storage, not from the page
+	await on('A', T(7), () => { page = bracketUp(page, 'Alpha'); S.savePrism(page); });
+	await on('A', T(8), sync);
+	await on('B', T(9), load);
+
+	for (const name of ['A', 'B']) {
+		await on(name, T(10), () => assert.equal(deck(prism(), 'Beta'), undefined, `Beta is back on ${name}`));
+	}
+	assert.ok(!cloudRow(id).decks.some((d) => d.name === 'Beta'), 'Beta is back in the cloud');
+});
+
+test('a split group and a Planned swap B added survive the next edits on A\'s open build page', async () => {
+	const id = await seed();
+	let page = await on('A', T(2), prism);
+	await on('B', T(3), () => S.savePrism(P.splitDeck(prism(), deck(prism(), 'Beta').id, 2)));
+	await on('B', T(3.5), () => S.savePrism(queueSwap(prism(), { incoming: 'Arcane Signet', deckId: deck(prism(), 'Alpha').id })));
+	await on('B', T(4), sync);
+	await on('A', T(5), () => { page = bracketUp(page, 'Alpha'); S.savePrism(page); });
+	await on('A', T(6), sync);
+	await on('A', T(7), () => { page = bracketUp(page, 'Alpha'); S.savePrism(page); });
+	await on('A', T(8), sync);
+	await on('B', T(9), load);
+
+	for (const name of ['A', 'B']) {
+		await on(name, T(10), () => {
+			const p = prism();
+			assert.equal(p.splitGroups.length, 1, `the split group is gone from ${name}`);
+			assert.deepEqual(p.plannedSwaps.map((s) => s.incoming), ['Arcane Signet'], name);
+			assert.equal(deck(p, 'Alpha').bracket, 5, name);
+			assertStructure(p);
+		});
+	}
+	assert.equal(cloudRow(id).planned_swaps.length, 1);
+});
+
+test('a deck A\'s open build page deletes stays deleted, and the deck B added stays', async () => {
+	const id = await seed();
+	let page = await on('A', T(2), prism);
+	await on('B', T(3), () => addDeck('Gamma', [card('Gamma Card')]));
+	await on('B', T(4), sync);
+	await on('A', T(5), () => { page = bracketUp(page, 'Alpha'); S.savePrism(page); });
+	await on('A', T(6), sync);
+	await on('A', T(7), () => { page = P.removeDeckFromPrism(page, deck(page, 'Beta').id); S.savePrism(page); });
+	await on('A', T(8), sync);
+	await on('B', T(9), load);
+
+	for (const name of ['A', 'B']) {
+		await on(name, T(10), () => assert.deepEqual(prism().decks.map((d) => d.name).sort(), ['Alpha', 'Gamma'], name));
+	}
+	assert.deepEqual(cloudRow(id).decks.map((d) => d.name).sort(), ['Alpha', 'Gamma']);
+});
+
+test('two tabs on A: a rename, a deck and a mark from one tab survive the next edit in the other', async () => {
+	const id = await seed();
+	let tab = await on('A', T(2), prism);
+	await on('A', T(3), () => rename('Renamed in the other tab'));
+	await on('A', T(4), () => addDeck('Gamma', [card('Gamma Card')]));
+	await on('A', T(4.5), () => setMarked(['Gamma Card'], true));
+	await on('A', T(5), () => { tab = bracketUp(tab, 'Alpha'); S.savePrism(tab); });
+	await on('A', T(6), sync);
+	await on('B', T(7), load);
+
+	for (const name of ['A', 'B']) {
+		await on(name, T(8), () => {
+			const p = prism();
+			assert.equal(p.name, 'Renamed in the other tab', name);
+			assert.ok(deck(p, 'Gamma'), `Gamma is gone from ${name}`);
+			assert.deepEqual(p.markedCards, ['Gamma Card'], name);
+			assert.equal(deck(p, 'Alpha').bracket, 4, name);
+		});
+	}
+	assert.equal(cloudRow(id).name, 'Renamed in the other tab');
 });
