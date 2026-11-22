@@ -191,6 +191,7 @@ export function exportToJSON(prism) {
       markedCards: prism.markedCards || [],
       removedCards: prism.removedCards || [],
       plannedSwaps: prism.plannedSwaps || [],
+      tokenChoices: prism.tokenChoices || [],
       useDedicatedCommanderCopies: prism.useDedicatedCommanderCopies || false,
       statistics: {
         totalUniqueCards: processedCards.length,

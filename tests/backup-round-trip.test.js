@@ -92,6 +92,24 @@ test('malformed Planned swaps are dropped on import', () => {
 	assert.equal('note' in s4, false);
 });
 
+test('a backup keeps the Token pack choices; malformed ones and gone decks are dropped (#412)', () => {
+	const p = prism();
+	const at = '2026-10-03T00:00:00Z';
+	p.tokenChoices = [
+		{ kind: 'added', oracleId: 'o-copy', name: 'Copy', deckIds: ['d2', 'gone'], updatedAt: at },
+		{ kind: 'paired', oracleId: 'o-treasure', pairedWith: 'o-dino', updatedAt: at },
+		{ kind: 'hidden', oracleId: 'o-clue', hidden: true, updatedAt: at },
+	];
+	const json = JSON.parse(exportToJSON(p));
+	json.prism.tokenChoices.push(null, { kind: 'banned', oracleId: 'o-x' }, { kind: 'hidden', oracleId: '<img>', hidden: true });
+	const restored = buildPrismFromJson(json);
+	assert.deepEqual(restored.tokenChoices, [
+		{ kind: 'added', oracleId: 'o-copy', name: 'Copy', deckIds: ['d2'], updatedAt: at },
+		{ kind: 'paired', oracleId: 'o-treasure', pairedWith: 'o-dino', updatedAt: at },
+		{ kind: 'hidden', oracleId: 'o-clue', hidden: true, updatedAt: at },
+	]);
+});
+
 test('a backup in the old format, without these fields, still imports', () => {
 	const restored = buildPrismFromJson({
 		prism: {
@@ -103,6 +121,7 @@ test('a backup in the old format, without these fields, still imports', () => {
 	assert.equal(restored.decks[0].sourceUrl ?? null, null);
 	assert.equal(restored.decks[0].cardsUpdatedAt, '2025-01-01T00:00:00Z');
 	assert.deepEqual(restored.plannedSwaps, []);
+	assert.deepEqual(restored.tokenChoices, []);
 });
 
 test('the backup keeps its derived fields', () => {

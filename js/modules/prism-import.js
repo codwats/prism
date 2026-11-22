@@ -162,6 +162,20 @@ export function buildPrismFromJson(jsonData, { preserveId = true } = {}) {
       updatedAt: isDate(swap.updatedAt) ? swap.updatedAt : newPrism.updatedAt
     }));
 
+  // Untrusted file: Token pack choices (#412) shaped like tokens.js writes
+  // them. Oracle ids reach data-* attributes, so they must be plain ids.
+  const isOracleId = (v) => typeof v === 'string' && /^[\w-]+$/.test(v);
+  const choiceFields = {
+    added: (c) => ({ name: isText(c.name) ? c.name : 'Token',
+      deckIds: (Array.isArray(c.deckIds) ? c.deckIds : []).map(safeId).filter(id => deckIds.has(id)) }),
+    paired: (c) => ({ pairedWith: isOracleId(c.pairedWith) ? c.pairedWith : null }),
+    hidden: (c) => ({ hidden: c.hidden === true }),
+  };
+  newPrism.tokenChoices = (Array.isArray(prismData.tokenChoices) ? prismData.tokenChoices : [])
+    .filter(c => c && Object.hasOwn(choiceFields, c.kind) && isOracleId(c.oracleId))
+    .map(c => ({ kind: c.kind, oracleId: c.oracleId, ...choiceFields[c.kind](c),
+      updatedAt: isDate(c.updatedAt) ? c.updatedAt : newPrism.updatedAt }));
+
   const validGroupIds = new Set(newPrism.splitGroups.map(g => g.id));
   for (const deck of newPrism.decks) {
     if (deck.splitGroupId && !validGroupIds.has(deck.splitGroupId)) {

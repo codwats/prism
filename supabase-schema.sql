@@ -1768,3 +1768,54 @@ BEGIN;
   ALTER TABLE deck_cards
     ADD COLUMN IF NOT EXISTS is_sideboard BOOLEAN DEFAULT false;
 COMMIT;
+
+-- ============================================
+-- MIGRATION: Token pack choices (#412)
+-- ============================================
+-- One row per (prism, kind, Token type): a hand-added token and the decks
+-- that need it ('added'), one side of a double-sided pairing ('paired'), or
+-- a hide ('hidden'). oracle_id is Scryfall's. Deploy before the client that
+-- selects it: the PRISM load embeds token_choices, so a missing table fails
+-- every cloud read. The client merges rows by (kind, oracle_id) on updated_at,
+-- newer wins, and only upserts: undoing a choice writes a newer row ({} decks,
+-- NULL paired_with, hidden false), so no row is deleted except by the PRISM's
+-- cascade. The client supplies updated_at (no trigger, see above). Owner-only
+-- through the prism, like planned_swaps. The Token pack is free, so INSERT has
+-- no is_entitled() gate. Tests: tests/token-choices.sql.
+BEGIN;
+  CREATE TABLE IF NOT EXISTS token_choices (
+    prism_id UUID REFERENCES prisms(id) ON DELETE CASCADE NOT NULL,
+    kind TEXT NOT NULL CHECK (kind IN ('added', 'paired', 'hidden')),
+    oracle_id TEXT NOT NULL CHECK (length(oracle_id) BETWEEN 1 AND 64),
+    name TEXT CHECK (length(name) <= 200),
+    deck_ids TEXT[],
+    paired_with TEXT CHECK (length(paired_with) <= 64),
+    hidden BOOLEAN,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    PRIMARY KEY (prism_id, kind, oracle_id)
+  );
+
+  ALTER TABLE token_choices ENABLE ROW LEVEL SECURITY;
+  REVOKE ALL ON token_choices FROM anon;
+
+  DROP POLICY IF EXISTS "Users can view token choices in own prisms" ON token_choices;
+  CREATE POLICY "Users can view token choices in own prisms"
+    ON token_choices FOR SELECT
+    USING (prism_id IN (SELECT id FROM prisms WHERE user_id = auth.uid()));
+
+  DROP POLICY IF EXISTS "Users can create token choices in own prisms" ON token_choices;
+  CREATE POLICY "Users can create token choices in own prisms"
+    ON token_choices FOR INSERT
+    WITH CHECK (prism_id IN (SELECT id FROM prisms WHERE user_id = auth.uid()));
+
+  DROP POLICY IF EXISTS "Users can update token choices in own prisms" ON token_choices;
+  CREATE POLICY "Users can update token choices in own prisms"
+    ON token_choices FOR UPDATE
+    USING (prism_id IN (SELECT id FROM prisms WHERE user_id = auth.uid()))
+    WITH CHECK (prism_id IN (SELECT id FROM prisms WHERE user_id = auth.uid()));
+
+  DROP POLICY IF EXISTS "Users can delete token choices in own prisms" ON token_choices;
+  CREATE POLICY "Users can delete token choices in own prisms"
+    ON token_choices FOR DELETE
+    USING (prism_id IN (SELECT id FROM prisms WHERE user_id = auth.uid()));
+COMMIT;

@@ -12,6 +12,7 @@ const S = await import('../js/modules/storage.js');
 const P = await import('../js/modules/processor.js');
 const { trackRemovedCard, removalMark, openRemovals } = await import('../js/modules/swap.js');
 const { queueSwap, removeSwap } = await import('../js/modules/swap-queue.js');
+const Tk = await import('../js/modules/tokens.js');
 
 await ensureAuthReady();
 
@@ -426,6 +427,88 @@ test('a Planned swap removed on A stays gone while one queued on B arrives', asy
 	for (const name of ['A', 'B']) {
 		await on(name, T(15), () => assert.deepEqual(prism().plannedSwaps.map((s) => s.incoming), ['Mind Stone'], name));
 	}
+});
+
+// ---------------------------------------------------------------------------
+// Token pack (#412): choices merge per entry, newest wins, nothing deleted
+// ---------------------------------------------------------------------------
+
+const TREASURE = { oracleId: 'o-treasure', name: 'Treasure' };
+const DINOSAUR = { oracleId: 'o-dino', name: 'Dinosaur' };
+const tokensOf = (name) => ({ 'Alpha Card': [TREASURE], 'Beta Card': [DINOSAUR] })[name];
+const tokenNames = () => Tk.tokenRows(prism(), tokensOf).map((r) => r.name).sort();
+const choose = (fn) => S.savePrism(fn(prism()));
+
+// A deck edit as the build page saves one (a new deck object, new updatedAt).
+function bracketUp(p, name) {
+	const now = new Date().toISOString();
+	return { ...p, updatedAt: now, decks: p.decks.map((d) => (d.name === name ? { ...d, bracket: d.bracket + 1, updatedAt: now } : d)) };
+}
+
+test('a token hidden on A survives a later deck edit and mark on B', async () => {
+	const id = await seed();
+	await on('A', T(10), () => choose((p) => Tk.setTokenHidden(p, 'o-treasure', true)));
+	await on('B', T(11), () => S.savePrism(bracketUp(prism(), 'Beta')));
+	await on('B', T(11.5), () => setMarked(['Sol Ring'], true));
+	await on('A', T(12), sync);
+	await on('B', T(13), sync);
+	await on('A', T(14), load);
+
+	for (const name of ['A', 'B']) {
+		await on(name, T(15), () => {
+			assert.deepEqual(tokenNames(), ['Dinosaur'], name);
+			assert.equal(deck(prism(), 'Beta').bracket, 4, name);
+		});
+	}
+	assert.deepEqual(cloudRow(id).token_choices.map((c) => [c.kind, c.oracle_id, c.hidden]), [['hidden', 'o-treasure', true]]);
+});
+
+test('a token hand-added on A and a pairing made on B both arrive on both devices', async () => {
+	await seed();
+	const alphaId = await on('A', T(2), () => deck(prism(), 'Alpha').id);
+	await on('A', T(10), () => choose((p) => Tk.setAddedToken(p, { oracleId: 'o-copy', name: 'Copy' }, [alphaId])));
+	await on('B', T(11), () => choose((p) => Tk.pairTokens(p, 'o-treasure', 'o-dino')));
+	await on('A', T(12), sync);
+	await on('B', T(13), sync);
+	await on('A', T(14), load);
+
+	for (const name of ['A', 'B']) {
+		await on(name, T(15), () => assert.deepEqual(tokenNames(), ['Copy', 'Dinosaur // Treasure'], name));
+	}
+});
+
+test('a later unhide on B beats an earlier hide on A that syncs last', async () => {
+	const id = await seed();
+	await on('A', T(10), () => choose((p) => Tk.setTokenHidden(p, 'o-treasure', true)));
+	await on('B', T(11), () => choose((p) => Tk.setTokenHidden(p, 'o-treasure', true)));
+	await on('B', T(12), () => choose((p) => Tk.setTokenHidden(p, 'o-treasure', false)));
+	await on('B', T(13), sync);
+	await on('A', T(14), sync);
+	await on('B', T(15), load);
+
+	for (const name of ['A', 'B']) {
+		await on(name, T(16), () => assert.deepEqual(tokenNames(), ['Dinosaur', 'Treasure'], name));
+	}
+	assert.equal(cloudRow(id).token_choices[0].hidden, false);
+});
+
+test('a pairing B made survives the next saves from A\'s open build page', async () => {
+	const id = await seed();
+	// A has build.html open: state.currentPrism is read once at load (#499).
+	let page = await on('A', T(2), prism);
+	await on('B', T(3), () => choose((p) => Tk.pairTokens(p, 'o-treasure', 'o-dino')));
+	await on('B', T(4), sync);
+	await on('A', T(5), () => { page = bracketUp(page, 'Alpha'); S.savePrism(page); });
+	await on('A', T(6), sync); // merges the pairing into storage, not into the page
+	await on('A', T(7), () => { page = bracketUp(page, 'Beta'); S.savePrism(page); });
+	await on('A', T(8), sync);
+	await on('B', T(9), load);
+	await on('A', T(10), load);
+
+	for (const name of ['A', 'B']) {
+		await on(name, T(11), () => assert.deepEqual(tokenNames(), ['Dinosaur // Treasure'], name));
+	}
+	assert.equal(cloudRow(id).token_choices.length, 2);
 });
 
 // ---------------------------------------------------------------------------
