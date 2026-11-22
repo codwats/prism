@@ -3,7 +3,7 @@
  * Handles CSV and JSON export generation
  */
 
-import { processCards, getColorName, formatSlotLabel, commanderNames } from './processor.js';
+import { processCards, getColorName, formatSlotLabel, commanderNames, isConstructedDeck } from './processor.js';
 import { stripeNumberLabel, countVisibleMarks, STRIPE_SPARSE_MAX, escapeHtml, isCardDone } from '../core/utils.js';
 import { getPreferences, getStripeNumbersMode } from './storage.js';
 
@@ -405,7 +405,7 @@ export function generatePrintableGuide(prism) {
         <div class="legend-dot-row">${dotHtml}</div>
         <div class="stripe-square" style="background: ${group.sideAColor}"></div>
       </div>
-      <span>${escapeHtml(deck.name)} · Bracket ${deck.bracket}</span>
+      <span>${escapeHtml(deck.name)}${isConstructedDeck(deck) ? '' : ` · Bracket ${deck.bracket}`}</span>
     </div>`;
       }
     } else {
@@ -413,7 +413,7 @@ export function generatePrintableGuide(prism) {
         html += `
     <div class="deck-item" style="padding-left: 20px;">
       <div class="color-swatch side-b" style="background: ${deck.color}"></div>
-      <span><strong>${formatSlotLabel(deck.stripePosition, 'b')}:</strong> ${escapeHtml(deck.name)} (Side B) · Bracket ${deck.bracket}</span>
+      <span><strong>${formatSlotLabel(deck.stripePosition, 'b')}:</strong> ${escapeHtml(deck.name)} (Side B)${isConstructedDeck(deck) ? '' : ` · Bracket ${deck.bracket}`}</span>
     </div>`;
       }
     }
@@ -424,7 +424,7 @@ export function generatePrintableGuide(prism) {
     html += `
     <div class="deck-item">
       <div class="color-swatch" style="background: ${deck.color}"></div>
-      <span><strong>${formatSlotLabel(deck.stripePosition)}:</strong> ${escapeHtml(deck.name)} (Bracket ${deck.bracket})</span>
+      <span><strong>${formatSlotLabel(deck.stripePosition)}:</strong> ${escapeHtml(deck.name)}${isConstructedDeck(deck) ? '' : ` (Bracket ${deck.bracket})`}</span>
     </div>`;
   }
 

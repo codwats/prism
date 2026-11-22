@@ -5,7 +5,7 @@
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { deckExport, exportDeck } from '../js/modules/deck-export.js';
+import { deckExport, exportDeck, changesText } from '../js/modules/deck-export.js';
 import { transformMoxfieldDeck } from '../js/modules/moxfield.js';
 import { transformArchidektDeck } from '../js/modules/archidekt.js';
 
@@ -17,11 +17,11 @@ const prismDeck = {
 };
 
 const moxCard = (name, quantity = 1) => ({ quantity, card: { name, type_line: '' } });
-function moxfield({ commanders, mainboard, maybeboard = [] }) {
+function moxfield({ commanders, mainboard, maybeboard = [], sideboard = [] }) {
 	const board = (list) => ({ cards: Object.fromEntries(list.map((c, i) => [`k${i}`, c])) });
 	return {
 		name: 'Ayula', publicId: 'abc', publicUrl: 'https://moxfield.com/decks/abc',
-		boards: { commanders: board(commanders), mainboard: board(mainboard), maybeboard: board(maybeboard) }
+		boards: { commanders: board(commanders), mainboard: board(mainboard), maybeboard: board(maybeboard), sideboard: board(sideboard) }
 	};
 }
 
@@ -56,7 +56,8 @@ test('Moxfield: additions, removals, quantity changes and a commander change, ig
 			{ name: 'Cultivate', delta: 1 },
 			{ name: 'Forest', delta: -2 },
 			{ name: "Kodama's Reach", delta: -1 }
-		]
+		],
+		sideboard: []
 	});
 });
 
@@ -70,7 +71,7 @@ test('Archidekt: only included categories count, and a matching deck has no chan
 		archCard('Lightning Greaves', 1, ['Sideboard'])
 	])).cards;
 
-	assert.deepEqual(deckExport(prismDeck, site, 'archidekt').changes, { commander: [], deck: [] });
+	assert.deepEqual(deckExport(prismDeck, site, 'archidekt').changes, { commander: [], deck: [], sideboard: [] });
 });
 
 test('the full list follows the site format; Moxfield Bulk Edit has no commander board, so commanders stay out (#381)', () => {
@@ -101,7 +102,7 @@ test('exportDeck diffs the live deck its sourceUrl names, and falls back to the 
 
 	const live = await exportDeck({ ...prismDeck, sourceUrl: 'https://moxfield.com/decks/abc' });
 	assert.equal(live.site, 'moxfield');
-	assert.deepEqual(live.changes, { commander: [], deck: [{ name: 'Sol Ring', delta: 1 }] });
+	assert.deepEqual(live.changes, { commander: [], deck: [{ name: 'Sol Ring', delta: 1 }], sideboard: [] });
 	assert.equal(live.notice, null);
 
 	const failed = await exportDeck({ ...prismDeck, sourceUrl: 'https://archidekt.com/decks/42/ayula' });
@@ -117,4 +118,37 @@ test('exportDeck diffs the live deck its sourceUrl names, and falls back to the 
 		['/api/moxfield-edge', { publicId: 'abc' }],
 		['/api/archidekt-edge', { deckId: '42' }]
 	], 'a deck with no sourceUrl fetches nothing');
+});
+
+// #29: a deck with no commander is Constructed and keeps its Sideboard.
+const side = (name, quantity) => ({ ...card(name, quantity), isSideboard: true });
+const constructedDeck = { name: 'Burn', cards: [card('Lightning Bolt', 4), side('Pyroblast', 2)] };
+
+test('imports keep the sideboard flagged for a deck with no commander, and drop it for a Commander deck', () => {
+	const mox = (commanders) => transformMoxfieldDeck(moxfield({
+		commanders, mainboard: [moxCard('Lightning Bolt', 4)], sideboard: [moxCard('Pyroblast', 2)], maybeboard: [moxCard('Opt')]
+	})).cards;
+	assert.deepEqual(mox([]), constructedDeck.cards);
+	assert.ok(mox([moxCard('Ayula, Queen Among Bears')]).every((c) => !c.isSideboard && c.name !== 'Pyroblast'));
+
+	const arch = (commander) => transformArchidektDeck(archidekt([
+		...(commander ? [archCard('Ayula, Queen Among Bears', 1, ['Commander'])] : []),
+		archCard('Lightning Bolt', 4, ['Removal']),
+		archCard('Pyroblast', 2, ['Sideboard']),
+		archCard('Opt', 1, ['Maybeboard'])
+	])).cards;
+	assert.deepEqual(arch(false), constructedDeck.cards);
+	assert.ok(arch(true).every((c) => !c.isSideboard && c.name !== 'Pyroblast'));
+});
+
+test('the full list puts sideboard cards in the sideboard', () => {
+	assert.equal(deckExport(constructedDeck, null, 'moxfield').fullList, '4 Lightning Bolt\n\nSIDEBOARD:\n2 Pyroblast');
+	assert.equal(deckExport(constructedDeck, null, 'archidekt').fullList, '4x Lightning Bolt\n2x Pyroblast [Sideboard]');
+});
+
+test('changes diff the sideboard as its own zone', () => {
+	const site = [card('Lightning Bolt', 4), side('Pyroblast', 1), side('Duress', 2)];
+	const { changes } = deckExport(constructedDeck, site, 'moxfield');
+	assert.deepEqual(changes, { commander: [], deck: [], sideboard: [{ name: 'Duress', delta: -2 }, { name: 'Pyroblast', delta: 1 }] });
+	assert.equal(changesText(changes), 'Sideboard\n-2 Duress\n+1 Pyroblast');
 });

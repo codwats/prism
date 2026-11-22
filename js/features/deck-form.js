@@ -296,6 +296,8 @@ export function syncCommanderFieldsFromText(refs) {
   const names = parseDecklist(refs.textarea.value || "")
     .cards.filter((c) => c.isCommander)
     .map((c) => c.name);
+  // A list with a commander is a Commander deck (#29)
+  if (names.length > 0 && isConstructedForm()) setDeckFormat("commander");
 
   const many = names.length > 2;
   if (names.length > 0) refs.field1.value = names[0];
@@ -321,7 +323,7 @@ export function syncCommanderFieldsFromText(refs) {
  * disabled (>2 flags: the text is being edited directly).
  */
 export function applyCommanderFieldsToText(refs) {
-  if (!refs.textarea || !refs.field1 || refs.field1.disabled) return;
+  if (!refs.textarea || !refs.field1 || refs.field1.disabled || isConstructedForm()) return;
   const names = [getInputValue(refs.field1)];
   if (refs.toggle?.checked) names.push(getInputValue(refs.field2));
   const wanted = names.filter(Boolean);
@@ -339,6 +341,46 @@ export function handleTwoCommandersToggle(refs) {
     refs.field2.hidden = true;
     applyCommanderFieldsToText(refs);
   }
+}
+
+// ============================================================================
+// Format picker (#29)
+// ============================================================================
+// Commander | Constructed is not stored: a deck with no commander is a
+// Constructed deck (CONTEXT.md). Constructed hides the commander fields and
+// the bracket, keeps the Sideboard, and saves the placeholder bracket 2.
+
+export const isConstructedForm = () => state.elements.deckFormat?.value === "constructed";
+
+/** Pick a format; Constructed empties the commander fields and drops the text's Commander section. */
+export function setDeckFormat(format) {
+  const els = state.elements;
+  if (els.deckFormat) els.deckFormat.value = format;
+  const constructed = format === "constructed";
+  if (constructed) {
+    const refs = commanderRefs();
+    if (refs.textarea && parseDecklist(refs.textarea.value || "").cards.some((c) => c.isCommander)) {
+      refs.textarea.value = rewriteDecklistCommanders(refs.textarea.value, []);
+    }
+    for (const field of [refs.field1, refs.field2]) {
+      if (!field) continue;
+      field.value = "";
+      field.disabled = false;
+      field.hint = "";
+    }
+    if (refs.field2) refs.field2.hidden = true;
+    if (refs.toggle) {
+      refs.toggle.checked = false;
+      refs.toggle.disabled = false;
+    }
+  }
+  // A hidden required field would block the native submit
+  if (els.deckCommander) {
+    els.deckCommander.hidden = constructed;
+    els.deckCommander.required = !constructed;
+  }
+  if (els.deckTwoCommanders) els.deckTwoCommanders.hidden = constructed;
+  if (els.deckBracket) els.deckBracket.hidden = constructed;
 }
 
 // ============================================================================
@@ -377,7 +419,8 @@ export async function handleDeckSubmit(e) {
 
     const name = getInputValue(state.elements.deckName);
     const commander = getInputValue(state.elements.deckCommander);
-    const bracket = state.elements.deckBracket?.value || "2";
+    const constructed = isConstructedForm();
+    const bracket = constructed ? "2" : state.elements.deckBracket?.value || "2";
     const color = state.elements.deckColor?.value || "#FF0000";
     const decklistText = getInputValue(state.elements.deckList);
 
@@ -394,7 +437,7 @@ export async function handleDeckSubmit(e) {
       showError("Please enter a deck name.");
       return;
     }
-    if (!commander) {
+    if (!commander && !constructed) {
       showError("Please enter a commander name.");
       return;
     }
@@ -404,7 +447,7 @@ export async function handleDeckSubmit(e) {
     }
 
     // Parse decklist — the text is the sole commander authority
-    const parseResult = parseDecklist(decklistText);
+    const parseResult = parseDecklist(decklistText, { keepSideboard: constructed });
     const validation = validateDecklist(parseResult);
 
     debugLog("PRISM: Parse result:", {
@@ -543,6 +586,7 @@ export function resetDeckForm() {
   }
   if (state.elements.deckBracket) state.elements.deckBracket.value = "2";
   if (state.elements.deckList) state.elements.deckList.value = "";
+  setDeckFormat("commander");
   resetFileInput(state.elements.deckFileInput);
 
   const nextColor = getNextColor(state.currentPrism);

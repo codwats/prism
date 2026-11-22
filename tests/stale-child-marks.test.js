@@ -36,7 +36,7 @@ const { applySwap, openRemovals, removalOpenCopies } = await import('../js/modul
 const { planSleeveReuse } = await import('../js/modules/sleeve-reuse.js');
 const { mergeRemovedCards } = await import('../js/modules/storage.js');
 const { state } = await import('../js/core/state.js');
-const { autoClearRemovedCards, handleEditClick, handleEditConfirm, handleDeleteConfirm } = await import('../js/features/deck-list.js');
+const { autoClearRemovedCards, handleEditClick, handleEditConfirm, handleDeleteConfirm, handleUnsplit } = await import('../js/features/deck-list.js');
 state.elements = new Proxy({}, { get: (t, k) => (t[k] ??= fakeElement()) });
 
 const card = (name, quantity = 1) => ({ name, quantity, isCommander: false, isBasicLand: false });
@@ -186,4 +186,29 @@ test('deck delete: a variant that painted no child mark lists none', () => {
 	state.deckToDelete = 'G3';
 	handleDeleteConfirm();
 	assert.deepEqual(solRows(state.currentPrism), []);
+});
+
+test('deck delete: the card now shared by every remaining variant lists the stale child stripes (#428)', () => {
+	state.currentPrism = group([[card('Sol Ring')], [card('Sol Ring')], [card('Opt')]]);
+	state.currentPrism.markedCards = ['Sol Ring'];
+	state.deckToDelete = 'G3';
+	handleDeleteConfirm();
+	assert.deepEqual(solRows(state.currentPrism).map((r) => [r.deckId, r.stripePosition, r.stillInDeck, removalOpenCopies(r)]),
+		[['G1', 48, true, 1], ['G2', 47, true, 1]]);
+	assert.ok(state.currentPrism.markedCards.includes('Sol Ring'));
+});
+
+test('deck delete that unsplits the group lists the survivor\'s stale child stripe at its old slot (#428)', () => {
+	state.currentPrism = group([[card('Sol Ring')], [card('Opt')]]);
+	state.deckToDelete = 'G2';
+	handleDeleteConfirm();
+	assert.deepEqual(solRows(state.currentPrism).map((r) => [r.deckId, r.stripePosition, r.deckColor, r.stillInDeck, removalOpenCopies(r)]),
+		[['G1', 48, '#000001', true, 1]]);
+});
+
+test('Unsplit lists the survivor\'s stale child marks and the cards of the variants it drops (#428)', () => {
+	state.currentPrism = group([[card('Sol Ring'), card('Opt')], [card('Opt'), card('Island')], [card('Opt')]]);
+	handleUnsplit('G');
+	const rows = openRemovals(state.currentPrism).map((r) => [r.cardName, r.deckId, r.stripePosition, !!r.stillInDeck]);
+	assert.deepEqual(rows, [['Island', 'G2', 47, false], ['Sol Ring', 'G1', 48, true]]);
 });

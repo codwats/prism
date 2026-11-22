@@ -12,17 +12,28 @@ export const SITE_NAMES = { moxfield: 'Moxfield', archidekt: 'Archidekt' };
 
 // Moxfield's Bulk Edit has no commander board (docs/agents/deck-export.md), so
 // its list leaves commanders out; the panel hint says to set them by hand.
+// Sideboard rows (#29) go in Moxfield's SIDEBOARD: section, Archidekt's
+// [Sideboard] category.
 function fullListText(cards, site) {
-  if (site === 'moxfield') return cards.filter(c => !c.isCommander).map(c => `${c.quantity} ${c.name}`).join('\n');
-  const ordered = [...cards.filter(c => c.isCommander), ...cards.filter(c => !c.isCommander)];
-  return ordered.map(c => `${c.quantity}x ${c.name}${c.isCommander ? ' [Commander]' : ''}`).join('\n');
+  const side = cards.filter(c => c.isSideboard);
+  const main = cards.filter(c => !c.isSideboard);
+  if (site === 'moxfield') {
+    const line = c => `${c.quantity} ${c.name}`;
+    const list = main.filter(c => !c.isCommander).map(line).join('\n');
+    return side.length ? `${list}\n\nSIDEBOARD:\n${side.map(line).join('\n')}` : list;
+  }
+  const ordered = [...main.filter(c => c.isCommander), ...main.filter(c => !c.isCommander), ...side];
+  const category = c => c.isCommander ? ' [Commander]' : c.isSideboard ? ' [Sideboard]' : '';
+  return ordered.map(c => `${c.quantity}x ${c.name}${category(c)}`).join('\n');
 }
 
+const zoneOf = c => c.isCommander ? 'commander' : c.isSideboard ? 'sideboard' : 'deck';
+
 // Count per normalized name in one zone; the name shown is the first spelling met.
-function tally(cards, isCommander) {
+function tally(cards, zone) {
   const counts = new Map();
   for (const c of cards) {
-    if (!!c.isCommander !== isCommander) continue;
+    if (zoneOf(c) !== zone) continue;
     const key = normalizeCardName(c.name);
     const entry = counts.get(key) || { name: c.name, quantity: 0 };
     entry.quantity += c.quantity || 1;
@@ -31,9 +42,9 @@ function tally(cards, isCommander) {
   return counts;
 }
 
-function zoneDiff(prismCards, siteCards, isCommander) {
-  const ours = tally(prismCards, isCommander);
-  const theirs = tally(siteCards, isCommander);
+function zoneDiff(prismCards, siteCards, zone) {
+  const ours = tally(prismCards, zone);
+  const theirs = tally(siteCards, zone);
   const out = [];
   for (const key of new Set([...ours.keys(), ...theirs.keys()])) {
     const delta = (ours.get(key)?.quantity || 0) - (theirs.get(key)?.quantity || 0);
@@ -44,28 +55,27 @@ function zoneDiff(prismCards, siteCards, isCommander) {
 
 /**
  * @param {Object} deck - PRISM deck
- * @param {Array|null} siteCards - live site cards (mainboard + commander zones), or null
+ * @param {Array|null} siteCards - live site cards (mainboard, commander and, with no commander, sideboard zones), or null
  * @param {'moxfield'|'archidekt'} site
- * @returns {{ changes: {commander: Array, deck: Array}|null, fullList: string }}
+ * @returns {{ changes: {commander: Array, deck: Array, sideboard: Array}|null, fullList: string }}
  */
 export function deckExport(deck, siteCards, site) {
   const cards = deck.cards || [];
   return {
     changes: siteCards
-      ? { commander: zoneDiff(cards, siteCards, true), deck: zoneDiff(cards, siteCards, false) }
+      ? Object.fromEntries(['commander', 'deck', 'sideboard'].map(zone => [zone, zoneDiff(cards, siteCards, zone)]))
       : null,
     fullList: fullListText(cards, site)
   };
 }
 
-/** Checklist text for `changes`: commander zone first, `+N`/`-N` lines. */
+/** Checklist text for `changes`: Commander, Deck, Sideboard sections, `+N`/`-N` lines. */
 export function changesText(changes) {
   const lines = (list) => list.map(({ name, delta }) => `${delta > 0 ? '+' : ''}${delta} ${name}`);
-  return [
-    ...(changes.commander.length ? ['Commander', ...lines(changes.commander)] : []),
-    ...(changes.commander.length && changes.deck.length ? [''] : []),
-    ...(changes.deck.length ? ['Deck', ...lines(changes.deck)] : [])
-  ].join('\n');
+  return [['Commander', changes.commander], ['Deck', changes.deck], ['Sideboard', changes.sideboard || []]]
+    .filter(([, list]) => list.length)
+    .map(([header, list]) => [header, ...lines(list)].join('\n'))
+    .join('\n\n');
 }
 
 /**
