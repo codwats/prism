@@ -176,7 +176,7 @@ export function setupEventListeners() {
     state.elements.cubeDialog?.removeAttribute('open');
   });
 
-  // Deck URL import (Moxfield / Archidekt / DeckCheck)
+  // Deck URL import (Moxfield / Archidekt / DeckCheck / Commander Template)
   state.elements.btnImportDeckUrl?.addEventListener('click', () => handleDeckUrlImport());
   state.elements.btnRefreshSource?.addEventListener('click', () => {
     const deck = state.currentPrism.decks.find((d) => d.id === state.deckToEdit);
