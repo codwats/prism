@@ -99,6 +99,12 @@ function getElements() {
     barMarked: document.getElementById('bar-marked'),
     barProgress: document.getElementById('bar-progress'),
     resultsTbody: document.getElementById('results-tbody'),
+    // Tokens view toolbar (#412, token-pack.js), updated on every render and tick
+    tokensToolbar: document.getElementById('tokens-toolbar'),
+    tokenTally: document.getElementById('token-tally'),
+    tokenStatus: document.getElementById('token-status'),
+    tokenHiddenMenu: document.getElementById('token-hidden-menu'),
+    tokenHiddenLabel: document.getElementById('token-hidden-label'),
     noResults: document.getElementById('no-results'),
     btnGoToDecks: document.getElementById('btn-go-to-decks'),
 

@@ -3,7 +3,7 @@
  */
 
 import { state } from '../core/state.js';
-import { escapeHtml, stripeNumberLabel, countVisibleMarks, STRIPE_SPARSE_MAX, isCardDone, batchTally } from '../core/utils.js';
+import { escapeHtml, stripeNumberLabel, countVisibleMarks, STRIPE_SPARSE_MAX, isCardDone, batchTally, rowDoneKey, rowImageName } from '../core/utils.js';
 import { markingPrereqVisible, retireMarkingPrereq } from '../core/marking-prereq.js';
 import { getStripeNumbersMode } from '../modules/storage.js';
 import { processCards, formatSlotLabel, getColorName } from '../modules/processor.js';
@@ -14,7 +14,7 @@ import { prefetchCards, getCardAttributes } from '../modules/scryfall.js';
 import { savedCopiesByCard, savedDollars, formatUsd } from '../modules/savings.js';
 import { handleMarkToggle, handleClearRemoved, handleClearAllRemovedClick } from './deck-list.js';
 import { renderOverlapMatrix } from './analysis.js';
-import { tokenView, tokenEmptyMessage, tokenRowExtras, updateTokenTally } from './token-pack.js';
+import { requestTokenTypes, currentTokenRows, tokenEmptyMessage, tokenRowExtras, updateTokenTally } from './token-pack.js';
 
 // ============================================================================
 // Stripe indicator helpers
@@ -90,9 +90,9 @@ export function toggleCardExpanded(name) {
   else expandedCards.add(name);
 }
 
-// The row's markedCards key: pass rows `<name>|<deckName>`, token rows their
-// `token:` key (#412), others the name.
-const rowKey = (card) => (card.isPassRow ? `${card.displayName}|${card.deckName}` : card.doneKey || card.name);
+// The row's markedCards key (rowDoneKey): pass rows `<name>|<deckName>`,
+// token rows their `token:` key (#412), others the name.
+const rowKey = rowDoneKey;
 
 // Cards the last render left after view, filters, search and sort.
 let shownCards = [];
@@ -322,7 +322,8 @@ export function renderResults({ preserveRows = false } = {}) {
     displayCards = filteredCards;
   } else if (filter === 'tokens') {
     // Token pack (#412): rows in the card shape, kept out of every count above.
-    displayCards = [...tokenView({ entering })];
+    requestTokenTypes({ fresh: entering });
+    displayCards = [...currentTokenRows()];
   } else if (filter === 'basics-by-deck') {
     // One-mark-at-a-time pass view (#149): the per-deck projection of the
     // canonical batches (#146), generalized from basics to every repeated
@@ -441,7 +442,7 @@ export function renderResults({ preserveRows = false } = {}) {
   if (state.elements.undoneFilter?.checked) {
     const markedSet = new Set(state.currentPrism.markedCards || []);
     displayCards = displayCards.filter(card => {
-      if (card.isPassRow) return !markedSet.has(`${card.displayName}|${card.deckName}`);
+      if (card.isPassRow) return !markedSet.has(rowDoneKey(card));
       if (card.isRemoved) return true;
       return !isCardDone(card, markedSet);
     });
@@ -653,8 +654,7 @@ export function renderResults({ preserveRows = false } = {}) {
       // `<name>|<deckName>` key.
       const cardKey = rowKey(card);
       const isMarked = markedSetForRows.has(cardKey);
-      // A token's image is cached under its imageName (#412)
-      const previewName = card.isPassRow ? card.displayName : card.imageName || card.name;
+      const previewName = rowImageName(card);
       const stripes = stripesCell(card.stripes, band, previewName);
       const tokenExtras = card.isToken ? tokenRowExtras(card) : '';
       return `
@@ -796,8 +796,7 @@ export function renderResults({ preserveRows = false } = {}) {
   // Prefetch card images for visible cards (first 20 to avoid rate limiting)
   const cardNames = displayCards
     .slice(0, 20)
-    .filter(c => !c.isToken) // token images are cached by getTokenTypes, or there are none
-    .map(c => c.isPassRow ? c.displayName : c.name)
+    .map(rowImageName)
     .filter(Boolean);
   if (cardNames.length > 0) {
     prefetchCards(cardNames).catch(() => {
@@ -838,7 +837,7 @@ function sortCards(cards, column, direction) {
         // Card rows classify through isCardDone (batch-aware); pass rows keep
         // their key equality.
         const doneOf = (c) => c.isPassRow
-          ? (markedSet.has(`${c.displayName}|${c.deckName}`) ? 1 : 0)
+          ? (markedSet.has(rowDoneKey(c)) ? 1 : 0)
           : (isCardDone(c, markedSet) ? 1 : 0);
         comparison = doneOf(a) - doneOf(b);
         if (comparison === 0) {

@@ -13,7 +13,7 @@ import { getTokenTypes, searchTokens } from '../modules/scryfall.js';
 import { wireCardAutocomplete } from '../modules/card-autocomplete.js';
 import {
   tokenRows, tokenNeeds, tokenPartner, pairTokens, unpairToken, setTokenHidden,
-  setAddedToken, addedTokenDecks, addedTokenIds, hiddenTokenIds,
+  setAddedToken, addedTokenIds, hiddenTokenIds, tokenDeckOptions,
 } from '../modules/tokens.js';
 import { renderResults } from './results.js';
 
@@ -29,17 +29,21 @@ const typeOf = (oracleId) => known.byOracle.get(oracleId);
 const $ = (id) => document.getElementById(id);
 
 /**
- * The Tokens view's rows, from what is known so far. Asks Scryfall, once per
- * visit, for any card or hand-added token not asked yet, then renders again.
- * @param {{ entering?: boolean }} opts - true when the view was just opened
+ * Ask Scryfall for the Token types of any card or hand-added token not asked
+ * yet this visit; renders the Tokens view again when the answer lands.
+ * @param {{ fresh?: boolean }} opts - true when the view was just opened: ask everything again
  */
-export function tokenView({ entering = false } = {}) {
+export function requestTokenTypes({ fresh = false } = {}) {
   const prism = state.currentPrism;
-  if (entering) asked.clear();
+  if (fresh) asked.clear();
   const names = [...new Set(prism.decks.flatMap((d) => d.cards.map((c) => c.name)))];
   const ids = addedTokenIds(prism);
   if (!loading && [...names, ...ids].some((k) => !asked.has(k))) lookUp(names, ids);
-  state.tokenRows = tokenRows(prism, tokensOf, typeOf);
+}
+
+/** The Tokens view's rows from what is known so far; keeps state.tokenRows and the toolbar current. */
+export function currentTokenRows() {
+  state.tokenRows = tokenRows(state.currentPrism, tokensOf, typeOf);
   renderToolbar();
   return state.tokenRows;
 }
@@ -64,7 +68,7 @@ export function tokenEmptyMessage() {
 
 /** "12 of 30 tokens marked", from the rows the Tokens view last built. */
 export function updateTokenTally() {
-  const tally = $('token-tally');
+  const tally = state.elements?.tokenTally;
   if (!tally) return;
   const rows = state.tokenRows || [];
   const marked = new Set(state.currentPrism?.markedCards || []);
@@ -73,16 +77,15 @@ export function updateTokenTally() {
 
 function renderToolbar() {
   updateTokenTally();
-  const status = $('token-status');
+  const { tokenStatus: status, tokenHiddenMenu: menu, tokenHiddenLabel: label } = state.elements || {};
   if (status) {
     status.hidden = !(known.incomplete && !loading);
     status.textContent = 'Scryfall didn’t answer, so some tokens may be missing.';
   }
-  const menu = $('token-hidden-menu');
   if (!menu) return;
   const needs = tokenNeeds(state.currentPrism, tokensOf, typeOf);
   const hidden = hiddenTokenIds(state.currentPrism).map((id) => needs.get(id)?.type).filter(Boolean);
-  $('token-hidden-label').textContent = `Hidden (${hidden.length})`;
+  label.textContent = `Hidden (${hidden.length})`;
   menu.querySelector('wa-button').toggleAttribute('disabled', hidden.length === 0);
   menu.querySelectorAll('wa-dropdown-item').forEach((item) => item.remove());
   menu.insertAdjacentHTML('beforeend', hidden.map((t) => `
@@ -123,26 +126,25 @@ let picked = null; // the Token type the dialog adds or edits
 
 function openDeckDialog(type) {
   picked = type;
-  const prism = state.currentPrism;
-  // Decks a card of theirs already makes it in are ticked and fixed.
-  const derived = type
-    ? tokenNeeds({ ...prism, tokenChoices: [] }, tokensOf).get(type.oracleId)?.deckIds || new Set()
-    : new Set();
-  const added = new Set(type ? addedTokenDecks(prism, type.oracleId) : []);
   const search = $('token-search');
   search.value = type ? type.name : '';
   search.toggleAttribute('disabled', !!type);
   $('token-add-dialog').setAttribute('label', type ? `Decks for ${type.name}` : 'Add token');
   showPicked();
-  $('token-decks').innerHTML = [...prism.decks]
-    .sort((a, b) => (a.stripePosition ?? 99) - (b.stripePosition ?? 99))
-    .map((d) => `<wa-checkbox data-deck-id="${escapeHtml(d.id)}" ${derived.has(d.id) || added.has(d.id) ? 'checked' : ''} ${derived.has(d.id) ? 'disabled hint="A card in this deck makes it"' : ''}>
-      <span class="deck-color-indicator small" style="background-color: ${d.color};"></span> ${escapeHtml(d.name)}
-    </wa-checkbox>`).join('');
   $('token-add-dialog').setAttribute('open', '');
 }
 
+// A deck whose own card makes it is ticked and locked, unless the player also
+// added it there: then it stays theirs to untick. Before a pick, no deck has it.
+function renderDeckOptions() {
+  $('token-decks').innerHTML = tokenDeckOptions(state.currentPrism, picked?.oracleId, tokensOf)
+    .map(({ deck: d, checked, locked }) => `<wa-checkbox data-deck-id="${escapeHtml(d.id)}" ${checked ? 'checked' : ''} ${locked ? 'disabled hint="A card in this deck makes it"' : ''}>
+      <span class="deck-color-indicator small" style="background-color: ${d.color};"></span> ${escapeHtml(d.name)}
+    </wa-checkbox>`).join('');
+}
+
 function showPicked() {
+  renderDeckOptions();
   const note = $('token-picked');
   note.hidden = !picked;
   note.textContent = picked ? `${picked.name}${picked.detail ? `, ${picked.detail}` : ''}` : '';
@@ -187,7 +189,7 @@ export function setupTokenPack() {
 
   // The toolbar belongs to the Tokens view; the card actions don't.
   filter.addEventListener('change', () => {
-    $('tokens-toolbar').hidden = filter.value !== 'tokens';
+    state.elements.tokensToolbar.hidden = filter.value !== 'tokens';
   });
 
   tbody.addEventListener('wa-select', (e) => {
@@ -205,13 +207,17 @@ export function setupTokenPack() {
     }
   });
 
-  $('token-hidden-menu')?.addEventListener('wa-select', (e) => {
+  state.elements.tokenHiddenMenu?.addEventListener('wa-select', (e) => {
     const id = e.detail?.item?.dataset.oracleId;
     if (id) save(setTokenHidden(state.currentPrism, id, false));
   });
 
   $('btn-add-token').addEventListener('click', () => openDeckDialog(null));
-  $('token-search').addEventListener('input', () => { picked = null; showPicked(); });
+  $('token-search').addEventListener('input', () => {
+    if (!picked) return;
+    picked = null; // typing again drops the pick and its deck ticks
+    showPicked();
+  });
   wireCardAutocomplete($('token-search'), $('token-search-suggest'), (type) => {
     picked = type;
     showPicked();
