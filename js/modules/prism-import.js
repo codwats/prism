@@ -163,10 +163,11 @@ export function buildPrismFromJson(jsonData, { preserveId = true } = {}) {
     }));
 
   // Untrusted file: Token pack choices (#412) shaped like tokens.js writes
-  // them. Oracle ids reach data-* attributes, so they must be plain ids.
-  const isOracleId = (v) => typeof v === 'string' && /^[\w-]+$/.test(v);
+  // them. Oracle ids reach data-* attributes, so they must be plain ids; ids
+  // and names stay inside the token_choices CHECKs, or every sync would fail.
+  const isOracleId = (v) => typeof v === 'string' && /^[\w-]{1,64}$/.test(v);
   const choiceFields = {
-    added: (c) => ({ name: isText(c.name) ? c.name : 'Token',
+    added: (c) => ({ name: isText(c.name) ? c.name.slice(0, 200) : 'Token',
       deckIds: (Array.isArray(c.deckIds) ? c.deckIds : []).map(safeId).filter(id => deckIds.has(id)) }),
     paired: (c) => ({ pairedWith: isOracleId(c.pairedWith) ? c.pairedWith : null }),
     hidden: (c) => ({ hidden: c.hidden === true }),
