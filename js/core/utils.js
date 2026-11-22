@@ -131,6 +131,24 @@ export function passKeysForCard(card) {
 }
 
 /**
+ * The markedCards key of a row with one Done tick: a token row's `token:` key
+ * (#412), a pass row's `<name>|<deckName>` (#151), else the card name. A
+ * batch screen's key is its batchKey (SCRY) or batch.key (table).
+ * @param {Object} card - Processed card, token row or pass row
+ * @returns {string}
+ */
+export const rowDoneKey = (card) =>
+  card.doneKey || (card.isPassRow ? `${card.displayName}|${card.deckName}` : card.name);
+
+/**
+ * The name a row's image is fetched and previewed by: a token row's
+ * `token:<oracleId>` (#412), a pass row's card name, else the card name.
+ * @param {Object} card
+ * @returns {string}
+ */
+export const rowImageName = (card) => card.imageName || (card.isPassRow ? card.displayName : card.name);
+
+/**
  * Whether a processed card is fully marked ("done"), per #151:
  * - single-batch card: plain name key (unchanged legacy path)
  * - multi-batch card: every batch key marked. A legacy plain-name mark is
@@ -146,6 +164,8 @@ export function passKeysForCard(card) {
  * @returns {boolean}
  */
 export function isCardDone(card, markedSet) {
+  // A token row (#412) has one `token:` key, re-keyed whenever its decks or pairing change.
+  if (card.isToken) return markedSet.has(rowDoneKey(card));
   const batches = card.batches || [];
   const multiBatch = batches.length > 1;
   if (!multiBatch && markedSet.has(card.name)) return true;

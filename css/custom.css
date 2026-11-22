@@ -430,7 +430,8 @@ wa-page[view='desktop'] [data-toggle-nav] {
 
 /* Home page site-wide savings counter. Tabular numerals keep the width still while it counts. */
 #site-savings[hidden],
-#stat-saved-wrap[hidden] {
+#stat-saved-wrap[hidden],
+#tokens-toolbar[hidden] {
   display: none; /* wa-cluster/wa-stack's display: flex beats [hidden]; a failed fetch must show nothing */
 }
 

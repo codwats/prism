@@ -17,24 +17,15 @@
  */
 
 import { missingEnv } from './lib/stripe-helpers.js';
+import { corsHelpers, SITE } from './lib/cors.js';
+
+const { getCorsHeaders } = corsHelpers({ allowMethods: 'POST, OPTIONS', allowHeaders: 'Content-Type, Authorization' });
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const SITE = 'https://prismmtg.com';
 const FROM = 'PRISM Gallery <gallery@relay.prismmtg.com>';
 const ADMIN_LINK = `${SITE}/gallery.html?view=admin`;
 const MAX_AGE_MS = 10 * 60 * 1000;
 const SUBJECTS = { upload: 'New gallery upload to review', claim: 'New artist claim to review' } as const;
-
-function getCorsHeaders(request: Request): Record<string, string> {
-  const origin = request.headers.get('origin') || SITE;
-  const allowedOrigin = Deno.env.get('CONTEXT') === 'production' ? SITE : origin;
-  return {
-    'Access-Control-Allow-Origin': allowedOrigin,
-    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-    'Access-Control-Allow-Methods': 'POST, OPTIONS',
-    'Vary': 'Origin',
-  };
-}
 
 function escapeHtml(text: string): string {
   return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')

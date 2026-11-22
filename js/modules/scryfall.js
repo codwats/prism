@@ -106,12 +106,6 @@ function flushCards() {
   pendingCards = {};
 }
 
-// Clear entire cache
-export function clearCache() {
-  pendingCards = {};
-  localStorage.removeItem(CACHE_KEY);
-}
-
 // A 429 locks the client out for 30 s (Scryfall's documented penalty), so a
 // retry inside that window fails too (#280). Nothing is retried: the request
 // that hit the 429 fails, and every request until the lockout ends fails
@@ -142,8 +136,12 @@ async function scryfallFetch(url, options) {
   return response;
 }
 
+// A Token pack row's image name (#412): `token:<oracleId>`, fetched by Scryfall id.
+const isTokenImageName = (name) => name.startsWith('token:');
+
 // Fetch from Scryfall API
 async function fetchFromScryfall(cardName) {
+  if (isTokenImageName(cardName)) return fetchTokenCard(cardName.slice(6));
   const encodedName = encodeURIComponent(cardName);
   const url = `${API_BASE}/cards/named?exact=${encodedName}`;
 
@@ -180,8 +178,9 @@ async function processQueue() {
       const result = extractCardData(scryfallData);
       if (result.image_uri) {
         cacheCard(cardName, result);
-        // Also cache under Oracle name if different (e.g. front-face lookup → full DFC name)
-        if (result.name && result.name.toLowerCase().trim() !== cardName.toLowerCase().trim()) {
+        // Also cache under Oracle name if different (e.g. front-face lookup → full DFC name).
+        // Not a token's: "Treasure" must never answer a card lookup.
+        if (!isTokenImageName(cardName) && result.name && result.name.toLowerCase().trim() !== cardName.toLowerCase().trim()) {
           cacheCard(result.name, result);
         }
       }
@@ -348,22 +347,6 @@ export async function canonicalizeCards(cards) {
   return cards;
 }
 
-// Get cache stats (for debugging)
-export function getCacheStats() {
-  const cache = loadCache();
-  const entries = Object.keys(cache).length;
-  const now = Date.now();
-  const expired = Object.values(cache).filter(
-    (e) => now - e.cached_at >= CACHE_TTL
-  ).length;
-
-  return {
-    total: entries,
-    valid: entries - expired,
-    expired,
-  };
-}
-
 // Card attributes for the Swap Planner (#273/#293): color identity, type
 // line, mana cost, mana value and oracle id. Scryfall data, not user data — kept in its
 // own localStorage key, never synced, no expiry (stale data only skews a
@@ -371,20 +354,21 @@ export function getCacheStats() {
 const ATTRIBUTES_KEY = 'prism_card_attributes';
 const attributeKey = (name) => name.toLowerCase().trim();
 
-function loadAttributes() {
+// The never-expiring Scryfall caches: card attributes and Token types (#412).
+function loadScryfallCache(key) {
   try {
-    return JSON.parse(localStorage.getItem(ATTRIBUTES_KEY)) || {};
+    return JSON.parse(localStorage.getItem(key)) || {};
   } catch {
     return {};
   }
 }
 
-function saveAttributes(cache) {
+function saveScryfallCache(cache, key) {
   try {
-    localStorage.setItem(ATTRIBUTES_KEY, JSON.stringify(cache));
+    localStorage.setItem(key, JSON.stringify(cache));
   } catch {
     // Out of space: this cache gives way, never prism_data.
-    localStorage.removeItem(ATTRIBUTES_KEY);
+    localStorage.removeItem(key);
   }
 }
 
@@ -393,16 +377,16 @@ function saveAttributes(cache) {
  * /cards/collection (75 per request, on the shared rate chain). Multi-face
  * names are sent as their front face.
  * @param {string[]} names
- * @returns {Promise<Map<string, {colorIdentity: string[], typeLine: string, manaCost: string, cmc: number, oracleId: string, usd: number|null}|null>>}
+ * @returns {Promise<Map<string, {colorIdentity: string[], typeLine: string, manaCost: string, cmc: number, oracleId: string, usd: number|null, tokens: Array<{id: string, name: string}>}|null>>}
  *   keyed by the input name; null = Scryfall couldn't match it
  * @throws when a request fails (network, 429, 5xx), so a failure never reads as a miss
  */
 export async function getCardAttributes(names) {
-  const cache = loadAttributes();
+  const cache = loadScryfallCache(ATTRIBUTES_KEY);
   const asWritten = new Map(names.map((n) => [attributeKey(n), n]));
   // Entries cached before manaCost or usd joined the record, or before it fell back
   // to the front face (a nonland multi-face card with no cost), are fetched again once.
-  const stale = (a) => !('manaCost' in a) || !('usd' in a)
+  const stale = (a) => !('manaCost' in a) || !('usd' in a) || !('tokens' in a)
     || (!a.manaCost && a.typeLine.includes(' // ') && !a.typeLine.split(' // ')[0].includes('Land'));
   const uncached = [...asWritten.keys()].filter((k) => !cache[k] || stale(cache[k]));
 
@@ -428,6 +412,11 @@ export async function getCardAttributes(names) {
           // Default printing's price, for the Saved stat; null when Scryfall has none.
           // shortcut: cached forever like the rest, so it drifts; add a TTL if it matters.
           usd: Number(card.prices?.usd ?? card.prices?.usd_foil ?? card.prices?.usd_etched) || null,
+          // Token printings the card creates (#412). Emblems, dungeons and the
+          // like are token parts too; only a Token type line is a token.
+          tokens: (card.all_parts || [])
+            .filter((p) => p.component === 'token' && p.type_line?.startsWith('Token'))
+            .map((p) => ({ id: p.id, name: p.name })),
         };
         found.set(attributeKey(card.name), attrs);
         found.set(attributeKey(card.name.split(' // ')[0]), attrs);
@@ -439,9 +428,135 @@ export async function getCardAttributes(names) {
     }
   } finally {
     // Chunks that answered stay cached even when a later one fails.
-    if (uncached.length) saveAttributes(cache);
+    if (uncached.length) saveScryfallCache(cache, ATTRIBUTES_KEY);
   }
   return new Map(names.map((n) => [n, cache[attributeKey(n)] || null]));
+}
+
+// Token types (#412): one identity per Scryfall oracle_id. Cached forever like
+// the attributes, past the card cache's 24 h, on purpose: an identity never
+// changes, and a device with no network still lists its Token pack. Images are
+// not kept here; they go through fetchCard (24 h card cache) by scryfallId.
+// Keys: `id:<token printing id>` (from a card's token parts) and
+// `oracle:<oracle_id>` (hand-added and searched). Misses are not cached, and
+// neither is a printing with no image (incomplete data).
+const TOKEN_TYPES_KEY = 'prism_token_types';
+const COLOR_WORDS = { W: 'white', U: 'blue', B: 'black', R: 'red', G: 'green' };
+
+// "4/4 white". A double_faced_token keeps P/T and colors on its faces (oracle_id
+// stays on top), so each face is described; a reminder back face ('Token') adds nothing.
+function tokenType(card) {
+  const describe = (f) => {
+    const colors = Object.keys(COLOR_WORDS).filter((c) => (f.colors || []).includes(c)).map((c) => COLOR_WORDS[c]);
+    return [f.power != null && `${f.power}/${f.toughness}`, colors.join(' ') || 'colorless'].filter(Boolean).join(' ');
+  };
+  const faces = (card.card_faces || []).filter((f) => f.type_line !== 'Token');
+  return {
+    oracleId: card.oracle_id,
+    name: card.name,
+    detail: (faces.length ? faces : [card]).map(describe).join(' // '),
+    typeLine: card.type_line || '',
+    scryfallId: card.id,
+  };
+}
+
+// Printing ids resolved this visit, so a token image still loads when the
+// Token types cache write failed (a full localStorage drops the key).
+const tokenPrintings = new Map();
+
+function cacheTokenType(cache, card) {
+  const hasImage = card?.image_uris?.normal || card?.card_faces?.[0]?.image_uris?.normal;
+  if (!card?.oracle_id || !card.name || !card.id || !hasImage) return null;
+  const type = tokenType(card);
+  cache[`oracle:${type.oracleId}`] = type;
+  cache[`id:${card.id}`] = type;
+  tokenPrintings.set(type.oracleId, card.id);
+  return type;
+}
+
+// Reloads before writing, so a lookup and a search running at once both keep their answers.
+function saveTokenTypes(fresh) {
+  if (Object.keys(fresh).length) saveScryfallCache({ ...loadScryfallCache(TOKEN_TYPES_KEY), ...fresh }, TOKEN_TYPES_KEY);
+}
+
+// fetchCard's source for a `token:<oracleId>` image name: the cached type's
+// printing, by Scryfall id, on the rate chain. Never /cards/named.
+async function fetchTokenCard(oracleId) {
+  const printingId = loadScryfallCache(TOKEN_TYPES_KEY)[`oracle:${oracleId}`]?.scryfallId || tokenPrintings.get(oracleId);
+  if (!printingId) throw new Error(`Token not looked up yet: ${oracleId}`);
+  const response = await scryfallFetch(`${API_BASE}/cards/${encodeURIComponent(printingId)}`);
+  if (!response.ok) throw new Error(`Scryfall API error: ${response.status}`);
+  return response.json();
+}
+
+async function lookupTokenTypes(keys) {
+  const cache = loadScryfallCache(TOKEN_TYPES_KEY);
+  const uncached = [...new Set(keys)].filter((k) => !cache[k]);
+  const fresh = {};
+  try {
+    for (let i = 0; i < uncached.length; i += COLLECTION_BATCH_SIZE) {
+      const identifiers = uncached.slice(i, i + COLLECTION_BATCH_SIZE)
+        .map((k) => (k.startsWith('id:') ? { id: k.slice(3) } : { oracle_id: k.slice(7) }));
+      const response = await scryfallFetch(`${API_BASE}/cards/collection`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ identifiers }),
+      });
+      if (!response.ok) throw new Error(`Scryfall token lookup failed: ${response.status}`);
+      for (const card of (await response.json()).data || []) cacheTokenType(fresh, card);
+    }
+  } finally {
+    saveTokenTypes(fresh);
+  }
+  return { ...cache, ...fresh };
+}
+
+/**
+ * The Token types each card creates (its Scryfall token parts), and the
+ * identity of each hand-added oracle id. On the shared rate chain; cached.
+ * @param {string[]} cardNames
+ * @param {string[]} [oracleIds]
+ * @returns {Promise<{byCard: Map<string, Array<Object>|null>, byOracle: Map<string, Object|null>, incomplete: boolean}>}
+ *   Token types are { oracleId, name, detail, typeLine, scryfallId }; null = not known.
+ *   A type's image is fetchCard(`token:${oracleId}`).
+ *   Never throws: when a request fails it answers from the caches, `incomplete`.
+ */
+export async function getTokenTypes(cardNames, oracleIds = []) {
+  let incomplete = false;
+  const attributes = await getCardAttributes(cardNames).catch(() => {
+    incomplete = true;
+    const cached = loadScryfallCache(ATTRIBUTES_KEY);
+    return new Map(cardNames.map((n) => [n, cached[attributeKey(n)] || null]));
+  });
+  const parts = [...attributes.values()].flatMap((a) => a?.tokens || []);
+  const cache = await lookupTokenTypes([...parts.map((p) => `id:${p.id}`), ...oracleIds.map((id) => `oracle:${id}`)])
+    .catch(() => {
+      incomplete = true;
+      return loadScryfallCache(TOKEN_TYPES_KEY);
+    });
+  const byCard = new Map(cardNames.map((n) => {
+    const a = attributes.get(n);
+    const types = (a?.tokens || []).map((p) => cache[`id:${p.id}`]).filter(Boolean);
+    return [n, a ? [...new Map(types.map((t) => [t.oracleId, t])).values()] : null];
+  }));
+  const byOracle = new Map(oracleIds.map((id) => [id, cache[`oracle:${id}`] || null]));
+  return { byCard, byOracle, incomplete };
+}
+
+/**
+ * Token types whose name matches `query`, for Add token: up to 8, one per
+ * oracle identity. On the shared rate chain (search is a 2-per-second endpoint).
+ * @returns {Promise<Array<Object>>} Token types, as getTokenTypes
+ */
+export async function searchTokens(query) {
+  const q = `t:token ${query.replace(/"/g, '')}`;
+  const response = await scryfallFetch(`${API_BASE}/cards/search?q=${encodeURIComponent(q)}&unique=cards&include_extras=true`);
+  if (response.status === 404) return []; // Scryfall's "no cards found"
+  if (!response.ok) throw new Error(`Scryfall token search failed: ${response.status}`);
+  const fresh = {};
+  const types = ((await response.json()).data || []).slice(0, 8).map((card) => cacheTokenType(fresh, card)).filter(Boolean);
+  saveTokenTypes(fresh);
+  return types;
 }
 
 /**

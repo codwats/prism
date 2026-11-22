@@ -490,6 +490,7 @@
                     <wa-radio-group id="results-filter" orientation="horizontal" value="all" size="s">
                       <wa-radio appearance="button" value="all" size="s">All cards</wa-radio>
                       <wa-radio appearance="button" value="shared" size="s">Pool</wa-radio>
+                      <wa-radio appearance="button" value="tokens" size="s">Tokens</wa-radio>
                       <wa-radio appearance="button" value="removed" id="removed-filter-btn" size="s">Marks to Clear</wa-radio>
                     </wa-radio-group>
                     <wa-input id="results-search" placeholder="Search cards..." size="m" style="max-width: 400px; flex: 1; min-width: 10rem;">
@@ -513,6 +514,22 @@
                       </wa-dropdown-item>
                       <wa-divider></wa-divider>
                     </wa-dropdown>
+                  </div>
+
+                  <!-- Tokens view only (#412, token-pack.js): its own tally, Add token, and the hidden tokens to show again -->
+                  <div id="tokens-toolbar" class="wa-cluster wa-gap-s wa-align-items-center" hidden>
+                    <span id="token-tally" class="wa-caption-m" role="status"></span>
+                    <wa-button id="btn-add-token" appearance="outlined" variant="brand" size="s">
+                      <wa-icon slot="start" name="plus"></wa-icon>
+                      Add token
+                    </wa-button>
+                    <wa-dropdown id="token-hidden-menu">
+                      <wa-button slot="trigger" appearance="plain" variant="neutral" size="s" caret disabled>
+                        <wa-icon slot="start" name="eye-slash"></wa-icon>
+                        <span id="token-hidden-label">Hidden (0)</span>
+                      </wa-button>
+                    </wa-dropdown>
+                    <span id="token-status" class="wa-caption-s" hidden></span>
                   </div>
 
                   <!-- Results Table -->
@@ -706,6 +723,37 @@
       <div slot="footer" class="wa-cluster wa-gap-s">
         <wa-button id="btn-cancel-edit-group" variant="neutral" appearance="outlined">Cancel</wa-button>
         <wa-button id="btn-confirm-edit-group" variant="brand">Save Changes</wa-button>
+      </div>
+    </wa-dialog>
+
+    <!-- Add token / Choose decks (#412, token-pack.js): token-only search, then the decks that need it -->
+    <wa-dialog id="token-add-dialog" label="Add token" style="--width: min(480px, 92vw);">
+      <div class="wa-stack wa-gap-l">
+        <p class="wa-caption-m" style="margin: 0;">For a token no card lists, such as a copy of a creature. It keeps the decks you tick here until you change them.</p>
+        <div class="card-suggest">
+          <wa-input id="token-search" label="Token" placeholder="Start typing a token name" autocomplete="off">
+            <wa-icon slot="start" name="magnifying-glass"></wa-icon>
+          </wa-input>
+          <div class="card-suggest-list" id="token-search-suggest" hidden></div>
+        </div>
+        <p id="token-picked" class="wa-heading-s" style="margin: 0;" hidden></p>
+        <wa-checkbox-group id="token-decks" label="Decks that need it"></wa-checkbox-group>
+      </div>
+      <div slot="footer" class="wa-cluster wa-gap-s">
+        <wa-button id="btn-cancel-token" variant="neutral" appearance="outlined">Cancel</wa-button>
+        <wa-button id="btn-save-token" variant="brand" disabled>Save</wa-button>
+      </div>
+    </wa-dialog>
+
+    <!-- Pair tokens (#412): two Token types on one double-sided token -->
+    <wa-dialog id="token-pair-dialog" label="Pair tokens" style="--width: min(420px, 92vw);">
+      <div class="wa-stack wa-gap-m">
+        <p style="margin: 0;">A double-sided token has a Token type on each side. It gets the marks of every deck that needs either side.</p>
+        <wa-select id="token-pair-select" label="Other side"></wa-select>
+      </div>
+      <div slot="footer" class="wa-cluster wa-gap-s">
+        <wa-button id="btn-cancel-pair" variant="neutral" appearance="outlined">Cancel</wa-button>
+        <wa-button id="btn-confirm-pair" variant="brand">Pair</wa-button>
       </div>
     </wa-dialog>
 

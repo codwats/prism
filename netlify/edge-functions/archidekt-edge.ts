@@ -3,21 +3,9 @@
  * Runs on Deno at the edge
  */
 
-function getCorsHeaders(request: Request): Record<string, string> {
-  const origin = request.headers.get('origin') || 'https://prismmtg.com';
-  const allowedOrigin = Deno.env.get('CONTEXT') === 'production'
-    ? 'https://prismmtg.com'
-    : origin;
-  return {
-    'Access-Control-Allow-Origin': allowedOrigin,
-    'Access-Control-Allow-Headers': 'Content-Type',
-    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-    // Responses are publicly cacheable and ACAO echoes the request Origin in
-    // non-production contexts — without Vary, a cache could serve one origin's
-    // ACAO header to a different origin.
-    'Vary': 'Origin',
-  };
-}
+import { corsHelpers } from './lib/cors.js';
+
+const { getCorsHeaders } = corsHelpers({ allowMethods: 'GET, POST, OPTIONS', allowHeaders: 'Content-Type' });
 
 export default async function handler(request: Request): Promise<Response> {
   // Handle CORS preflight
