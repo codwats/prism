@@ -14,6 +14,7 @@ import { setupStripeReorderDialog } from './stripe-reorder-dialog.js';
 import { setupScryMode } from './scry-mode.js';
 import { setupBulkMark } from './bulk-mark.js';
 import { setupAudit } from './audit.js';
+import { setupTokenPack } from './token-pack.js';
 import { setupMarkingLayout } from './marking-layout.js';
 import { renderResults, updateRemovedFilterBadge } from './results.js';
 import { renderExport } from './export-view.js';
@@ -98,6 +99,12 @@ function getElements() {
     barMarked: document.getElementById('bar-marked'),
     barProgress: document.getElementById('bar-progress'),
     resultsTbody: document.getElementById('results-tbody'),
+    // Tokens view toolbar (#412, token-pack.js), updated on every render and tick
+    tokensToolbar: document.getElementById('tokens-toolbar'),
+    tokenTally: document.getElementById('token-tally'),
+    tokenStatus: document.getElementById('token-status'),
+    tokenHiddenMenu: document.getElementById('token-hidden-menu'),
+    tokenHiddenLabel: document.getElementById('token-hidden-label'),
     noResults: document.getElementById('no-results'),
     btnGoToDecks: document.getElementById('btn-go-to-decks'),
 
@@ -256,6 +263,7 @@ export async function init() {
   setupScryMode();
   setupBulkMark();
   setupAudit();
+  setupTokenPack();
   setupSyncStatus();
   initMembershipDrawer();
 

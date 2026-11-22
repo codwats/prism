@@ -3,7 +3,7 @@
  */
 
 import { state } from '../core/state.js';
-import { escapeHtml, stripeNumberLabel, countVisibleMarks, STRIPE_SPARSE_MAX, isCardDone, batchTally } from '../core/utils.js';
+import { escapeHtml, stripeNumberLabel, countVisibleMarks, STRIPE_SPARSE_MAX, isCardDone, batchTally, rowDoneKey, rowImageName } from '../core/utils.js';
 import { markingPrereqVisible, retireMarkingPrereq } from '../core/marking-prereq.js';
 import { getStripeNumbersMode } from '../modules/storage.js';
 import { processCards, formatSlotLabel, getColorName } from '../modules/processor.js';
@@ -14,6 +14,7 @@ import { prefetchCards, getCardAttributes } from '../modules/scryfall.js';
 import { savedCopiesByCard, savedDollars, formatUsd } from '../modules/savings.js';
 import { handleMarkToggle, handleClearRemoved, handleClearAllRemovedClick } from './deck-list.js';
 import { renderOverlapMatrix } from './analysis.js';
+import { requestTokenTypes, currentTokenRows, tokenEmptyMessage, tokenRowExtras, updateTokenTally } from './token-pack.js';
 
 // ============================================================================
 // Stripe indicator helpers
@@ -89,8 +90,9 @@ export function toggleCardExpanded(name) {
   else expandedCards.add(name);
 }
 
-// The row's markedCards key: pass rows `<name>|<deckName>`, others the name.
-const rowKey = (card) => (card.isPassRow ? `${card.displayName}|${card.deckName}` : card.name);
+// The row's markedCards key (rowDoneKey): pass rows `<name>|<deckName>`,
+// token rows their `token:` key (#412), others the name.
+const rowKey = rowDoneKey;
 
 // Cards the last render left after view, filters, search and sort.
 let shownCards = [];
@@ -175,7 +177,7 @@ function bindResultsDelegation(tbody) {
     // marks of its own, so its row expands the batches instead. The checkbox
     // and every button keep their own job. Keyboard users have the
     // stripe-cell-toggle and batch-toggle buttons, so this is pointer only.
-    if (e.target.closest('label, input, button, wa-button, a, .stripe-detail-row')) return;
+    if (e.target.closest('label, input, button, wa-button, wa-dropdown, a, .stripe-detail-row')) return;
     const row = e.target.closest('tr');
     (row?.querySelector('.batch-toggle') || row?.querySelector('.stripe-cell-toggle'))?.click();
   });
@@ -242,20 +244,26 @@ export function updateMarkedProgress() {
   // Phone bottom bar mirrors the Marked stat, which lives in the sheet there
   if (state.elements.barMarked) state.elements.barMarked.textContent = `${markedCount}/${totalCount}`;
   if (state.elements.barProgress) state.elements.barProgress.value = percent;
+  // Tokens keep their own tally (#412); the sleeve counts above are cards only.
+  updateTokenTally();
 }
 
 // ============================================================================
 // Results rendering
 // ============================================================================
 
-// The view switch holds All cards / Pool / Marks to Clear; One Mark at a Time
-// is a Filters item (#452) that turns either card view into the pass view.
-// The pass view keeps its internal value, `basics-by-deck`.
+// The view switch holds All cards / Pool / Tokens / Marks to Clear; One Mark
+// at a Time is a Filters item (#452) that turns either card view into the
+// pass view. The pass view keeps its internal value, `basics-by-deck`. A
+// token is one copy, so the Tokens view has no passes.
 function resultsFilterValue() {
   const view = state.elements.resultsFilter?.value || 'all';
-  if (view !== 'removed' && state.elements.oneMarkFilter?.checked) return 'basics-by-deck';
+  if ((view === 'all' || view === 'shared') && state.elements.oneMarkFilter?.checked) return 'basics-by-deck';
   return view;
 }
+
+// The view the last render showed, so the Tokens view knows when it opens.
+let lastFilter = null;
 
 /** Show or hide the pre-marking warning for the current PRISM (#476). */
 export function syncMarkingPrereq() {
@@ -306,9 +314,16 @@ export function renderResults({ preserveRows = false } = {}) {
   let filteredCards = [...processedCards];
   let displayCards = []; // What we'll actually render
 
+  const entering = filter !== lastFilter;
+  lastFilter = filter;
+
   if (filter === 'shared') {
     filteredCards = filteredCards.filter(c => c.logicalDeckCount > 1);
     displayCards = filteredCards;
+  } else if (filter === 'tokens') {
+    // Token pack (#412): rows in the card shape, kept out of every count above.
+    requestTokenTypes({ fresh: entering });
+    displayCards = [...currentTokenRows()];
   } else if (filter === 'basics-by-deck') {
     // One-mark-at-a-time pass view (#149): the per-deck projection of the
     // canonical batches (#146), generalized from basics to every repeated
@@ -427,7 +442,7 @@ export function renderResults({ preserveRows = false } = {}) {
   if (state.elements.undoneFilter?.checked) {
     const markedSet = new Set(state.currentPrism.markedCards || []);
     displayCards = displayCards.filter(card => {
-      if (card.isPassRow) return !markedSet.has(`${card.displayName}|${card.deckName}`);
+      if (card.isPassRow) return !markedSet.has(rowDoneKey(card));
       if (card.isRemoved) return true;
       return !isCardDone(card, markedSet);
     });
@@ -639,14 +654,15 @@ export function renderResults({ preserveRows = false } = {}) {
       // `<name>|<deckName>` key.
       const cardKey = rowKey(card);
       const isMarked = markedSetForRows.has(cardKey);
-      const previewName = card.isPassRow ? card.displayName : card.name;
+      const previewName = rowImageName(card);
       const stripes = stripesCell(card.stripes, band, previewName);
+      const tokenExtras = card.isToken ? tokenRowExtras(card) : '';
       return `
         <tr class="${isMarked ? 'marked-row' : ''}${band}" data-card-key="${escapeHtml(cardKey)}">
           <td style="text-align: center;">
             <label class="mark-checkbox-hit"><input type="checkbox" class="mark-checkbox" aria-label="Mark ${escapeHtml(card.name)} done" ${isMarked ? "checked" : ""}></label>
           </td>
-          <td class="${nameClass} card-name-cell" data-preview="hover" data-card-name="${escapeHtml(previewName)}">${escapeHtml(card.name)}${basicTag}${copiesTag(card.totalQuantity)}</td>
+          <td class="${nameClass} card-name-cell" data-preview="hover" data-card-name="${escapeHtml(previewName)}">${escapeHtml(card.name)}${basicTag}${copiesTag(card.totalQuantity)}${tokenExtras}</td>
           ${stripes.cell}
         </tr>
         ${stripes.detailRow}
@@ -759,6 +775,8 @@ export function renderResults({ preserveRows = false } = {}) {
 
     if (filter === 'removed') {
       emptyMessage = 'No marks to clear. A mark to clear is paint for a deck that no longer needs the card.';
+    } else if (filter === 'tokens') {
+      if (!search && state.selectedDeckIds.size === 0 && !state.elements.undoneFilter?.checked) emptyMessage = tokenEmptyMessage();
     } else if (processedCards.length === 0) {
       // Decks exist but hold no cards: a blank table under live stats reads as
       // lost data, so state the failure instead of returning silently.
@@ -778,7 +796,7 @@ export function renderResults({ preserveRows = false } = {}) {
   // Prefetch card images for visible cards (first 20 to avoid rate limiting)
   const cardNames = displayCards
     .slice(0, 20)
-    .map(c => c.isPassRow ? c.displayName : c.name)
+    .map(rowImageName)
     .filter(Boolean);
   if (cardNames.length > 0) {
     prefetchCards(cardNames).catch(() => {
@@ -819,7 +837,7 @@ function sortCards(cards, column, direction) {
         // Card rows classify through isCardDone (batch-aware); pass rows keep
         // their key equality.
         const doneOf = (c) => c.isPassRow
-          ? (markedSet.has(`${c.displayName}|${c.deckName}`) ? 1 : 0)
+          ? (markedSet.has(rowDoneKey(c)) ? 1 : 0)
           : (isCardDone(c, markedSet) ? 1 : 0);
         comparison = doneOf(a) - doneOf(b);
         if (comparison === 0) {

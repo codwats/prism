@@ -27,7 +27,7 @@ import { renderResults, syncMarkingPrereq } from './results.js';
 import { dismissMarkingPrereq } from '../core/marking-prereq.js';
 import { openScryMode } from './scry-mode.js';
 import { renderOverlapMatrix } from './analysis.js';
-import { debounce, clickItemsOnKeyboardSelect } from '../core/utils.js';
+import { debounce, clickItemsOnKeyboardSelect, rowImageName } from '../core/utils.js';
 import { updatePreferences, getCurrentPrism, savePrism } from '../modules/storage.js';
 import { renderAll } from './init.js';
 import { logToSupabase } from '../modules/supabase-client.js';
@@ -378,7 +378,8 @@ export function setupEventListeners() {
   if (state.elements.resultsTbody) {
     // A batch sub-row previews only its batch's marks, never the card's union
     wireCardPreview(state.elements.resultsTbody, (name, cell) => {
-      const card = (state.processedCards || []).find(c => c.name === name);
+      // Cells carry rowImageName: a card's name, a token row's token:<oracleId> (#412)
+      const card = [...(state.processedCards || []), ...(state.tokenRows || [])].find(c => rowImageName(c) === name);
       const batchKey = cell.dataset.batchKey || cell.closest('tr.batch-subrow')?.dataset.cardKey;
       return (batchKey && card?.batches?.find(b => b.key === batchKey)?.stripes) || card?.stripes || [];
     });

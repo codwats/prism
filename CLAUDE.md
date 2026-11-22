@@ -8,6 +8,7 @@ Helps MTG players who share cards across decks mark sleeves with colored stripes
 - **Billing, Membership, entitlement** (`billing.js`, `stripe-*-edge.ts`, `founders`/`subscriptions`/`app_config`, `isEntitled()`) → `docs/agents/billing.md`
 - **Deck export / `sourceUrl`** (`deck-export.js`, Copy for Moxfield/Archidekt) → `docs/agents/deck-export.md`
 - **Gallery** (`gallery.html`, `js/gallery.js`, `gallery_*` tables/RPCs, `gallery-artist`/`gallery-notify`/`commission` edge functions) → `docs/agents/gallery.md`
+- **Token pack** (`tokens.js`, `features/token-pack.js`, `getTokenTypes`/`searchTokens`, `tokenChoices`/`token_choices`) → `docs/agents/token-pack.md`
 - **Domain terms** → `CONTEXT.md`; product policy → `PRODUCT.md`; decisions → `docs/adr/`
 - **Reviewing a diff** → `CODING_STANDARDS.md` (judgement calls; mechanical rules are in lint and `tests/schema-rules.test.js`)
 
@@ -46,6 +47,7 @@ New domain facts go in the matching `docs/agents/*.md`, not here.
 - `sortState` — `{ column, direction }` for results table
 - `selectedDeckIds` — `Set` for deck filter dropdown
 - `processedCards` — cached last `processCards()` result (hover preview)
+- `tokenRows` — last Tokens view rows (#412), never in `processedCards` or its counts
 - `addSourceUrl` / `editSourceUrl` — deck `sourceUrl` from a URL import, pending until Add Deck / Save Changes (#377)
 
 ### Layout Injection
@@ -65,8 +67,9 @@ Feature modules import circularly (`deck-form ↔ deck-list`, `deck-list → ini
 ### PRISM Data Model
 
 ```
-Prism: { id, name, decks[], splitGroups[], markedCards[], removedCards[], plannedSwaps[],
+Prism: { id, name, decks[], splitGroups[], markedCards[], removedCards[], plannedSwaps[], tokenChoices[],
          useDedicatedCommanderCopies, useDedicatedCommanderCopiesUpdatedAt, createdAt, updatedAt }
+TokenChoice: { kind ('added'|'paired'|'hidden'), oracleId, updatedAt, deckId+name+included | pairedWith | hidden }  (#412, one per kind+oracleId+deckId)
 Deck:  { id, name, bracket (1-5), color (hex), stripePosition (1-48), cards[], splitGroupId?, sourceUrl?, cardsUpdatedAt? }
 SplitGroup: { id, name, sideAPosition, sideAColor, childDeckIds[], splitStyle ('stripes'|'dots'), createdAt?, updatedAt? }
 Card:  { name, quantity, isCommander, isBasicLand, sleeve?, isSideboard? }

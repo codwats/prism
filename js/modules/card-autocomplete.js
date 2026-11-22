@@ -1,12 +1,19 @@
 // Scryfall name autocomplete under an input: typing 2+ characters lists up to
 // 8 names in `list` (a hidden element under the input); picking one fills
-// the input and calls onPick(name). /cards/autocomplete isn't one of the
+// the input and calls onPick(value). /cards/autocomplete isn't one of the
 // 2-per-second endpoints, so it skips the rate chain; the debounce spaces it.
+// `search(q)` swaps the source: it resolves to [{ label, value }] (Add token
+// passes a token-only search, #412).
 // Returns a function that removes the outside-click listener.
 
 import { escapeHtml } from '../core/utils.js';
 
-export function wireCardAutocomplete(input, list, onPick = () => {}) {
+async function cardNames(q) {
+  const res = await fetch(`https://api.scryfall.com/cards/autocomplete?q=${encodeURIComponent(q)}`);
+  return ((await res.json()).data || []).map((name) => ({ label: name, value: name }));
+}
+
+export function wireCardAutocomplete(input, list, onPick = () => {}, search = cardNames) {
   let timer;
   input.addEventListener('input', () => {
     clearTimeout(timer);
@@ -14,14 +21,13 @@ export function wireCardAutocomplete(input, list, onPick = () => {}) {
     if (q.length < 2) { list.hidden = true; return; }
     timer = setTimeout(async () => {
       try {
-        const res = await fetch(`https://api.scryfall.com/cards/autocomplete?q=${encodeURIComponent(q)}`);
-        const names = ((await res.json()).data || []).slice(0, 8);
-        list.innerHTML = names.map(n => `<button type="button">${escapeHtml(n)}</button>`).join('');
-        list.hidden = names.length === 0;
-        list.querySelectorAll('button').forEach(b => b.addEventListener('click', () => {
-          input.value = b.textContent;
+        const items = (await search(q)).slice(0, 8);
+        list.innerHTML = items.map(it => `<button type="button">${escapeHtml(it.label)}</button>`).join('');
+        list.hidden = items.length === 0;
+        list.querySelectorAll('button').forEach((b, i) => b.addEventListener('click', () => {
+          input.value = items[i].label;
           list.hidden = true;
-          onPick(b.textContent);
+          onPick(items[i].value);
         }));
       } catch {
         list.hidden = true;

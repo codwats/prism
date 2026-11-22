@@ -49,7 +49,7 @@ test('multi-face names go out as their front face and match either form, costed 
 	const attrs = await getCardAttributes(['Delver of Secrets // Insectile Aberration']);
 	assert.deepEqual(requests, [['Delver of Secrets']]);
 	assert.deepEqual(attrs.get('Delver of Secrets // Insectile Aberration'), {
-		colorIdentity: ['U'], typeLine: 'Creature — Human Wizard // Creature — Human Insect', manaCost: '{U}', cmc: 1, oracleId: 'o-delver', usd: null,
+		colorIdentity: ['U'], typeLine: 'Creature — Human Wizard // Creature — Human Insect', manaCost: '{U}', cmc: 1, oracleId: 'o-delver', usd: null, tokens: [],
 	});
 });
 
@@ -129,8 +129,8 @@ test('a failed request throws instead of reading as a miss, and caches nothing',
 test('a multi-face entry cached with no cost is fetched again once; a multi-face land is not', async () => {
 	reset();
 	store.set('prism_card_attributes', JSON.stringify({
-		'delver of secrets // insectile aberration': { colorIdentity: ['U'], typeLine: 'Creature — Human Wizard // Creature — Human Insect', manaCost: '', cmc: 1, oracleId: 'o-delver', usd: null },
-		'branchloft pathway // boulderloft pathway': { colorIdentity: ['G', 'W'], typeLine: 'Land // Land', manaCost: '', cmc: 0, oracleId: 'o-pathway', usd: null },
+		'delver of secrets // insectile aberration': { colorIdentity: ['U'], typeLine: 'Creature — Human Wizard // Creature — Human Insect', manaCost: '', cmc: 1, oracleId: 'o-delver', usd: null, tokens: [] },
+		'branchloft pathway // boulderloft pathway': { colorIdentity: ['G', 'W'], typeLine: 'Land // Land', manaCost: '', cmc: 0, oracleId: 'o-pathway', usd: null, tokens: [] },
 	}));
 	const names = ['Delver of Secrets // Insectile Aberration', 'Branchloft Pathway // Boulderloft Pathway'];
 	const attrs = await getCardAttributes(names);

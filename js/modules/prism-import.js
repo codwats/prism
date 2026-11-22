@@ -6,6 +6,7 @@
 
 import { createPrism, createDeck, applyCommanderFallback, generateId } from './processor.js';
 import { cardRowKey } from './parser.js';
+import { TOKEN_CHOICE_FIELDS } from './tokens.js';
 
 /**
  * Validate and construct a PRISM object from parsed backup JSON.
@@ -161,6 +162,29 @@ export function buildPrismFromJson(jsonData, { preserveId = true } = {}) {
       createdAt: isDate(swap.createdAt) ? swap.createdAt : newPrism.updatedAt,
       updatedAt: isDate(swap.updatedAt) ? swap.updatedAt : newPrism.updatedAt
     }));
+
+  // Untrusted file: Token pack choices (#412) shaped like tokens.js writes
+  // them. Oracle ids reach data-* attributes, so they must be plain ids; ids
+  // and names stay inside the token_choices CHECKs, or every sync would fail.
+  const isOracleId = (v) => typeof v === 'string' && /^[\w-]{1,64}$/.test(v);
+  // One cleaner per field of TOKEN_CHOICE_FIELDS; a hand-added entry whose
+  // deck didn't come with the backup is dropped (deckId undefined).
+  const cleanField = {
+    deckId: (v) => { const id = safeId(v); return deckIds.has(id) ? id : undefined; },
+    name: (v) => (isText(v) ? v.slice(0, 200) : 'Token'),
+    included: (v) => v === true,
+    pairedWith: (v) => (isOracleId(v) ? v : null),
+    hidden: (v) => v === true,
+  };
+  newPrism.tokenChoices = (Array.isArray(prismData.tokenChoices) ? prismData.tokenChoices : [])
+    .filter(c => c && Object.hasOwn(TOKEN_CHOICE_FIELDS, c.kind) && isOracleId(c.oracleId))
+    .map(c => ({
+      kind: c.kind,
+      oracleId: c.oracleId,
+      ...Object.fromEntries(Object.keys(TOKEN_CHOICE_FIELDS[c.kind]).map(field => [field, cleanField[field](c[field])])),
+      updatedAt: isDate(c.updatedAt) ? c.updatedAt : newPrism.updatedAt
+    }))
+    .filter(c => c.kind !== 'added' || c.deckId !== undefined);
 
   const validGroupIds = new Set(newPrism.splitGroups.map(g => g.id));
   for (const deck of newPrism.decks) {

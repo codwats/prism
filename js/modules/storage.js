@@ -5,6 +5,7 @@
 
 import { DEFAULT_COLORS } from './processor.js';
 import { normalizeCardName } from './parser.js';
+import { TOKEN_CHOICE_FIELDS, tokenChoiceKey } from './tokens.js';
 import { getSupabase, isConfigured } from './supabase-client.js';
 import { getCurrentUser } from './auth.js';
 import { isEntitled } from './billing.js';
@@ -13,6 +14,10 @@ import { debugLog } from '../core/utils.js';
 
 const STORAGE_KEY = 'prism_data';
 const CURRENT_VERSION = 2;
+// token_choices columns a kind doesn't use; deck_id is in the primary key, so '' not NULL.
+const TOKEN_CHOICE_EMPTY_ROW = Object.fromEntries(
+  Object.values(TOKEN_CHOICE_FIELDS).flatMap(Object.values).map(column => [column, column === 'deck_id' ? '' : null])
+);
 
 /**
  * Get the default storage structure
@@ -377,6 +382,12 @@ function buildPrismFromRow(prism) {
       createdAt: swap.created_at,
       updatedAt: swap.updated_at
     })).sort(byCreatedAt),
+    tokenChoices: (prism.token_choices || []).map(row => ({
+      kind: row.kind,
+      oracleId: row.oracle_id,
+      ...Object.fromEntries(Object.entries(TOKEN_CHOICE_FIELDS[row.kind] || {}).map(([field, column]) => [field, row[column] ?? null])),
+      updatedAt: row.updated_at
+    })),
     splitGroups: (prism.split_groups || []).map(group => ({
       ...group,
       updatedAt: group.updatedAt || prism.updated_at
@@ -432,6 +443,21 @@ function mergePlannedSwaps(localSwaps, cloudSwaps, baseline) {
   }
 
   return [...merged.values()].sort(byCreatedAt);
+}
+
+// Token pack choices (#412) merge per (kind, oracleId, deckId) on their own
+// updatedAt, newer wins, ties local. Undoing a choice writes a newer entry
+// and none is ever deleted, so a copy that lacks an entry (another device's
+// older copy, or a build page holding a stale PRISM, #499) has nothing to
+// delete, and the newest choice on any device wins on every device (#500).
+function mergeTokenChoices(localChoices, cloudChoices) {
+  const merged = new Map();
+  for (const choice of [...cloudChoices, ...localChoices]) {
+    const key = tokenChoiceKey(choice);
+    const held = merged.get(key);
+    if (!held || getTimestampMs(choice.updatedAt) >= getTimestampMs(held.updatedAt)) merged.set(key, choice);
+  }
+  return [...merged.values()];
 }
 
 export function mergePrismVersions(localPrism, cloudPrism, prismBaseline) {
@@ -502,6 +528,7 @@ export function mergePrismVersions(localPrism, cloudPrism, prismBaseline) {
       cloudPrism.removedCards || []
     ),
     plannedSwaps: mergePlannedSwaps(localPrism.plannedSwaps || [], cloudPrism.plannedSwaps || [], baseline),
+    tokenChoices: mergeTokenChoices(localPrism.tokenChoices || [], cloudPrism.tokenChoices || []),
     decks: mergedDecks,
     splitGroups: mergedSplitGroups,
     updatedAt: getTimestampMs(localUpdatedAt) >= getTimestampMs(cloudUpdatedAt)
@@ -529,6 +556,16 @@ const PRISM_SELECT = `
     copies,
     note,
     created_at,
+    updated_at
+  ),
+  token_choices (
+    kind,
+    oracle_id,
+    deck_id,
+    name,
+    included,
+    paired_with,
+    hidden,
     updated_at
   ),
   decks (
@@ -921,6 +958,27 @@ async function savePrismToSupabase(prism) {
         .in('id', removedSwapIds);
       if (deleteSwapsError) {
         console.error('Error deleting removed planned swaps from Supabase:', deleteSwapsError);
+        return false;
+      }
+    }
+
+    // Token pack choices (#412): upsert only, never delete (mergeTokenChoices).
+    const tokenChoices = prism.tokenChoices || [];
+    if (tokenChoices.length > 0) {
+      const { error: tokenChoicesError } = await supabase
+        .from('token_choices')
+        .upsert(tokenChoices.map(choice => ({
+          prism_id: prism.id,
+          kind: choice.kind,
+          oracle_id: choice.oracleId,
+          // Every row carries every column (one bulk upsert); deck_id '' off 'added'.
+          ...TOKEN_CHOICE_EMPTY_ROW,
+          ...Object.fromEntries(Object.entries(TOKEN_CHOICE_FIELDS[choice.kind] || {})
+            .map(([field, column]) => [column, choice[field] ?? TOKEN_CHOICE_EMPTY_ROW[column]])),
+          updated_at: choice.updatedAt || prismUpdatedAt
+        })), { onConflict: 'prism_id,kind,oracle_id,deck_id' });
+      if (tokenChoicesError) {
+        console.error('Error upserting token choices to Supabase:', tokenChoicesError);
         return false;
       }
     }

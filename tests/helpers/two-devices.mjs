@@ -1,7 +1,7 @@
 // Two devices, one cloud (#416). Each device is its own localStorage; the cloud
 // is an in-memory stand-in for the Supabase tables storage.js reads and writes
-// (prisms, decks, deck_cards via replace_deck_cards, planned_swaps), with the
-// schema's cascades and no updated_at triggers. Each device's clock is the
+// (prisms, decks, deck_cards via replace_deck_cards, planned_swaps,
+// token_choices), with the schema's cascades and no updated_at triggers. Each device's clock is the
 // mocked Date, so a scenario sets the time each action happens at, skew included.
 //
 // Import this before js/modules/*: it installs the globals the real module
@@ -17,7 +17,9 @@ globalThis.localStorage = {
 	clear: () => active.clear(),
 };
 
-const tables = { prisms: new Map(), decks: new Map(), deck_cards: new Map(), planned_swaps: new Map() };
+const tables = { prisms: new Map(), decks: new Map(), deck_cards: new Map(), planned_swaps: new Map(), token_choices: new Map() };
+// token_choices has a composite primary key; every other table has `id`.
+const keyOf = (table, r) => (table === 'token_choices' ? `${r.prism_id}|${r.kind}|${r.oracle_id}|${r.deck_id}` : r.id);
 // Deck ids whose next replace_deck_cards call fails, as a dropped request would.
 export const failCardsOnce = new Set();
 
@@ -26,7 +28,8 @@ function nest(row) {
 		.filter((d) => d.prism_id === row.id)
 		.map((d) => ({ ...d, deck_cards: tables.deck_cards.get(d.id) || [] }));
 	const planned_swaps = [...tables.planned_swaps.values()].filter((s) => s.prism_id === row.id);
-	return { ...row, decks, planned_swaps };
+	const token_choices = [...tables.token_choices.values()].filter((c) => c.prism_id === row.id);
+	return { ...row, decks, planned_swaps, token_choices };
 }
 
 function remove(table, id) {
@@ -34,6 +37,7 @@ function remove(table, id) {
 	if (table === 'prisms') {
 		for (const d of [...tables.decks.values()]) if (d.prism_id === id) remove('decks', d.id);
 		for (const s of [...tables.planned_swaps.values()]) if (s.prism_id === id) tables.planned_swaps.delete(s.id);
+		for (const [k, c] of [...tables.token_choices]) if (c.prism_id === id) tables.token_choices.delete(k);
 	}
 	if (table === 'decks') {
 		tables.deck_cards.delete(id);
@@ -50,11 +54,11 @@ function from(table) {
 	const run = () => {
 		const match = () => [...tables[table].values()].filter((r) => filters.every((f) => f(r)));
 		if (action === 'upsert') {
-			for (const r of rows) tables[table].set(r.id, { ...tables[table].get(r.id), ...structuredClone(r) });
+			for (const r of rows) tables[table].set(keyOf(table, r), { ...tables[table].get(keyOf(table, r)), ...structuredClone(r) });
 			return { data: null, error: null };
 		}
 		if (action === 'delete') {
-			for (const r of match()) remove(table, r.id);
+			for (const r of match()) remove(table, keyOf(table, r));
 			return { data: null, error: null };
 		}
 		const data = match().map((r) => structuredClone(table === 'prisms' ? nest(r) : r));
