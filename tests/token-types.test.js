@@ -23,12 +23,24 @@ const CARDS = {
 		part('p-emblem', 'Elspeth, Sun\'s Champion Emblem', 'Emblem — Elspeth'),
 	] },
 	'Sol Ring': {},
+	'Twin Spawner': { all_parts: [part('p-angel-demon', 'Angel // Demon', 'Token Creature — Angel // Token Creature — Demon')] },
+	'Angel Maker': { all_parts: [part('p-angel-angel', 'Angel // Angel', 'Token Creature — Angel // Token')] },
+	'Blank Maker': { all_parts: [part('p-blank', 'Blank', 'Token Creature — Blank')] },
 };
+const face = (name, power, toughness, colors, type_line) =>
+	({ name, power, toughness, colors, type_line, image_uris: { normal: `https://img/${name}.jpg` } });
 const TOKENS = {
 	'p-treasure-1': { oracle_id: 'o-treasure', name: 'Treasure', colors: [], image_uris: { normal: 'https://img/treasure-1.jpg' } },
 	'p-treasure-2': { oracle_id: 'o-treasure', name: 'Treasure', colors: [], image_uris: { normal: 'https://img/treasure-2.jpg' } },
 	'p-soldier': { oracle_id: 'o-soldier', name: 'Soldier', power: '1', toughness: '1', colors: ['W'], image_uris: { normal: 'https://img/soldier.jpg' } },
 	'p-clone': { oracle_id: 'o-clone', name: 'Spirit', power: '1', toughness: '1', colors: ['R', 'W'], image_uris: { normal: 'https://img/spirit.jpg' } },
+	// Shaped like Scryfall's double_faced_token (checked live): oracle_id on
+	// top, P/T, colors and images on the faces; a reminder back face is 'Token'.
+	'p-angel-demon': { oracle_id: 'o-angel-demon', name: 'Angel // Demon', layout: 'double_faced_token', colors: null, power: null,
+		card_faces: [face('Angel', '4', '4', ['W'], 'Token Creature — Angel'), face('Demon', '5', '5', ['B'], 'Token Creature — Demon')] },
+	'p-angel-angel': { oracle_id: 'o-angel-angel', name: 'Angel // Angel', layout: 'double_faced_token',
+		card_faces: [face('Angel', '4', '4', ['W'], 'Token Creature — Angel'), face('Angel', null, null, ['W'], 'Token')] },
+	'p-blank': { oracle_id: 'o-blank', name: 'Blank', colors: [] }, // no image
 };
 
 const requests = [];
@@ -38,6 +50,11 @@ globalThis.fetch = async (url, options) => {
 	requests.push(identifiers || url);
 	if (offline) throw new TypeError('Failed to fetch');
 	const data = [];
+	const byId = String(url).match(/\/cards\/([\w-]+)$/);
+	if (byId && TOKENS[byId[1]]) {
+		return { ok: true, status: 200, json: async () => ({ id: byId[1], type_line: 'Token', ...TOKENS[byId[1]] }) };
+	}
+	if (String(url).includes('/cards/named')) return { ok: false, status: 404, json: async () => ({}) };
 	if (String(url).includes('/cards/search')) {
 		data.push({ id: 'p-clone', ...TOKENS['p-clone'] });
 	} else {
@@ -64,7 +81,7 @@ function reset() {
 test('a card\'s token parts resolve to one Token type per oracle identity; emblems are left out', async () => {
 	reset();
 	const { byCard } = await getTokenTypes(['Smothering Tithe', 'Dockside Extortionist', 'Elspeth, Sun\'s Champion', 'Sol Ring']);
-	assert.deepEqual(byCard.get('Smothering Tithe'), [{ oracleId: 'o-treasure', name: 'Treasure', detail: 'colorless', typeLine: 'Token', imageUri: 'https://img/treasure-1.jpg' }]);
+	assert.deepEqual(byCard.get('Smothering Tithe'), [{ oracleId: 'o-treasure', name: 'Treasure', detail: 'colorless', typeLine: 'Token', scryfallId: 'p-treasure-1' }]);
 	assert.equal(byCard.get('Dockside Extortionist')[0].oracleId, 'o-treasure', 'another printing, same type');
 	assert.deepEqual(byCard.get('Elspeth, Sun\'s Champion').map((t) => [t.name, t.detail]), [['Soldier', '1/1 white']]);
 	assert.deepEqual(byCard.get('Sol Ring'), []);
@@ -82,11 +99,32 @@ test('once cached, the token list needs no network', async () => {
 	assert.equal(requests.length, 0);
 });
 
-test('a Token type\'s image is cached under token:<oracleId> for the preview and SCRY', async () => {
+test('a token image is fetched by its Scryfall id, never by name, and then comes from the card cache', async () => {
 	reset();
 	await getTokenTypes(['Smothering Tithe']);
-	offline = true;
+	requests.length = 0;
 	assert.equal((await fetchCard('token:o-treasure')).image_uri, 'https://img/treasure-1.jpg');
+	assert.deepEqual(requests, ['https://api.scryfall.com/cards/p-treasure-1']);
+	await fetchCard('token:o-treasure');
+	assert.equal(requests.length, 1, 'the second look is the 24h card cache');
+});
+
+test('a double-faced token is one Token type, with each face\'s P/T and colors', async () => {
+	reset();
+	const { byCard } = await getTokenTypes(['Twin Spawner', 'Angel Maker']);
+	assert.deepEqual(byCard.get('Twin Spawner').map((t) => [t.oracleId, t.name, t.detail]), [['o-angel-demon', 'Angel // Demon', '4/4 white // 5/5 black']]);
+	assert.deepEqual(byCard.get('Angel Maker').map((t) => [t.oracleId, t.detail]), [['o-angel-angel', '4/4 white']], 'a reminder back face adds nothing');
+	requests.length = 0;
+	assert.equal((await fetchCard('token:o-angel-demon')).image_uri, 'https://img/Angel.jpg', 'front face image');
+});
+
+test('a token printing with no image is never cached', async () => {
+	reset();
+	const { byCard } = await getTokenTypes(['Blank Maker']);
+	assert.deepEqual(byCard.get('Blank Maker'), []);
+	requests.length = 0;
+	await getTokenTypes(['Blank Maker']);
+	assert.deepEqual(requests, [[{ id: 'p-blank' }]], 'asked again, not served from cache');
 });
 
 test('a token search lists Token types only, and a picked one resolves by oracle id from cache', async () => {

@@ -21,7 +21,7 @@ store.set('prism_card_attributes', JSON.stringify({
 	'sol ring': attrs([]),
 }));
 store.set('prism_token_types', JSON.stringify({
-	'id:p-treasure': { oracleId: 'o-treasure', name: 'Treasure', detail: 'colorless', typeLine: 'Token Artifact — Treasure', imageUri: 'https://img/treasure.jpg' },
+	'id:p-treasure': { oracleId: 'o-treasure', name: 'Treasure', detail: 'colorless', typeLine: 'Token Artifact — Treasure', scryfallId: 'p-treasure' },
 }));
 
 const { createPrism, createDeck } = await import('../js/modules/processor.js');
