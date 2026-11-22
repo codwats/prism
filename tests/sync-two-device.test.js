@@ -575,7 +575,7 @@ test('a variant edited on B after A removed it comes back into the group', async
 // Deck cards ride the deck's updatedAt
 // ---------------------------------------------------------------------------
 
-test('a card upload that failed once still converges both devices on the edit', { skip: '#503' }, async () => {
+test('a card upload that failed once still converges both devices on the edit', async () => {
 	await seed();
 	const alphaId = await on('A', T(2), () => deck(prism(), 'Alpha').id);
 	await on('A', T(10), () => editCards('Alpha', [card('Sol Ring'), card('Alpha New')]));
