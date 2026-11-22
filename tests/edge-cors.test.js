@@ -8,6 +8,7 @@ const expected = {
   'moxfield-edge': ['Content-Type', 'GET, POST, OPTIONS'],
   'archidekt-edge': ['Content-Type', 'GET, POST, OPTIONS'],
   'deckcheck-edge': ['Content-Type', 'POST, OPTIONS'],
+  'commandertemplate-edge': ['Content-Type', 'POST, OPTIONS'],
   'stripe-checkout-edge': [AUTH, 'POST, OPTIONS'],
   'stripe-portal-edge': [AUTH, 'POST, OPTIONS'],
   'commission-edge': [AUTH, 'POST, OPTIONS'],
