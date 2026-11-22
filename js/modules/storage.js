@@ -1143,6 +1143,13 @@ export function mergeRemovedCards(localArr, cloudArr) {
       // Latest row wins, but previousQuantity keeps the max of both (#151):
       // successive edits (5→4→3) and cross-device edits must not collapse to
       // the last delta and under-report the surplus copies to clear.
+      // A row re-tracked after it closed (#501) is a new removal: the higher
+      // generation wins whole, so a closed row's clearedQuantity can't close it.
+      const generation = (entry.generation || 0) - (existing.generation || 0);
+      if (generation !== 0) {
+        map.set(key, generation > 0 ? entry : existing);
+        continue;
+      }
       const newer = new Date(entry.removedAt) > new Date(existing.removedAt) ? entry : existing;
       // A stillInDeck row (#423) newer than a plain one folded that row's open
       // copies in when it replaced it: the plain row's fields are not its own.

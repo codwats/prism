@@ -221,10 +221,10 @@ test('clearedQuantity merges by max on both sides and survives re-removal', () =
 	assert.equal(removalOpenCopies(mergeRemovedCards([newer], [cleared])[0]), 1);
 
 	const prism = createPrism('T');
-	prism.removedCards = [{ ...cleared, newQuantity: 1, clearedQuantity: 2 }];
+	prism.removedCards = [{ ...cleared, newQuantity: 1, clearedQuantity: 1 }];
 	trackRemovedCard(prism, { cardName: 'Forest', deckId: 'd1', previousQuantity: 1, newQuantity: 0, removedAt: NOW });
-	assert.deepEqual([prism.removedCards[0].previousQuantity, prism.removedCards[0].clearedQuantity], [3, 2]);
-	assert.equal(removalOpenCopies(prism.removedCards[0]), 1);
+	assert.deepEqual([prism.removedCards[0].previousQuantity, prism.removedCards[0].clearedQuantity], [3, 1]);
+	assert.equal(removalOpenCopies(prism.removedCards[0]), 2);
 });
 
 // A Sleeve swap of the card's only batch: the incoming card takes its sleeve.

@@ -11,7 +11,7 @@ globalThis.localStorage = {
 
 const { createPrism, createDeck, createSplitGroup, processCards } = await import('../js/modules/processor.js');
 const { isCardDone } = await import('../js/core/utils.js');
-const { applySwap, canSleeveSwap, clearReturnedRemovals, keepSeparateSleeves, unmarkCardsWithNewStripes, markTallies, trackRemovedCard } = await import('../js/modules/swap.js');
+const { applySwap, canSleeveSwap, clearReturnedRemovals, keepSeparateSleeves, unmarkCardsWithNewStripes, markTallies, trackRemovedCard, openRemovals, closeRemoval } = await import('../js/modules/swap.js');
 
 const NOW = '2026-09-27T12:00:00.000Z';
 
@@ -153,7 +153,7 @@ test('Plain Swap back while the stale mark is still on the sleeve keeps the card
 	assert.ok(isCardDone(find(back.prism, 'Cultivate'), new Set(back.prism.markedCards)));
 	assert.equal(back.summary.marksToAdd, 0, 'the A mark is still painted');
 	assert.equal(back.summary.copiesToBuy, 0);
-	assert.deepEqual(back.prism.removedCards.map((r) => r.cardName), ['Skyshroud Claim'], 'Cultivate/A clears; Claim/A is the new stale mark');
+	assert.deepEqual(openRemovals(back.prism).map((r) => r.cardName), ['Skyshroud Claim'], 'Cultivate/A clears; Claim/A is the new stale mark');
 });
 
 test('A card that comes back after its stale mark was cleared is un-marked', () => {
@@ -161,7 +161,7 @@ test('A card that comes back after its stale mark was cleared is un-marked', () 
 	const a = prism.decks[0].id;
 	prism.markedCards = ['Cultivate'];
 	const there = applySwap(prism, { outgoing: 'Cultivate', incoming: 'Skyshroud Claim', deckIds: [a], now: NOW }).prism;
-	there.removedCards = []; // the user cleared the sleeve
+	openRemovals(there).forEach(closeRemoval); // the user cleared the sleeve
 
 	const back = applySwap(there, { outgoing: 'Skyshroud Claim', incoming: 'Cultivate', deckIds: [a], now: NOW });
 	assert.deepEqual(back.summary.unmarkedKeys, ['Cultivate']);
@@ -197,7 +197,7 @@ test('Deck edit: re-adding a card with its stale mark still painted keeps it don
 	assert.equal(stillPainted.length, 1);
 	assert.deepEqual(unmarkCardsWithNewStripes(prism, beforeCounts, stillPainted), []);
 	assert.deepEqual(prism.markedCards, ['Cultivate']);
-	assert.equal(prism.removedCards.length, 0);
+	assert.equal(openRemovals(prism).length, 0);
 });
 
 test('Multi-batch outgoing: the Sleeve swap follows the batch, not the name', () => {

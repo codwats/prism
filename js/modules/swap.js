@@ -37,10 +37,18 @@ export function trackRemovedCard(prism, row) {
     };
   }
   if (idx >= 0) {
-    row.previousQuantity = Math.max(row.previousQuantity || 1, list[idx].previousQuantity || 0);
-    // Copies already cleared stay cleared (#376): both fields only go up.
-    if (list[idx].clearedQuantity) row.clearedQuantity = list[idx].clearedQuantity;
-    if (list[idx].sleeveSwappedQuantity) row.sleeveSwappedQuantity = list[idx].sleeveSwappedQuantity;
+    const old = list[idx];
+    if (removalOpenCopies(old) === 0) {
+      // A closed row (#501) is done: this is a new removal, so a fresh row one
+      // generation on, which mergeRemovedCards takes whole over the closed one.
+      row.generation = (old.generation || 0) + 1;
+    } else {
+      row.previousQuantity = Math.max(row.previousQuantity || 1, old.previousQuantity || 0);
+      // Copies already cleared stay cleared (#376): both fields only go up.
+      if (old.clearedQuantity) row.clearedQuantity = old.clearedQuantity;
+      if (old.sleeveSwappedQuantity) row.sleeveSwappedQuantity = old.sleeveSwappedQuantity;
+      if (old.generation) row.generation = old.generation;
+    }
     list.splice(idx, 1);
   }
   list.push(row);
@@ -56,6 +64,13 @@ export function removalOpenCopies(row) {
 
 // The removedCards rows still listed under Marks to Clear.
 export const openRemovals = (prism) => (prism?.removedCards || []).filter((rc) => removalOpenCopies(rc) > 0);
+
+// Done with a row: count its open copies as cleared. Rows close, never go
+// (#501): mergeRemovedCards is a union, so a dropped row comes back from the
+// other copy, while clearedQuantity only goes up.
+export function closeRemoval(row) {
+  row.clearedQuantity = (row.clearedQuantity || 0) + removalOpenCopies(row);
+}
 
 // Carry each card's Separate sleeve id (#309) from a deck's old rows onto its
 // rebuilt ones, by name: decklist text can't hold it, and every path that
@@ -139,11 +154,9 @@ export function trackStaleChildMarks(prism, before, now) {
       // Slot and color as painted: an unsplit deck has moved to the group's Side A.
       const mark = card.batches.flatMap((b) => b.stripes).find((s) => isChildMark(s, deck.id));
       const existing = removalRowFor(prism, card.name, deck.id);
-      let left = 0;
-      if (existing && !existing.stillInDeck) {
-        left = removalOpenCopies(existing);
-        prism.removedCards = prism.removedCards.filter((rc) => rc !== existing);
-      }
+      // A closed row stays for trackRemovedCard to open a new generation on (#501).
+      const left = existing && !existing.stillInDeck ? removalOpenCopies(existing) : 0;
+      if (left) prism.removedCards = prism.removedCards.filter((rc) => rc !== existing);
       trackRemovedCard(prism, {
         cardName: card.name,
         deckId: deck.id,
@@ -155,22 +168,22 @@ export function trackStaleChildMarks(prism, before, now) {
         newQuantity: needed,
         isCommander: !!deckCard.isCommander,
         stillInDeck: true,
+        ...(left && existing.generation && { generation: existing.generation }),
       });
     }
   }
   const painted = [];
-  prism.removedCards = prism.removedCards.filter((rc) => {
-    if (!rc.stillInDeck) return true;
+  for (const rc of prism.removedCards) {
+    if (!rc.stillInDeck || removalOpenCopies(rc) === 0) continue;
     const deck = prism.decks.find((d) => d.id === rc.deckId);
-    if (!deck || rc.stripePosition !== getRemovalStripePosition(prism, deck) || rc.deckColor !== deck.color) return true;
+    if (!deck || rc.stripePosition !== getRemovalStripePosition(prism, deck) || rc.deckColor !== deck.color) continue;
     // Without splitGroup, unmarkCardsWithNewStripes reads the row as the deck's
     // own mark only: it says nothing about the parent stripe.
     painted.push({ ...rc, splitGroup: undefined });
     const needed = childMarkCopies(findCard(after, rc.cardName), deck.id);
-    if (needed >= rc.previousQuantity) return false;
-    rc.newQuantity = needed;
-    return true;
-  });
+    if (needed >= rc.previousQuantity) closeRemoval(rc);
+    else rc.newQuantity = needed;
+  }
   return painted;
 }
 
@@ -183,13 +196,13 @@ export function markTallies(prism) {
 
 // Stale-mark rows for cards back in the deck they left, at their full
 // quantity, with the deck still in the slot and color the row recorded: that
-// mark is still on the sleeve and valid again (#307). Removes the rows from
-// prism.removedCards and returns them.
+// mark is still on the sleeve and valid again (#307). Closes the rows (#501)
+// and returns them.
 export function clearReturnedRemovals(prism, deck) {
   const quantities = new Map(markingCards(deck.cards).map((c) => [normalizeCardName(c.name), c.quantity]));
   const position = getRemovalStripePosition(prism, deck);
   const cleared = [];
-  prism.removedCards = (prism.removedCards || []).filter((rc) => {
+  for (const rc of prism.removedCards || []) {
     const quantity = quantities.get(normalizeCardName(rc.cardName));
     // A partly cleared row (#376) gave a copy's sleeve away, so its mark is
     // not all still painted; the quantity auto-clear takes it instead. So did
@@ -203,9 +216,10 @@ export function clearReturnedRemovals(prism, deck) {
       && quantity >= (rc.previousQuantity || 1)
       && rc.stripePosition === position
       && rc.deckColor === deck.color;
-    if (back) cleared.push(rc);
-    return !back;
-  });
+    if (!back) continue;
+    cleared.push(rc);
+    closeRemoval(rc);
+  }
   return cleared;
 }
 
