@@ -748,6 +748,22 @@ test('two tabs on A: an edit stamped before the other tab\'s toggle never rolls 
 	});
 });
 
+test('two tabs on A: the dedicated-copies flag and its timestamp move together', async () => {
+	await seed();
+	let tab = await on('A', T(2), prism);
+	await on('A', T(3), () => setDedicated(true));
+	await on('A', T(6), () => {
+		// Only the timestamp differs from what this tab read; the flag must still follow it.
+		tab = { ...tab, useDedicatedCommanderCopiesUpdatedAt: T(5), updatedAt: T(5) };
+		S.savePrism(tab);
+	});
+	await on('A', T(7), () => {
+		const p = prism();
+		assert.equal(p.useDedicatedCommanderCopiesUpdatedAt, T(5));
+		assert.equal(p.useDedicatedCommanderCopies, !!tab.useDedicatedCommanderCopies);
+	});
+});
+
 test('two tabs on A: a deck edited in both takes the later edit, as a sync merge does', async () => {
 	await seed();
 	let tab = await on('A', T(2), prism);

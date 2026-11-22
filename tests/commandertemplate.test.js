@@ -65,6 +65,21 @@ test('resolveDeckSource fetches Commander Template through its proxy; export tre
 	assert.equal(deckSourceSite(URL_), null);
 });
 
+test('a Commander Template URL carrying another site in its query still imports as Commander Template', async () => {
+	const tricky = `${URL_}?ref=https://deckcheck.co/app/decklist/abc123&from=archidekt.com`;
+	assert.equal(deckSourceSite(tricky), null);
+	const realFetch = globalThis.fetch;
+	globalThis.fetch = async (url) => {
+		assert.equal(url, '/api/commandertemplate-edge');
+		return new Response(JSON.stringify(readDeckPage(page)));
+	};
+	try {
+		assert.equal((await resolveDeckSource(tricky)).serviceName, 'Commander Template');
+	} finally {
+		globalThis.fetch = realFetch;
+	}
+});
+
 const canRun = process.features.typescript;
 test('commandertemplate-edge: validates the URL, maps upstream failures, never passes a partial deck', { skip: !canRun && 'Needs Node with native TypeScript support' }, async (t) => {
 	const handler = (await import('../netlify/edge-functions/commandertemplate-edge.ts')).default;

@@ -12,7 +12,7 @@ import { importFromCommanderTemplate, extractCommanderTemplateUrl } from './comm
 
 /** @returns {'moxfield'|'archidekt'|null} */
 export function deckSourceSite(urlOrId) {
-  if (typeof urlOrId !== 'string') return null;
+  if (typeof urlOrId !== 'string' || extractCommanderTemplateUrl(urlOrId)) return null;
   if (urlOrId.includes('archidekt.com') || extractArchidektId(urlOrId)) {
     return urlOrId.includes('archidekt.com') || /^\d+$/.test(urlOrId) ? 'archidekt' : 'moxfield';
   }
@@ -26,8 +26,9 @@ export function deckSourceSite(urlOrId) {
  * @throws if the source can't be detected.
  */
 export async function resolveDeckSource(urlOrId) {
-  if (extractDeckCheckUrl(urlOrId)) return { serviceName: 'DeckCheck', deckData: await importFromDeckCheck(urlOrId) };
+  // First: its pattern is anchored, DeckCheck's is not and would match a deckcheck URL in a query.
   if (extractCommanderTemplateUrl(urlOrId)) return { serviceName: 'Commander Template', deckData: await importFromCommanderTemplate(urlOrId) };
+  if (extractDeckCheckUrl(urlOrId)) return { serviceName: 'DeckCheck', deckData: await importFromDeckCheck(urlOrId) };
   const site = deckSourceSite(urlOrId);
   if (site === 'archidekt') return { serviceName: 'Archidekt', deckData: await importFromArchidekt(urlOrId) };
   if (site === 'moxfield') return { serviceName: 'Moxfield', deckData: await importFromMoxfield(urlOrId) };

@@ -306,8 +306,14 @@ function rebaseByKey(base = [], mine = [], theirs = [], keyOf = item => item.id,
 
 function rebasePrism(base, mine, theirs) {
   const next = { ...theirs };
+  // One record: its own timestamp decides, as in mergePrismVersions (newer wins, ties mine).
+  const dedicated = ['useDedicatedCommanderCopies', 'useDedicatedCommanderCopiesUpdatedAt'];
+  if (dedicated.some(key => !same(mine[key], base[key])) &&
+      getTimestampMs(mine[dedicated[1]]) >= getTimestampMs(theirs[dedicated[1]])) {
+    for (const key of dedicated) next[key] = mine[key];
+  }
   for (const key of new Set([...Object.keys(base), ...Object.keys(mine)])) {
-    if (same(mine[key], base[key])) continue;
+    if (dedicated.includes(key) || same(mine[key], base[key])) continue;
     if (key === 'decks' || key === 'splitGroups' || key === 'plannedSwaps') {
       next[key] = rebaseByKey(base[key], mine[key], theirs[key], undefined, key !== 'plannedSwaps');
     } else if (key === 'markedCards') {
@@ -319,10 +325,6 @@ function rebasePrism(base, mine, theirs) {
     } else if (key === 'updatedAt' || key === 'markedCardsUpdatedAt') {
       // A save can land after a later one (stamped, awaited, saved): never go back.
       if (getTimestampMs(mine[key]) >= getTimestampMs(theirs[key])) next[key] = mine[key];
-    } else if (key === 'useDedicatedCommanderCopies' || key === 'useDedicatedCommanderCopiesUpdatedAt') {
-      // Its own timestamp decides, as in mergePrismVersions (newer wins, ties mine).
-      const dc = 'useDedicatedCommanderCopiesUpdatedAt';
-      if (getTimestampMs(mine[dc]) >= getTimestampMs(theirs[dc])) next[key] = mine[key];
     } else {
       next[key] = mine[key];
     }
