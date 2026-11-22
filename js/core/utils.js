@@ -146,6 +146,8 @@ export function passKeysForCard(card) {
  * @returns {boolean}
  */
 export function isCardDone(card, markedSet) {
+  // A token row (#412) has one `token:` key, re-keyed whenever its decks or pairing change.
+  if (card.doneKey) return markedSet.has(card.doneKey);
   const batches = card.batches || [];
   const multiBatch = batches.length > 1;
   if (!multiBatch && markedSet.has(card.name)) return true;
