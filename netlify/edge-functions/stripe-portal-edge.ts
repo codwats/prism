@@ -16,7 +16,7 @@
 import { isMissingCustomer, missingEnv, safeReturnPath } from './lib/stripe-helpers.js';
 import { corsHelpers } from './lib/cors.js';
 
-const { getCorsHeaders, jsonResponse } = corsHelpers({ methods: 'POST, OPTIONS', headers: 'Content-Type, Authorization' });
+const { getCorsHeaders, jsonResponse } = corsHelpers({ allowMethods: 'POST, OPTIONS', allowHeaders: 'Content-Type, Authorization' });
 
 export default async function handler(request: Request): Promise<Response> {
   if (request.method === 'OPTIONS') {

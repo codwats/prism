@@ -3,10 +3,10 @@
  * Plain .js beside stripe-helpers.js for the same reason (see there).
  */
 
-const SITE = 'https://prismmtg.com';
+export const SITE = 'https://prismmtg.com';
 
-// `methods` / `headers` are the Access-Control-Allow-* values, which differ per function.
-export function corsHelpers({ methods, headers }) {
+// `allowMethods` / `allowHeaders` are the Access-Control-Allow-* values, which differ per function.
+export function corsHelpers({ allowMethods, allowHeaders }) {
   function getCorsHeaders(request) {
     const origin = request.headers.get('origin') || SITE;
     // Production allows only the site; elsewhere the origin is echoed, so `Vary`
@@ -14,8 +14,8 @@ export function corsHelpers({ methods, headers }) {
     const allowedOrigin = globalThis.Deno.env.get('CONTEXT') === 'production' ? SITE : origin;
     return {
       'Access-Control-Allow-Origin': allowedOrigin,
-      'Access-Control-Allow-Headers': headers,
-      'Access-Control-Allow-Methods': methods,
+      'Access-Control-Allow-Headers': allowHeaders,
+      'Access-Control-Allow-Methods': allowMethods,
       'Vary': 'Origin',
     };
   }

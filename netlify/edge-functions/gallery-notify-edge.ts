@@ -17,12 +17,11 @@
  */
 
 import { missingEnv } from './lib/stripe-helpers.js';
-import { corsHelpers } from './lib/cors.js';
+import { corsHelpers, SITE } from './lib/cors.js';
 
-const { getCorsHeaders } = corsHelpers({ methods: 'POST, OPTIONS', headers: 'Content-Type, Authorization' });
+const { getCorsHeaders } = corsHelpers({ allowMethods: 'POST, OPTIONS', allowHeaders: 'Content-Type, Authorization' });
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const SITE = 'https://prismmtg.com';
 const FROM = 'PRISM Gallery <gallery@relay.prismmtg.com>';
 const ADMIN_LINK = `${SITE}/gallery.html?view=admin`;
 const MAX_AGE_MS = 10 * 60 * 1000;

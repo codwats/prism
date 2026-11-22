@@ -13,7 +13,7 @@
 import { isMissingCustomer, missingEnv, safeReturnPath } from './lib/stripe-helpers.js';
 import { corsHelpers } from './lib/cors.js';
 
-const { getCorsHeaders, jsonResponse } = corsHelpers({ methods: 'POST, OPTIONS', headers: 'Content-Type, Authorization' });
+const { getCorsHeaders, jsonResponse } = corsHelpers({ allowMethods: 'POST, OPTIONS', allowHeaders: 'Content-Type, Authorization' });
 
 function serviceHeaders(): Record<string, string> {
   const key = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';

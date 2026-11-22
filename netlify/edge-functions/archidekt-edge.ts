@@ -5,7 +5,7 @@
 
 import { corsHelpers } from './lib/cors.js';
 
-const { getCorsHeaders } = corsHelpers({ methods: 'GET, POST, OPTIONS', headers: 'Content-Type' });
+const { getCorsHeaders } = corsHelpers({ allowMethods: 'GET, POST, OPTIONS', allowHeaders: 'Content-Type' });
 
 export default async function handler(request: Request): Promise<Response> {
   // Handle CORS preflight

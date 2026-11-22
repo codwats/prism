@@ -29,11 +29,10 @@
 
 import { missingEnv } from './lib/stripe-helpers.js';
 import { linkIcon } from '../../js/modules/gallery-links.js';
-import { corsHelpers } from './lib/cors.js';
+import { corsHelpers, SITE } from './lib/cors.js';
 
-const { getCorsHeaders, jsonResponse } = corsHelpers({ methods: 'POST, OPTIONS', headers: 'Content-Type, Authorization' });
+const { getCorsHeaders, jsonResponse } = corsHelpers({ allowMethods: 'POST, OPTIONS', allowHeaders: 'Content-Type, Authorization' });
 
-const SITE = 'https://prismmtg.com';
 const MAX_LINKS = 10;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
