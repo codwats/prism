@@ -4,24 +4,12 @@
  * (DECKCHECK_API_KEY, optional) must never reach the browser.
  */
 
-function getCorsHeaders(request: Request): Record<string, string> {
-  const origin = request.headers.get('origin') || 'https://prismmtg.com';
-  const allowedOrigin = Deno.env.get('CONTEXT') === 'production'
-    ? 'https://prismmtg.com'
-    : origin;
-  return {
-    'Access-Control-Allow-Origin': allowedOrigin,
-    'Access-Control-Allow-Headers': 'Content-Type',
-    'Access-Control-Allow-Methods': 'POST, OPTIONS',
-    'Vary': 'Origin',
-  };
-}
+import { corsHelpers } from './lib/cors.js';
+
+const { getCorsHeaders, jsonResponse: respond } = corsHelpers({ methods: 'POST, OPTIONS', headers: 'Content-Type' });
 
 function jsonResponse(request: Request, body: unknown, status: number): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { ...getCorsHeaders(request), 'Content-Type': 'application/json' }
-  });
+  return respond(request, status, body);
 }
 
 const UPSTREAM_ERRORS: Record<number, string> = {

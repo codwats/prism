@@ -106,12 +106,6 @@ function flushCards() {
   pendingCards = {};
 }
 
-// Clear entire cache
-export function clearCache() {
-  pendingCards = {};
-  localStorage.removeItem(CACHE_KEY);
-}
-
 // A 429 locks the client out for 30 s (Scryfall's documented penalty), so a
 // retry inside that window fails too (#280). Nothing is retried: the request
 // that hit the 429 fails, and every request until the lockout ends fails
@@ -346,22 +340,6 @@ export async function canonicalizeCards(cards) {
 
   saveCanonicalCache(canonCache);
   return cards;
-}
-
-// Get cache stats (for debugging)
-export function getCacheStats() {
-  const cache = loadCache();
-  const entries = Object.keys(cache).length;
-  const now = Date.now();
-  const expired = Object.values(cache).filter(
-    (e) => now - e.cached_at >= CACHE_TTL
-  ).length;
-
-  return {
-    total: entries,
-    valid: entries - expired,
-    expired,
-  };
 }
 
 // Card attributes for the Swap Planner (#273/#293): color identity, type
