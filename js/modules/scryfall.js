@@ -349,7 +349,8 @@ export async function canonicalizeCards(cards) {
 const ATTRIBUTES_KEY = 'prism_card_attributes';
 const attributeKey = (name) => name.toLowerCase().trim();
 
-function loadAttributes(key = ATTRIBUTES_KEY) {
+// The never-expiring Scryfall caches: card attributes and Token types (#412).
+function loadScryfallCache(key) {
   try {
     return JSON.parse(localStorage.getItem(key)) || {};
   } catch {
@@ -357,7 +358,7 @@ function loadAttributes(key = ATTRIBUTES_KEY) {
   }
 }
 
-function saveAttributes(cache, key = ATTRIBUTES_KEY) {
+function saveScryfallCache(cache, key) {
   try {
     localStorage.setItem(key, JSON.stringify(cache));
   } catch {
@@ -376,7 +377,7 @@ function saveAttributes(cache, key = ATTRIBUTES_KEY) {
  * @throws when a request fails (network, 429, 5xx), so a failure never reads as a miss
  */
 export async function getCardAttributes(names) {
-  const cache = loadAttributes();
+  const cache = loadScryfallCache(ATTRIBUTES_KEY);
   const asWritten = new Map(names.map((n) => [attributeKey(n), n]));
   // Entries cached before manaCost or usd joined the record, or before it fell back
   // to the front face (a nonland multi-face card with no cost), are fetched again once.
@@ -422,7 +423,7 @@ export async function getCardAttributes(names) {
     }
   } finally {
     // Chunks that answered stay cached even when a later one fails.
-    if (uncached.length) saveAttributes(cache);
+    if (uncached.length) saveScryfallCache(cache, ATTRIBUTES_KEY);
   }
   return new Map(names.map((n) => [n, cache[attributeKey(n)] || null]));
 }
@@ -455,7 +456,7 @@ function cacheTokenType(cache, card) {
 }
 
 async function lookupTokenTypes(keys) {
-  const cache = loadAttributes(TOKEN_TYPES_KEY);
+  const cache = loadScryfallCache(TOKEN_TYPES_KEY);
   const uncached = [...new Set(keys)].filter((k) => !cache[k]);
   try {
     for (let i = 0; i < uncached.length; i += COLLECTION_BATCH_SIZE) {
@@ -470,7 +471,7 @@ async function lookupTokenTypes(keys) {
       for (const card of (await response.json()).data || []) cacheTokenType(cache, card);
     }
   } finally {
-    if (uncached.length) saveAttributes(cache, TOKEN_TYPES_KEY);
+    if (uncached.length) saveScryfallCache(cache, TOKEN_TYPES_KEY);
   }
   return cache;
 }
@@ -497,14 +498,14 @@ export async function getTokenTypes(cardNames, oracleIds = []) {
   let incomplete = false;
   const attributes = await getCardAttributes(cardNames).catch(() => {
     incomplete = true;
-    const cached = loadAttributes();
+    const cached = loadScryfallCache(ATTRIBUTES_KEY);
     return new Map(cardNames.map((n) => [n, cached[attributeKey(n)] || null]));
   });
   const parts = [...attributes.values()].flatMap((a) => a?.tokens || []);
   const cache = await lookupTokenTypes([...parts.map((p) => `id:${p.id}`), ...oracleIds.map((id) => `oracle:${id}`)])
     .catch(() => {
       incomplete = true;
-      return loadAttributes(TOKEN_TYPES_KEY);
+      return loadScryfallCache(TOKEN_TYPES_KEY);
     });
   const byCard = new Map(cardNames.map((n) => {
     const a = attributes.get(n);
@@ -526,9 +527,9 @@ export async function searchTokens(query) {
   const response = await scryfallFetch(`${API_BASE}/cards/search?q=${encodeURIComponent(q)}&unique=cards&include_extras=true`);
   if (response.status === 404) return []; // Scryfall's "no cards found"
   if (!response.ok) throw new Error(`Scryfall token search failed: ${response.status}`);
-  const cache = loadAttributes(TOKEN_TYPES_KEY);
+  const cache = loadScryfallCache(TOKEN_TYPES_KEY);
   const types = ((await response.json()).data || []).slice(0, 8).map((card) => cacheTokenType(cache, card)).filter(Boolean);
-  saveAttributes(cache, TOKEN_TYPES_KEY);
+  saveScryfallCache(cache, TOKEN_TYPES_KEY);
   cacheTokenImages(types);
   return types;
 }
