@@ -114,6 +114,20 @@ test('a backup keeps the Token pack choices; malformed ones and gone decks are d
 	]);
 });
 
+test('a backup holding one Token pack choice twice keeps the newer, wherever it sits (#412)', () => {
+	const p = prism();
+	p.tokenChoices = [
+		{ kind: 'hidden', oracleId: 'o-clue', hidden: false, updatedAt: '2026-10-02T00:00:00Z' },
+		{ kind: 'added', oracleId: 'o-copy', deckId: 'd1', name: 'Copy', included: true, updatedAt: '2026-10-01T00:00:00Z' },
+		{ kind: 'hidden', oracleId: 'o-clue', hidden: true, updatedAt: '2026-10-01T00:00:00Z' },
+		{ kind: 'added', oracleId: 'o-copy', deckId: 'd2', name: 'Copy', included: true, updatedAt: '2026-10-01T00:00:00Z' },
+	];
+	const restored = buildPrismFromJson(JSON.parse(exportToJSON(p)));
+	assert.deepEqual(restored.tokenChoices.filter((c) => c.kind === 'hidden'),
+		[{ kind: 'hidden', oracleId: 'o-clue', hidden: false, updatedAt: '2026-10-02T00:00:00Z' }]);
+	assert.equal(restored.tokenChoices.filter((c) => c.kind === 'added').length, 2, 'one choice per deck');
+});
+
 test('the backup statistics count card marks only, not token: Done ticks (#412)', () => {
 	const p = prism();
 	p.markedCards = ['Mind Stone', 'token:o-treasure|#b|d1,d2|1'];

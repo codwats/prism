@@ -6,7 +6,7 @@
 
 import { createPrism, createDeck, applyCommanderFallback, generateId } from './processor.js';
 import { cardRowKey } from './parser.js';
-import { TOKEN_CHOICE_FIELDS } from './tokens.js';
+import { TOKEN_CHOICE_FIELDS, tokenChoiceKey } from './tokens.js';
 
 /**
  * Validate and construct a PRISM object from parsed backup JSON.
@@ -176,7 +176,7 @@ export function buildPrismFromJson(jsonData, { preserveId = true } = {}) {
     pairedWith: (v) => (isOracleId(v) ? v : null),
     hidden: (v) => v === true,
   };
-  newPrism.tokenChoices = (Array.isArray(prismData.tokenChoices) ? prismData.tokenChoices : [])
+  newPrism.tokenChoices = [...(Array.isArray(prismData.tokenChoices) ? prismData.tokenChoices : [])
     .filter(c => c && Object.hasOwn(TOKEN_CHOICE_FIELDS, c.kind) && isOracleId(c.oracleId))
     .map(c => ({
       kind: c.kind,
@@ -184,7 +184,14 @@ export function buildPrismFromJson(jsonData, { preserveId = true } = {}) {
       ...Object.fromEntries(Object.keys(TOKEN_CHOICE_FIELDS[c.kind]).map(field => [field, cleanField[field](c[field])])),
       updatedAt: isDate(c.updatedAt) ? c.updatedAt : newPrism.updatedAt
     }))
-    .filter(c => c.kind !== 'added' || c.deckId !== undefined);
+    .filter(c => c.kind !== 'added' || c.deckId !== undefined)
+    // One choice per key (readers take the first match): a duplicate keeps the newer.
+    .reduce((byKey, c) => {
+      const kept = byKey.get(tokenChoiceKey(c));
+      if (!kept || c.updatedAt > kept.updatedAt) byKey.set(tokenChoiceKey(c), c);
+      return byKey;
+    }, new Map())
+    .values()];
 
   const validGroupIds = new Set(newPrism.splitGroups.map(g => g.id));
   for (const deck of newPrism.decks) {

@@ -460,21 +460,31 @@ function tokenType(card) {
   };
 }
 
+// Printing ids resolved this visit, so a token image still loads when the
+// Token types cache write failed (a full localStorage drops the key).
+const tokenPrintings = new Map();
+
 function cacheTokenType(cache, card) {
   const hasImage = card?.image_uris?.normal || card?.card_faces?.[0]?.image_uris?.normal;
   if (!card?.oracle_id || !card.name || !card.id || !hasImage) return null;
   const type = tokenType(card);
   cache[`oracle:${type.oracleId}`] = type;
   cache[`id:${card.id}`] = type;
+  tokenPrintings.set(type.oracleId, card.id);
   return type;
+}
+
+// Reloads before writing, so a lookup and a search running at once both keep their answers.
+function saveTokenTypes(fresh) {
+  if (Object.keys(fresh).length) saveScryfallCache({ ...loadScryfallCache(TOKEN_TYPES_KEY), ...fresh }, TOKEN_TYPES_KEY);
 }
 
 // fetchCard's source for a `token:<oracleId>` image name: the cached type's
 // printing, by Scryfall id, on the rate chain. Never /cards/named.
 async function fetchTokenCard(oracleId) {
-  const type = loadScryfallCache(TOKEN_TYPES_KEY)[`oracle:${oracleId}`];
-  if (!type?.scryfallId) throw new Error(`Token not looked up yet: ${oracleId}`);
-  const response = await scryfallFetch(`${API_BASE}/cards/${encodeURIComponent(type.scryfallId)}`);
+  const printingId = loadScryfallCache(TOKEN_TYPES_KEY)[`oracle:${oracleId}`]?.scryfallId || tokenPrintings.get(oracleId);
+  if (!printingId) throw new Error(`Token not looked up yet: ${oracleId}`);
+  const response = await scryfallFetch(`${API_BASE}/cards/${encodeURIComponent(printingId)}`);
   if (!response.ok) throw new Error(`Scryfall API error: ${response.status}`);
   return response.json();
 }
@@ -482,6 +492,7 @@ async function fetchTokenCard(oracleId) {
 async function lookupTokenTypes(keys) {
   const cache = loadScryfallCache(TOKEN_TYPES_KEY);
   const uncached = [...new Set(keys)].filter((k) => !cache[k]);
+  const fresh = {};
   try {
     for (let i = 0; i < uncached.length; i += COLLECTION_BATCH_SIZE) {
       const identifiers = uncached.slice(i, i + COLLECTION_BATCH_SIZE)
@@ -492,12 +503,12 @@ async function lookupTokenTypes(keys) {
         body: JSON.stringify({ identifiers }),
       });
       if (!response.ok) throw new Error(`Scryfall token lookup failed: ${response.status}`);
-      for (const card of (await response.json()).data || []) cacheTokenType(cache, card);
+      for (const card of (await response.json()).data || []) cacheTokenType(fresh, card);
     }
   } finally {
-    if (uncached.length) saveScryfallCache(cache, TOKEN_TYPES_KEY);
+    saveTokenTypes(fresh);
   }
-  return cache;
+  return { ...cache, ...fresh };
 }
 
 /**
@@ -542,9 +553,9 @@ export async function searchTokens(query) {
   const response = await scryfallFetch(`${API_BASE}/cards/search?q=${encodeURIComponent(q)}&unique=cards&include_extras=true`);
   if (response.status === 404) return []; // Scryfall's "no cards found"
   if (!response.ok) throw new Error(`Scryfall token search failed: ${response.status}`);
-  const cache = loadScryfallCache(TOKEN_TYPES_KEY);
-  const types = ((await response.json()).data || []).slice(0, 8).map((card) => cacheTokenType(cache, card)).filter(Boolean);
-  saveScryfallCache(cache, TOKEN_TYPES_KEY);
+  const fresh = {};
+  const types = ((await response.json()).data || []).slice(0, 8).map((card) => cacheTokenType(fresh, card)).filter(Boolean);
+  saveTokenTypes(fresh);
   return types;
 }
 

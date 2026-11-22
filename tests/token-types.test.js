@@ -4,9 +4,13 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 const store = new Map();
+let fullKey = null; // a key whose write fails, as a full localStorage would
 globalThis.localStorage = {
 	getItem: (k) => (store.has(k) ? store.get(k) : null),
-	setItem: (k, v) => store.set(k, String(v)),
+	setItem: (k, v) => {
+		if (k === fullKey) throw new Error('QuotaExceededError');
+		store.set(k, String(v));
+	},
 	removeItem: (k) => store.delete(k),
 	clear: () => store.clear(),
 };
@@ -76,6 +80,7 @@ function reset() {
 	store.clear();
 	requests.length = 0;
 	offline = false;
+	fullKey = null;
 }
 
 test('a card\'s token parts resolve to one Token type per oracle identity; emblems are left out', async () => {
@@ -143,6 +148,23 @@ test('a hand-added Token type not cached here is fetched by oracle id', async ()
 	const { byOracle } = await getTokenTypes([], ['o-soldier']);
 	assert.equal(byOracle.get('o-soldier').detail, '1/1 white');
 	assert.deepEqual(requests, [[{ oracle_id: 'o-soldier' }]]);
+});
+
+test('a token image still loads when the Token types cache could not be written', async () => {
+	reset();
+	fullKey = 'prism_token_types';
+	await getTokenTypes(['Smothering Tithe']);
+	assert.equal(store.has('prism_token_types'), false);
+	fullKey = null;
+	assert.equal((await fetchCard('token:o-treasure')).image_uri, 'https://img/treasure-1.jpg');
+});
+
+test('a token search during a token lookup: both answers stay cached', async () => {
+	reset();
+	await Promise.all([getTokenTypes(['Smothering Tithe']), searchTokens('spirit')]);
+	const cached = JSON.parse(store.get('prism_token_types'));
+	assert.ok(cached['oracle:o-treasure'], 'the lookup answer');
+	assert.ok(cached['oracle:o-clone'], 'the search answer');
 });
 
 // Runs last: the network failure locks the chain out for 30 s.
