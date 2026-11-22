@@ -27,6 +27,17 @@ export function debugLog(...args) {
   }
 }
 
+/**
+ * structuredClone of a PRISM that keeps its Symbol keys, as a spread does:
+ * structuredClone drops them, and storage's read stamp is one (#499), so
+ * savePrism can rebase a clone of a stale copy instead of saving it as is.
+ */
+export function clonePrism(prism) {
+  const next = structuredClone(prism);
+  for (const key of Object.getOwnPropertySymbols(prism)) next[key] = prism[key];
+  return next;
+}
+
 export function debounce(fn, ms = 150) {
   let t;
   return function(...args) { const ctx = this; clearTimeout(t); t = setTimeout(() => fn.apply(ctx, args), ms); };

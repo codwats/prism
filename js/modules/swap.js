@@ -7,7 +7,7 @@
 
 import { processCards } from "./processor.js";
 import { normalizeCardName, markingCards } from "./parser.js";
-import { isCardDone, markSingleBatchDone } from "../core/utils.js";
+import { isCardDone, markSingleBatchDone, clonePrism } from "../core/utils.js";
 
 const sameName = (a, b) => normalizeCardName(a) === normalizeCardName(b);
 const findCard = (processed, name) => processed.find((c) => sameName(c.name, name));
@@ -56,7 +56,8 @@ export function trackRemovedCard(prism, row) {
 }
 
 // Copies of a removedCards row whose mark is still on a sleeve. clearedQuantity
-// (#376) counts copies a Sleeve reuse already dealt with; the row is done at 0.
+// counts copies already dealt with (a Sleeve reuse #376, or closeRemoval); the
+// row is closed at 0, and only an open row with clearedQuantity is partly cleared.
 // Legacy rows without quantity fields stand for one copy.
 export function removalOpenCopies(row) {
   return Math.max(0, (row.previousQuantity ?? 1) - (row.newQuantity ?? 0) - (row.clearedQuantity || 0));
@@ -202,11 +203,14 @@ export function clearReturnedRemovals(prism, deck) {
   const quantities = new Map(markingCards(deck.cards).map((c) => [normalizeCardName(c.name), c.quantity]));
   const position = getRemovalStripePosition(prism, deck);
   const cleared = [];
-  for (const rc of prism.removedCards || []) {
+  // A closed row (#501) has nothing left to close: a Clear took its mark off,
+  // or the card already came back. Leaving again opens a new generation.
+  for (const rc of openRemovals(prism)) {
     const quantity = quantities.get(normalizeCardName(rc.cardName));
-    // A partly cleared row (#376) gave a copy's sleeve away, so its mark is
-    // not all still painted; the quantity auto-clear takes it instead. So did
-    // a row whose card's sleeve a Sleeve swap gave to another card (#401).
+    // An open row with copies cleared (#376, a Sleeve reuse or a Clear merged
+    // in from another device) no longer has its mark on every copy; the
+    // quantity auto-clear takes it instead. So does a row whose card's
+    // sleeve a Sleeve swap gave to another card (#401).
     // A stillInDeck row (#423) never left: trackStaleChildMarks closes it.
     const back = rc.deckId === deck.id
       && !rc.stillInDeck
@@ -348,7 +352,7 @@ export function applySwap(prism, { outgoing, incoming, deckIds, copies = 1, slee
   if (sleeve && !sleeveBatch) throw new Error(`No Sleeve swap of ${outgoing} for ${incoming} in these decks.`);
   const separateSleeve = sleeveBatch && incomingBefore ? crypto.randomUUID() : null;
 
-  const next = structuredClone(prism);
+  const next = clonePrism(prism);
   next.removedCards ??= [];
   next.markedCards ??= [];
   // Stale marks a plain Swap brings back into use. A Sleeve swap puts the

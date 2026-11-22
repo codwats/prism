@@ -10,7 +10,8 @@ import { on, reset, cloudRow, failCardsOnce } from './helpers/two-devices.mjs';
 const { ensureAuthReady } = await import('../js/modules/auth.js');
 const S = await import('../js/modules/storage.js');
 const P = await import('../js/modules/processor.js');
-const { trackRemovedCard, removalMark, openRemovals, closeRemoval } = await import('../js/modules/swap.js');
+const { trackRemovedCard, removalMark, openRemovals, closeRemoval, applySwap } = await import('../js/modules/swap.js');
+const { planSleeveReuse, completeReuse } = await import('../js/modules/sleeve-reuse.js');
 const { queueSwap, removeSwap } = await import('../js/modules/swap-queue.js');
 const Tk = await import('../js/modules/tokens.js');
 
@@ -725,4 +726,62 @@ test('two tabs on A: a rename, a deck and a mark from one tab survive the next e
 		});
 	}
 	assert.equal(cloudRow(id).name, 'Renamed in the other tab');
+});
+
+// A save can land after a later one from another tab: an edit stamps `now`,
+// awaits (Scryfall), then saves. The newer timestamps and toggle stand.
+test('two tabs on A: an edit stamped before the other tab\'s toggle never rolls it back', async () => {
+	await seed();
+	let tab = await on('A', T(2), prism);
+	await on('A', T(3), () => setDedicated(true));
+	await on('A', T(5), () => setDedicated(false));
+	await on('A', T(6), () => {
+		tab = { ...tab, useDedicatedCommanderCopies: true, useDedicatedCommanderCopiesUpdatedAt: T(4), updatedAt: T(4) };
+		S.savePrism(tab);
+	});
+
+	await on('A', T(7), () => {
+		const p = prism();
+		assert.equal(p.useDedicatedCommanderCopies, false);
+		assert.equal(p.useDedicatedCommanderCopiesUpdatedAt, T(5));
+		assert.equal(p.updatedAt, T(5), 'updatedAt went backwards');
+	});
+});
+
+test('two tabs on A: a deck edited in both takes the later edit, as a sync merge does', async () => {
+	await seed();
+	let tab = await on('A', T(2), prism);
+	await on('A', T(5), () => S.savePrism(bracketUp(bracketUp(prism(), 'Alpha'), 'Beta')));
+	await on('A', T(6), () => {
+		const edit = (name, at) => (d) => (d.name === name ? { ...d, bracket: 1, updatedAt: at } : d);
+		tab = { ...tab, updatedAt: T(6), decks: tab.decks.map(edit('Alpha', T(4))).map(edit('Beta', T(6))) };
+		S.savePrism(tab);
+	});
+
+	await on('A', T(7), () => {
+		assert.equal(deck(prism(), 'Alpha').bracket, 4, 'the other tab\'s later Alpha edit is lost');
+		assert.equal(deck(prism(), 'Beta').bracket, 1, 'this tab\'s later Beta edit is lost');
+	});
+});
+
+// applySwap and completeReuse return a structuredClone of the PRISM they get.
+test('two tabs on A: a Swap and a Sleeve reuse from one tab keep the decks the other tab added', async () => {
+	await seed({ marked: ['Beta Card'] });
+	let tab = await on('A', T(2), prism);
+	await on('A', T(3), () => addDeck('Gamma', [card('Gamma Card')]));
+	await on('A', T(4), () => {
+		tab = applySwap(tab, { outgoing: 'Beta Card', incoming: 'Cultivate', deckIds: [deck(tab, 'Beta').id] }).prism;
+		S.savePrism(tab);
+	});
+	await on('A', T(5), () => assert.ok(deck(prism(), 'Gamma'), 'the Swap dropped Gamma'));
+
+	await on('A', T(6), () => addDeck('Delta', [card('Delta Card')]));
+	await on('A', T(7), () => {
+		const [match] = planSleeveReuse(tab).matches;
+		S.savePrism(completeReuse(tab, match.id).prism);
+	});
+	await on('A', T(8), () => {
+		assert.ok(deck(prism(), 'Gamma') && deck(prism(), 'Delta'), 'the Sleeve reuse dropped a deck');
+		assert.deepEqual(openRemovals(prism()), [], 'the reuse cleared the Beta Card row');
+	});
 });
