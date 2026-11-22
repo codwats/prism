@@ -230,7 +230,7 @@ export function handleJsonImport(e) {
 }
 
 // ============================================================================
-// Deck URL Import (Moxfield / Archidekt / DeckCheck)
+// Deck URL Import (Moxfield / Archidekt / DeckCheck / Commander Template)
 // ============================================================================
 
 let importGeneration = 0; // a response from an older import or form session is ignored

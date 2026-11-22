@@ -10,7 +10,7 @@ import { on, reset, cloudRow, failCardsOnce } from './helpers/two-devices.mjs';
 const { ensureAuthReady } = await import('../js/modules/auth.js');
 const S = await import('../js/modules/storage.js');
 const P = await import('../js/modules/processor.js');
-const { trackRemovedCard, removalMark, openRemovals } = await import('../js/modules/swap.js');
+const { trackRemovedCard, removalMark, openRemovals, closeRemoval } = await import('../js/modules/swap.js');
 const { queueSwap, removeSwap } = await import('../js/modules/swap-queue.js');
 const Tk = await import('../js/modules/tokens.js');
 
@@ -388,25 +388,55 @@ test('copies a Sleeve reuse cleared on A stay cleared when B re-tracks the row',
 	await on('A', T(17), () => assert.equal(openRemovals(prism()).some((r) => r.cardName === 'Beta Card'), false));
 });
 
-test('Marks to Clear rows cleared on A stay cleared after sync', { skip: '#501' }, async () => {
+test('Marks to Clear rows cleared on A stay cleared after sync', async () => {
 	const id = await seed();
 	await on('A', T(10), () => deleteDeck('Beta'));
 	await on('A', T(11), sync);
 	await on('B', T(12), load);
-	// handleClearAllRemoved
+	// handleClearAllRemoved: rows close, never go (#501)
 	await on('A', T(13), () => {
 		const p = prism();
-		p.removedCards = [];
+		openRemovals(p).forEach(closeRemoval);
 		p.updatedAt = new Date().toISOString();
 		S.savePrism(p);
 	});
 	await on('A', T(14), sync);
 	await on('B', T(15), load);
+	await on('A', T(16), load);
 
 	for (const name of ['A', 'B']) {
-		await on(name, T(16), () => assert.deepEqual(prism().removedCards, [], name));
+		await on(name, T(17), () => assert.deepEqual(openRemovals(prism()), [], name));
 	}
-	assert.deepEqual(cloudRow(id).removed_cards, []);
+	assert.deepEqual(openRemovals({ removedCards: cloudRow(id).removed_cards }), []);
+});
+
+test('a cleared row the card is removed again from opens again on both devices', async () => {
+	await seed();
+	await on('A', T(10), () => deleteDeck('Beta'));
+	await on('A', T(11), sync);
+	await on('B', T(12), load);
+	await on('A', T(13), () => {
+		const p = prism();
+		openRemovals(p).forEach(closeRemoval);
+		p.updatedAt = new Date().toISOString();
+		S.savePrism(p);
+	});
+	await on('A', T(14), sync);
+	await on('B', T(15), load);
+	// The card went back on a sleeve with the mark and left again: a new removal.
+	await on('B', T(16), () => {
+		const p = prism();
+		const row = p.removedCards.find((r) => r.cardName === 'Beta Card');
+		trackRemovedCard(p, { ...row, clearedQuantity: undefined, removedAt: new Date().toISOString(), previousQuantity: 1, newQuantity: 0 });
+		p.updatedAt = new Date().toISOString();
+		S.savePrism(p);
+	});
+	await on('B', T(17), sync);
+	await on('A', T(18), load);
+
+	for (const name of ['A', 'B']) {
+		await on(name, T(19), () => assert.deepEqual(openRemovals(prism()).map((r) => r.cardName), ['Beta Card'], name));
+	}
 });
 
 // ---------------------------------------------------------------------------
@@ -575,7 +605,7 @@ test('a variant edited on B after A removed it comes back into the group', async
 // Deck cards ride the deck's updatedAt
 // ---------------------------------------------------------------------------
 
-test('a card upload that failed once still converges both devices on the edit', { skip: '#503' }, async () => {
+test('a card upload that failed once still converges both devices on the edit', async () => {
 	await seed();
 	const alphaId = await on('A', T(2), () => deck(prism(), 'Alpha').id);
 	await on('A', T(10), () => editCards('Alpha', [card('Sol Ring'), card('Alpha New')]));
