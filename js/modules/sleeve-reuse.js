@@ -13,7 +13,7 @@
 import { processCards, getColorName } from "./processor.js";
 import { normalizeCardName, markingCards } from "./parser.js";
 import { removalOpenCopies, markId } from "./swap.js";
-import { isCardDone, markSingleBatchDone } from "../core/utils.js";
+import { isCardDone, markSingleBatchDone, clonePrism } from "../core/utils.js";
 
 export const MAX_MARKS_TO_CLEAR = 2;
 
@@ -308,7 +308,7 @@ export function planSleeveReuse(prism) {
 export function completeReuse(prism, matchId, { now = new Date().toISOString() } = {}) {
   const match = planSleeveReuse(prism).matches.find((m) => m.id === matchId);
   if (!match) throw new Error('That Sleeve reuse is no longer available.');
-  const next = structuredClone(prism);
+  const next = clonePrism(prism);
   for (const { cardName, deckIds, copies } of match.freedSleeves) {
     const name = normalizeCardName(cardName);
     for (const row of next.removedCards || []) {

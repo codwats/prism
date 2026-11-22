@@ -41,13 +41,22 @@ function getDefaultStorage() {
   };
 }
 
+function readRawStorage() {
+  try {
+    return localStorage.getItem(STORAGE_KEY);
+  } catch (error) {
+    console.error('Error loading PRISM data:', error);
+    return null;
+  }
+}
+
 /**
  * Load data from localStorage
+ * @param {string|null} [raw] - The stored string, when the caller already read it
  * @returns {Object} The stored data or default structure
  */
-export function loadStorage() {
+export function loadStorage(raw = readRawStorage()) {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) {
       return getDefaultStorage();
     }
@@ -72,14 +81,16 @@ export function loadStorage() {
  * @param {Object} data - The data to save
  */
 export function saveStorage(data) {
+  const raw = JSON.stringify(data);
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    localStorage.setItem(STORAGE_KEY, raw);
   } catch (error) {
     console.error('Error saving PRISM data:', error);
     throw new Error('Failed to save data. LocalStorage may be full.');
   }
   // Every write lands here (edits, marks, cloud merges); the nav's Extras count listens
   if (typeof window !== 'undefined') window.dispatchEvent?.(new Event('prism:saved'));
+  return raw;
 }
 
 /**
@@ -253,22 +264,29 @@ function mergeEntityCollection({
   return uniqueById(merged);
 }
 
-// The stored PRISM a read handed out, as JSON. A save from a snapshot older
-// than storage (an open build page across a background merge or another tab's
+// The stored PRISM a read handed out. A save from a snapshot older than
+// storage (an open build page across a background merge or another tab's
 // save, #499) rebases its own changes onto storage rather than deleting what
 // it never saw. A Symbol rides the processor's spreads and never reaches JSON.
+// The stamp keeps the storage string the read came from: a save compares it
+// as is and parses the base only once storage has moved on.
 const READ_AS = Symbol('prismReadAs');
 
-function stampRead(prism) {
-  if (prism) prism[READ_AS] = JSON.stringify(prism);
+function stampRead(prism, raw) {
+  if (prism) prism[READ_AS] = { raw, base: () => loadStorage(raw).prisms[prism.id] };
   return prism;
 }
 
-const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+// Key order never counts: a merge rebuilds the same objects in another order.
+const stable = value => JSON.stringify(value, (key, v) => (v && typeof v === 'object' && !Array.isArray(v)
+  ? Object.fromEntries(Object.entries(v).sort(([a], [b]) => (a < b ? -1 : 1)))
+  : v));
+const same = (a, b) => stable(a) === stable(b);
 
 // Three-way by key: theirs, minus what mine removed since base, with mine's
-// edits and adds. Mine's edit to something theirs removed comes back only
-// when editWins (decks, like mergeEntityCollection; not Planned swaps).
+// edits and adds; edited on both sides, the newer updatedAt wins (ties mine),
+// as in mergeEntityCollection. Mine's edit to something theirs removed comes
+// back only when editWins (decks, like mergeEntityCollection; not Planned swaps).
 function rebaseByKey(base = [], mine = [], theirs = [], keyOf = item => item.id, editWins = true) {
   const baseByKey = new Map(base.map(item => [keyOf(item), item]));
   const mineByKey = new Map(mine.map(item => [keyOf(item), item]));
@@ -279,7 +297,8 @@ function rebaseByKey(base = [], mine = [], theirs = [], keyOf = item => item.id,
       .filter(item => mineByKey.has(keyOf(item)) || !baseByKey.has(keyOf(item)))
       .map(item => {
         const own = mineByKey.get(keyOf(item));
-        return own && edited(own) ? own : item;
+        if (!own || !edited(own)) return item;
+        return edited(item) ? pickNewerEntity(own, item) : own;
       }),
     ...mine.filter(item => !theirKeys.has(keyOf(item)) && (!baseByKey.has(keyOf(item)) || (editWins && edited(item)))),
   ];
@@ -297,6 +316,13 @@ function rebasePrism(base, mine, theirs) {
       next[key] = mergeRemovedCards(mine[key] || [], theirs[key] || []);
     } else if (key === 'tokenChoices') {
       next[key] = mergeTokenChoices(mine[key] || [], theirs[key] || []);
+    } else if (key === 'updatedAt' || key === 'markedCardsUpdatedAt') {
+      // A save can land after a later one (stamped, awaited, saved): never go back.
+      if (getTimestampMs(mine[key]) >= getTimestampMs(theirs[key])) next[key] = mine[key];
+    } else if (key === 'useDedicatedCommanderCopies' || key === 'useDedicatedCommanderCopiesUpdatedAt') {
+      // Its own timestamp decides, as in mergePrismVersions (newer wins, ties mine).
+      const dc = 'useDedicatedCommanderCopiesUpdatedAt';
+      if (getTimestampMs(mine[dc]) >= getTimestampMs(theirs[dc])) next[key] = mine[key];
     } else {
       next[key] = mine[key];
     }
@@ -1428,9 +1454,10 @@ if (typeof window !== 'undefined') {
  * @returns {Object|null} The current PRISM or null
  */
 export function getCurrentPrism() {
-  const storage = loadStorage();
+  const raw = readRawStorage();
+  const storage = loadStorage(raw);
   if (!storage.currentPrismId) return null;
-  return stampRead(storage.prisms[storage.currentPrismId] || null);
+  return stampRead(storage.prisms[storage.currentPrismId] || null, raw);
 }
 
 /**
@@ -1448,18 +1475,23 @@ export function setCurrentPrism(prismId) {
  * @param {Object} prism - The PRISM to save
  */
 export function savePrism(prism) {
-  const storage = loadStorage();
+  const raw = readRawStorage();
+  const storage = loadStorage(raw);
   const previousPrism = storage.prisms[prism.id] || null;
   const readAs = prism[READ_AS];
-  const nextPrism = previousPrism && readAs && readAs !== JSON.stringify(previousPrism)
-    ? rebasePrism(JSON.parse(readAs), prism, previousPrism)
-    : prism;
+  const base = previousPrism && readAs && readAs.raw !== raw ? readAs.base() : null;
+  const nextPrism = base && !same(base, previousPrism) ? rebasePrism(base, prism, previousPrism) : prism;
   recordLocalPrismChanges(storage, previousPrism, nextPrism);
   storage.prisms[prism.id] = nextPrism;
   pruneSyncState(storage);
-  saveStorage(storage);
+  const written = saveStorage(storage);
   // The caller now holds what it saved; storage may hold more it never saw.
-  stampRead(prism);
+  if (nextPrism === prism) {
+    stampRead(prism, written);
+  } else {
+    const json = JSON.stringify(prism);
+    prism[READ_AS] = { raw: null, base: () => JSON.parse(json) };
+  }
 
   // Sync to Supabase if logged in (debounced to avoid race conditions on rapid saves)
   if (shouldWriteToSupabase()) {
@@ -1558,8 +1590,8 @@ export function getAllPrisms() {
  * @returns {Object|null} The PRISM or null
  */
 export function getPrism(prismId) {
-  const storage = loadStorage();
-  return stampRead(storage.prisms[prismId] || null);
+  const raw = readRawStorage();
+  return stampRead(loadStorage(raw).prisms[prismId] || null, raw);
 }
 
 /**

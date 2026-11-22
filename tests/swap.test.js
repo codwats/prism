@@ -200,6 +200,57 @@ test('Deck edit: re-adding a card with its stale mark still painted keeps it don
 	assert.equal(openRemovals(prism).length, 0);
 });
 
+test('Deck edit: a card back after its row was cleared needs its mark, and leaving again opens a new row', () => {
+	const prism = threeDecks();
+	const a = prism.decks[0];
+	prism.markedCards = ['Cultivate'];
+	const leave = () => {
+		a.cards = a.cards.filter((c) => c.name !== 'Cultivate');
+		trackRemovedCard(prism, {
+			cardName: 'Cultivate', deckId: a.id, deckName: 'A', deckColor: a.color,
+			stripePosition: 1, removedAt: NOW, previousQuantity: 1, newQuantity: 0,
+		});
+	};
+	const comeBack = () => {
+		const beforeCounts = markTallies(prism);
+		a.cards.push(card('Cultivate'));
+		const stillPainted = clearReturnedRemovals(prism, a);
+		return { stillPainted, unmarked: unmarkCardsWithNewStripes(prism, beforeCounts, stillPainted) };
+	};
+
+	leave();
+	openRemovals(prism).forEach(closeRemoval); // Clear: the A mark is off the sleeve
+	const back = comeBack();
+	assert.deepEqual(back.stillPainted, [], 'a cleared mark is not still painted');
+	assert.deepEqual(back.unmarked, ['Cultivate']);
+	assert.equal(openRemovals(prism).length, 0);
+
+	prism.markedCards = ['Cultivate']; // painted again
+	leave();
+	assert.deepEqual(openRemovals(prism).map((r) => r.generation), [1], 'a new removal');
+	const again = comeBack();
+	assert.equal(again.stillPainted.length, 1, 'the new mark is still painted');
+	assert.deepEqual(again.unmarked, []);
+	assert.equal(openRemovals(prism).length, 0);
+});
+
+test('clearReturnedRemovals: a partly cleared open row is not still painted, and a closed row is left as is', () => {
+	const prism = threeDecks();
+	const a = prism.decks[0];
+	const row = (cardName, extra) => ({
+		cardName, deckId: a.id, deckName: 'A', deckColor: a.color, stripePosition: 1,
+		removedAt: NOW, previousQuantity: 2, newQuantity: 0, ...extra,
+	});
+	prism.removedCards = [
+		row('Cultivate', { clearedQuantity: 1 }), // a Sleeve reuse took one copy's sleeve (#376)
+		row('Ayula', { clearedQuantity: 2 }), // closed (#501)
+	];
+	a.cards = [card('Cultivate', 2), card('Ayula', 2)];
+
+	assert.deepEqual(clearReturnedRemovals(prism, a), []);
+	assert.deepEqual(prism.removedCards.map((r) => r.clearedQuantity), [1, 2], 'neither row is touched');
+});
+
 test('Multi-batch outgoing: the Sleeve swap follows the batch, not the name', () => {
 	const prism = createPrism('T');
 	prism.decks = [
