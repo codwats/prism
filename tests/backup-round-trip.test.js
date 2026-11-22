@@ -114,6 +114,12 @@ test('a backup keeps the Token pack choices; malformed ones and gone decks are d
 	]);
 });
 
+test('the backup statistics count card marks only, not token: Done ticks (#412)', () => {
+	const p = prism();
+	p.markedCards = ['Mind Stone', 'token:o-treasure|#b|d1,d2|1'];
+	assert.equal(JSON.parse(exportToJSON(p)).prism.statistics.markedCards, 1);
+});
+
 test('a backup in the old format, without these fields, still imports', () => {
 	const restored = buildPrismFromJson({
 		prism: {

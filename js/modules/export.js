@@ -197,7 +197,8 @@ export function exportToJSON(prism) {
         totalUniqueCards: processedCards.length,
         sharedCards: processedCards.filter(c => c.logicalDeckCount > 1).length,
         uniqueCards: processedCards.filter(c => c.logicalDeckCount === 1).length,
-        markedCards: (prism.markedCards || []).length,
+        // Card marks only: token Done ticks (#412) are `token:` keys
+        markedCards: (prism.markedCards || []).filter(k => !String(k).startsWith('token:')).length,
         removedCards: (prism.removedCards || []).length
       }
     }
