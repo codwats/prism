@@ -301,9 +301,9 @@ export function planSleeveReuse(prism) {
  * Complete one Sleeve reuse in one step: the removedCards rows its Freed
  * sleeve covers count the copies as cleared, and the incoming batch is Done.
  * No undo here — the player unticks Done in Results like anywhere else.
- * @returns {{ prism: Object, unmarkedKeys: string[] }} The caller passes
- *   unmarkedKeys to recordUnmarkedCards before savePrism: the stale batch
- *   keys a single-batch Done replaces.
+ * @returns {{ prism: Object, unmarkedKeys: string[] }} unmarkedKeys: the
+ *   stale batch keys a single-batch Done replaces (savePrism records the
+ *   un-mark for sync, #500).
  */
 export function completeReuse(prism, matchId, { now = new Date().toISOString() } = {}) {
   const match = planSleeveReuse(prism).matches.find((m) => m.id === matchId);

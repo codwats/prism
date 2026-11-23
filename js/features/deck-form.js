@@ -24,7 +24,7 @@ import {
   nameTakenMessage,
   formatSlotLabel,
 } from "../modules/processor.js";
-import { savePrism, recordUnmarkedCards } from "../modules/storage.js";
+import { savePrism } from "../modules/storage.js";
 import { canonicalizeCards } from "../modules/scryfall.js";
 import {
   getMarkTallies,
@@ -524,9 +524,6 @@ export async function handleDeckSubmit(e) {
 
     const unmarkedKeys = unmarkCardsWithNewStripes(beforeTallies);
     const unmarkedCount = unmarkedKeys.length;
-    if (unmarkedKeys.length > 0) {
-      recordUnmarkedCards(state.currentPrism.id, unmarkedKeys);
-    }
 
     // Auto-clear any removed cards that are now back
     const autoClearedCount = autoClearRemovedCards(parseResult.cards);

@@ -36,7 +36,7 @@ import {
   openRemovals,
   closeRemoval,
 } from "../modules/swap.js";
-import { savePrism, setCurrentPrism, recordUnmarkedCards, getPrism } from "../modules/storage.js";
+import { savePrism, setCurrentPrism, getPrism } from "../modules/storage.js";
 import { trackEvent } from "../modules/supabase-client.js";
 import { openMembershipDrawer } from "../modules/membership.js";
 import { openDeckExportDialog } from "../modules/deck-export-panel.js";
@@ -134,7 +134,6 @@ export function setCardsMarked(cardKeys, marked) {
   if (!prism || !cardKeys?.some(Boolean)) return;
   if (!prism.markedCards) prism.markedCards = [];
 
-  const unmarkedKeys = [];
   let newlyMarked = false;
   for (const cardKey of cardKeys) {
     if (!cardKey) continue;
@@ -145,19 +144,16 @@ export function setCardsMarked(cardKeys, marked) {
       if (single) {
         const done = markSingleBatchDone(prism.markedCards, cardKey, single.batches[0].key);
         prism.markedCards = done.markedCards;
-        unmarkedKeys.push(...done.unmarkedKeys);
       } else if (!prism.markedCards.includes(cardKey)) {
         prism.markedCards.push(cardKey);
       }
     } else {
       prism.markedCards = prism.markedCards.filter((c) => !keys.includes(c));
-      unmarkedKeys.push(...keys);
     }
   }
   // GA-only funnel step (visit → deck → first mark → export); too chatty
   // for app_logs rows. Once per action, so a bulk mark is one event.
   if (newlyMarked) trackEvent('card_marked');
-  recordUnmarkedCards(prism.id, unmarkedKeys);
 
   const now = new Date().toISOString();
   prism.updatedAt = now;
@@ -422,9 +418,6 @@ export async function handleEditConfirm() {
   const stalePainted = trackStaleChildMarks(state.currentPrism, beforeCards, now);
   const unmarkedKeys = unmarkCardsWithNewStripes(beforeTallies, [...stillPainted, ...stalePainted]);
   const unmarkedCount = unmarkedKeys.length;
-  if (unmarkedKeys.length > 0) {
-    recordUnmarkedCards(state.currentPrism.id, unmarkedKeys);
-  }
 
   state.currentPrism.updatedAt = now;
   savePrism(state.currentPrism);

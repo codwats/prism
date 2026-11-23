@@ -4,7 +4,7 @@
 
 import { initLayout } from './layout.js';
 import { initExtraGate } from './modules/membership.js';
-import { getAllPrisms, getCurrentPrism, getPrism, savePrism, recordUnmarkedCards } from './modules/storage.js';
+import { getAllPrisms, getCurrentPrism, getPrism, savePrism } from './modules/storage.js';
 import { buildPrismFromJson } from './modules/prism-import.js';
 import { processCards } from './modules/processor.js';
 import { comparePrisms, carryDone, markLabel, rowFingerprint } from './modules/compare-prisms.js';
@@ -157,12 +157,11 @@ function onCarryDone() {
   const to = getPrism($('compare-to').value);
   if (!from || !to) return;
   const { unchanged } = comparePrisms(from.prism, to);
-  const { markedCards, unmarkedKeys, count } = carryDone(to, unchanged);
+  const { markedCards, count } = carryDone(to, unchanged);
   if (count === 0) {
     showSuccess(`Every matching card is already done in ${to.name || 'To'}.`);
     return;
   }
-  recordUnmarkedCards(to.id, unmarkedKeys);
   const now = new Date().toISOString();
   to.markedCards = markedCards;
   to.updatedAt = now;

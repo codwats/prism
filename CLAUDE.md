@@ -30,7 +30,7 @@ New domain facts go in the matching `docs/agents/*.md`, not here.
 `js/core/` shared helpers, `js/features/` build.html modules, `js/modules/` business logic shared across pages, `netlify/edge-functions/` Deno proxies + Stripe/gallery endpoints. Non-obvious pages:
 
 - `mpc-stripes.html`, `swap-planner.html`, `compare-prisms.html` (#446) — paid Extras, Members-only via `initExtraGate()` in membership.js (soft gate, ADR 0003). Swap Planner's `initExtraGate(onTool)` starts Scryfall/tag fetches for Members only.
-- `swap-planner.js`: search → `rankComparables` → rows; "Other swaps" costs fill in after render (`applySwap` per deck); confirm dialog previews and applies through same `applySwap` call, then `recordUnmarkedCards` → `savePrism`. `oracle-tags.js` builds 51 pinned Tagger jobs + land families from Oracle Tags bulk file, IndexedDB, daily.
+- `swap-planner.js`: search → `rankComparables` → rows; "Other swaps" costs fill in after render (`applySwap` per deck); confirm dialog previews and applies through same `applySwap` call, then `savePrism`. `oracle-tags.js` builds 51 pinned Tagger jobs + land families from Oracle Tags bulk file, IndexedDB, daily.
 - `card-preview.js`: `wireCardPreview(root, stripesFor)` wires hover tooltip / mobile tap-to-open on any page.
 - `links.html` (#243) — standalone: no layout.js, no nav, own inlined tokens, so it moves domains unchanged.
 
@@ -67,7 +67,7 @@ Feature modules import circularly (`deck-form ↔ deck-list`, `deck-list → ini
 ### PRISM Data Model
 
 ```
-Prism: { id, name, decks[], splitGroups[], markedCards[], removedCards[], plannedSwaps[], tokenChoices[],
+Prism: { id, name, decks[], splitGroups[], markedCards[], markTimes{}, removedCards[], plannedSwaps[], tokenChoices[],
          useDedicatedCommanderCopies, useDedicatedCommanderCopiesUpdatedAt, createdAt, updatedAt }
 TokenChoice: { kind ('added'|'paired'|'hidden'), oracleId, updatedAt, deckId+name+included | pairedWith | hidden }  (#412, one per kind+oracleId+deckId)
 Deck:  { id, name, bracket (1-5), color (hex), stripePosition (1-48), cards[], splitGroupId?, sourceUrl?, cardsUpdatedAt? }
@@ -154,7 +154,7 @@ Preview viewport 1280px+ for desktop layout (sidebar nav); below 768px = mobile.
 - `state.currentPrism`, not a local variable — single source of truth
 - `renderAll()` = safe full re-render after state changes
 - `savePrism(state.currentPrism)` persists to localStorage after mutations
-- Removing cards from `markedCards`: call `recordUnmarkedCards(prismId, keys)` **before** `savePrism()` so tombstones survive next cloud merge
+- Marking or un-marking: change `markedCards` and `savePrism()`; the save stamps each changed key in `markTimes`, which syncs, so the newest change per key wins on every device (#500). No tombstone call
 - Feature modules import from `../core/`, `../modules/`, sibling `./`
 - Trace logs via `debugLog(...)` (core/utils.js), no-op unless `PRISM_DEBUG` localStorage flag set. Lint enforces; `console.error`/`console.warn` stay ungated
 - `app_logs` rows expire after 30 days (#214): `prune_app_logs(p_retain_days DEFAULT 30)` scheduled nightly by `pg_cron` as `prune-app-logs`, EXECUTE revoked from `anon` and `authenticated`. Nothing needing >1 month goes in `app_logs`; `logToSupabase` writes only, nothing reads back

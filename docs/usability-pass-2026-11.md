@@ -110,11 +110,11 @@ Two different needs are hiding in this one.
 
 **Bulk mark (M).** "Mark all shown as done" and "Clear marks on all shown", acting on the rows the current filter and search leave visible. The real use is a player who painted sleeves before they found PRISM, or who filters to one deck after a marking night.
 
-Sync is not the hard part. A mark is a key in `markedCards` and an unmark is a tombstone written by `recordUnmarkedCards`; a bulk action is the same two calls with more keys. The rules that matter:
+Sync is not the hard part. A mark is a key in `markedCards` and an unmark is its removal, which `savePrism` times in `markTimes` (#500; this pass predates it, when a `recordUnmarkedCards` tombstone did that); a bulk action is the same save with more keys. The rules that matter:
 
 - Go through the same per-row code the checkbox uses, so batch and pass keys come out in the right shape. Do not write plain names for multi-batch cards.
-- Call `recordUnmarkedCards` before `savePrism`, as everywhere else.
-- Clearing is the risk, and it is a product risk: tombstones win over older marks, so clearing on one device wipes that progress on every device. Confirm with the count ("Clear 412 marks?") and never offer an unscoped "uncheck everything" without that dialog.
+- Save through `savePrism`, as everywhere else.
+- Clearing is the risk, and it is a product risk: an un-mark wins over older marks, so clearing on one device wipes that progress on every device. Confirm with the count ("Clear 412 marks?") and never offer an unscoped "uncheck everything" without that dialog.
 
 **Audit pass (L).** Do not build the audit by unchecking everything. That destroys the record you are auditing against. An audit is a second, separate tick: "I looked at this sleeve and its marks match."
 

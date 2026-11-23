@@ -109,13 +109,11 @@ export function comparePrisms(fromPrism, toPrism) {
  * Tick Done in `toPrism` for each named card, with the keys Mark sleeves
  * writes: a single-batch card through markSingleBatchDone, a multi-batch card
  * every batch key. Cards already Done are left alone; nothing is un-ticked.
- * @returns {{ markedCards: string[], unmarkedKeys: string[], count: number }}
- *   The caller passes unmarkedKeys to recordUnmarkedCards before savePrism.
+ * @returns {{ markedCards: string[], count: number }}
  */
 export function carryDone(toPrism, names) {
   const wanted = new Set(names);
   let markedCards = [...(toPrism.markedCards || [])];
-  const unmarkedKeys = [];
   let count = 0;
   for (const card of processCards(toPrism)) {
     if (!wanted.has(card.name) || isCardDone(card, new Set(markedCards))) continue;
@@ -123,12 +121,11 @@ export function carryDone(toPrism, names) {
     if (card.batches.length === 1) {
       const done = markSingleBatchDone(markedCards, card.name, card.batches[0].key);
       markedCards = done.markedCards;
-      unmarkedKeys.push(...done.unmarkedKeys);
     } else {
       markedCards = [...new Set([...markedCards, ...card.batches.map((b) => b.key)])];
     }
   }
-  return { markedCards, unmarkedKeys, count };
+  return { markedCards, count };
 }
 
 // A mark's checklist text. A dot sits beside the Side A square, whatever side its anchor carries.

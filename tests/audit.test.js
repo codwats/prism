@@ -1,6 +1,6 @@
 // The audit pass (#457) is device-only: its verdicts live under
 // `prism_audit_<prismId>` and nothing it writes may reach prism_data,
-// markedCards, the un-mark tombstones or the PRISM a cloud save would upload.
+// markedCards, the mark times or the PRISM a cloud save would upload.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
@@ -41,7 +41,7 @@ function setup({ oneMark = false } = {}) {
 	renderResults();
 	const keys = state.resultsView.map(getScryCardKey);
 	// Every shown row but Lightning Bolt is Done; Lightning Bolt was ticked then
-	// unticked, so a tombstone exists for the audit to leave alone.
+	// unticked, so an un-mark time exists for the audit to leave alone.
 	for (const k of keys) setCardMarked(k, true);
 	if (!oneMark) setCardMarked('Lightning Bolt', false);
 	renderResults();
@@ -65,12 +65,12 @@ const snapshot = (prism) => ({
 	marked: [...prism.markedCards],
 });
 
-test('an audit with Matches and Wrong leaves markedCards, tombstones and prism_data byte-identical', () => {
+test('an audit with Matches and Wrong leaves markedCards, mark times and prism_data byte-identical', () => {
 	const prism = setup();
 	const forest = state.processedCards.find((c) => c.name === 'Forest');
 	assert.equal(forest.batches.length, 2, 'Forest is multi-batch');
 	const dataBefore = localStorage.getItem('prism_data');
-	assert.ok(JSON.parse(dataBefore).syncState.prismBaselines[prism.id].unmarkedCards['Lightning Bolt'], 'a tombstone exists');
+	assert.ok(JSON.parse(dataBefore).prisms[prism.id].markTimes['Lightning Bolt'], 'an un-mark time exists');
 	const before = snapshot(prism);
 
 	const { rows } = runAudit(prism, ['Sol Ring', forest.batches[1].key]);

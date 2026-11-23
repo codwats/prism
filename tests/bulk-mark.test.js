@@ -1,6 +1,6 @@
 // Bulk marks on the shown rows (#454) must write exactly what ticking each
 // shown row one by one writes: the same markedCards keys (plain, `|#b|` batch,
-// pass) and the same tombstones, with one save.
+// pass) and the same un-mark times, with one save.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
@@ -47,9 +47,10 @@ function setView({ search = '', oneMark = false }) {
 	};
 }
 
-function tombstones(prismId) {
-	const data = JSON.parse(localStorage.getItem('prism_data'));
-	return Object.keys(data.syncState.prismBaselines[prismId]?.unmarkedCards || {}).sort();
+// Un-marks as they sync (#500): keys with a mark time that are no longer marked.
+function unmarks(prismId) {
+	const p = JSON.parse(localStorage.getItem('prism_data')).prisms[prismId];
+	return Object.keys(p.markTimes || {}).filter((k) => !p.markedCards.includes(k)).sort();
 }
 
 // Fresh PRISM with `premarked` row keys ticked, view applied and rendered.
@@ -85,7 +86,7 @@ function run(view, premarked, step) {
 	return {
 		afterMark,
 		afterClear: [...state.currentPrism.markedCards],
-		tombstones: tombstones(state.currentPrism.id),
+		unmarks: unmarks(state.currentPrism.id),
 		stamped: state.currentPrism.markedCardsUpdatedAt === state.currentPrism.updatedAt,
 	};
 }
@@ -116,8 +117,8 @@ test('search view: single-batch, expanded multi-batch, collapsed multi-batch and
 	assert.ok(!bulkRun.afterMark.includes('Forest'), 'no plain name for a multi-batch card');
 	// Clear leaves rows the view hid, including the collapsed card's batch.
 	assert.deepEqual([...bulkRun.afterClear].sort(), ['Island', island.batches[0].key, mountain.batches[0].key].sort());
-	assert.ok(!bulkRun.tombstones.some((k) => k.startsWith('Island') || k.startsWith('Mountain')));
-	assert.ok(bulkRun.tombstones.includes('Sol Ring') && bulkRun.tombstones.includes(forest.batches[1].key));
+	assert.ok(!bulkRun.unmarks.some((k) => k.startsWith('Island') || k.startsWith('Mountain')));
+	assert.ok(bulkRun.unmarks.includes('Sol Ring') && bulkRun.unmarks.includes(forest.batches[1].key));
 });
 
 test('One Mark at a Time with a search: pass rows only', () => {
@@ -134,7 +135,7 @@ test('One Mark at a Time with a search: pass rows only', () => {
 	const island = state.processedCards.find((c) => c.name === 'Island');
 	assert.ok(isCardDone(island, new Set(state.currentPrism.markedCards)), 'every pass key makes the card Done');
 	assert.ok(!state.currentPrism.markedCards.includes('Island'), 'pass rows write pass keys, not the plain name');
-	assert.deepEqual(bulkRun.tombstones, ['Island|Alpha', 'Island|Beta']);
+	assert.deepEqual(bulkRun.unmarks, ['Island|Alpha', 'Island|Beta']);
 	assert.deepEqual(bulkRun.afterClear, ['Sol Ring', state.processedCards.find((c) => c.name === 'Sol Ring').batches[0].key]);
 });
 

@@ -90,10 +90,9 @@ function sleeveOption(prism, { outgoing, incoming, deckId, copies }) {
  * allows one at that point in the sequence. Throws when a ticked swap has no
  * outgoing card.
  *
- * @returns {{ prism, summary: { marksToAdd, staleMarks, copiesToBuy, unmarkedKeys },
+ * @returns {{ prism, summary: { marksToAdd, staleMarks, copiesToBuy },
  *   steps: { swap, sleeve: 'available'|'other-decks'|null, sleeveSwap: boolean }[], pullList: string[] }}
- *   The applied swaps are gone from prism.plannedSwaps. The caller calls
- *   recordUnmarkedCards(prism.id, summary.unmarkedKeys) before savePrism.
+ *   The applied swaps are gone from prism.plannedSwaps.
  */
 export function applyDeck(prism, ticked, now = new Date().toISOString()) {
   const view = queueByDeck(prism, now);
@@ -103,7 +102,7 @@ export function applyDeck(prism, ticked, now = new Date().toISOString()) {
   if (idea) throw new Error(`Choose a cut for ${idea.incoming} first.`);
 
   let next = view.prism;
-  const summary = { marksToAdd: 0, staleMarks: 0, copiesToBuy: 0, unmarkedKeys: [] };
+  const summary = { marksToAdd: 0, staleMarks: 0, copiesToBuy: 0 };
   const steps = [];
   for (const swap of swaps) {
     const sleeve = sleeveOption(next, swap);
@@ -115,13 +114,9 @@ export function applyDeck(prism, ticked, now = new Date().toISOString()) {
     summary.marksToAdd += result.summary.marksToAdd;
     summary.staleMarks += result.summary.staleMarks;
     summary.copiesToBuy += result.summary.copiesToBuy;
-    summary.unmarkedKeys.push(...result.summary.unmarkedKeys);
     steps.push({ swap, sleeve, sleeveSwap: result.summary.sleeveSwap });
   }
 
-  // A key a later step marked again (a carried Sleeve swap mark) is not un-marked.
-  const marked = new Set(next.markedCards || []);
-  summary.unmarkedKeys = [...new Set(summary.unmarkedKeys)].filter((k) => !marked.has(k));
   const applied = new Set(swaps.map((s) => s.id));
   next = { ...next, plannedSwaps: (next.plannedSwaps || []).filter((s) => !applied.has(s.id)) };
   const inPrism = (name) => next.decks.some((d) => d.cards.some((c) => sameName(c.name, name)));
