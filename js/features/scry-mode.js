@@ -24,7 +24,7 @@ const DEFAULT_OPTS = {
   },
   onSkip: null,
   skipAnswers: false, // true when Skip is an answer too (Audit's Wrong); otherwise a skipped card stays findable
-  rows: null, // screens to walk; null walks the shown rows (state.resultsView)
+  rows: null, // screens to walk; null walks state.scryView (shown rows minus the text search)
   endLabel: 'All cards reviewed',
   renderEnd: null, // (contentEl) => void, replaces the default end screen
 };
@@ -354,7 +354,7 @@ export function openScryMode(opts) {
   if (btnScrySkip) btnScrySkip.textContent = scryOpts.skipLabel;
   scryDialog?.setAttribute('label', scryOpts.title);
 
-  const view = scryOpts.rows || state.resultsView || [];
+  const view = scryOpts.rows || state.scryView || [];
   const filtered = view.filter(c => !c.isRemoved);
 
   if (filtered.length === 0) {
