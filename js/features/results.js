@@ -414,12 +414,6 @@ export function renderResults({ preserveRows = false } = {}) {
     displayCards = filteredCards;
   }
 
-  if (search) {
-    displayCards = displayCards.filter(c =>
-      c.name.toLowerCase().includes(search)
-    );
-  }
-
   // Apply deck filter (if any decks are selected). First prune IDs whose deck
   // no longer exists (deck deleted / unsplit while filtered) so a stale
   // selection can't silently empty the table.
@@ -452,14 +446,9 @@ export function renderResults({ preserveRows = false } = {}) {
   renderDeckFilterMenu();
   renderOverlapMatrix();
 
-  // Apply sorting
-  displayCards = sortCards(displayCards, state.sortState.column, state.sortState.direction);
-  shownCards = displayCards;
-
-  // Snapshot for SCRY-Mode — reflects exact list visible to user (all
-  // filters/sort applied). Multi-batch cards flatten to one entry per batch
-  // (#149): the parent row is not markable, so it is not a screen.
-  state.resultsView = displayCards.flatMap(card => {
+  // Multi-batch cards flatten to one entry per batch (#149): the parent row
+  // is not markable, so it is not a screen.
+  const flattenBatches = cards => cards.flatMap(card => {
     const batches = card.batches || [];
     if (card.isRemoved || card.isPassRow || batches.length <= 1) return [card];
     return batches.map(b => ({
@@ -471,6 +460,23 @@ export function renderResults({ preserveRows = false } = {}) {
       stripes: b.stripes
     }));
   });
+
+  // Snapshot for SCRY-Mode: deck/undone filters and sort, but not the text
+  // search, so SCRY's own search can find cards the table search hid (#519).
+  state.scryView = flattenBatches(sortCards(displayCards, state.sortState.column, state.sortState.direction));
+
+  if (search) {
+    displayCards = displayCards.filter(c =>
+      c.name.toLowerCase().includes(search)
+    );
+  }
+
+  // Apply sorting
+  displayCards = sortCards(displayCards, state.sortState.column, state.sortState.direction);
+  shownCards = displayCards;
+
+  // Snapshot for Audit: exactly the list visible to the user.
+  state.resultsView = flattenBatches(displayCards);
 
   // Render table header with sort indicators
   renderResultsHeader();
