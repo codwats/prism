@@ -41,13 +41,22 @@ function getDefaultStorage() {
   };
 }
 
+function readRawStorage() {
+  try {
+    return localStorage.getItem(STORAGE_KEY);
+  } catch (error) {
+    console.error('Error loading PRISM data:', error);
+    return null;
+  }
+}
+
 /**
  * Load data from localStorage
+ * @param {string|null} [raw] - The stored string, when the caller already read it
  * @returns {Object} The stored data or default structure
  */
-export function loadStorage() {
+export function loadStorage(raw = readRawStorage()) {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) {
       return getDefaultStorage();
     }
@@ -72,14 +81,16 @@ export function loadStorage() {
  * @param {Object} data - The data to save
  */
 export function saveStorage(data) {
+  const raw = JSON.stringify(data);
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    localStorage.setItem(STORAGE_KEY, raw);
   } catch (error) {
     console.error('Error saving PRISM data:', error);
     throw new Error('Failed to save data. LocalStorage may be full.');
   }
   // Every write lands here (edits, marks, cloud merges); the nav's Extras count listens
   if (typeof window !== 'undefined') window.dispatchEvent?.(new Event('prism:saved'));
+  return raw;
 }
 
 /**
@@ -251,6 +262,75 @@ function mergeEntityCollection({
   }
 
   return uniqueById(merged);
+}
+
+// The stored PRISM a read handed out. A save from a snapshot older than
+// storage (an open build page across a background merge or another tab's
+// save, #499) rebases its own changes onto storage rather than deleting what
+// it never saw. A Symbol rides the processor's spreads and never reaches JSON.
+// The stamp keeps the storage string the read came from: a save compares it
+// as is and parses the base only once storage has moved on.
+const READ_AS = Symbol('prismReadAs');
+
+function stampRead(prism, raw) {
+  if (prism) prism[READ_AS] = { raw, base: () => loadStorage(raw).prisms[prism.id] };
+  return prism;
+}
+
+// Key order never counts: a merge rebuilds the same objects in another order.
+const stable = value => JSON.stringify(value, (key, v) => (v && typeof v === 'object' && !Array.isArray(v)
+  ? Object.fromEntries(Object.entries(v).sort(([a], [b]) => (a < b ? -1 : 1)))
+  : v));
+const same = (a, b) => stable(a) === stable(b);
+
+// Three-way by key: theirs, minus what mine removed since base, with mine's
+// edits and adds; edited on both sides, the newer updatedAt wins (ties mine),
+// as in mergeEntityCollection. Mine's edit to something theirs removed comes
+// back only when editWins (decks, like mergeEntityCollection; not Planned swaps).
+function rebaseByKey(base = [], mine = [], theirs = [], keyOf = item => item.id, editWins = true) {
+  const baseByKey = new Map(base.map(item => [keyOf(item), item]));
+  const mineByKey = new Map(mine.map(item => [keyOf(item), item]));
+  const theirKeys = new Set(theirs.map(keyOf));
+  const edited = item => !same(item, baseByKey.get(keyOf(item)));
+  return [
+    ...theirs
+      .filter(item => mineByKey.has(keyOf(item)) || !baseByKey.has(keyOf(item)))
+      .map(item => {
+        const own = mineByKey.get(keyOf(item));
+        if (!own || !edited(own)) return item;
+        return edited(item) ? pickNewerEntity(own, item) : own;
+      }),
+    ...mine.filter(item => !theirKeys.has(keyOf(item)) && (!baseByKey.has(keyOf(item)) || (editWins && edited(item)))),
+  ];
+}
+
+function rebasePrism(base, mine, theirs) {
+  const next = { ...theirs };
+  // One record: its own timestamp decides, as in mergePrismVersions (newer wins, ties mine).
+  const dedicated = ['useDedicatedCommanderCopies', 'useDedicatedCommanderCopiesUpdatedAt'];
+  if (dedicated.some(key => !same(mine[key], base[key])) &&
+      getTimestampMs(mine[dedicated[1]]) >= getTimestampMs(theirs[dedicated[1]])) {
+    for (const key of dedicated) next[key] = mine[key];
+  }
+  for (const key of new Set([...Object.keys(base), ...Object.keys(mine)])) {
+    if (dedicated.includes(key) || same(mine[key], base[key])) continue;
+    if (key === 'decks' || key === 'splitGroups' || key === 'plannedSwaps') {
+      next[key] = rebaseByKey(base[key], mine[key], theirs[key], undefined, key !== 'plannedSwaps');
+    } else if (key === 'markedCards') {
+      next[key] = rebaseByKey(base[key], mine[key], theirs[key], cardKey => cardKey);
+    } else if (key === 'removedCards') {
+      next[key] = mergeRemovedCards(mine[key] || [], theirs[key] || []);
+    } else if (key === 'tokenChoices') {
+      next[key] = mergeTokenChoices(mine[key] || [], theirs[key] || []);
+    } else if (key === 'updatedAt' || key === 'markedCardsUpdatedAt') {
+      // A save can land after a later one (stamped, awaited, saved): never go back.
+      if (getTimestampMs(mine[key]) >= getTimestampMs(theirs[key])) next[key] = mine[key];
+    } else {
+      next[key] = mine[key];
+    }
+  }
+  next.splitGroups = normalizeSplitGroups(next, next.splitGroups, next.decks);
+  return next;
 }
 
 function recordLocalPrismChanges(storage, previousPrism, nextPrism) {
@@ -809,7 +889,7 @@ async function savePrismToSupabase(prism) {
 
     const { data: existingDeckRows, error: existingDecksError } = await supabase
       .from('decks')
-      .select('id, created_at')
+      .select('id, created_at, updated_at')
       .eq('prism_id', prism.id);
 
     if (existingDecksError) {
@@ -821,30 +901,32 @@ async function savePrismToSupabase(prism) {
     const localDeckIds = (prism.decks || []).map(deck => deck.id);
     const localDeckIdSet = new Set(localDeckIds);
 
+    // A deck row keeps its cloud updated_at (epoch for a new deck) until its
+    // cards are saved: a device pulling between a failed card write and the
+    // retry must not record the new timestamp with the old cards (#503).
+    const deckRow = (deck, updatedAt) => {
+      const deckUpdatedAt = deck.updatedAt || prismUpdatedAt;
+      return {
+        id: deck.id,
+        prism_id: prism.id,
+        name: deck.name,
+        color: deck.color,
+        bracket: deck.bracket,
+        stripe_position: deck.stripePosition,
+        sort_order: deck.stripePosition,
+        split_group_id: deck.splitGroupId || null,
+        created_at: deck.createdAt || existingDeckMap.get(deck.id)?.created_at || deckUpdatedAt,
+        updated_at: updatedAt,
+        cards_updated_at: deck.cardsUpdatedAt || null,
+        source_url: deck.sourceUrl || null
+      };
+    };
+    const stagedUpdatedAt = deck => existingDeckMap.get(deck.id)?.updated_at || new Date(0).toISOString();
+
     if ((prism.decks || []).length > 0) {
-      const decksToUpsert = (prism.decks || []).map(deck => {
-        const deckUpdatedAt = deck.updatedAt || prismUpdatedAt;
-        const existingDeck = existingDeckMap.get(deck.id);
-
-        return {
-          id: deck.id,
-          prism_id: prism.id,
-          name: deck.name,
-          color: deck.color,
-          bracket: deck.bracket,
-          stripe_position: deck.stripePosition,
-          sort_order: deck.stripePosition,
-          split_group_id: deck.splitGroupId || null,
-          created_at: deck.createdAt || existingDeck?.created_at || deckUpdatedAt,
-          updated_at: deckUpdatedAt,
-          cards_updated_at: deck.cardsUpdatedAt || null,
-          source_url: deck.sourceUrl || null
-        };
-      });
-
       const { error: decksUpsertError } = await supabase
         .from('decks')
-        .upsert(decksToUpsert, { onConflict: 'id' });
+        .upsert((prism.decks || []).map(deck => deckRow(deck, stagedUpdatedAt(deck))), { onConflict: 'id' });
 
       if (decksUpsertError) {
         console.error('Error upserting decks to Supabase:', decksUpsertError);
@@ -857,6 +939,7 @@ async function savePrismToSupabase(prism) {
     // If the RPC is missing from the project (schema migration not yet run),
     // fall back to a non-atomic DELETE + INSERT for the rest of this session.
     let anyCardFailed = false;
+    const cardsSavedDecks = [];
     for (const deck of prism.decks || []) {
       const deckUpdatedAt = deck.updatedAt || prismUpdatedAt;
       const localCards = deck.cards || [];
@@ -895,6 +978,18 @@ async function savePrismToSupabase(prism) {
         console.error('Error replacing cards for deck', deck.name, ':', cardError);
         anyCardFailed = true;
         // Continue rather than bailing — other decks should still be saved.
+      } else if (Date.parse(deckUpdatedAt) !== Date.parse(stagedUpdatedAt(deck))) {
+        cardsSavedDecks.push(deckRow(deck, deckUpdatedAt));
+      }
+    }
+
+    if (cardsSavedDecks.length > 0) {
+      const { error: stampError } = await supabase
+        .from('decks')
+        .upsert(cardsSavedDecks, { onConflict: 'id' });
+      if (stampError) {
+        console.error('Error stamping saved decks in Supabase:', stampError);
+        return false;
       }
     }
 
@@ -1128,6 +1223,13 @@ export function mergeRemovedCards(localArr, cloudArr) {
       // Latest row wins, but previousQuantity keeps the max of both (#151):
       // successive edits (5→4→3) and cross-device edits must not collapse to
       // the last delta and under-report the surplus copies to clear.
+      // A row re-tracked after it closed (#501) is a new removal: the higher
+      // generation wins whole, so a closed row's clearedQuantity can't close it.
+      const generation = (entry.generation || 0) - (existing.generation || 0);
+      if (generation !== 0) {
+        map.set(key, generation > 0 ? entry : existing);
+        continue;
+      }
       const newer = new Date(entry.removedAt) > new Date(existing.removedAt) ? entry : existing;
       // A stillInDeck row (#423) newer than a plain one folded that row's open
       // copies in when it replaced it: the plain row's fields are not its own.
@@ -1354,9 +1456,10 @@ if (typeof window !== 'undefined') {
  * @returns {Object|null} The current PRISM or null
  */
 export function getCurrentPrism() {
-  const storage = loadStorage();
+  const raw = readRawStorage();
+  const storage = loadStorage(raw);
   if (!storage.currentPrismId) return null;
-  return storage.prisms[storage.currentPrismId] || null;
+  return stampRead(storage.prisms[storage.currentPrismId] || null, raw);
 }
 
 /**
@@ -1374,12 +1477,23 @@ export function setCurrentPrism(prismId) {
  * @param {Object} prism - The PRISM to save
  */
 export function savePrism(prism) {
-  const storage = loadStorage();
+  const raw = readRawStorage();
+  const storage = loadStorage(raw);
   const previousPrism = storage.prisms[prism.id] || null;
-  recordLocalPrismChanges(storage, previousPrism, prism);
-  storage.prisms[prism.id] = prism;
+  const readAs = prism[READ_AS];
+  const base = previousPrism && readAs && readAs.raw !== raw ? readAs.base() : null;
+  const nextPrism = base && !same(base, previousPrism) ? rebasePrism(base, prism, previousPrism) : prism;
+  recordLocalPrismChanges(storage, previousPrism, nextPrism);
+  storage.prisms[prism.id] = nextPrism;
   pruneSyncState(storage);
-  saveStorage(storage);
+  const written = saveStorage(storage);
+  // The caller now holds what it saved; storage may hold more it never saw.
+  if (nextPrism === prism) {
+    stampRead(prism, written);
+  } else {
+    const json = JSON.stringify(prism);
+    prism[READ_AS] = { raw: null, base: () => JSON.parse(json) };
+  }
 
   // Sync to Supabase if logged in (debounced to avoid race conditions on rapid saves)
   if (shouldWriteToSupabase()) {
@@ -1478,8 +1592,8 @@ export function getAllPrisms() {
  * @returns {Object|null} The PRISM or null
  */
 export function getPrism(prismId) {
-  const storage = loadStorage();
-  return storage.prisms[prismId] || null;
+  const raw = readRawStorage();
+  return stampRead(loadStorage(raw).prisms[prismId] || null, raw);
 }
 
 /**

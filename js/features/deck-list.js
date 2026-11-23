@@ -34,6 +34,7 @@ import {
   trackStaleChildMarks,
   keepSeparateSleeves,
   openRemovals,
+  closeRemoval,
 } from "../modules/swap.js";
 import { savePrism, setCurrentPrism, recordUnmarkedCards, getPrism } from "../modules/storage.js";
 import { trackEvent } from "../modules/supabase-client.js";
@@ -99,19 +100,20 @@ export function autoClearRemovedCards(newCards) {
     markingCards(newCards).map((c) => [normalizeCardName(c.name), c]),
   );
 
-  const before = state.currentPrism.removedCards.length;
-  state.currentPrism.removedCards = state.currentPrism.removedCards.filter((rc) => {
+  let cleared = 0;
+  for (const rc of openRemovals(state.currentPrism)) {
     const newCard = newByName.get(normalizeCardName(rc.cardName));
-    if (!newCard) return true; // still absent — keep the row
-    if (rc.stillInDeck) return true; // never left (#423): trackStaleChildMarks closes it
+    if (!newCard) continue; // still absent — keep the row
+    if (rc.stillInDeck) continue; // never left (#423): trackStaleChildMarks closes it
     // Quantity-decrease rows (#151) only clear once the quantity is fully
     // restored — otherwise the very save that created the row would clear it.
     // Legacy rows without quantity fields keep the present-in-list rule.
-    if (rc.previousQuantity != null) return (newCard.quantity || 1) < rc.previousQuantity;
-    return false; // present again — clear
-  });
+    if (rc.previousQuantity != null && (newCard.quantity || 1) < rc.previousQuantity) continue;
+    closeRemoval(rc); // close, never drop (#501)
+    cleared++;
+  }
 
-  return before - state.currentPrism.removedCards.length;
+  return cleared;
 }
 
 // ============================================================================
@@ -214,13 +216,9 @@ export function handleMarkToggle(event) {
 export function handleClearRemoved(cardName, deckId) {
   if (!state.currentPrism || !state.currentPrism.removedCards) return;
 
-  state.currentPrism.removedCards = state.currentPrism.removedCards.filter(
-    (rc) =>
-      !(
-        rc.cardName.toLowerCase() === cardName.toLowerCase() &&
-        rc.deckId === deckId
-      ),
-  );
+  openRemovals(state.currentPrism)
+    .filter((rc) => rc.cardName.toLowerCase() === cardName.toLowerCase() && rc.deckId === deckId)
+    .forEach(closeRemoval); // close, never drop (#501)
 
   state.currentPrism.updatedAt = new Date().toISOString();
   savePrism(state.currentPrism);
@@ -236,7 +234,7 @@ export function handleClearRemoved(cardName, deckId) {
  * path is gated the same way deck deletion is.
  */
 export function handleClearAllRemovedClick() {
-  if (!state.currentPrism || !state.currentPrism.removedCards?.length) return;
+  if (!openRemovals(state.currentPrism).length) return;
 
   const count = openRemovals(state.currentPrism).length;
   const { clearAllRemovedDialog, clearAllRemovedCount } = state.elements;
@@ -253,10 +251,11 @@ export function handleClearAllRemovedClick() {
 }
 
 export function handleClearAllRemoved() {
-  if (!state.currentPrism || !state.currentPrism.removedCards?.length) return;
+  if (!openRemovals(state.currentPrism).length) return;
 
-  const count = openRemovals(state.currentPrism).length;
-  state.currentPrism.removedCards = [];
+  const open = openRemovals(state.currentPrism);
+  const count = open.length;
+  open.forEach(closeRemoval); // close, never drop (#501)
   state.currentPrism.updatedAt = new Date().toISOString();
   savePrism(state.currentPrism);
 
