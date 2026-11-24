@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { getSpotlights, buildCalendar, eventsOn, eventRange, openingWeek, monthOfWeek, stepMonth, weekOfMonth, spotlightHero, spotlightSpan } from '../js/modules/calendar.js';
+import { getSpotlights, buildCalendar, eventsOn, eventRange, openingWeek, monthOfWeek, stepMonth, weekOfMonth, spotlightHero, spotlightSpan, agenda } from '../js/modules/calendar.js';
 
 // Made-up data: real 2026 dates, invented codes.
 const set = (code, released, extra = {}) => ({ code, name: code.toUpperCase(), premier: true, released, color: null, symbol: null, url: 'https://example.com', ...extra });
@@ -162,4 +162,28 @@ test('events past the lanes are counted as "+N more" on each day they cover', ()
 test('event dates read as plain dates', () => {
   assert.equal(eventRange(EVENTS[0]), 'Fri, Jan 29 – Thu, Feb 4');
   assert.equal(eventRange(EVENTS[1]), 'Tue, Oct 20');
+});
+
+// Mobile agenda (#532): the same events and Spotlights as the weeks it replaces.
+test('the agenda for a range lists the events and Spotlights of the weeks covering it', () => {
+  const from = '2026-10-18', to = '2027-02-06'; // Sun of CMD's week to Sat of Nauctis's
+  const groups = agenda(evCal, EVENTS, from, to);
+  const inWeeks = evCal.weeks.filter(w => w.start >= from && w.start <= to);
+  const weekIds = [...new Set(inWeeks.flatMap(w => w.events.map(p => p.event.id)))];
+  assert.deepEqual(groups.flatMap(g => g.events.map(e => e.id)), weekIds);
+  const dayOfEv = id => inWeeks.flatMap(w => w.days).find(d => d.date === EVENTS.find(e => e.id === id).start);
+  for (const g of groups) for (const e of g.events) assert.equal(g.spotlight, dayOfEv(e.id).spotlight, e.id);
+  assert.deepEqual(groups.map(g => g.spotlight.set.code), ['rf', 'stk']);
+});
+
+test('the agenda keeps an event that started before the range, in date order', () => {
+  const groups = agenda(evCal, EVENTS, '2027-02-01');
+  assert.deepEqual(groups.map(g => [g.spotlight.set.code, g.events.map(e => e.id)]), [['stk', ['nau-pre']]]);
+  assert.deepEqual(agenda(evCal, EVENTS, '2027-02-05'), []);
+});
+
+test('agenda events before the first Premier set fall in a group with no Spotlight', () => {
+  const early = [{ id: 'old', kind: 'supplemental', title: 'OLD', start: '2026-01-10', url: 'u', source: 's' }, ...EVENTS];
+  const groups = agenda(evCal, early, '2026-01-01');
+  assert.deepEqual(groups.map(g => g.spotlight?.set.code ?? null), [null, 'rf', 'stk']);
 });

@@ -73,7 +73,7 @@
         <section class="cal-hero cal-tint" id="cal-hero" aria-label="In the Spotlight" data-c></section>
         <div class="cal-tools">
           <h1 id="cal-month" class="wa-heading-l" aria-live="polite">Release calendar</h1>
-          <div class="wa-cluster wa-gap-2xs">
+          <div class="wa-cluster wa-gap-2xs cal-nav">
             <wa-button appearance="outlined" size="s" id="cal-prev" aria-label="Previous month"><wa-icon name="chevron-left"></wa-icon></wa-button>
             <wa-button appearance="outlined" size="s" id="cal-next" aria-label="Next month"><wa-icon name="chevron-right"></wa-icon></wa-button>
             <wa-button appearance="outlined" size="s" id="cal-today">Today</wa-button>
@@ -85,6 +85,7 @@
             <div class="cal-grid" id="cal-grid"></div>
           </div>
           <aside class="cal-panel" id="cal-panel" aria-live="polite" aria-label="Selected day"></aside>
+          <div class="cal-agenda" id="cal-agenda" aria-label="Upcoming events, by Spotlight"></div>
         </div>
         <wa-popover id="cal-pop" placement="bottom-start" distance="6"></wa-popover>
         <p class="cal-note wa-caption-s">Release and Prerelease dates come from Wizards of the Coast announcements. Set symbols come from <a href="https://scryfall.com" target="_blank" rel="noopener">Scryfall</a>.</p>

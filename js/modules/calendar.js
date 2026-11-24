@@ -189,3 +189,20 @@ function majoritySpotlight(days) {
   for (const [spotlight, n] of count) if (n > most) [best, most] = [spotlight, n];
   return best;
 }
+
+/**
+ * The mobile agenda (#532): events covering any day from `from` to `to`, in
+ * date order, grouped under the Spotlight each one starts in. Draws whatever
+ * events it is given, so a kind filter applies by passing fewer.
+ * @returns {Array<{spotlight: object|null, events: object[]}>} `spotlight` is null before the first Premier set
+ */
+export function agenda(cal, events, from, to = cal.last) {
+  const groups = [];
+  const shown = events.filter(e => e.start <= to && lastDay(e) >= from).sort((a, b) => a.start.localeCompare(b.start));
+  for (const e of shown) {
+    const spotlight = spotlightOn(cal.spotlights, e.start);
+    if (groups.at(-1)?.spotlight === spotlight)groups.at(-1).events.push(e);
+    else groups.push({ spotlight, events: [e] });
+  }
+  return groups;
+}

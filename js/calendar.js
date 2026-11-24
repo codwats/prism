@@ -4,13 +4,13 @@
  * chapter ribbon. Data is the static assets/calendar.json; no runtime API calls.
  *
  * Later tickets hang off renderWeek (event chips, #530), the KINDS filter
- * (#531) and a mobile agenda (#532).
+ * (#531) and the mobile agenda (#532, renderAgenda).
  */
 import { initLayout } from './layout.js';
 import { escapeHtml } from './core/utils.js';
 import {
   buildCalendar, spotlightHero, spotlightSpan, formatDate, openingWeek, monthOfWeek, stepMonth, weekOfMonth,
-  spotlightOn, eventsOn, eventRange, MAX_LANES,
+  spotlightOn, eventsOn, eventRange, MAX_LANES, agenda, weekOf,
 } from './modules/calendar.js';
 
 initLayout({ activePage: 'calendar', headerCta: { href: 'build.html', label: 'Build PRISM', icon: 'wand-magic-sparkles' } });
@@ -155,6 +155,30 @@ function renderPanel(cal) {
     ${d !== TODAY ? `<button class="cal-linkish" data-day="${TODAY}">Back to today</button>` : ''}`;
 }
 
+// ---------- mobile agenda (#532) ----------
+
+let showEarlier = false;
+
+/** Below 768px: the same events, grouped by Spotlight, from this week on unless asked for earlier ones. */
+function renderAgenda(cal) {
+  const groups = agenda(cal, events, showEarlier ? cal.first : weekOf(TODAY));
+  const head = s => (s
+    ? `<div class="cal-ahead cal-tint" data-c style="${colorVar(s.set)}">${symbol(s.set)}<div><h3>${escapeHtml(s.set.name)}</h3><span class="cap cal-ink">${escapeHtml(spotlightSpan(s))}</span></div></div>`
+    : '<div class="cal-ahead"><div><h3>Before the first Premier set</h3></div></div>');
+  const row = e => {
+    const multi = e.end && e.end !== e.start;
+    const now = e.start <= TODAY && (e.end || e.start) >= TODAY;
+    return `<button class="cal-arow${now ? ' today' : ''}" data-ev="${escapeHtml(e.id)}" id="ev-${escapeHtml(e.id)}-a"
+      aria-label="${escapeHtml(`${e.title}, ${KINDS[e.kind]?.one || e.kind}, ${eventRange(e)}`)}" aria-haspopup="dialog">
+      <span class="dt">${formatDate(e.start)}<small>${multi ? `to ${formatDate(e.end)}` : formatDate(e.start, { weekday: 'short' })}</small></span>
+      ${eventIcon(e)}<span><b>${escapeHtml(e.title)}</b><span class="cap">${KINDS[e.kind]?.one || ''}</span></span></button>`;
+  };
+  $('cal-agenda').innerHTML = (showEarlier ? '' : '<button class="cal-linkish cal-earlier" id="cal-earlier">Show earlier events</button>')
+    + (groups.length
+      ? groups.map(g => `<section class="cal-agroup">${head(g.spotlight)}${g.events.map(row).join('')}</section>`).join('')
+      : '<p class="cal-none">Nothing scheduled.</p>');
+}
+
 function selectDay(cal, iso, reveal = true) {
   selected = iso;
   document.querySelectorAll('.cal-day.sel').forEach(x => x.classList.remove('sel'));
@@ -169,7 +193,8 @@ function wireEvents(cal) {
     const chip = ev.target.closest('[data-ev]');
     if (chip) return openPopover(cal, chip);
     const day = ev.target.closest('[data-day]');
-    if (day) selectDay(cal, day.dataset.day);
+    if (day) return selectDay(cal, day.dataset.day);
+    if (ev.target.closest('#cal-earlier')) { showEarlier = true; renderAgenda(cal); }
   });
   $('cal-today').addEventListener('click', () => selectDay(cal, TODAY, false));
 }
@@ -195,9 +220,14 @@ function topWeek(cal) {
 
 function wireNavigation(cal) {
   const month = () => monthOfWeek(cal, topWeek(cal));
+  // The agenda has no month to show; the hidden box would read its last month
   const syncMonth = () => {
-    $('cal-month').textContent = formatDate(`${month()}-15`, { month: 'long', year: 'numeric' });
+    $('cal-month').textContent = narrow.matches ? 'Release calendar' : formatDate(`${month()}-15`, { month: 'long', year: 'numeric' });
   };
+  narrow.addEventListener('change', () => {
+    if (!narrow.matches) scrollToWeek(openingWeek(cal, TODAY), false);
+    syncMonth();
+  });
   $('cal-prev').addEventListener('click', () => scrollToWeek(weekOfMonth(cal, stepMonth(cal, month(), -1))));
   $('cal-next').addEventListener('click', () => scrollToWeek(weekOfMonth(cal, stepMonth(cal, month(), 1))));
   $('cal-today').addEventListener('click', () => scrollToWeek(openingWeek(cal, TODAY)));
@@ -235,6 +265,7 @@ async function init() {
   narrow.addEventListener('change', () => renderHero(cal));
   renderWeeks(cal);
   renderPanel(cal);
+  renderAgenda(cal);
   wireEvents(cal);
   // Rows have their height only once laid out, so scroll after the next frame
   requestAnimationFrame(() => wireNavigation(cal));

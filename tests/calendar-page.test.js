@@ -45,3 +45,14 @@ test('the page makes no runtime API calls: its data is the static file', () => {
   assert.ok(js.includes("'assets/calendar.json'"));
   assert.ok(!/scryfall|api\./i.test(js));
 });
+
+test('below 768px an agenda from the calendar module replaces the weeks, rows open the popover', () => {
+  const js = read('js/calendar.js');
+  assert.match(html, /<div class="cal-agenda" id="cal-agenda"/);
+  assert.match(js, /agenda\(cal, /);
+  assert.match(js, /<button class="cal-arow[^`]*data-ev=/);
+  const css = read('css/custom.css');
+  const mobile = css.slice(css.indexOf('@media (max-width: 767px)'));
+  assert.match(mobile, /\.cal-scroller, \.cal-panel[^{]*\{ display: none; \}/);
+  assert.match(mobile, /\.cal-arow \{[^}]*min-height: 44px/);
+});
