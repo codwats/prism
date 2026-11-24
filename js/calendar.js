@@ -63,7 +63,7 @@ function renderHero(cal) {
   el.innerHTML = `${symbol(cur.set, 'big')}
     <div>
       <h2 class="wa-heading-xl">${escapeHtml(cur.set.name)}</h2>
-      <p>In the Spotlight since ${formatDate(cur.start, { weekday: 'short', month: 'short', day: 'numeric' })}. ${cur.next
+      <p>In the Spotlight since ${formatDate(cur.start, { weekday: 'short', month: 'short', day: 'numeric' })}.<br>${cur.next
         ? `${escapeHtml(cur.next.name)} follows on ${formatDate(cur.next.released)}.`
         : 'The next Premier set has not been announced.'}</p>
       <span class="wk cal-ink">Week ${week}${cur.weeks ? ` of ${cur.weeks}` : ''} · ${escapeHtml(spotlightSpan(cur))}</span>
