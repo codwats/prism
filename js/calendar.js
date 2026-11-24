@@ -34,11 +34,11 @@ function symbol(set, cls = '') {
 
 // Event kinds: label, filter label, monochrome Font Awesome icon and link text. A set release shows its set symbol instead.
 const KINDS = {
-  release: { one: 'Set release', many: 'Set releases', icon: 'calendar-day', link: 'Set page' },
-  prerelease: { one: 'Prerelease', many: 'Prereleases', icon: 'ticket', link: 'Set page' },
-  supplemental: { one: 'Supplemental release', many: 'Supplemental releases', icon: 'layer-group', link: 'Set page' },
-  'secret-lair': { one: 'Secret Lair drop', many: 'Secret Lair drops', icon: 'box-open', link: 'See the drop' },
-  magiccon: { one: 'MagicCon', many: 'MagicCons', icon: 'location-dot', link: 'Event details' },
+  release: { one: 'Set release', many: 'Set releases', icon: 'calendar-day', link: 'Set Details' },
+  prerelease: { one: 'Prerelease', many: 'Prereleases', icon: 'ticket', link: 'Set Details' },
+  supplemental: { one: 'Supplemental release', many: 'Supplemental releases', icon: 'layer-group', link: 'Set Details' },
+  'secret-lair': { one: 'Secret Lair drop', many: 'Secret Lair drops', icon: 'box-open', link: 'Drop Details' },
+  magiccon: { one: 'MagicCon', many: 'MagicCons', icon: 'location-dot', link: 'Event Details' },
 };
 /** "Prerelease, Fri, Jan 29 – Thu, Feb 4" after the title: an event button's accessible label. */
 const eventLabel = e => `${e.title}, ${KINDS[e.kind]?.one || e.kind}, ${eventRange(e)}`;
@@ -47,8 +47,7 @@ const eventMeta = e => [KINDS[e.kind]?.one, eventRange(e), eventTime(e), e.city]
 let setOf = {};
 const faIcon = name => `<wa-icon name="${name}" aria-hidden="true"></wa-icon>`;
 const eventIcon = e => (e.kind === 'release' && setOf[e.set] ? symbol(setOf[e.set], 'ev-sym') : faIcon(KINDS[e.kind]?.icon || 'calendar-day'));
-const hostOf = url => { try { return new URL(url).hostname.replace(/^www\./, ''); } catch { return ''; } };
-const eventLink = e => `<a class="cal-ext" href="${escapeHtml(e.url)}" target="_blank" rel="noopener">${KINDS[e.kind]?.link || 'Set page'} on ${escapeHtml(hostOf(e.url))} ${faIcon('arrow-up-right-from-square')}</a>`;
+const eventLink = e => `<a class="cal-ext" href="${escapeHtml(e.url)}" target="_blank" rel="noopener">${KINDS[e.kind]?.link || 'Set Details'} ${faIcon('arrow-up-right-from-square')}</a>`;
 
 function renderHero(cal) {
   const el = $('cal-hero');
