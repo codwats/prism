@@ -79,11 +79,15 @@
             <wa-button appearance="outlined" size="s" id="cal-today">Today</wa-button>
           </div>
         </div>
-        <div class="cal-scroller" id="cal-scroller" tabindex="0" aria-label="Weeks, by Spotlight">
-          <div class="cal-dows" aria-hidden="true"><span></span><span>Sun</span><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span></div>
-          <div class="cal-grid" id="cal-grid"></div>
+        <div class="cal-body">
+          <div class="cal-scroller" id="cal-scroller" tabindex="0" aria-label="Weeks, by Spotlight">
+            <div class="cal-dows" aria-hidden="true"><span></span><span>Sun</span><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span></div>
+            <div class="cal-grid" id="cal-grid"></div>
+          </div>
+          <aside class="cal-panel" id="cal-panel" aria-live="polite" aria-label="Selected day"></aside>
         </div>
-        <p class="cal-note wa-caption-s">Release dates come from Wizards of the Coast announcements. Set symbols come from <a href="https://scryfall.com" target="_blank" rel="noopener">Scryfall</a>.</p>
+        <wa-popover id="cal-pop" placement="bottom-start" distance="6"></wa-popover>
+        <p class="cal-note wa-caption-s">Release and Prerelease dates come from Wizards of the Coast announcements. Set symbols come from <a href="https://scryfall.com" target="_blank" rel="noopener">Scryfall</a>.</p>
       </main>
     </wa-page>
 

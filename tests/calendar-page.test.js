@@ -22,6 +22,24 @@ test('the nav lists Calendar after Supplies on every page, active on the calenda
   assert.match(read('js/calendar.js'), /initLayout\(\{ activePage: 'calendar'/);
 });
 
+test('events are keyboard buttons that open one shared popover; days open the day panel', () => {
+  const js = read('js/calendar.js');
+  // A <button> takes Enter/Space; wa-popover closes on Escape and returns focus to its anchor
+  assert.match(js, /\['cal-ev'/);
+  assert.match(js, /<button class="\$\{cls\}"[^`]*data-ev=/);
+  assert.match(js, /<button class="n" data-day=/);
+  assert.match(html, /<wa-popover id="cal-pop"/);
+  assert.match(html, /<aside class="cal-panel" id="cal-panel"/);
+});
+
+test('event icons are monochrome Font Awesome icons, never colored bars', () => {
+  const js = read('js/calendar.js');
+  for (const name of ['ticket', 'layer-group']) assert.ok(js.includes(`'${name}'`), name);
+  const css = read('css/custom.css');
+  const evRules = css.match(/\.cal-ev[^{]*\{[^}]*\}/g).join('\n');
+  assert.ok(!/--c\b|--set-color/.test(evRules), 'event chips must not take the set color');
+});
+
 test('the page makes no runtime API calls: its data is the static file', () => {
   const js = read('js/calendar.js');
   assert.ok(js.includes("'assets/calendar.json'"));

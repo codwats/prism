@@ -10,6 +10,7 @@ import { initLayout } from './layout.js';
 import { escapeHtml } from './core/utils.js';
 import {
   buildCalendar, spotlightHero, spotlightSpan, formatDate, openingWeek, monthOfWeek, stepMonth, weekOfMonth,
+  spotlightOn, eventsOn, eventRange, MAX_LANES,
 } from './modules/calendar.js';
 
 initLayout({ activePage: 'calendar', headerCta: { href: 'build.html', label: 'Build PRISM', icon: 'wand-magic-sparkles' } });
@@ -30,6 +31,21 @@ function symbol(set, cls = '') {
   if (!set.symbol) return `<span class="cal-sym cal-nosym ${cls}" data-c style="${colorVar(set)}" aria-hidden="true"><b>${escapeHtml(set.code.toUpperCase())}</b></span>`;
   return `<span class="cal-sym ${cls}" data-c style="${colorVar(set)}--m:url('${escapeHtml(set.symbol)}')" aria-hidden="true"></span>`;
 }
+
+// Event kinds: label and monochrome Font Awesome icon. A set release shows its set symbol instead.
+const KINDS = {
+  release: { one: 'Set release' },
+  prerelease: { one: 'Prerelease', icon: 'ticket' },
+  supplemental: { one: 'Supplemental release', icon: 'layer-group' },
+  'secret-lair': { one: 'Secret Lair drop', icon: 'box-open' },
+  magiccon: { one: 'MagicCon', icon: 'location-dot' },
+};
+let setOf = {};
+const faIcon = name => `<wa-icon name="${name}" aria-hidden="true"></wa-icon>`;
+const eventIcon = e => (e.kind === 'release' && setOf[e.set] ? symbol(setOf[e.set], 'ev-sym') : faIcon(KINDS[e.kind]?.icon || 'calendar-day'));
+const hostOf = url => { try { return new URL(url).hostname.replace(/^www\./, ''); } catch { return ''; } };
+const linkLabel = e => ({ 'secret-lair': 'See the drop', magiccon: 'Event details' }[e.kind] || 'Set page');
+const eventLink = e => `<a class="cal-ext" href="${escapeHtml(e.url)}" target="_blank" rel="noopener">${linkLabel(e)} on ${escapeHtml(hostOf(e.url))} ${faIcon('arrow-up-right-from-square')}</a>`;
 
 function renderHero(cal) {
   const el = $('cal-hero');
@@ -77,17 +93,85 @@ function renderWeek(week, i) {
   const cells = week.days.map((d, col) => {
     const set = d.spotlight?.set;
     const n = d.date.endsWith('-01') ? `<b>${formatDate(d.date, { month: 'short' })}</b> 1` : String(Number(d.date.slice(8)));
+    const count = eventsOn(events, d.date).length;
     const label = formatDate(d.date, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })
-      + (d.begins ? `, ${set.name} Spotlight begins` : '');
-    return `<div class="cal-day${set ? ' cal-tint' : ''}${d.date === TODAY ? ' today' : ''}" data-c style="${colorVar(set)}grid-column:${col + 1}" data-day="${d.date}">
-      <span class="n" aria-label="${escapeHtml(label)}">${n}</span>${d.begins && set.symbol ? symbol(set, 'wm') : ''}</div>`;
+      + (d.begins ? `, ${set.name} Spotlight begins` : '') + (count ? `, ${count} event${count > 1 ? 's' : ''}` : '');
+    return `<div class="cal-day${set ? ' cal-tint' : ''}${d.date === TODAY ? ' today' : ''}${d.date === selected ? ' sel' : ''}" data-c style="${colorVar(set)}grid-column:${col + 1}" data-cell="${d.date}">
+      <button class="n" data-day="${d.date}" aria-label="${escapeHtml(label)}">${n}</button>${d.begins && set.symbol ? symbol(set, 'wm') : ''}</div>`;
   }).join('');
+  const chips = week.events.map(({ event: e, lane, col, span, clipStart, clipEnd }) => {
+    const cls = ['cal-ev', e.end ? 'bar' : '', clipStart ? 'cl' : '', clipEnd ? 'cr' : ''].filter(Boolean).join(' ');
+    return `<button class="${cls}" style="grid-column:${col}/span ${span};grid-row:${lane + 2}" data-ev="${escapeHtml(e.id)}" id="ev-${escapeHtml(e.id)}-${week.start}"
+      aria-label="${escapeHtml(`${e.title}, ${KINDS[e.kind]?.one || e.kind}, ${eventRange(e)}`)}" aria-haspopup="dialog">${eventIcon(e)}<span>${escapeHtml(e.title)}</span></button>`;
+  }).join('');
+  const more = Object.entries(week.more).map(([d, n]) =>
+    `<button class="cal-more" style="grid-column:${week.days.findIndex(x => x.date === d) + 1};grid-row:${MAX_LANES + 2}" data-day="${d}">+${n} more</button>`).join('');
   const col = begins ? week.days.indexOf(begins) : 0;
   // Fri and Sat are too narrow for "begins"; the tint and watermark still mark the day
   const label = begins
     ? `<span class="cal-begins cal-ink" data-c style="${colorVar(begins.spotlight.set)}grid-column:${col + 1}/8">${escapeHtml(begins.spotlight.set.name)}${col < 5 ? ' begins' : ''}</span>`
     : '';
-  return `<div class="cal-week" id="w-${week.start}" style="grid-row:${i + 1}" data-week="${i}">${cells}${label}</div>`;
+  return `<div class="cal-week" id="w-${week.start}" style="grid-row:${i + 1}" data-week="${i}">${cells}${label}${chips}${more}</div>`;
+}
+
+// ---------- popover and day panel ----------
+
+let events = [];
+let selected = TODAY;
+
+/** One shared popover; wa-popover toggles itself on later clicks of the same anchor and closes on Escape. */
+function openPopover(cal, anchor) {
+  const pop = $('cal-pop');
+  if (pop.getAttribute('for') === anchor.id) return;
+  const e = events.find(x => x.id === anchor.dataset.ev);
+  const set = setOf[e.set];
+  const spot = e.kind === 'release' && set?.premier ? cal.spotlights.find(s => s.set === set) : null;
+  pop.open = false;
+  pop.innerHTML = `<div class="cal-pop">
+    <h3>${set ? symbol(set) : ''}${escapeHtml(e.title)}</h3>
+    <p>${KINDS[e.kind]?.one || ''} · ${escapeHtml(eventRange(e))}</p>
+    ${spot ? `<p><b>Spotlight:</b> ${escapeHtml(spotlightSpan(spot))}</p>` : ''}
+    ${eventLink(e)}</div>`;
+  pop.setAttribute('for', anchor.id);
+  requestAnimationFrame(() => { pop.open = true; });
+}
+
+const panelItem = e => `<div class="cal-item">${eventIcon(e)}<div><b>${escapeHtml(e.title)}</b>
+  <span class="cap">${KINDS[e.kind]?.one || ''} · ${escapeHtml(eventRange(e))}</span><br>${eventLink(e)}</div></div>`;
+
+function renderPanel(cal) {
+  const d = selected;
+  const spot = spotlightOn(cal.spotlights, d);
+  const today = eventsOn(events, d);
+  const upcoming = events.filter(e => (e.end || e.start) >= TODAY && !today.includes(e)).slice(0, 4);
+  const day = formatDate(d, { weekday: 'long', month: 'long', day: 'numeric' });
+  const spotLine = !spot ? ''
+    : spot.start === d
+      ? `<div class="cal-begins-box cal-tint" data-c style="${colorVar(spot.set)}">${symbol(spot.set)}<div><b>${escapeHtml(spot.set.name)} Spotlight begins</b><div class="cap">${escapeHtml(spotlightSpan(spot))}</div></div></div>`
+      : `<div class="in" data-c style="${colorVar(spot.set)}">${symbol(spot.set)}<span>${escapeHtml(spot.set.name)} is in the Spotlight, week ${spotlightHero(cal.spotlights, d).week}${spot.weeks ? ` of ${spot.weeks}` : ''}</span></div>`;
+  $('cal-panel').innerHTML = `<h2>${d === TODAY ? 'Today, ' : ''}${day}</h2>${spotLine}
+    ${today.length ? today.map(panelItem).join('') : '<p class="cal-none">Nothing scheduled.</p>'}
+    ${upcoming.length ? `<h3>Coming up</h3>${upcoming.map(panelItem).join('')}` : ''}
+    ${d !== TODAY ? `<button class="cal-linkish" data-day="${TODAY}">Back to today</button>` : ''}`;
+}
+
+function selectDay(cal, iso, reveal = true) {
+  selected = iso;
+  document.querySelectorAll('.cal-day.sel').forEach(x => x.classList.remove('sel'));
+  document.querySelector(`.cal-day[data-cell="${iso}"]`)?.classList.add('sel');
+  renderPanel(cal);
+  // Below 960px the panel sits under the weeks; bring it into view
+  if (reveal && matchMedia('(max-width: 959px)').matches) $('cal-panel').scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+}
+
+function wireEvents(cal) {
+  document.addEventListener('click', ev => {
+    const chip = ev.target.closest('[data-ev]');
+    if (chip) return openPopover(cal, chip);
+    const day = ev.target.closest('[data-day]');
+    if (day) selectDay(cal, day.dataset.day);
+  });
+  $('cal-today').addEventListener('click', () => selectDay(cal, TODAY, false));
 }
 
 function renderWeeks(cal) {
@@ -144,10 +228,14 @@ async function init() {
     $('cal-grid').innerHTML = '<p class="cal-empty">The calendar could not load. Reload the page to try again.</p>';
     return;
   }
+  setOf = Object.fromEntries(data.sets.map(s => [s.code, s]));
+  events = [...data.events].sort((a, b) => a.start.localeCompare(b.start));
   const cal = buildCalendar(data, TODAY);
   renderHero(cal);
   narrow.addEventListener('change', () => renderHero(cal));
   renderWeeks(cal);
+  renderPanel(cal);
+  wireEvents(cal);
   // Rows have their height only once laid out, so scroll after the next frame
   requestAnimationFrame(() => wireNavigation(cal));
 }
