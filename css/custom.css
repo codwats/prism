@@ -2507,3 +2507,86 @@ wa-page[view='desktop'] [data-toggle-nav] {
 .audit-wrong-list { list-style: none; margin: 0; padding: 0; }
 .audit-wrong { border-block-start: var(--wa-border-width-s) solid var(--wa-color-surface-border); padding-block-start: var(--wa-space-m); }
 .audit-end .audit-wrong-name { font-weight: var(--wa-font-weight-bold); margin-block-end: var(--wa-space-xs); }
+
+/* ============================================================
+   Release calendar (#529). The Spotlight set color is the only hue:
+   --c is the set's hex, or neutral when it has none. No solid color
+   bars, so nothing reads as a sleeve stripe.
+   ============================================================ */
+.cal [data-c] { --c: var(--set-color, var(--wa-color-neutral-60)); }
+.cal-tint { background: color-mix(in oklab, var(--c) var(--tint, 11%), var(--wa-color-surface-default)); }
+.wa-dark .cal-tint { background: color-mix(in oklab, var(--c) calc(var(--tint, 11%) + 7%), var(--wa-color-surface-default)); }
+.cal-ink { color: color-mix(in oklab, var(--c) 58%, var(--wa-color-neutral-10)); }
+.wa-dark .cal-ink { color: color-mix(in oklab, var(--c) 45%, var(--wa-color-neutral-95)); }
+.cal-sym { display: inline-block; flex: none; width: 1em; height: 1em; background: var(--c); -webkit-mask: var(--m) center / contain no-repeat; mask: var(--m) center / contain no-repeat; }
+.wa-dark .cal-sym:not(.cal-nosym) { background: color-mix(in oklab, var(--c) 70%, var(--wa-color-neutral-95)); }
+.cal-sym.cal-nosym { -webkit-mask: none; mask: none; background: transparent; width: 1.6em; display: inline-grid; place-items: center; overflow: hidden; border: 1px solid var(--wa-color-neutral-border-normal, var(--wa-color-surface-border)); border-radius: var(--wa-border-radius-s); color: var(--wa-color-text-quiet); }
+.cal-sym.cal-nosym b { font: 600 0.5em/1 var(--wa-font-family-body); letter-spacing: 0.02em; }
+.cal-chap .cal-nosym, .cal-hero .cal-nosym { font-size: 1.5rem; }
+
+.cal { min-width: 0; font-variant-numeric: tabular-nums; }
+.cal h2, .cal h3 { margin: 0; }
+.cal p { margin: 0; }
+
+/* Hero */
+.cal-hero { --tint: 13%; display: grid; grid-template-columns: auto minmax(16rem, 1fr) minmax(0, 34rem); gap: var(--wa-space-l) var(--wa-space-xl); align-items: center; padding: var(--wa-space-l) var(--wa-space-xl); border-radius: var(--wa-border-radius-l); border: 1px solid color-mix(in oklab, var(--c) 26%, var(--wa-color-surface-border)); }
+.cal-hero .big { font-size: 6rem; }
+.cal-hero p { margin-top: var(--wa-space-2xs); max-width: 52ch; }
+.cal-hero .wk { display: block; margin-top: var(--wa-space-xs); font-size: var(--wa-font-size-s); font-weight: 500; }
+.cal-strip { position: relative; padding-top: 1.25rem; }
+.cal-strip .track { position: relative; height: 2.75rem; }
+.cal-seg { --tint: 26%; position: absolute; top: 0; bottom: 0; display: flex; align-items: center; gap: var(--wa-space-xs); min-width: 0; padding: 0 var(--wa-space-xs); overflow: hidden; white-space: nowrap; container-type: inline-size; border: 1px solid color-mix(in oklab, var(--c) 45%, transparent); border-radius: var(--wa-border-radius-m); font: 500 var(--wa-font-size-xs)/1 var(--wa-font-family-body); color: var(--wa-color-text-normal); text-decoration: none; }
+.cal-seg:hover { box-shadow: var(--wa-shadow-m); }
+.cal-seg .cal-sym { font-size: 1rem; }
+.cal-seg .nm { overflow: hidden; text-overflow: ellipsis; }
+.cal-seg .len { margin-left: auto; flex: none; color: var(--wa-color-text-quiet); }
+@container (max-width: 9.5rem) { .cal-seg .nm { display: none; } .cal-seg .len { margin-left: 0; } }
+.cal-seg.open { border-style: dashed; }
+.cal-seg.now { border-width: 2px; }
+.cal-strip .axis { position: relative; height: 1.25rem; }
+.cal-strip .axis span { position: absolute; top: var(--wa-space-2xs); transform: translateX(-50%); font-size: var(--wa-font-size-2xs); color: var(--wa-color-text-quiet); }
+.cal-strip .today { position: absolute; top: 1rem; height: 3.25rem; width: 2px; border-radius: 1px; background: var(--wa-color-brand-fill-loud); pointer-events: none; }
+.cal-strip .today b { position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); white-space: nowrap; font-size: var(--wa-font-size-2xs); font-weight: 600; color: var(--wa-color-brand-on-quiet); }
+
+/* Toolbar */
+.cal-tools { display: flex; flex-wrap: wrap; align-items: center; gap: var(--wa-space-s) var(--wa-space-m); margin: var(--wa-space-l) 0 var(--wa-space-s); }
+.cal-tools h1 { margin: 0; min-width: 10ch; }
+
+/* Weeks: ribbon column + 7 day columns, in a scroll box */
+.cal-scroller { --ribbon: 9.5rem; height: max(30rem, calc(100dvh - 22rem)); overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; border-top: 1px solid var(--wa-color-surface-border); }
+.cal-dows, .cal-grid { display: grid; grid-template-columns: var(--ribbon) repeat(7, minmax(0, 1fr)); column-gap: 2px; }
+.cal-dows { position: sticky; top: 0; z-index: 5; height: 2rem; align-items: end; padding-bottom: var(--wa-space-2xs); background: var(--wa-color-surface-default); }
+.cal-dows span { padding-left: var(--wa-space-xs); font-size: var(--wa-font-size-xs); color: var(--wa-color-text-quiet); }
+.cal-grid { row-gap: 2px; grid-auto-rows: 6rem; }
+.cal-chap { --tint: 15%; grid-column: 1; min-height: 0; border-radius: var(--wa-border-radius-l); }
+.cal-chap .lbl { position: sticky; top: 2.25rem; display: flex; flex-direction: column; gap: var(--wa-space-2xs); padding: var(--wa-space-s); }
+.cal-chap .cal-sym { font-size: 2.25rem; margin-bottom: var(--wa-space-2xs); }
+.cal-chap h3 { font-size: var(--wa-font-size-m); line-height: 1.2; }
+.cal-chap .meta { font-size: var(--wa-font-size-xs); line-height: 1.45; }
+/* Rows: day header, Spotlight label, then room for event lanes (#530) */
+.cal-week { grid-column: 2 / -1; display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); grid-template-rows: 1.6rem 1.375rem 1fr; column-gap: 2px; row-gap: 3px; min-width: 0; scroll-margin-top: 2rem; }
+.cal-day { grid-row: 1 / -1; position: relative; overflow: hidden; padding: var(--wa-space-2xs) var(--wa-space-xs); border-radius: var(--wa-border-radius-s); }
+.cal-day .n { position: relative; z-index: 2; font-size: var(--wa-font-size-xs); line-height: 1.25rem; color: var(--wa-color-text-quiet); padding: 0 var(--wa-space-2xs); margin-left: calc(-1 * var(--wa-space-2xs)); border-radius: var(--wa-border-radius-pill); }
+.cal-day .n b { font-weight: 600; color: var(--wa-color-text-normal); }
+.cal-day.today .n { background: var(--wa-color-brand-fill-loud); color: var(--wa-color-brand-on-loud); font-weight: 600; }
+.cal-day .wm { position: absolute; right: -0.5rem; bottom: -0.6rem; font-size: 3.75rem; opacity: 0.2; pointer-events: none; }
+.cal-begins { position: relative; z-index: 3; grid-row: 2; align-self: center; padding: 0 var(--wa-space-xs); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: var(--wa-font-size-xs); font-weight: 600; pointer-events: none; }
+.cal-note { margin-top: var(--wa-space-m); color: var(--wa-color-text-quiet); }
+.cal-empty { grid-column: 1 / -1; padding: var(--wa-space-l); color: var(--wa-color-text-quiet); }
+
+@media (max-width: 1240px) {
+  .cal-hero { grid-template-columns: auto minmax(0, 1fr); }
+  .cal-strip { grid-column: 1 / -1; }
+}
+@media (max-width: 1120px) { .cal-scroller { --ribbon: 7.5rem; } }
+@media (max-width: 767px) {
+  .cal-hero { padding: var(--wa-space-m); gap: var(--wa-space-m); }
+  .cal-hero .big { font-size: 3.5rem; }
+  .cal-hero p { font-size: var(--wa-font-size-s); }
+  .cal-scroller { --ribbon: 2.75rem; }
+  .cal-chap h3, .cal-chap .meta { display: none; }
+  .cal-chap .cal-sym { font-size: 1.75rem; }
+  .cal-chap .lbl { padding: var(--wa-space-xs); }
+  .cal-begins { display: none; }
+}
+@media (prefers-reduced-motion: reduce) { .cal-scroller { scroll-behavior: auto; } }

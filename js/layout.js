@@ -36,6 +36,7 @@ const NAV_LINKS = [
   { href: 'build.html', label: 'My PRISM', page: 'build' },
   { href: 'guide.html', label: 'Guide', page: 'guide' },
   { href: 'tools.html', label: 'Supplies', page: 'tools' },
+  { href: 'calendar.html', label: 'Calendar', page: 'calendar' },
   { href: 'gallery.html', label: 'Gallery', page: 'gallery' },
 ];
 
@@ -49,7 +50,7 @@ const EXTRAS_LINKS = [
 /**
  * Initialize shared layout components.
  * @param {Object} options
- * @param {string} options.activePage - Which nav link to highlight ('home'|'guide'|'tools'|'build'|'profile'|'privacy'|'terms')
+ * @param {string} options.activePage - Which nav link to highlight ('home'|'guide'|'tools'|'calendar'|'build'|'profile'|'privacy'|'terms')
  * @param {Object|null} [options.headerCta] - Header CTA button config. Pass
  *   null to render no CTA; omit for the default "Build PRISM" link.
  * @param {string} [options.headerCta.id] - Button id (e.g. 'btn-new-prism')
