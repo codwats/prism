@@ -204,3 +204,12 @@ _In code_: `gallery_artworks.highlighted`, deliberately independent of `store_ur
 **Commission**:
 A request from a signed-in visitor to an Artist who has commissions open. PRISM relays it once and keeps both addresses private; the conversation continues by reply, away from PRISM.
 _Avoid_: contact request, inquiry, order
+
+**Premier set**:
+A main Magic expansion, Universes Beyond included, as opposed to Commander products, Masters sets and other supplemental releases. Lorwyn Eclipsed, Reality Fracture and Star Trek are Premier sets.
+_Avoid_: main set, Standard set, expansion
+_In code_: a Scryfall set with `set_type` `expansion` or `core`.
+
+**Spotlight**:
+The span from a Premier set's release to the next Premier set's release: the time it is the newest Premier set. It is a fact read off release dates, never a judgment of how good or popular the set was. Spotlights never overlap.
+_Avoid_: zeitgeist, lifespan, relevance
