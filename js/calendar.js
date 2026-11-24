@@ -13,7 +13,7 @@ import {
   spotlightOn, eventsOn, eventRange, lastDay, MAX_LANES, agenda, weekOf, eventTime, localizeEvents,
 } from './modules/calendar.js';
 
-initLayout({ activePage: 'calendar', headerCta: { href: 'build.html', label: 'Build PRISM', icon: 'wand-magic-sparkles' } });
+initLayout({ activePage: 'calendar' });
 
 const $ = id => document.getElementById(id);
 const pad = n => String(n).padStart(2, '0');

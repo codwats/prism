@@ -2524,7 +2524,9 @@ wa-page[view='desktop'] [data-toggle-nav] {
 .cal-sym.cal-nosym b { font: 600 0.5em/1 var(--wa-font-family-body); letter-spacing: 0.02em; }
 .cal-chap .cal-nosym, .cal-hero .cal-nosym { font-size: 1.5rem; }
 
-.cal { min-width: 0; font-variant-numeric: tabular-nums; }
+.cal { min-width: 0; }
+/* Halyard's tnum widens every glyph, not just digits: scope it to the date columns */
+.cal-day .n, .cal-arow .dt { font-variant-numeric: tabular-nums; }
 .cal h2, .cal h3 { margin: 0; }
 .cal p { margin: 0; }
 
@@ -2578,6 +2580,8 @@ wa-page[view='desktop'] [data-toggle-nav] {
 .cal-day.today .n { background: var(--wa-color-brand-fill-loud); color: var(--wa-color-brand-on-loud); font-weight: 600; }
 /* Events: neutral chips, multi-day events neutral bars; icons are monochrome */
 .cal-ev { all: unset; box-sizing: border-box; position: relative; z-index: 3; display: flex; align-items: center; gap: 0.3rem; min-width: 0; height: 1.375rem; margin: 0 3px; padding: 0 0.4rem; border: 1px solid var(--wa-color-surface-border); border-radius: var(--wa-border-radius-s); background: var(--wa-color-surface-default); font-size: var(--wa-font-size-xs); color: var(--wa-color-text-normal); white-space: nowrap; cursor: pointer; }
+/* WA native.css spaces icons inside buttons; set symbols get none, so neither do icons */
+.cal-ev wa-icon, .cal-arow > wa-icon { margin-inline: 0; }
 .cal-ev:hover { background: var(--wa-color-surface-raised); }
 .cal-ev:focus-visible { outline: var(--wa-focus-ring); outline-offset: 1px; }
 .cal-ev span { overflow: hidden; text-overflow: ellipsis; }
