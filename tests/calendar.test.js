@@ -96,6 +96,9 @@ test('the strip is proportional, up to 2 before and 1 after, with Today on it', 
   assert.deepEqual(strip.segments.map(s => s.spotlight.set.code), ['rf', 'stk', 'nau']);
   assert.deepEqual(strip.segments.map(s => [s.left, s.width].map(n => +n.toFixed(2))), [[0, 23.08], [23.08, 46.15], [69.23, 30.77]]);
   assert.equal(+strip.today.toFixed(2), 29.12);
+  // Month ticks on the same scale: Nov 1 is 30 days into 182
+  assert.deepEqual(strip.months.map(m => [m.iso, +m.left.toFixed(2)]).slice(0, 2), [['2026-11-01', 16.48], ['2026-12-01', 32.97]]);
+  assert.equal(strip.months.at(-1).iso, '2027-04-01');
   assert.deepEqual(spotlightHero(cal.spotlights, '2026-11-24', { before: 0 }).strip.segments.map(s => s.spotlight.set.code), ['stk', 'nau']);
 });
 

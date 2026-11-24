@@ -56,3 +56,28 @@ test('below 768px an agenda from the calendar module replaces the weeks, rows op
   assert.match(mobile, /\.cal-scroller, \.cal-panel[^{]*\{ display: none; \}/);
   assert.match(mobile, /\.cal-arow \{[^}]*min-height: 44px/);
 });
+
+test('a set with no color breaks --set-color inheritance, so it never takes the hero color', () => {
+  // `initial` makes the custom property invalid, so var(--set-color, neutral) falls back
+  assert.match(read('js/calendar.js'), /--set-color:\$\{set\?\.color \|\| 'initial'\};/);
+});
+
+test('the strip Today marker is neutral and not solid, so it never reads as a stripe', () => {
+  const rule = read('css/custom.css').match(/\.cal-strip \.today \{[^}]*\}/)[0];
+  assert.match(rule, /border-left: [^;]*(dashed|dotted)/);
+  assert.match(rule, /neutral/);
+  assert.ok(!/background|brand/.test(rule), rule);
+});
+
+test('an open Spotlight says the next Premier set is not announced, never TBA', () => {
+  const js = read('js/calendar.js');
+  assert.ok(!/TBA|Next set not announced/.test(js));
+  assert.match(js, /Next Premier set not announced/);
+});
+
+test('mobile agenda headers keep the dark-mode tint: no tinted override inside the 767px query', () => {
+  const css = read('css/custom.css');
+  const mobile = css.slice(css.indexOf('@media (max-width: 767px)'));
+  assert.ok(!/\.cal-ahead\.cal-tint/.test(mobile));
+  assert.match(mobile, /\.cal-ahead:not\(\.cal-tint\) \{ background: var\(--wa-color-surface-default\); \}/);
+});

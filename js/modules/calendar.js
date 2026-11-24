@@ -9,6 +9,7 @@
  */
 
 const DAY_MS = 864e5;
+const stepIsoMonth = iso => { const d = toDate(iso); d.setUTCMonth(d.getUTCMonth() + 1); return toIso(d); };
 const toDate = iso => new Date(`${iso}T00:00:00Z`);
 const toIso = d => d.toISOString().slice(0, 10);
 
@@ -50,11 +51,15 @@ const PAD_WEEKS = 4;
  * @param {{sets: object[], events: object[]}} data
  * @param {string} today ISO date in the viewer's zone
  * @param {object[]} [shown] the events to lay out (a kind filter, #531); the weeks still span all of `data`
- * @returns {{spotlights, weeks: Array<{start, days: Array<{date, spotlight, begins}>}>, first: string, last: string}}
+ * @returns {{spotlights, first: string, last: string,
+ *   weeks: Array<{start, days: Array<{date, spotlight, begins}>, chapter: object|null, events, more}>,
+ *   chapters: Array<{spotlight, firstWeek: number, lastWeek: number}>}}
+ *   Each week's `chapter` is the Spotlight holding most of its days; `events`/`more` are as placeEvents returns.
+ *   `chapters` are the ribbon rows: each run of weeks sharing a chapter, by week index.
  */
 export function buildCalendar(data, today, shown = data.events) {
   const spotlights = getSpotlights(data.sets);
-  const dataEnd = [...data.sets.map(s => s.released), ...data.events.map(e => e.end || e.start)]
+  const dataEnd = [...data.sets.map(s => s.released), ...data.events.map(lastDay)]
     .reduce((m, d) => (d > m ? d : m), today);
   const first = weekOf(`${Number(today.slice(0, 4)) - 1}-01-01`);
   const last = addDays(weekOf(addDays(dataEnd, PAD_WEEKS * 7)), 6);
@@ -115,19 +120,21 @@ const OPEN_STRIP_DAYS = 56;
 
 /**
  * The Spotlight on `today`, its week number, and the proportional strip:
- * up to `before` Spotlights before it and `after` after it, each segment's
- * `left`/`width` and Today's position as percentages of the strip.
- * Null before the first Premier set.
+ * up to `before` Spotlights before it and the next one, each segment's
+ * `left`/`width`, Today's position and each month's 1st (`months`) as
+ * percentages of the strip. Null before the first Premier set.
  */
-export function spotlightHero(spotlights, today, { before = 2, after = 1 } = {}) {
+export function spotlightHero(spotlights, today, { before = 2 } = {}) {
   const current = spotlightOn(spotlights, today);
   if (!current) return null;
   const i = spotlights.indexOf(current);
-  const shown = spotlights.slice(Math.max(0, i - before), i + after + 1);
+  const shown = spotlights.slice(Math.max(0, i - before), i + 2);
   const from = shown[0].start;
   const endOf = s => s.end || addDays(s.start, OPEN_STRIP_DAYS);
   const span = daysBetween(from, endOf(shown.at(-1)));
   const pct = iso => (daysBetween(from, iso) / span) * 100;
+  const months = [];
+  for (let m = stepIsoMonth(`${from.slice(0, 7)}-01`); m < endOf(shown.at(-1)); m = stepIsoMonth(m)) months.push({ iso: m, left: pct(m) });
   return {
     current,
     week: Math.floor(daysBetween(current.start, today) / 7) + 1,
@@ -136,11 +143,13 @@ export function spotlightHero(spotlights, today, { before = 2, after = 1 } = {})
       to: endOf(shown.at(-1)),
       segments: shown.map(s => ({ spotlight: s, left: pct(s.start), width: pct(endOf(s)) - pct(s.start) })),
       today: pct(today),
+      months,
     },
   };
 }
 
-const lastDay = e => e.end || e.start;
+/** An event's last day: its `end`, or its `start` for a one-day event. */
+export const lastDay = e => e.end || e.start;
 
 /** Events covering `iso`, of any kind. Dates are plain calendar dates, never converted. */
 export const eventsOn = (events, iso) => events.filter(e => e.start <= iso && lastDay(e) >= iso);
@@ -148,7 +157,7 @@ export const eventsOn = (events, iso) => events.filter(e => e.start <= iso && la
 /** "Tue, Oct 20" or "Fri, Jan 29 – Thu, Feb 4". */
 export function eventRange(e) {
   const day = iso => formatDate(iso, { weekday: 'short', month: 'short', day: 'numeric' });
-  return e.end && e.end !== e.start ? `${day(e.start)} – ${day(e.end)}` : day(e.start);
+  return lastDay(e) !== e.start ? `${day(e.start)} – ${day(e.end)}` : day(e.start);
 }
 
 // ---------- timed events (#531) ----------

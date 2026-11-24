@@ -2545,8 +2545,9 @@ wa-page[view='desktop'] [data-toggle-nav] {
 .cal-seg.now { border-width: 2px; }
 .cal-strip .axis { position: relative; height: 1.25rem; }
 .cal-strip .axis span { position: absolute; top: var(--wa-space-2xs); transform: translateX(-50%); font-size: var(--wa-font-size-2xs); color: var(--wa-color-text-quiet); }
-.cal-strip .today { position: absolute; top: 1rem; height: 3.25rem; width: 2px; border-radius: 1px; background: var(--wa-color-brand-fill-loud); pointer-events: none; }
-.cal-strip .today b { position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); white-space: nowrap; font-size: var(--wa-font-size-2xs); font-weight: 600; color: var(--wa-color-brand-on-quiet); }
+/* Neutral dotted line, so Today never reads as a sleeve stripe */
+.cal-strip .today { position: absolute; top: 1rem; height: 3.25rem; border-left: 2px dotted var(--wa-color-neutral-40); pointer-events: none; }
+.cal-strip .today b { position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); white-space: nowrap; font-size: var(--wa-font-size-2xs); font-weight: 600; color: var(--wa-color-text-normal); }
 
 /* Toolbar */
 .cal-tools { display: flex; flex-wrap: wrap; align-items: center; gap: var(--wa-space-s) var(--wa-space-m); margin: var(--wa-space-l) 0 var(--wa-space-s); }
@@ -2648,8 +2649,8 @@ wa-page[view='desktop'] [data-toggle-nav] {
   .cal-agenda { display: block; }
   .cal-earlier { display: inline-flex; align-items: center; min-height: 44px; }
   .cal-agroup { margin-bottom: var(--wa-space-m); }
-  .cal-ahead { --tint: 15%; position: sticky; top: 0; z-index: 2; display: flex; align-items: center; gap: var(--wa-space-s); padding: var(--wa-space-s) var(--wa-space-m); border-radius: var(--wa-border-radius-m); background: var(--wa-color-surface-default); }
-  .cal-ahead.cal-tint { background: color-mix(in oklab, var(--c) var(--tint), var(--wa-color-surface-default)); }
+  .cal-ahead { --tint: 15%; position: sticky; top: 0; z-index: 2; display: flex; align-items: center; gap: var(--wa-space-s); padding: var(--wa-space-s) var(--wa-space-m); border-radius: var(--wa-border-radius-m); }
+  .cal-ahead:not(.cal-tint) { background: var(--wa-color-surface-default); }
   .cal-ahead .cal-sym { font-size: 1.75rem; }
   .cal-ahead h3 { margin: 0; font-size: var(--wa-font-size-m); }
   .cal-arow { all: unset; box-sizing: border-box; display: grid; grid-template-columns: 4.25rem 1.25rem minmax(0, 1fr); gap: var(--wa-space-s); align-items: start; width: 100%; min-height: 44px; padding: var(--wa-space-s) var(--wa-space-2xs); border-bottom: 1px solid var(--wa-color-surface-border); cursor: pointer; overflow-wrap: anywhere; }

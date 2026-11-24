@@ -3,14 +3,14 @@
  * the Spotlight hero, then continuous weeks in a scroll box with a sticky
  * chapter ribbon. Data is the static assets/calendar.json; no runtime API calls.
  *
- * Later tickets hang off renderWeek (event chips, #530), the KINDS filter
- * (#531) and the mobile agenda (#532, renderAgenda).
+ * renderWeek draws the event chips (#530), wireFilter the KINDS filter (#531)
+ * and renderAgenda the mobile agenda below 768px (#532).
  */
 import { initLayout } from './layout.js';
 import { escapeHtml } from './core/utils.js';
 import {
   buildCalendar, spotlightHero, spotlightSpan, formatDate, openingWeek, monthOfWeek, stepMonth, weekOfMonth,
-  spotlightOn, eventsOn, eventRange, MAX_LANES, agenda, weekOf, eventTime, localizeEvents,
+  spotlightOn, eventsOn, eventRange, lastDay, MAX_LANES, agenda, weekOf, eventTime, localizeEvents,
 } from './modules/calendar.js';
 
 initLayout({ activePage: 'calendar', headerCta: { href: 'build.html', label: 'Build PRISM', icon: 'wand-magic-sparkles' } });
@@ -23,8 +23,8 @@ const TODAY = new URLSearchParams(location.search).get('today')?.match(/^\d{4}-\
   || `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
 const narrow = matchMedia('(max-width: 767px)');
 
-/** `style` for an element whose --c is the set color; a set with no color stays neutral. */
-const colorVar = set => (set?.color ? `--set-color:${set.color};` : '');
+/** `style` for an element whose --c is the set color; a set with no color stays neutral, never the parent's color. */
+const colorVar = set => `--set-color:${set?.color || 'initial'};`;
 
 /** Set symbol tinted by a CSS mask; a set with no symbol shows its code in a bordered square. */
 function symbol(set, cls = '') {
@@ -32,22 +32,23 @@ function symbol(set, cls = '') {
   return `<span class="cal-sym ${cls}" data-c style="${colorVar(set)}--m:url('/${escapeHtml(set.symbol)}')" aria-hidden="true"></span>`;
 }
 
-// Event kinds: label, filter label and monochrome Font Awesome icon. A set release shows its set symbol instead.
+// Event kinds: label, filter label, monochrome Font Awesome icon and link text. A set release shows its set symbol instead.
 const KINDS = {
-  release: { one: 'Set release', many: 'Set releases', icon: 'calendar-day' },
-  prerelease: { one: 'Prerelease', many: 'Prereleases', icon: 'ticket' },
-  supplemental: { one: 'Supplemental release', many: 'Supplemental releases', icon: 'layer-group' },
-  'secret-lair': { one: 'Secret Lair drop', many: 'Secret Lair drops', icon: 'box-open' },
-  magiccon: { one: 'MagicCon', many: 'MagicCons', icon: 'location-dot' },
+  release: { one: 'Set release', many: 'Set releases', icon: 'calendar-day', link: 'Set page' },
+  prerelease: { one: 'Prerelease', many: 'Prereleases', icon: 'ticket', link: 'Set page' },
+  supplemental: { one: 'Supplemental release', many: 'Supplemental releases', icon: 'layer-group', link: 'Set page' },
+  'secret-lair': { one: 'Secret Lair drop', many: 'Secret Lair drops', icon: 'box-open', link: 'See the drop' },
+  magiccon: { one: 'MagicCon', many: 'MagicCons', icon: 'location-dot', link: 'Event details' },
 };
+/** "Prerelease, Fri, Jan 29 – Thu, Feb 4" after the title: an event button's accessible label. */
+const eventLabel = e => `${e.title}, ${KINDS[e.kind]?.one || e.kind}, ${eventRange(e)}`;
 /** "Secret Lair drop · Mon, Nov 30 · 12:00 PM EST · Las Vegas": time in the viewer's zone, city for a MagicCon. */
 const eventMeta = e => [KINDS[e.kind]?.one, eventRange(e), eventTime(e), e.city].filter(Boolean).join(' · ');
 let setOf = {};
 const faIcon = name => `<wa-icon name="${name}" aria-hidden="true"></wa-icon>`;
 const eventIcon = e => (e.kind === 'release' && setOf[e.set] ? symbol(setOf[e.set], 'ev-sym') : faIcon(KINDS[e.kind]?.icon || 'calendar-day'));
 const hostOf = url => { try { return new URL(url).hostname.replace(/^www\./, ''); } catch { return ''; } };
-const linkLabel = e => ({ 'secret-lair': 'See the drop', magiccon: 'Event details' }[e.kind] || 'Set page');
-const eventLink = e => `<a class="cal-ext" href="${escapeHtml(e.url)}" target="_blank" rel="noopener">${linkLabel(e)} on ${escapeHtml(hostOf(e.url))} ${faIcon('arrow-up-right-from-square')}</a>`;
+const eventLink = e => `<a class="cal-ext" href="${escapeHtml(e.url)}" target="_blank" rel="noopener">${KINDS[e.kind]?.link || 'Set page'} on ${escapeHtml(hostOf(e.url))} ${faIcon('arrow-up-right-from-square')}</a>`;
 
 function renderHero(cal) {
   const el = $('cal-hero');
@@ -57,16 +58,9 @@ function renderHero(cal) {
   el.style.cssText = colorVar(cur.set);
   const segments = strip.segments.map(({ spotlight: s, left, width }) => `
     <a class="cal-seg cal-tint${s === cur ? ' now' : ''}${s.end ? '' : ' open'}" data-c style="${colorVar(s.set)}left:${left}%;width:calc(${width}% - 3px)"
-       href="#w-${s.start}" data-jump="${s.start}" title="${escapeHtml(`${s.set.name}: ${spotlightSpan(s)}`)}">
-      ${symbol(s.set)}<span class="nm">${escapeHtml(s.set.name)}</span><span class="len">${s.weeks ? `${s.weeks} wk` : 'TBA'}</span></a>`).join('');
-  const pct = iso => ((Date.parse(iso) - Date.parse(strip.from)) / (Date.parse(strip.to) - Date.parse(strip.from))) * 100;
-  const months = [];
-  for (let d = new Date(`${strip.from.slice(0, 7)}-01T00:00:00Z`); ; ) {
-    d.setUTCMonth(d.getUTCMonth() + 1);
-    const iso = d.toISOString().slice(0, 10);
-    if (iso >= strip.to) break;
-    months.push(`<span style="left:${pct(iso)}%">${formatDate(iso, { month: 'short' })}</span>`);
-  }
+       href="#w-${s.start}" data-jump="${s.start}" title="${escapeHtml(`${s.set.name}: ${spotlightSpan(s)}`)}" aria-label="${escapeHtml(`${s.set.name}: ${spotlightSpan(s)}`)}">
+      ${symbol(s.set)}<span class="nm">${escapeHtml(s.set.name)}</span><span class="len">${s.weeks ? `${s.weeks} wk` : `from ${formatDate(s.start)}`}</span></a>`).join('');
+  const months = strip.months.map(m => `<span style="left:${m.left}%">${formatDate(m.iso, { month: 'short' })}</span>`);
   el.innerHTML = `${symbol(cur.set, 'big')}
     <div>
       <h2 class="wa-heading-xl">${escapeHtml(cur.set.name)}</h2>
@@ -85,7 +79,7 @@ function renderHero(cal) {
 function renderChapter({ spotlight: s, firstWeek, lastWeek }) {
   const meta = s.end
     ? `${formatDate(s.start)} – ${formatDate(s.end)}<br>${s.weeks} weeks`
-    : `From ${formatDate(s.start)}<br>Next set not announced`;
+    : `From ${formatDate(s.start)}<br>Next Premier set not announced`;
   return `<div class="cal-chap cal-tint" data-c style="${colorVar(s.set)}grid-row:${firstWeek + 1}/${lastWeek + 2}">
     <div class="lbl">${symbol(s.set)}<h3>${escapeHtml(s.set.name)}</h3><span class="meta cal-ink">${meta}</span></div></div>`;
 }
@@ -104,7 +98,7 @@ function renderWeek(week, i) {
   const chips = week.events.map(({ event: e, lane, col, span, clipStart, clipEnd }) => {
     const cls = ['cal-ev', e.end ? 'bar' : '', clipStart ? 'cl' : '', clipEnd ? 'cr' : ''].filter(Boolean).join(' ');
     return `<button class="${cls}" style="grid-column:${col}/span ${span};grid-row:${lane + 2}" data-ev="${escapeHtml(e.id)}" id="ev-${escapeHtml(e.id)}-${week.start}"
-      aria-label="${escapeHtml(`${e.title}, ${KINDS[e.kind]?.one || e.kind}, ${eventRange(e)}`)}" aria-haspopup="dialog">${eventIcon(e)}<span>${escapeHtml(e.title)}</span></button>`;
+      aria-label="${escapeHtml(eventLabel(e))}" aria-haspopup="dialog">${eventIcon(e)}<span>${escapeHtml(e.title)}</span></button>`;
   }).join('');
   const more = Object.entries(week.more).map(([d, n]) =>
     `<button class="cal-more" style="grid-column:${week.days.findIndex(x => x.date === d) + 1};grid-row:${MAX_LANES + 2}" data-day="${d}">+${n} more</button>`).join('');
@@ -145,7 +139,7 @@ function renderPanel(cal) {
   const d = selected;
   const spot = spotlightOn(cal.spotlights, d);
   const today = eventsOn(events, d);
-  const upcoming = events.filter(e => (e.end || e.start) >= TODAY && !today.includes(e)).slice(0, 4);
+  const upcoming = events.filter(e => lastDay(e) >= TODAY && !today.includes(e)).slice(0, 4);
   const day = formatDate(d, { weekday: 'long', month: 'long', day: 'numeric' });
   const spotLine = !spot ? ''
     : spot.start === d
@@ -168,10 +162,10 @@ function renderAgenda(cal) {
     ? `<div class="cal-ahead cal-tint" data-c style="${colorVar(s.set)}">${symbol(s.set)}<div><h3>${escapeHtml(s.set.name)}</h3><span class="cap cal-ink">${escapeHtml(spotlightSpan(s))}</span></div></div>`
     : '<div class="cal-ahead"><div><h3>Before the first Premier set</h3></div></div>');
   const row = e => {
-    const multi = e.end && e.end !== e.start;
-    const now = e.start <= TODAY && (e.end || e.start) >= TODAY;
+    const multi = lastDay(e) !== e.start;
+    const now = e.start <= TODAY && lastDay(e) >= TODAY;
     return `<button class="cal-arow${now ? ' today' : ''}" data-ev="${escapeHtml(e.id)}" id="ev-${escapeHtml(e.id)}-a"
-      aria-label="${escapeHtml(`${e.title}, ${KINDS[e.kind]?.one || e.kind}, ${eventRange(e)}`)}" aria-haspopup="dialog">
+      aria-label="${escapeHtml(eventLabel(e))}" aria-haspopup="dialog">
       <span class="dt">${formatDate(e.start)}<small>${multi ? `to ${formatDate(e.end)}` : formatDate(e.start, { weekday: 'short' })}</small></span>
       ${eventIcon(e)}<span><b>${escapeHtml(e.title)}</b><span class="cap">${KINDS[e.kind]?.one || ''}</span></span></button>`;
   };
@@ -188,17 +182,6 @@ function selectDay(cal, iso, reveal = true) {
   renderPanel(cal);
   // Below 960px the panel sits under the weeks; bring it into view
   if (reveal && matchMedia('(max-width: 959px)').matches) $('cal-panel').scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-}
-
-function wireEvents(cal) {
-  document.addEventListener('click', ev => {
-    const chip = ev.target.closest('[data-ev]');
-    if (chip) return openPopover(cal, chip);
-    const day = ev.target.closest('[data-day]');
-    if (day) return selectDay(cal, day.dataset.day);
-    if (ev.target.closest('#cal-earlier')) { showEarlier = true; renderAgenda(cal); }
-  });
-  $('cal-today').addEventListener('click', () => selectDay(cal, TODAY, false));
 }
 
 function renderWeeks(cal) {
@@ -227,17 +210,27 @@ function wireNavigation(cal) {
     $('cal-month').textContent = narrow.matches ? 'Release calendar' : formatDate(`${month()}-15`, { month: 'long', year: 'numeric' });
   };
   narrow.addEventListener('change', () => {
+    renderHero(cal);
     if (!narrow.matches) scrollToWeek(openingWeek(cal, TODAY), false);
     syncMonth();
   });
   $('cal-prev').addEventListener('click', () => scrollToWeek(weekOfMonth(cal, stepMonth(cal, month(), -1))));
   $('cal-next').addEventListener('click', () => scrollToWeek(weekOfMonth(cal, stepMonth(cal, month(), 1))));
-  $('cal-today').addEventListener('click', () => scrollToWeek(openingWeek(cal, TODAY)));
+  $('cal-today').addEventListener('click', () => {
+    selectDay(cal, TODAY, false);
+    scrollToWeek(openingWeek(cal, TODAY));
+  });
   document.addEventListener('click', ev => {
     const jump = ev.target.closest('[data-jump]');
-    if (!jump) return;
-    ev.preventDefault();
-    scrollToWeek(cal.weeks.findIndex(w => w.days.some(d => d.date === jump.dataset.jump)));
+    if (jump) {
+      ev.preventDefault();
+      return scrollToWeek(cal.weeks.findIndex(w => w.days.some(d => d.date === jump.dataset.jump)));
+    }
+    const chip = ev.target.closest('[data-ev]');
+    if (chip) return openPopover(cal, chip);
+    const day = ev.target.closest('[data-day]');
+    if (day) return selectDay(cal, day.dataset.day);
+    if (ev.target.closest('#cal-earlier')) { showEarlier = true; renderAgenda(cal); }
   });
   let queued = false;
   scroller.addEventListener('scroll', () => {
@@ -291,11 +284,9 @@ async function init() {
     renderAgenda(cal);
   });
   renderHero(cal);
-  narrow.addEventListener('change', () => renderHero(cal));
   renderWeeks(cal);
   renderPanel(cal);
   renderAgenda(cal);
-  wireEvents(cal);
   // Rows have their height only once laid out, so scroll after the next frame
   requestAnimationFrame(() => wireNavigation(cal));
 }
