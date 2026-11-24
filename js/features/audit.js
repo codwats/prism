@@ -5,10 +5,10 @@
  *
  * The verdicts live on this device only, under `prism_audit_<prismId>`, keyed
  * by the same row keys as markedCards (plain name, `|#b|` batch key, pass key
- * `name|deck`). Nothing here writes markedCards, tombstones, prism_data or any
- * sync payload: it never calls setCardMarked, setCardsMarked,
- * recordUnmarkedCards or savePrism. Storage failures are swallowed, so the
- * audit still runs and lists its wrong rows, it just does not remember them.
+ * `name|deck`). Nothing here writes markedCards, markTimes, prism_data or any
+ * sync payload: it never calls setCardMarked, setCardsMarked or savePrism.
+ * Storage failures are swallowed, so the audit still runs and lists its wrong
+ * rows, it just does not remember them.
  */
 
 import { state } from '../core/state.js';

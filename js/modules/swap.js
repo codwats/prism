@@ -232,8 +232,8 @@ export function clearReturnedRemovals(prism, deck) {
 // runs more copies. Drops the plain key and the pass key of each such mark;
 // batch keys carry their own copy count and re-key themselves. A mark a
 // stillPainted row accounts for is already on the sleeve, on the copies the
-// row recorded: rows from clearReturnedRemovals and trackStaleChildMarks. Returns the removed keys for
-// recordUnmarkedCards.
+// row recorded: rows from clearReturnedRemovals and trackStaleChildMarks. Returns the removed keys
+// (savePrism records the un-mark for sync, #500).
 export function unmarkCardsWithNewStripes(prism, before, stillPainted = []) {
   if (!prism?.markedCards?.length) return [];
   const gained = new Map(); // card name -> deck names of the marks that gained copies
@@ -335,7 +335,7 @@ function diffMarks(before, after) {
  *
  * @returns {{ prism: Object, summary: { sleeveSwap: boolean, marksToAdd: number,
  *   staleMarks: number, copiesToBuy: number, unmarkedKeys: string[], carriedKey: string|null } }}
- *   The caller calls recordUnmarkedCards(prism.id, summary.unmarkedKeys) before savePrism.
+ *   summary.unmarkedKeys: the keys it un-marked (savePrism records them for sync, #500).
  */
 export function applySwap(prism, { outgoing, incoming, deckIds, copies = 1, sleeve = false, now = new Date().toISOString() }) {
   const before = processCards(prism);

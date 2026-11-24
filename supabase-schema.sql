@@ -1850,3 +1850,18 @@ BEGIN;
     ON token_choices FOR DELETE
     USING (prism_id IN (SELECT id FROM prisms WHERE user_id = auth.uid()));
 COMMIT;
+
+-- ============================================
+-- MIGRATION: Add prisms.mark_times (#500)
+-- ============================================
+-- When each marked_cards key was last marked or un-marked, as { key: ISO time }:
+-- a key in marked_cards was marked then, a key not in it was un-marked then.
+-- The client merges marks per key, newer time wins, so an un-mark reaches a
+-- device that still holds the mark and a re-mark beats an older un-mark. Not
+-- pruned: an un-mark must outlive every stale copy that still holds the mark.
+-- Deploy before the client that selects it: PRISM_SELECT reads the column, so
+-- a missing column fails every cloud read. Safe to re-run (IF NOT EXISTS).
+BEGIN;
+  ALTER TABLE prisms
+    ADD COLUMN IF NOT EXISTS mark_times JSONB NOT NULL DEFAULT '{}'::jsonb;
+COMMIT;

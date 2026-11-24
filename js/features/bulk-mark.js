@@ -3,7 +3,7 @@
  * "Clear marks on all shown". Both act on exactly the checkbox rows the
  * current view, filters and search leave (`shownMarkRows`), flip only the rows
  * whose tick differs, and write through `setCardsMarked`, the same code the
- * row checkbox uses, so keys, tombstones and `markedCardsUpdatedAt` match a
+ * row checkbox uses, so keys, `markTimes` and `markedCardsUpdatedAt` match a
  * row-by-row pass with one save and one render.
  */
 

@@ -69,6 +69,7 @@ export function loadStorage(raw = readRawStorage()) {
     }
 
     ensureSyncState(data);
+    foldLegacyUnmarks(data);
     return data;
   } catch (error) {
     console.error('Error loading PRISM data:', error);
@@ -124,6 +125,22 @@ function ensureSyncState(storage) {
   return storage.syncState;
 }
 
+// Before #500 an un-mark waited for sync as a tombstone in this device's
+// baseline (unmarkedCards). One left over joins the PRISM's markTimes, so it
+// syncs like any other un-mark.
+function foldLegacyUnmarks(storage) {
+  for (const [prismId, baseline] of Object.entries(storage.syncState.prismBaselines)) {
+    if (!baseline.unmarkedCards) continue;
+    const prism = storage.prisms[prismId];
+    if (prism) {
+      const marked = new Set(prism.markedCards || []);
+      const unmarks = Object.entries(baseline.unmarkedCards).filter(([key]) => !marked.has(key));
+      prism.markTimes = newerTimes(Object.fromEntries(unmarks), prism.markTimes);
+    }
+    delete baseline.unmarkedCards;
+  }
+}
+
 function getPrismBaseline(storage, prismId) {
   const syncState = ensureSyncState(storage);
 
@@ -134,7 +151,6 @@ function getPrismBaseline(storage, prismId) {
       splitGroupUpdatedAts: {},
       deletedDecks: {},
       deletedSplitGroups: {},
-      unmarkedCards: {},
       plannedSwapUpdatedAts: {},
       deletedPlannedSwaps: {}
     };
@@ -145,7 +161,6 @@ function getPrismBaseline(storage, prismId) {
   baseline.splitGroupUpdatedAts = baseline.splitGroupUpdatedAts || {};
   baseline.deletedDecks = baseline.deletedDecks || {};
   baseline.deletedSplitGroups = baseline.deletedSplitGroups || {};
-  baseline.unmarkedCards = baseline.unmarkedCards || {};
   baseline.plannedSwapUpdatedAts = baseline.plannedSwapUpdatedAts || {};
   baseline.deletedPlannedSwaps = baseline.deletedPlannedSwaps || {};
 
@@ -364,12 +379,22 @@ function recordLocalPrismChanges(storage, previousPrism, nextPrism) {
     delete baseline.deletedSplitGroups[groupId];
   }
 
-  // A key this save marks again outranks its own un-mark tombstone, or the
-  // next merge would drop the re-mark (#416).
+  // Every key this save marks or un-marks gets the time, which syncs with the
+  // PRISM: the merge keeps each key's newest change from any device (#500).
+  // A time never goes back, so a copy without them (a backup restored over
+  // this PRISM, a stale page's rebase) keeps storage's. Written onto the
+  // caller's copy too, so its next save starts from them.
   const previousMarks = new Set(previousPrism?.markedCards || []);
-  for (const key of nextPrism.markedCards || []) {
-    if (!previousMarks.has(key)) delete baseline.unmarkedCards[key];
-  }
+  const nextMarks = new Set(nextPrism.markedCards || []);
+  const changed = [
+    ...[...nextMarks].filter(key => !previousMarks.has(key)),
+    ...[...previousMarks].filter(key => !nextMarks.has(key))
+  ];
+  const now = new Date().toISOString();
+  nextPrism.markTimes = {
+    ...newerTimes(nextPrism.markTimes, previousPrism?.markTimes),
+    ...Object.fromEntries(changed.map(key => [key, now]))
+  };
 
   // A removed or applied Planned swap is tombstoned at the wall clock, not
   // prism.updatedAt: queue edits don't bump it, and an applied swap that came
@@ -417,18 +442,6 @@ function recordPrismBaseline(storage, prism) {
       delete baseline.deletedPlannedSwaps[swapId];
     }
   }
-
-  // Prune un-mark tombstones that were already reflected in this sync baseline.
-  // Tombstones older than or equal to the new baseline were baked into the saved
-  // prism and no longer need to be applied on the next merge.
-  const newBaselineMs = getTimestampMs(baseline.updatedAt);
-  if (newBaselineMs > 0) {
-    for (const [key, unmarkedAt] of Object.entries(baseline.unmarkedCards || {})) {
-      if (getTimestampMs(unmarkedAt) <= newBaselineMs) {
-        delete baseline.unmarkedCards[key];
-      }
-    }
-  }
 }
 
 function pruneSyncState(storage) {
@@ -449,6 +462,7 @@ function buildPrismFromRow(prism) {
     updatedAt: prism.updated_at,
     markedCards: prism.marked_cards || [],
     markedCardsUpdatedAt: prism.marked_cards_updated_at || null,
+    markTimes: prism.mark_times || {},
     useDedicatedCommanderCopies: prism.use_dedicated_commander_copies || false,
     useDedicatedCommanderCopiesUpdatedAt: prism.use_dedicated_commander_copies_updated_at || null,
     removedCards: prism.removed_cards || [],
@@ -546,8 +560,7 @@ export function mergePrismVersions(localPrism, cloudPrism, prismBaseline) {
     deckUpdatedAts: {},
     splitGroupUpdatedAts: {},
     deletedDecks: {},
-    deletedSplitGroups: {},
-    unmarkedCards: {}
+    deletedSplitGroups: {}
   };
   const localUpdatedAt = localPrism.updatedAt || localPrism.createdAt || null;
   const cloudUpdatedAt = cloudPrism.updatedAt || cloudPrism.createdAt || null;
@@ -588,12 +601,7 @@ export function mergePrismVersions(localPrism, cloudPrism, prismBaseline) {
 
   return {
     ...basePrism,
-    markedCards: mergeMarkedCards(
-      localPrism.markedCards || [],
-      cloudPrism.markedCards || [],
-      baseline.unmarkedCards,
-      baseline.updatedAt
-    ),
+    ...mergeMarks(localPrism, cloudPrism),
     markedCardsUpdatedAt: localMCTime >= cloudMCTime
       ? localPrism.markedCardsUpdatedAt
       : cloudPrism.markedCardsUpdatedAt,
@@ -623,6 +631,7 @@ const PRISM_SELECT = `
   split_groups,
   marked_cards,
   marked_cards_updated_at,
+  mark_times,
   use_dedicated_commander_copies,
   use_dedicated_commander_copies_updated_at,
   removed_cards,
@@ -869,6 +878,7 @@ async function savePrismToSupabase(prism) {
         split_groups: prism.splitGroups || [],
         marked_cards: prism.markedCards || [],
         marked_cards_updated_at: prism.markedCardsUpdatedAt || null,
+        mark_times: prism.markTimes || {},
         use_dedicated_commander_copies: prism.useDedicatedCommanderCopies || false,
         use_dedicated_commander_copies_updated_at: prism.useDedicatedCommanderCopiesUpdatedAt || null,
         removed_cards: prism.removedCards || [],
@@ -1179,22 +1189,33 @@ export async function loadPrismsFromSupabase() {
   }
 }
 
-/**
- * Merge markedCards arrays via set-union (deduplicated), then remove any cards
- * that were intentionally un-marked after the last sync (tombstone > baseline).
- */
-function mergeMarkedCards(localArr, cloudArr, unmarkedTombstones, baselineUpdatedAt) {
-  const tombstones = unmarkedTombstones || {};
-  const baselineMs = getTimestampMs(baselineUpdatedAt);
-  const set = new Set([...localArr, ...cloudArr]);
-
-  for (const [key, unmarkedAt] of Object.entries(tombstones)) {
-    if (getTimestampMs(unmarkedAt) > baselineMs) {
-      set.delete(key);
-    }
+// Per key, the later of two times (ties a).
+function newerTimes(a = {}, b = {}) {
+  const times = { ...b };
+  for (const [key, at] of Object.entries(a)) {
+    if (getTimestampMs(at) >= getTimestampMs(times[key])) times[key] = at;
   }
+  return times;
+}
 
-  return [...set];
+/**
+ * Per key, the side with the newer mark or un-mark (markTimes) wins (#500),
+ * so an un-mark beats an older copy that still holds the mark, and a re-mark
+ * beats an older un-mark. A key neither side has a time for (marked before
+ * #500) stays marked if either side holds it, as the old union did.
+ */
+function mergeMarks(local, cloud) {
+  const localMarked = new Set(local.markedCards || []);
+  const cloudMarked = new Set(cloud.markedCards || []);
+  const localTimes = local.markTimes || {};
+  const cloudTimes = cloud.markTimes || {};
+  const markedCards = [...new Set([...localMarked, ...cloudMarked])].filter(key => {
+    const localMs = getTimestampMs(localTimes[key]);
+    const cloudMs = getTimestampMs(cloudTimes[key]);
+    if (localMs === cloudMs) return true;
+    return localMs > cloudMs ? localMarked.has(key) : cloudMarked.has(key);
+  });
+  return { markedCards, markTimes: newerTimes(localTimes, cloudTimes) };
 }
 
 /**
@@ -1504,24 +1525,6 @@ export function savePrism(prism) {
       drainQueuedSyncs();
     }, 2000);
   }
-}
-
-/**
- * Record that cards were intentionally un-marked (tombstone for merge).
- * Call this BEFORE savePrism() when removing entries from markedCards so
- * the next sync does not re-apply cloud marks that were intentionally cleared.
- * @param {string} prismId
- * @param {string[]} cardKeys - The markedCards keys that were removed
- */
-export function recordUnmarkedCards(prismId, cardKeys) {
-  if (!cardKeys || cardKeys.length === 0) return;
-  const storage = loadStorage();
-  const baseline = getPrismBaseline(storage, prismId);
-  const now = new Date().toISOString();
-  for (const key of cardKeys) {
-    baseline.unmarkedCards[key] = now;
-  }
-  saveStorage(storage);
 }
 
 /**

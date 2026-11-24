@@ -210,8 +210,8 @@ export function batchTally(card, markedSet) {
  * Mark a single-batch card Done: its plain name plus its batch key (#382), so
  * Sleeve up can tell when the card later gains copies. The card's other batch
  * keys are dropped: they would count as sleeves in hand on top of this one.
- * @returns {{ markedCards: string[], unmarkedKeys: string[] }} The caller
- *   passes unmarkedKeys to recordUnmarkedCards before savePrism.
+ * @returns {{ markedCards: string[], unmarkedKeys: string[] }} unmarkedKeys:
+ *   the keys dropped (savePrism records the un-mark for sync, #500).
  */
 export function markSingleBatchDone(markedCards, name, batchKey) {
   const stale = (k) => k.startsWith(`${name}|#b|`) && k !== batchKey;

@@ -5,7 +5,7 @@
 
 import { initLayout } from './layout.js';
 import { initExtraGate } from './modules/membership.js';
-import { getCurrentPrism, savePrism, recordUnmarkedCards } from './modules/storage.js';
+import { getCurrentPrism, savePrism } from './modules/storage.js';
 import { fetchCard, getCardAttributes } from './modules/scryfall.js';
 import { loadJobIndex } from './modules/oracle-tags.js';
 import { rankComparables, mainType } from './modules/comparables.js';
@@ -394,7 +394,6 @@ function confirmSwap() {
     return;
   }
   const { scope: chosen, result } = swap;
-  recordUnmarkedCards(prism.id, result.summary.unmarkedKeys);
   savePrism(result.prism);
 
   const { outgoing, incoming, decks } = dialogState;
@@ -620,7 +619,6 @@ function confirmQueue() {
     showError(err.message);
     return;
   }
-  recordUnmarkedCards(prism.id, result.summary.unmarkedKeys);
   savePrism(result.prism);
 
   const deck = result.prism.decks.find((d) => d.id === queueState.deckId);
@@ -695,8 +693,7 @@ function wireSleeveUp() {
     if (!id) return;
     const prism = getCurrentPrism();
     try {
-      const { prism: next, unmarkedKeys } = completeReuse(prism, id);
-      recordUnmarkedCards(prism.id, unmarkedKeys);
+      const { prism: next } = completeReuse(prism, id);
       savePrism(next);
       showSuccess('Sleeve reused. Untick it in Results to undo.');
     } catch (err) {

@@ -14,6 +14,8 @@ const { trackRemovedCard, removalMark, openRemovals, closeRemoval, applySwap } =
 const { planSleeveReuse, completeReuse } = await import('../js/modules/sleeve-reuse.js');
 const { queueSwap, removeSwap } = await import('../js/modules/swap-queue.js');
 const Tk = await import('../js/modules/tokens.js');
+const { exportToJSON } = await import('../js/modules/export.js');
+const { buildPrismFromJson } = await import('../js/modules/prism-import.js');
 
 await ensureAuthReady();
 
@@ -53,14 +55,13 @@ function deleteDeck(name) {
 	S.savePrism(p);
 }
 
-// setCardsMarked: tombstones before the save, then both timestamps.
+// setCardsMarked: the marks, then both timestamps.
 function setMarked(keys, marked) {
 	const p = prism();
 	if (marked) {
 		p.markedCards = [...new Set([...p.markedCards, ...keys])];
 	} else {
 		p.markedCards = p.markedCards.filter((k) => !keys.includes(k));
-		S.recordUnmarkedCards(p.id, keys);
 	}
 	const now = new Date().toISOString();
 	p.updatedAt = now;
@@ -272,7 +273,7 @@ test('a mark on each device while offline keeps both marks', async () => {
 	}
 });
 
-test('an un-mark on A is not undone by B, which still holds the mark', { skip: '#500' }, async () => {
+test('an un-mark on A is not undone by B, which still holds the mark', async () => {
 	const id = await seed({ marked: ['Sol Ring'] });
 	await on('A', T(10), () => setMarked(['Sol Ring'], false));
 	await on('A', T(11), sync);
@@ -291,7 +292,7 @@ test('un-marking then re-marking before the sync keeps the mark', async () => {
 	await on('A', T(12), () => assert.deepEqual(prism().markedCards, ['Sol Ring']));
 });
 
-test('a re-mark on B newer than an un-mark on A wins', { skip: '#500' }, async () => {
+test('a re-mark on B newer than an un-mark on A wins', async () => {
 	const id = await seed({ marked: ['Sol Ring'] });
 	await on('A', T(10), () => setMarked(['Sol Ring'], false));
 	await on('B', T(11), () => setMarked(['Sol Ring'], false));
@@ -303,11 +304,57 @@ test('a re-mark on B newer than an un-mark on A wins', { skip: '#500' }, async (
 	assert.deepEqual(cloudRow(id).marked_cards, ['Sol Ring'], 'cloud');
 });
 
+test('an automatic un-mark on A (a Swap gives a Done card a new stripe) reaches B', async () => {
+	const id = await seed({ marked: ['Beta Card'] });
+	await on('A', T(10), () => {
+		const p = prism();
+		const { prism: next, summary } = applySwap(p, { outgoing: 'Alpha Card', incoming: 'Beta Card', deckIds: [deck(p, 'Alpha').id] });
+		assert.deepEqual(summary.unmarkedKeys, ['Beta Card']);
+		S.savePrism(next);
+	});
+	await on('A', T(11), sync);
+	await on('B', T(12), load);
+
+	// B would call the sleeve Done while it lacks Alpha's new stripe.
+	await on('B', T(13), () => assert.deepEqual(prism().markedCards, [], 'B'));
+	assert.deepEqual(cloudRow(id).marked_cards, [], 'cloud');
+});
+
+test('restoring a backup over the PRISM keeps an unsynced un-mark the backup also lacks', async () => {
+	const id = await seed({ marked: ['Sol Ring', 'Beta Card'] });
+	await on('A', T(10), () => setMarked(['Sol Ring'], false));
+	await on('A', T(11), () => S.savePrism(buildPrismFromJson(JSON.parse(exportToJSON(prism()))))); // build.html's JSON import
+	await on('A', T(12), sync);
+	await on('B', T(13), load);
+
+	await on('B', T(14), () => assert.deepEqual(prism().markedCards, ['Beta Card'], 'B'));
+	assert.deepEqual(cloudRow(id).marked_cards, ['Beta Card'], 'cloud');
+});
+
+test('a mark and an un-mark the old client left unsynced both reach the other device', async () => {
+	const id = await seed({ marked: ['Sol Ring'] });
+	// As the client before #500 stored them: no mark times, the un-mark a local tombstone.
+	await on('A', T(10), () => {
+		const data = JSON.parse(localStorage.getItem('prism_data'));
+		const p = data.prisms[id];
+		p.markedCards = ['Alpha Card'];
+		delete p.markTimes;
+		data.syncState.prismBaselines[id].unmarkedCards = { 'Sol Ring': T(10) };
+		localStorage.setItem('prism_data', JSON.stringify(data));
+	});
+	await on('A', T(11), sync);
+	await on('B', T(12), load);
+
+	await on('B', T(13), () => assert.deepEqual(prism().markedCards, ['Alpha Card'], 'B'));
+	assert.deepEqual(cloudRow(id).marked_cards, ['Alpha Card'], 'cloud');
+});
+
 // ---------------------------------------------------------------------------
 // Clock skew: B's clock runs an hour fast
 // ---------------------------------------------------------------------------
 
-test('clock skew: an un-mark on the device whose clock is behind sticks', { skip: '#502' }, async () => {
+// Marks merge per key (#500), so B's fast clock on another key no longer counts.
+test('clock skew: an un-mark on the device whose clock is behind sticks', async () => {
 	const id = await seed({ marked: ['Sol Ring'] });
 	await on('B', T(65), () => setMarked(['Beta Card'], true)); // real T(5)
 	await on('B', T(66), sync);
@@ -317,6 +364,18 @@ test('clock skew: an un-mark on the device whose clock is behind sticks', { skip
 
 	await on('A', T(12), () => assert.deepEqual(prism().markedCards, ['Beta Card']));
 	assert.deepEqual(cloudRow(id).marked_cards, ['Beta Card']);
+});
+
+test('clock skew: a re-mark on the device whose clock is behind beats an earlier un-mark of that card', { skip: '#502' }, async () => {
+	const id = await seed({ marked: ['Sol Ring'] });
+	await on('B', T(65), () => setMarked(['Sol Ring'], false)); // real T(5)
+	await on('B', T(66), sync);
+	await on('A', T(7), load);
+	await on('A', T(10), () => setMarked(['Sol Ring'], true));
+	await on('A', T(11), sync);
+
+	await on('A', T(12), () => assert.deepEqual(prism().markedCards, ['Sol Ring']));
+	assert.deepEqual(cloudRow(id).marked_cards, ['Sol Ring']);
 });
 
 test('clock skew: a deck edit on the device whose clock is behind sticks', { skip: '#502' }, async () => {
