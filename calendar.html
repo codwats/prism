@@ -78,6 +78,9 @@
             <wa-button appearance="outlined" size="s" id="cal-next" aria-label="Next month"><wa-icon name="chevron-right"></wa-icon></wa-button>
             <wa-button appearance="outlined" size="s" id="cal-today">Today</wa-button>
           </div>
+          <wa-dropdown id="cal-filter" class="cal-filter" placement="bottom-end">
+            <wa-button slot="trigger" appearance="outlined" size="s" with-caret><wa-icon slot="start" name="filter" aria-hidden="true"></wa-icon><span id="cal-filter-label">All events</span></wa-button>
+          </wa-dropdown>
         </div>
         <div class="cal-body">
           <div class="cal-scroller" id="cal-scroller" tabindex="0" aria-label="Weeks, by Spotlight">
@@ -88,7 +91,7 @@
           <div class="cal-agenda" id="cal-agenda" aria-label="Upcoming events, by Spotlight"></div>
         </div>
         <wa-popover id="cal-pop" placement="bottom-start" distance="6"></wa-popover>
-        <p class="cal-note wa-caption-s">Release and Prerelease dates come from Wizards of the Coast announcements. Set symbols come from <a href="https://scryfall.com" target="_blank" rel="noopener">Scryfall</a>.</p>
+        <p class="cal-note wa-caption-s">Release, Prerelease, Secret Lair and MagicCon dates come from Wizards of the Coast announcements. Secret Lair sale times show in your time zone. Set symbols come from <a href="https://scryfall.com" target="_blank" rel="noopener">Scryfall</a>.</p>
       </main>
     </wa-page>
 

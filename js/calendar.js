@@ -10,7 +10,7 @@ import { initLayout } from './layout.js';
 import { escapeHtml } from './core/utils.js';
 import {
   buildCalendar, spotlightHero, spotlightSpan, formatDate, openingWeek, monthOfWeek, stepMonth, weekOfMonth,
-  spotlightOn, eventsOn, eventRange, MAX_LANES, agenda, weekOf,
+  spotlightOn, eventsOn, eventRange, MAX_LANES, agenda, weekOf, eventTime, localizeEvents,
 } from './modules/calendar.js';
 
 initLayout({ activePage: 'calendar', headerCta: { href: 'build.html', label: 'Build PRISM', icon: 'wand-magic-sparkles' } });
@@ -32,14 +32,16 @@ function symbol(set, cls = '') {
   return `<span class="cal-sym ${cls}" data-c style="${colorVar(set)}--m:url('${escapeHtml(set.symbol)}')" aria-hidden="true"></span>`;
 }
 
-// Event kinds: label and monochrome Font Awesome icon. A set release shows its set symbol instead.
+// Event kinds: label, filter label and monochrome Font Awesome icon. A set release shows its set symbol instead.
 const KINDS = {
-  release: { one: 'Set release' },
-  prerelease: { one: 'Prerelease', icon: 'ticket' },
-  supplemental: { one: 'Supplemental release', icon: 'layer-group' },
-  'secret-lair': { one: 'Secret Lair drop', icon: 'box-open' },
-  magiccon: { one: 'MagicCon', icon: 'location-dot' },
+  release: { one: 'Set release', many: 'Set releases', icon: 'calendar-day' },
+  prerelease: { one: 'Prerelease', many: 'Prereleases', icon: 'ticket' },
+  supplemental: { one: 'Supplemental release', many: 'Supplemental releases', icon: 'layer-group' },
+  'secret-lair': { one: 'Secret Lair drop', many: 'Secret Lair drops', icon: 'box-open' },
+  magiccon: { one: 'MagicCon', many: 'MagicCons', icon: 'location-dot' },
 };
+/** "Secret Lair drop · Mon, Nov 30 · 12:00 PM EST · Las Vegas": time in the viewer's zone, city for a MagicCon. */
+const eventMeta = e => [KINDS[e.kind]?.one, eventRange(e), eventTime(e), e.city].filter(Boolean).join(' · ');
 let setOf = {};
 const faIcon = name => `<wa-icon name="${name}" aria-hidden="true"></wa-icon>`;
 const eventIcon = e => (e.kind === 'release' && setOf[e.set] ? symbol(setOf[e.set], 'ev-sym') : faIcon(KINDS[e.kind]?.icon || 'calendar-day'));
@@ -129,7 +131,7 @@ function openPopover(cal, anchor) {
   pop.open = false;
   pop.innerHTML = `<div class="cal-pop">
     <h3>${set ? symbol(set) : ''}${escapeHtml(e.title)}</h3>
-    <p>${KINDS[e.kind]?.one || ''} · ${escapeHtml(eventRange(e))}</p>
+    <p>${escapeHtml(eventMeta(e))}</p>
     ${spot ? `<p><b>Spotlight:</b> ${escapeHtml(spotlightSpan(spot))}</p>` : ''}
     ${eventLink(e)}</div>`;
   pop.setAttribute('for', anchor.id);
@@ -137,7 +139,7 @@ function openPopover(cal, anchor) {
 }
 
 const panelItem = e => `<div class="cal-item">${eventIcon(e)}<div><b>${escapeHtml(e.title)}</b>
-  <span class="cap">${KINDS[e.kind]?.one || ''} · ${escapeHtml(eventRange(e))}</span><br>${eventLink(e)}</div></div>`;
+  <span class="cap">${escapeHtml(eventMeta(e))}</span><br>${eventLink(e)}</div></div>`;
 
 function renderPanel(cal) {
   const d = selected;
@@ -247,6 +249,23 @@ function wireNavigation(cal) {
   syncMonth();
 }
 
+// ---------- event filter (#531) ----------
+
+/** One "All events" dropdown with a checkbox per kind; `onChange` gets the Set of kinds shown. */
+function wireFilter(onChange) {
+  const dd = $('cal-filter');
+  const label = $('cal-filter-label');
+  const total = Object.keys(KINDS).length;
+  dd.insertAdjacentHTML('beforeend', Object.entries(KINDS).map(([k, v]) =>
+    `<wa-dropdown-item type="checkbox" value="${k}" checked>${faIcon(v.icon).replace('<wa-icon', '<wa-icon slot="icon"')}${v.many}</wa-dropdown-item>`).join(''));
+  dd.addEventListener('wa-select', ev => {
+    ev.preventDefault(); // stay open while ticking several kinds
+    const kinds = new Set([...dd.querySelectorAll('wa-dropdown-item')].filter(x => x.checked).map(x => x.value));
+    label.textContent = kinds.size === total ? 'All events' : `${kinds.size} of ${total} event types`;
+    onChange(kinds);
+  });
+}
+
 async function init() {
   let data;
   try {
@@ -259,8 +278,18 @@ async function init() {
     return;
   }
   setOf = Object.fromEntries(data.sets.map(s => [s.code, s]));
-  events = [...data.events].sort((a, b) => a.start.localeCompare(b.start));
-  const cal = buildCalendar(data, TODAY);
+  // Secret Lair drops move to the day their sale time falls on in the viewer's zone
+  const all = localizeEvents(data.events).sort((a, b) => a.start.localeCompare(b.start));
+  events = all;
+  const cal = buildCalendar({ ...data, events: all }, TODAY);
+  wireFilter(kinds => {
+    events = all.filter(e => kinds.has(e.kind));
+    // Same weeks, fewer events; mutate in place so the navigation's `cal` stays current
+    Object.assign(cal, buildCalendar({ ...data, events: all }, TODAY, events));
+    renderWeeks(cal);
+    renderPanel(cal);
+    renderAgenda(cal);
+  });
   renderHero(cal);
   narrow.addEventListener('change', () => renderHero(cal));
   renderWeeks(cal);

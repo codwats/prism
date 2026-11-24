@@ -2551,6 +2551,7 @@ wa-page[view='desktop'] [data-toggle-nav] {
 /* Toolbar */
 .cal-tools { display: flex; flex-wrap: wrap; align-items: center; gap: var(--wa-space-s) var(--wa-space-m); margin: var(--wa-space-l) 0 var(--wa-space-s); }
 .cal-tools h1 { margin: 0; min-width: 10ch; }
+.cal-filter { margin-left: auto; }
 
 /* Weeks: ribbon column + 7 day columns, in a scroll box */
 .cal-scroller { --ribbon: 9.5rem; height: max(30rem, calc(100dvh - 22rem)); overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; border-top: 1px solid var(--wa-color-surface-border); }

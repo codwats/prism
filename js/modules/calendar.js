@@ -49,9 +49,10 @@ const PAD_WEEKS = 4;
  *
  * @param {{sets: object[], events: object[]}} data
  * @param {string} today ISO date in the viewer's zone
+ * @param {object[]} [shown] the events to lay out (a kind filter, #531); the weeks still span all of `data`
  * @returns {{spotlights, weeks: Array<{start, days: Array<{date, spotlight, begins}>}>, first: string, last: string}}
  */
-export function buildCalendar(data, today) {
+export function buildCalendar(data, today, shown = data.events) {
   const spotlights = getSpotlights(data.sets);
   const dataEnd = [...data.sets.map(s => s.released), ...data.events.map(e => e.end || e.start)]
     .reduce((m, d) => (d > m ? d : m), today);
@@ -65,7 +66,7 @@ export function buildCalendar(data, today) {
       const spotlight = spotlightOn(spotlights, date);
       return { date, spotlight, begins: spotlight?.start === date };
     });
-    weeks.push({ start, days, chapter: majoritySpotlight(days), ...placeEvents(data.events, start, days.some(d => d.begins) ? 1 : 0) });
+    weeks.push({ start, days, chapter: majoritySpotlight(days), ...placeEvents(shown, start, days.some(d => d.begins) ? 1 : 0) });
   }
 
   // Ribbon rows: each run of weeks sharing a chapter
@@ -149,6 +150,29 @@ export function eventRange(e) {
   const day = iso => formatDate(iso, { weekday: 'short', month: 'short', day: 'numeric' });
   return e.end && e.end !== e.start ? `${day(e.start)} – ${day(e.end)}` : day(e.start);
 }
+
+// ---------- timed events (#531) ----------
+// A Secret Lair drop's `time` is ISO with its PT offset ("2026-03-16T09:00:00-07:00").
+// Only these convert to the viewer's zone; every other date stays a plain date.
+
+const TIME_RE = /^(\d{4}-\d{2}-\d{2})T([01]\d|2[0-3]):[0-5]\d(:[0-5]\d)?[+-](0\d|1[0-4]):[0-5]\d$/;
+
+/** True for an ISO date-time with an explicit UTC offset on a real date. */
+export function isEventTime(t) {
+  const m = typeof t === 'string' && t.match(TIME_RE);
+  return !!m && toIso(toDate(m[1])) === m[1];
+}
+
+/** "12:00 PM EST": a timed event's time in `timeZone` (undefined = the viewer's). Null if untimed. */
+export const eventTime = (e, timeZone) => (e.time
+  ? new Date(e.time).toLocaleTimeString('en-US', { timeZone, hour: 'numeric', minute: '2-digit', timeZoneName: 'short' }).replace(/\s/g, ' ')
+  : null);
+
+/** Timed events moved to the day they fall on in `timeZone`; untimed events returned as they are. */
+export const localizeEvents = (events, timeZone) => events.map(e => (e.time
+  // en-CA formats as YYYY-MM-DD. shortcut: a timed event is one day (no `end`), shift `end` too if that changes
+  ? { ...e, start: new Date(e.time).toLocaleDateString('en-CA', { timeZone, year: 'numeric', month: '2-digit', day: '2-digit' }) }
+  : e));
 
 // Event lanes a week row has room for; the rest show as "+N more"
 export const MAX_LANES = 3;

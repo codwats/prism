@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, existsSync } from 'node:fs';
+import { isEventTime } from '../js/modules/calendar.js';
 
 const root = new URL('../', import.meta.url);
 const data = JSON.parse(readFileSync(new URL('assets/calendar.json', root), 'utf8'));
@@ -61,6 +62,24 @@ test('a prerelease is the week before its Premier set releases', () => {
     const s = setOf[e.set];
     assert.ok(s?.premier && e.end && e.end < s.released && e.start >= '2025-01-01', e.id);
   }
+});
+
+test('a timed event has an ISO time with offset on its start date', () => {
+  // `start` is the Pacific date; the page moves the chip to the viewer's day
+  const timed = data.events.filter(e => e.time !== undefined);
+  assert.ok(timed.length > 0);
+  for (const e of timed) {
+    assert.ok(isEventTime(e.time), `${e.id} time ${e.time}`);
+    assert.match(e.time, /-0[78]:00$/, `${e.id} time is Pacific`);
+    assert.equal(e.time.slice(0, 10), e.start, e.id);
+  }
+});
+
+test('Secret Lair drops are one day and MagicCons have a city, from 2025 on', () => {
+  // A drop's time is optional: a few announcements give only the date
+  for (const e of data.events.filter(x => x.kind === 'secret-lair')) assert.ok(!e.end && e.start >= '2025-01-01', e.id);
+  for (const e of data.events.filter(x => x.kind === 'magiccon')) assert.ok(e.city && e.end && e.start >= '2025-01-01', e.id);
+  assert.ok(data.events.some(e => e.kind === 'magiccon'));
 });
 
 test('every set symbol is a local file at assets/sets/<code>.svg', () => {

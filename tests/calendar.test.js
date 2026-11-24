@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { getSpotlights, buildCalendar, eventsOn, eventRange, openingWeek, monthOfWeek, stepMonth, weekOfMonth, spotlightHero, spotlightSpan, agenda } from '../js/modules/calendar.js';
+import { getSpotlights, buildCalendar, eventsOn, eventRange, openingWeek, monthOfWeek, stepMonth, weekOfMonth, spotlightHero, spotlightSpan, agenda, eventTime, localizeEvents, isEventTime } from '../js/modules/calendar.js';
 
 // Made-up data: real 2026 dates, invented codes.
 const set = (code, released, extra = {}) => ({ code, name: code.toUpperCase(), premier: true, released, color: null, symbol: null, url: 'https://example.com', ...extra });
@@ -162,6 +162,51 @@ test('events past the lanes are counted as "+N more" on each day they cover', ()
 test('event dates read as plain dates', () => {
   assert.equal(eventRange(EVENTS[0]), 'Fri, Jan 29 – Thu, Feb 4');
   assert.equal(eventRange(EVENTS[1]), 'Tue, Oct 20');
+});
+
+// Timed events (#531). A Secret Lair drop's `time` is ISO with its PT offset.
+const drop = (id, time) => ({ id, kind: 'secret-lair', title: id, start: time.slice(0, 10), time, url: 'https://example.com', source: 'https://example.com' });
+
+test('9am PT reads in the viewer zone, across a daylight saving change', () => {
+  // US clocks change Mar 8 2026, the UK's on Mar 29, so London is an hour closer for three weeks
+  assert.equal(eventTime(drop('a', '2026-03-02T09:00:00-08:00'), 'America/Toronto'), '12:00 PM EST');
+  assert.equal(eventTime(drop('b', '2026-03-09T09:00:00-07:00'), 'America/Toronto'), '12:00 PM EDT');
+  // The zone name for London varies by ICU build ("GMT" or "GMT+0"); the hour is the point
+  assert.match(eventTime(drop('c', '2026-03-02T09:00:00-08:00'), 'Europe/London'), /^5:00 PM GMT/);
+  assert.match(eventTime(drop('d', '2026-03-16T09:00:00-07:00'), 'Europe/London'), /^4:00 PM GMT/);
+  assert.equal(eventTime(EVENTS[1], 'Europe/London'), null);
+});
+
+test('a drop late in PT lands on the next day where it is already tomorrow', () => {
+  const late = drop('late', '2026-03-16T18:00:00-07:00');
+  assert.equal(localizeEvents([late], 'Asia/Tokyo')[0].start, '2026-03-17');
+  assert.equal(localizeEvents([late], 'America/Los_Angeles')[0].start, '2026-03-16');
+  assert.equal(late.start, '2026-03-16', 'the source event is not changed');
+  assert.equal(localizeEvents([EVENTS[0]], 'Asia/Tokyo')[0], EVENTS[0], 'untimed events keep their dates');
+});
+
+test('a MagicCon spans its days', () => {
+  const con = { id: 'con', kind: 'magiccon', title: 'MagicCon: Las Vegas', city: 'Las Vegas', start: '2027-08-27', end: '2027-08-29', url: 'https://example.com', source: 'https://example.com' };
+  const [bar] = buildCalendar({ sets: SETS, events: [con] }, '2026-11-24').weeks.find(w => w.start === '2027-08-22').events;
+  assert.deepEqual([bar.col, bar.span, bar.clipStart, bar.clipEnd], [6, 2, false, true]);
+  assert.deepEqual(['2027-08-27', '2027-08-28', '2027-08-29', '2027-08-30'].map(d => eventsOn([con], d).length), [1, 1, 1, 0]);
+});
+
+test('filtering events keeps the same weeks and lays out only the shown events', () => {
+  const con = { id: 'con', kind: 'magiccon', title: 'C', city: 'X', start: '2027-08-27', end: '2027-08-29', url: 'u', source: 's' };
+  const data = { sets: SETS, events: [...EVENTS, con] };
+  const all = buildCalendar(data, '2026-11-24');
+  const some = buildCalendar(data, '2026-11-24', EVENTS.filter(e => e.kind === 'prerelease'));
+  assert.equal(some.last, all.last);
+  assert.equal(some.weeks.length, all.weeks.length);
+  assert.deepEqual([...new Set(some.weeks.flatMap(w => w.events.map(p => p.event.id)))], ['nau-pre']);
+});
+
+test('an event time must be ISO with a UTC offset', () => {
+  for (const t of ['2026-03-16T09:00:00-07:00', '2026-03-16T09:00-08:00']) assert.equal(isEventTime(t), true, t);
+  for (const t of ['2026-03-16T09:00:00', '2026-03-16 09:00-07:00', '2026-03-16T25:00:00-07:00', '9am PT', '2026-02-30T09:00:00-08:00', 42]) {
+    assert.equal(isEventTime(t), false, String(t));
+  }
 });
 
 // Mobile agenda (#532): the same events and Spotlights as the weeks it replaces.
