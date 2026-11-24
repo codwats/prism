@@ -34,7 +34,7 @@ const EXCLUDE = new Set(['profile.html', 'links.html']);
 
 // Ordered most to least important. Anything found on disk but not listed here
 // is appended, so a new page still lands in the sitemap without editing this.
-const ORDER = ['index.html', 'build.html', 'guide.html', 'tools.html', 'gallery.html', 'privacy.html', 'terms.html'];
+const ORDER = ['index.html', 'build.html', 'guide.html', 'tools.html', 'gallery.html', 'calendar.html', 'privacy.html', 'terms.html'];
 
 const pages = readdirSync(ROOT)
   .filter(f => f.endsWith('.html'))

@@ -25,6 +25,7 @@ The mechanism a spreadsheet or generic label system can't replicate: PRISM encod
 - The user physically paints Perfect Fit inner sleeves with colored paint pens per the guide, then double-sleeves for protection.
 - Ongoing use: decks change over time: cards get added/removed, decks get added — PRISM tracks marks to clear and lets the user mark only what's new rather than re-deriving everything.
 - 100% client-side by default (localStorage, no account required). Cloud sync across devices is what a Membership buys; a free account exists for gallery participation and syncs nothing.
+- PRISM also hosts free community pages, the gallery and the release calendar, that bring players back between marking sessions. They need no account and are never Extras (the calendar shows Scryfall data, which its terms forbid paywalling).
 
 ## Capabilities and Constraints
 

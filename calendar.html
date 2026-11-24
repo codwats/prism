@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en" class="wa-cloak">
+  <head>
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-VHXCWY6VT9"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'G-VHXCWY6VT9');
+    </script>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Release Calendar - PRISM</title>
+    <meta name="description" content="Release dates for every Premier set in Magic: The Gathering, and which set is in the Spotlight each week." />
+    <!-- Share cards (#243 follow-up). Absolute URLs on purpose: og:image and
+         og:url are fetched by a scraper that has no page context, so a relative
+         path resolves against the scraper, not the site. They therefore resolve
+         only once prismmtg.com serves the site; until the domain points here a
+         shared link previews as it does today, with no card. One card serves
+         every page: assets/og-card.png (1200x630), made by hand. -->
+    <link rel="canonical" href="https://prismmtg.com/calendar.html" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="PRISM" />
+    <meta property="og:title" content="Release Calendar" />
+    <meta property="og:description" content="Release dates for every Premier set in Magic: The Gathering, and which set is in the Spotlight each week." />
+    <meta property="og:url" content="https://prismmtg.com/calendar.html" />
+    <meta property="og:image" content="https://prismmtg.com/assets/og-card.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="The PRISM wordmark under the tagline “One Card. Every Deck.”, above five colored stripes" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Release Calendar" />
+    <meta name="twitter:description" content="Release dates for every Premier set in Magic: The Gathering, and which set is in the Spotlight each week." />
+    <meta name="twitter:image" content="https://prismmtg.com/assets/og-card.png" />
+    <style>.wa-cloak { visibility: hidden; }</style>
+    <style>wa-page:not(:defined) { visibility: hidden; }</style>
+    <!-- CDN resilience. Both rules above hide the page until Web Awesome loads, and
+         nothing removes them if it never does, so a blocked or stalled kit leaves a
+         blank white document. Reveal at 5s regardless: unstyled but readable beats
+         invisible. WA removes the class itself on a normal load, well before this. -->
+    <style>
+      @keyframes prism-uncloak { to { visibility: visible; } }
+      .wa-cloak,
+      wa-page:not(:defined) { animation: prism-uncloak 0s linear 5s forwards; }
+    </style>
+    <!-- iOS Home Screen icon (layout.js injects these as a fallback) -->
+    <link rel="apple-touch-icon" href="./assets/apple-touch-icon.png" />
+    <link rel="manifest" href="./assets/site.webmanifest" />
+    <meta name="theme-color" content="#281645" />
+    <meta name="apple-mobile-web-app-title" content="PRISM" />
+    <!-- Preconnect to CDNs (Supabase SDK on cdn.jsdelivr.net is lazy-loaded for logged-in users) -->
+    <link rel="preconnect" href="https://ka-p.webawesome.com" />
+    <link rel="preconnect" href="https://ka-p.webawesome.com" crossorigin />
+    <link rel="preconnect" href="https://fonts.bunny.net" />
+    <link rel="preconnect" href="https://fonts.bunny.net" crossorigin />
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" />
+    <link rel="preconnect" href="https://use.typekit.net" />
+    <link rel="preconnect" href="https://use.typekit.net" crossorigin />
+    <!-- Web Awesome, fonts, and app CSS as static tags so the browser preload scanner
+         starts them immediately; layout.js injectHeadResources skips tags already present -->
+    <link rel="stylesheet" href="https://ka-p.webawesome.com/kit/da021fed1e5141f2/webawesome@3.15.0/styles/themes/default.css" />
+    <link rel="stylesheet" href="https://ka-p.webawesome.com/kit/da021fed1e5141f2/webawesome@3.15.0/styles/native.css" />
+    <link rel="stylesheet" href="https://ka-p.webawesome.com/kit/da021fed1e5141f2/webawesome@3.15.0/styles/utilities.css" />
+    <script type="module" src="https://ka-p.webawesome.com/kit/da021fed1e5141f2/webawesome@3.15.0/webawesome.loader.js"></script>
+    <link rel="stylesheet" href="https://fonts.bunny.net/css2?family=Geist+Mono:wght@100..900&display=swap" />
+    <link rel="stylesheet" href="https://use.typekit.net/gbw6ibc.css" />
+    <link rel="stylesheet" href="css/custom.css" />
+  </head>
+  <body>
+    <wa-page mobile-breakpoint="768">
+      <main class="cal">
+        <section class="cal-hero cal-tint" id="cal-hero" aria-label="In the Spotlight" data-c></section>
+        <div class="cal-tools">
+          <h1 id="cal-month" class="wa-heading-l" aria-live="polite">Release calendar</h1>
+          <div class="wa-cluster wa-gap-2xs cal-nav">
+            <wa-button appearance="outlined" size="s" id="cal-prev" aria-label="Previous month"><wa-icon name="chevron-left"></wa-icon></wa-button>
+            <wa-button appearance="outlined" size="s" id="cal-next" aria-label="Next month"><wa-icon name="chevron-right"></wa-icon></wa-button>
+            <wa-button appearance="outlined" size="s" id="cal-today">Today</wa-button>
+          </div>
+          <wa-dropdown id="cal-filter" class="cal-filter" placement="bottom-end">
+            <wa-button slot="trigger" appearance="outlined" size="s" with-caret><wa-icon slot="start" name="filter" aria-hidden="true"></wa-icon><span id="cal-filter-label">All events</span></wa-button>
+          </wa-dropdown>
+        </div>
+        <div class="cal-body">
+          <div class="cal-scroller" id="cal-scroller" tabindex="0" aria-label="Weeks, by Spotlight">
+            <div class="cal-dows" aria-hidden="true"><span></span><span>Sun</span><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span></div>
+            <div class="cal-grid" id="cal-grid"></div>
+          </div>
+          <aside class="cal-panel" id="cal-panel" aria-live="polite" aria-label="Selected day"></aside>
+          <div class="cal-agenda" id="cal-agenda" aria-label="Upcoming events, by Spotlight"></div>
+        </div>
+        <wa-popover id="cal-pop" placement="bottom-start" distance="6"></wa-popover>
+        <p class="cal-note wa-caption-s">Release, Prerelease, Secret Lair and MagicCon dates come from Wizards of the Coast announcements. Secret Lair sale times show in your time zone. Set symbols come from <a href="https://scryfall.com" target="_blank" rel="noopener">Scryfall</a>.</p>
+      </main>
+    </wa-page>
+
+    <script type="module" src="js/calendar.js"></script>
+  </body>
+</html>
