@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { getSpotlights, buildCalendar, openingWeek, monthOfWeek, stepMonth, weekOfMonth, spotlightHero, spotlightSpan } from '../js/modules/calendar.js';
+import { getSpotlights, buildCalendar, eventsOn, eventRange, openingWeek, monthOfWeek, stepMonth, weekOfMonth, spotlightHero, spotlightSpan } from '../js/modules/calendar.js';
 
 // Made-up data: real 2026 dates, invented codes.
 const set = (code, released, extra = {}) => ({ code, name: code.toUpperCase(), premier: true, released, color: null, symbol: null, url: 'https://example.com', ...extra });
@@ -115,4 +115,51 @@ test('the last Spotlight is open and runs to the end of the data', () => {
   assert.equal(last.set.code, 'nau');
   assert.equal(last.end, null);
   assert.equal(allDays.at(-1).spotlight, last);
+});
+
+// Events (#530). Nauctis's prerelease runs Fri Jan 29 to Thu Feb 4 2027.
+const EVENTS = [
+  { id: 'nau-pre', kind: 'prerelease', title: 'NAU Prerelease', start: '2027-01-29', end: '2027-02-04', set: 'nau', url: 'https://example.com', source: 'https://example.com' },
+  { id: 'cmd', kind: 'supplemental', title: 'CMD', start: '2026-10-20', set: 'cmd', url: 'https://example.com', source: 'https://example.com' },
+];
+const evCal = buildCalendar({ sets: SETS, events: EVENTS }, '2026-11-24');
+const evWeek = iso => evCal.weeks.find(w => w.start === iso);
+
+test('a multi-day prerelease shows on every day it spans, across a month boundary', () => {
+  for (const d of ['2027-01-29', '2027-01-31', '2027-02-01', '2027-02-04']) assert.deepEqual(eventsOn(EVENTS, d).map(e => e.id), ['nau-pre'], d);
+  assert.deepEqual(eventsOn(EVENTS, '2027-01-28'), []);
+  assert.deepEqual(eventsOn(EVENTS, '2027-02-05'), []);
+});
+
+test('a prerelease spanning two weeks is one bar per week, clipped at the week edge', () => {
+  // Week of Jan 24: Fri-Sat (cols 6-7), runs on. Week of Jan 31: Sun-Thu (cols 1-5), began earlier.
+  const [a] = evWeek('2027-01-24').events;
+  assert.deepEqual([a.event.id, a.col, a.span, a.clipStart, a.clipEnd], ['nau-pre', 6, 2, false, true]);
+  const [b] = evWeek('2027-01-31').events;
+  assert.deepEqual([b.event.id, b.col, b.span, b.clipStart, b.clipEnd], ['nau-pre', 1, 5, true, false]);
+});
+
+test('a supplemental release adds a chip on its day but no Spotlight', () => {
+  const [p] = evWeek('2026-10-18').events;
+  assert.deepEqual([p.event.id, p.col, p.span], ['cmd', 3, 1]);
+  assert.equal(evCal.spotlights.some(s => s.set.code === 'cmd'), false);
+  assert.equal(evCal.weeks.flatMap(w => w.days).find(d => d.date === '2026-10-20').spotlight.set.code, 'rf');
+});
+
+test('the week a Spotlight begins keeps the first lane free for "<Set> begins"', () => {
+  // Nauctis begins Fri Feb 5, in the week of Jan 31, which also holds its prerelease
+  assert.equal(evWeek('2027-01-31').events[0].lane, 1);
+  assert.equal(evWeek('2027-01-24').events[0].lane, 0);
+});
+
+test('events past the lanes are counted as "+N more" on each day they cover', () => {
+  const many = Array.from({ length: 5 }, (_, i) => ({ id: `e${i}`, kind: 'supplemental', title: 'X', start: '2026-12-02', url: 'u', source: 's' }));
+  const w = buildCalendar({ sets: SETS, events: many }, '2026-11-24').weeks.find(x => x.start === '2026-11-29');
+  assert.equal(w.events.length, 3);
+  assert.deepEqual(w.more, { '2026-12-02': 2 });
+});
+
+test('event dates read as plain dates', () => {
+  assert.equal(eventRange(EVENTS[0]), 'Fri, Jan 29 – Thu, Feb 4');
+  assert.equal(eventRange(EVENTS[1]), 'Tue, Oct 20');
 });

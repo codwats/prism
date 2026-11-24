@@ -65,7 +65,7 @@ export function buildCalendar(data, today) {
       const spotlight = spotlightOn(spotlights, date);
       return { date, spotlight, begins: spotlight?.start === date };
     });
-    weeks.push({ start, days, chapter: majoritySpotlight(days) });
+    weeks.push({ start, days, chapter: majoritySpotlight(days), ...placeEvents(data.events, start, days.some(d => d.begins) ? 1 : 0) });
   }
 
   // Ribbon rows: each run of weeks sharing a chapter
@@ -137,6 +137,47 @@ export function spotlightHero(spotlights, today, { before = 2, after = 1 } = {})
       today: pct(today),
     },
   };
+}
+
+const lastDay = e => e.end || e.start;
+
+/** Events covering `iso`, of any kind. Dates are plain calendar dates, never converted. */
+export const eventsOn = (events, iso) => events.filter(e => e.start <= iso && lastDay(e) >= iso);
+
+/** "Tue, Oct 20" or "Fri, Jan 29 – Thu, Feb 4". */
+export function eventRange(e) {
+  const day = iso => formatDate(iso, { weekday: 'short', month: 'short', day: 'numeric' });
+  return e.end && e.end !== e.start ? `${day(e.start)} – ${day(e.end)}` : day(e.start);
+}
+
+// Event lanes a week row has room for; the rest show as "+N more"
+export const MAX_LANES = 3;
+
+/**
+ * Lay the week's events into lanes: longest first, then by start, each in the
+ * first lane free over its days. `firstLane` 1 leaves lane 0 to "<Set> begins".
+ * @returns {{events: Array<{event, lane, col: number (1-7), span: number, clipStart: boolean, clipEnd: boolean}>,
+ *            more: Object<string, number>}} `more` counts events left out, per day
+ */
+function placeEvents(events, weekStart, firstLane) {
+  const weekEnd = addDays(weekStart, 6);
+  const length = e => daysBetween(e.start, lastDay(e));
+  const inWeek = events.filter(e => e.start <= weekEnd && lastDay(e) >= weekStart)
+    .sort((a, b) => length(b) - length(a) || a.start.localeCompare(b.start));
+  const placed = [], more = {};
+  for (const event of inWeek) {
+    const from = event.start < weekStart ? weekStart : event.start;
+    const to = lastDay(event) > weekEnd ? weekEnd : lastDay(event);
+    const col = daysBetween(weekStart, from) + 1, span = daysBetween(from, to) + 1;
+    let lane = firstLane;
+    while (placed.some(p => p.lane === lane && p.col < col + span && col < p.col + p.span)) lane++;
+    if (lane >= MAX_LANES) {
+      for (let d = from; d <= to; d = addDays(d, 1)) more[d] = (more[d] || 0) + 1;
+      continue;
+    }
+    placed.push({ event, lane, col, span, clipStart: event.start < weekStart, clipEnd: lastDay(event) > weekEnd });
+  }
+  return { events: placed, more };
 }
 
 // A release week belongs to the chapter holding most of its 7 days, so a
