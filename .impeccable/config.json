@@ -55,6 +55,15 @@
         "value": "menlo",
         "createdAt": "2026-11-21T21:02:57.962Z",
         "reason": "Claude: Menlo is the monospace for the one-time code in the reauthentication email (scripts/build-email-templates.mjs:78, present before this session); email clients need named fallbacks"
+      },
+      {
+        "rule": "monotonous-spacing",
+        "value": "*",
+        "files": [
+          "calendar.html"
+        ],
+        "createdAt": "2026-11-24T22:00:22.064Z",
+        "reason": "code review 2026-11-24: spacing tokens vary (s13 xs11 m10 2xs9 l7 xl2); the detector counts the uniform week rows and cell gutters a calendar grid needs"
       }
     ]
   }
