@@ -30,7 +30,7 @@ let searchVersion = 0;
 // The last search's incoming card and ranking, for the confirm dialog.
 let current = null;
 
-initLayout({ activePage: '', headerCta: { href: 'build.html', label: 'Build PRISM', icon: 'wand-magic-sparkles' } });
+initLayout({ activePage: '' });
 initExtraGate(() => {
   renderQueue();
   // Once per page: eligibility needs the commanders' attributes before any

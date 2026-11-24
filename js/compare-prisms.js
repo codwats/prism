@@ -20,7 +20,7 @@ let fileFrom = null;
 let stripesByName = new Map();
 let ticks = new Set();
 
-initLayout({ activePage: '', headerCta: { href: 'build.html', label: 'Build PRISM', icon: 'wand-magic-sparkles' } });
+initLayout({ activePage: '' });
 initExtraGate(() => {
   fillPickers();
   render();
