@@ -1,0 +1,20 @@
+{
+  "sets": [
+    { "code": "dft", "name": "Aetherdrift", "premier": true, "released": "2025-02-14", "color": "#c4572b", "symbol": "assets/sets/dft.svg", "url": "https://magic.wizards.com/en/products/aetherdrift" },
+    { "code": "tdm", "name": "Tarkir: Dragonstorm", "premier": true, "released": "2025-04-11", "color": "#2f7a8c", "symbol": "assets/sets/tdm.svg", "url": "https://magic.wizards.com/en/products/tarkir-dragonstorm" },
+    { "code": "fin", "name": "Final Fantasy", "premier": true, "released": "2025-06-13", "color": "#3c5fa8", "symbol": "assets/sets/fin.svg", "url": "https://magic.wizards.com/en/products/final-fantasy" },
+    { "code": "eoe", "name": "Edge of Eternities", "premier": true, "released": "2025-08-01", "color": "#5d3f91", "symbol": "assets/sets/eoe.svg", "url": "https://magic.wizards.com/en/products/edge-of-eternities" },
+    { "code": "spm", "name": "Marvel's Spider-Man", "premier": true, "released": "2025-09-26", "color": "#b8282f", "symbol": "assets/sets/spm.svg", "url": "https://magic.wizards.com/en/products" },
+    { "code": "tla", "name": "Avatar: The Last Airbender", "premier": true, "released": "2025-11-21", "color": "#d08a2e", "symbol": "assets/sets/tla.svg", "url": "https://magic.wizards.com/en/products/avatar-the-last-airbender" },
+    { "code": "ecl", "name": "Lorwyn Eclipsed", "premier": true, "released": "2026-01-23", "color": "#6b4d94", "symbol": "assets/sets/ecl.svg", "url": "https://magic.wizards.com/en/products/lorwyn-eclipsed" },
+    { "code": "tmt", "name": "Teenage Mutant Ninja Turtles", "premier": true, "released": "2026-03-06", "color": "#3f8a3c", "symbol": "assets/sets/tmt.svg", "url": "https://magic.wizards.com/en/products/teenage-mutant-ninja-turtles" },
+    { "code": "sos", "name": "Secrets of Strixhaven", "premier": true, "released": "2026-04-24", "color": "#8c2f3a", "symbol": "assets/sets/sos.svg", "url": "https://magic.wizards.com/en/products/secrets-of-strixhaven" },
+    { "code": "msh", "name": "Marvel Super Heroes", "premier": true, "released": "2026-06-26", "color": "#a14a3c", "symbol": "assets/sets/msh.svg", "url": "https://magic.wizards.com/en/products" },
+    { "code": "hob", "name": "The Hobbit", "premier": true, "released": "2026-08-14", "color": "#7d8a3a", "symbol": "assets/sets/hob.svg", "url": "https://magic.wizards.com/en/products/the-hobbit" },
+    { "code": "fra", "name": "Reality Fracture", "premier": true, "released": "2026-10-02", "color": "#a8437a", "symbol": "assets/sets/fra.svg", "url": "https://magic.wizards.com/en/products/reality-fracture" },
+    { "code": "trk", "name": "Star Trek", "premier": true, "released": "2026-11-13", "color": "#b8792a", "symbol": "assets/sets/trk.svg", "url": "https://magic.wizards.com/en/products/star-trek" },
+    { "code": "nau", "name": "Nauctis: The Sunken Realm", "premier": true, "released": "2027-02-05", "color": "#2b7fa3", "symbol": "assets/sets/nau.svg", "url": "https://magic.wizards.com/en/products/nauctis-the-sunken-realm" },
+    { "code": "mdd", "name": "Marvel: Darkhold Destiny", "premier": true, "released": "2027-04-09", "color": null, "symbol": "assets/sets/mdd.svg", "url": "https://magic.wizards.com/en/products" }
+  ],
+  "events": []
+}
