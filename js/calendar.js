@@ -29,7 +29,7 @@ const colorVar = set => (set?.color ? `--set-color:${set.color};` : '');
 /** Set symbol tinted by a CSS mask; a set with no symbol shows its code in a bordered square. */
 function symbol(set, cls = '') {
   if (!set.symbol) return `<span class="cal-sym cal-nosym ${cls}" data-c style="${colorVar(set)}" aria-hidden="true"><b>${escapeHtml(set.code.toUpperCase())}</b></span>`;
-  return `<span class="cal-sym ${cls}" data-c style="${colorVar(set)}--m:url('${escapeHtml(set.symbol)}')" aria-hidden="true"></span>`;
+  return `<span class="cal-sym ${cls}" data-c style="${colorVar(set)}--m:url('/${escapeHtml(set.symbol)}')" aria-hidden="true"></span>`;
 }
 
 // Event kinds: label, filter label and monochrome Font Awesome icon. A set release shows its set symbol instead.
