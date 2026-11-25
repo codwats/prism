@@ -46,6 +46,7 @@ New domain facts go in the matching `docs/agents/*.md`, not here.
 - `elements` — cached DOM refs (set during init)
 - `sortState` — `{ column, direction }` for results table
 - `selectedDeckIds` — `Set` for deck filter dropdown
+- `selectedTypes` — `Set` of Main types ticked in Filters (#538); Type sort/filter read `cardTypes` in results.js, filled from `getCardAttributes`
 - `processedCards` — cached last `processCards()` result (hover preview)
 - `tokenRows` — last Tokens view rows (#412), never in `processedCards` or its counts
 - `addSourceUrl` / `editSourceUrl` — deck `sourceUrl` from a URL import, pending until Add Deck / Save Changes (#377)

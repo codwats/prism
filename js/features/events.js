@@ -23,7 +23,7 @@ import {
 } from './deck-form.js';
 import { handleFileUpload, handleJsonImport, handleDeckUrlImport, openCubeDialog, handleLoadCube, updateCubeCapacity, setAllCubeTags, handleCreateCubePrism } from './deck-import.js';
 import { handleDeleteConfirm, handleNewPrism, handleSplitConfirm, handleEditGroupConfirm, handleClearAllRemoved } from './deck-list.js';
-import { renderResults, syncMarkingPrereq } from './results.js';
+import { renderResults, syncMarkingPrereq, chooseSort } from './results.js';
 import { dismissMarkingPrereq } from '../core/marking-prereq.js';
 import { openScryMode } from './scry-mode.js';
 import { renderOverlapMatrix } from './analysis.js';
@@ -224,13 +224,26 @@ export function setupEventListeners() {
       e.preventDefault();
       if (item === state.elements.undoneFilter) {
         updatePreferences({ undoneOnly: !!item.checked });
-      } else if (item.id === 'deck-filter-clear') {
+      } else if (item.id === 'filters-clear') {
         state.selectedDeckIds.clear();
+        state.selectedTypes.clear();
+      } else if (item.dataset.mainType) {
+        if (item.checked) state.selectedTypes.add(item.dataset.mainType);
+        else state.selectedTypes.delete(item.dataset.mainType);
       } else if (item.dataset.deckId) {
         if (item.checked) state.selectedDeckIds.add(item.dataset.deckId);
         else state.selectedDeckIds.delete(item.dataset.deckId);
       }
       renderResults();
+    });
+  }
+
+  // Phone sort menu (#538): checkbox items show the current column; the
+  // choice itself is the sort, so keep the menu's own toggle out of it.
+  if (state.elements.resultsSortMenu) {
+    state.elements.resultsSortMenu.addEventListener('wa-select', (e) => {
+      const column = e.detail?.item?.dataset.sort;
+      if (column) chooseSort(column);
     });
   }
 

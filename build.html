@@ -493,7 +493,7 @@
                       <wa-radio appearance="button" value="tokens" size="s">Tokens</wa-radio>
                       <wa-radio appearance="button" value="removed" id="removed-filter-btn" size="s">Marks to Clear</wa-radio>
                     </wa-radio-group>
-                    <wa-input id="results-search" placeholder="Search cards..." size="m" style="max-width: 400px; flex: 1; min-width: 10rem;">
+                    <wa-input id="results-search" placeholder="Search cards..." size="m">
                       <wa-icon slot="start" name="search"></wa-icon>
                     </wa-input>
                     <!-- Checkbox items, not switches: a switch inside a menu can't be
@@ -508,11 +508,33 @@
                       <wa-dropdown-item id="one-mark-filter" type="checkbox">One Mark at a Time</wa-dropdown-item>
                       <wa-dropdown-item id="show-all-slots" type="checkbox">All slots</wa-dropdown-item>
                       <wa-divider></wa-divider>
-                      <wa-dropdown-item id="deck-filter-clear">
+                      <p class="wa-caption-s prism-menu-note">Type</p>
+                      <wa-dropdown-item class="type-filter-item" type="checkbox" data-main-type="Creature">Creature</wa-dropdown-item>
+                      <wa-dropdown-item class="type-filter-item" type="checkbox" data-main-type="Planeswalker">Planeswalker</wa-dropdown-item>
+                      <wa-dropdown-item class="type-filter-item" type="checkbox" data-main-type="Battle">Battle</wa-dropdown-item>
+                      <wa-dropdown-item class="type-filter-item" type="checkbox" data-main-type="Instant">Instant</wa-dropdown-item>
+                      <wa-dropdown-item class="type-filter-item" type="checkbox" data-main-type="Sorcery">Sorcery</wa-dropdown-item>
+                      <wa-dropdown-item class="type-filter-item" type="checkbox" data-main-type="Artifact">Artifact</wa-dropdown-item>
+                      <wa-dropdown-item class="type-filter-item" type="checkbox" data-main-type="Enchantment">Enchantment</wa-dropdown-item>
+                      <wa-dropdown-item class="type-filter-item" type="checkbox" data-main-type="Land">Land</wa-dropdown-item>
+                      <wa-divider></wa-divider>
+                      <wa-dropdown-item id="filters-clear">
                         <wa-icon slot="icon" name="xmark"></wa-icon>
-                        Clear deck filters
+                        Clear filters
                       </wa-dropdown-item>
                       <wa-divider></wa-divider>
+                    </wa-dropdown>
+                    <!-- Phone sort (#538): the table header row is hidden below 768px, so
+                         this picks the same sort. Picking the current choice flips it. -->
+                    <wa-dropdown id="results-sort-menu">
+                      <wa-button slot="trigger" appearance="plain" variant="neutral" size="s" caret>
+                        <wa-icon slot="start" name="sort"></wa-icon>
+                        <span id="results-sort-label">Sort: Marks</span>
+                      </wa-button>
+                      <wa-dropdown-item type="checkbox" data-sort="deckCount">Marks</wa-dropdown-item>
+                      <wa-dropdown-item type="checkbox" data-sort="name">Card name</wa-dropdown-item>
+                      <wa-dropdown-item type="checkbox" data-sort="type">Type</wa-dropdown-item>
+                      <wa-dropdown-item type="checkbox" data-sort="marked">Done</wa-dropdown-item>
                     </wa-dropdown>
                   </div>
 

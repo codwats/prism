@@ -22,6 +22,31 @@ export function mainType(typeLine = '') {
   return MAIN_TYPES.find((t) => types.includes(t)) || null;
 }
 
+// Mark sleeves Type sort (#538): the order players pile their cards in.
+export const MAIN_TYPE_SORT_ORDER = ['Creature', 'Planeswalker', 'Battle', 'Instant', 'Sorcery', 'Artifact', 'Enchantment', 'Land'];
+
+/**
+ * Card comparator by main type, then name A→Z. 'desc' flips only the type
+ * order; an unknown type (typeOf → null) sorts last either way.
+ * @param {(card: {name: string}) => string|null} typeOf
+ */
+export function compareByMainType(typeOf, direction = 'asc') {
+  const rank = (card) => MAIN_TYPE_SORT_ORDER.indexOf(typeOf(card));
+  return (a, b) => {
+    const ra = rank(a);
+    const rb = rank(b);
+    if (ra !== rb) {
+      if (ra < 0) return 1;
+      if (rb < 0) return -1;
+      return direction === 'desc' ? rb - ra : ra - rb;
+    }
+    return a.name.localeCompare(b.name);
+  };
+}
+
+/** Type filter (#538): none ticked keeps every card; ticked types are OR; unknown matches none. */
+export const matchesMainTypes = (type, selected) => selected.size === 0 || selected.has(type);
+
 // |A ∩ B| / |A ∪ B|; two empty sets (colorless vs colorless) are identical.
 function overlap(a, b) {
   const setB = new Set(b);
