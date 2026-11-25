@@ -231,6 +231,24 @@ wa-page[view='desktop'] [data-toggle-nav] {
 .results-table .card-type-caption {
   display: none;
 }
+#results-search {
+  flex: 1;
+  min-width: 10rem;
+  max-width: 400px;
+}
+/* Phone sort menu (#538): the header row sorts from 768px */
+@media (min-width: 769px) {
+  #results-sort-menu {
+    display: none;
+  }
+}
+/* Phone: search takes the row, Filters and Sort share the one under it */
+@media (max-width: 768px) {
+  #results-search {
+    flex-basis: 100%;
+    max-width: none;
+  }
+}
 
 .results-table .basic-tag {
   color: var(--wa-color-neutral-text-subtle);
@@ -699,34 +717,22 @@ wa-page[view='desktop'] [data-toggle-nav] {
   .results-table thead tr {
     background: var(--wa-color-surface-2);
   }
-  /* Header is one line: Done, Card name, Type, Marks side by side (#477, #538) */
+  /* Four sort headers don't fit a phone (#538): the Sort menu in the toolbar
+     picks the sort, rows show the type as a caption under the name. */
   .results-table thead tr:not(.removed-head) {
-    grid-template-columns: 3.5rem minmax(0, 1fr) auto auto;
+    display: none;
   }
-  /* The Type header stays as a sort choice; rows show the caption instead */
   .results-table td.card-type-cell {
     display: none;
   }
+  /* inline-block, full width: its own line, and a done row's line-through
+     doesn't reach it (decorations skip atomic inlines) */
   .results-table .card-type-caption {
-    display: block;
+    display: inline-block;
+    width: 100%;
     color: var(--wa-color-neutral-text-subtle);
-    font-size: var(--wa-font-size-s);
+    font-size: var(--wa-font-size-xs);
     font-style: normal;
-  }
-  .results-table thead tr:not(.removed-head) > th:not([colspan]) {
-    grid-row: auto;
-    display: flex;
-    align-items: center;
-    padding-block: var(--wa-space-xs);
-    /* Four sort headers at 360px (#538): tight sides, and a label wraps rather than clip */
-    padding-inline: var(--wa-space-xs);
-    font-size: var(--wa-font-size-s);
-    white-space: normal;
-  }
-  /* Done is 3.5rem wide, like the checkbox column below it */
-  .results-table thead tr:not(.removed-head) > :first-child {
-    justify-content: center;
-    padding-inline: 0;
   }
   .results-table tr > :first-child:not([colspan]) {
     grid-row: span 2;

@@ -95,6 +95,7 @@ function getElements() {
     undoneFilter: document.getElementById('undone-filter'),
     oneMarkFilter: document.getElementById('one-mark-filter'),
     deckFilterDropdown: document.getElementById('deck-filter-dropdown'),
+    resultsSortMenu: document.getElementById('results-sort-menu'),
     markingLayout: document.getElementById('marking-layout'),
     barMarked: document.getElementById('bar-marked'),
     barProgress: document.getElementById('bar-progress'),

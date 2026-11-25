@@ -930,11 +930,13 @@ function renderResultsHeader() {
     `;
   }
 
+  renderSortMenu(isRemovedFilter);
+
   // Add click handlers for sortable columns
   thead.querySelectorAll('th.sortable').forEach(th => {
     th.addEventListener('click', () => {
       const column = th.dataset.sort;
-      const defaultDirection = column === 'name' || column === 'type' ? 'asc' : 'desc';
+      const defaultDirection = defaultSortDirection(column);
 
       if (state.sortState.column === column) {
         if (state.sortState.direction === defaultDirection) {
@@ -953,6 +955,39 @@ function renderResultsHeader() {
       renderResults();
     });
   });
+}
+
+const defaultSortDirection = (column) => (column === 'name' || column === 'type' ? 'asc' : 'desc');
+const SORT_LABELS = { deckCount: 'Marks', name: 'Card name', type: 'Type', marked: 'Done' };
+
+/** Phone sort menu (#538): a new column takes its default direction; the current one flips. */
+export function chooseSort(column) {
+  if (!(column in SORT_LABELS)) return;
+  if (state.sortState.column === column) {
+    state.sortState.direction = state.sortState.direction === 'asc' ? 'desc' : 'asc';
+  } else {
+    state.sortState.column = column;
+    state.sortState.direction = defaultSortDirection(column);
+  }
+  renderResults();
+}
+
+// Mirror sortState into the phone sort menu, offering only the columns the
+// current view's header sorts by.
+function renderSortMenu(isRemovedFilter) {
+  const menu = state.elements.resultsSortMenu;
+  if (!menu) return;
+  const isTokens = resultsFilterValue() === 'tokens';
+  const { column, direction } = state.sortState;
+  menu.querySelectorAll('wa-dropdown-item[data-sort]').forEach(item => {
+    const c = item.dataset.sort;
+    item.hidden = (isRemovedFilter && c !== 'name' && c !== 'type') || (isTokens && c === 'type');
+    item.checked = c === column;
+  });
+  const label = menu.querySelector('#results-sort-label');
+  if (label) label.textContent = `Sort: ${SORT_LABELS[column] || 'Marks'}`;
+  menu.querySelector('wa-button[slot="trigger"] wa-icon')
+    ?.setAttribute('name', direction === 'asc' ? 'sort-up' : 'sort-down');
 }
 
 // ============================================================================

@@ -400,7 +400,7 @@ All components are Web Awesome 3.8.0 elements (`<wa-button>`, `<wa-card>`, `<wa-
 ### Results table
 
 - Full width, collapsed borders, 14px text. Cells `10.5px 14px`, 1px bottom border.
-- Header: `surface-2` fill, 12px, weight 600, `nowrap`. Phone exception (#538): the four sort headers use tight sides and may wrap, so Done, Card name, Type and Marks fit 360px.
+- Header: `surface-2` fill, 12px, weight 600, `nowrap`.
 - Row states: hover `surface-2`; **shared** rows `warning-surface-subtle` (hover `warning-surface`); **removed** rows `danger-surface-subtle`; **marked** rows drop to `opacity: 0.45` with the card name struck through; basic lands italic.
 - Mark checkbox: 18×18, `accent-color: var(--wa-color-brand-fill)`.
 
