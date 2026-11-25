@@ -100,6 +100,11 @@ A second pass over the rows the player ticked Done, checking each painted sleeve
 _Avoid_: review, verify, check pass
 _In code_: `js/features/audit.js`, stored under the `prism_audit_<prismId>` localStorage key.
 
+**Main type**:
+The one card type a card is sorted and filtered under, out of Creature, Planeswalker, Battle, Instant, Sorcery, Artifact, Enchantment and Land: the pile a player puts it in. A card with several types takes one (Artifact Creature is a Creature, Artifact Land is a Land); a double-faced card goes by its front face. Tokens have no main type; they have their own view.
+_Avoid_: card type (a card can have several), category
+_In code_: `mainType()` in `comparables.js`, shared with the Swap Planner's comparable search.
+
 **Mark to clear**:
 A mark on a sleeve for a deck that no longer needs the card. Arises when a card leaves a decklist or its quantity drops, or when a split variant's child mark stops being needed while the variant keeps the card (another variant gained it, so the card is shared by every variant). A card leaving a variant whose child mark was never painted leaves nothing to clear. Lowercase in prose; the Mark sleeves view switch reads **Marks to Clear**. Named for the job, not the state: "stale mark" left players and partners asking what it meant.
 _Avoid_: stale mark, removed card, pending removal
