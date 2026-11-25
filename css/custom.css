@@ -223,6 +223,15 @@ wa-page[view='desktop'] [data-toggle-nav] {
   font-style: italic;
 }
 
+/* Main type (#538): a column from 768px, a caption under the name below it */
+.results-table .card-type-cell {
+  color: var(--wa-color-neutral-text-subtle);
+  white-space: nowrap;
+}
+.results-table .card-type-caption {
+  display: none;
+}
+
 .results-table .basic-tag {
   color: var(--wa-color-neutral-text-subtle);
   font-size: var(--wa-font-size-s);
@@ -690,15 +699,29 @@ wa-page[view='desktop'] [data-toggle-nav] {
   .results-table thead tr {
     background: var(--wa-color-surface-2);
   }
-  /* Header is one line: Done, Card name, Marks side by side (#477) */
+  /* Header is one line: Done, Card name, Type, Marks side by side (#477, #538) */
   .results-table thead tr:not(.removed-head) {
-    grid-template-columns: 3.5rem minmax(0, 1fr) auto;
+    grid-template-columns: 3.5rem minmax(0, 1fr) auto auto;
+  }
+  /* The Type header stays as a sort choice; rows show the caption instead */
+  .results-table td.card-type-cell {
+    display: none;
+  }
+  .results-table .card-type-caption {
+    display: block;
+    color: var(--wa-color-neutral-text-subtle);
+    font-size: var(--wa-font-size-s);
+    font-style: normal;
   }
   .results-table thead tr:not(.removed-head) > th:not([colspan]) {
     grid-row: auto;
     display: flex;
     align-items: center;
     padding-block: var(--wa-space-xs);
+    /* Four sort headers at 360px (#538): tight sides, and a label wraps rather than clip */
+    padding-inline: var(--wa-space-xs);
+    font-size: var(--wa-font-size-s);
+    white-space: normal;
   }
   /* Done is 3.5rem wide, like the checkbox column below it */
   .results-table thead tr:not(.removed-head) > :first-child {
@@ -714,24 +737,31 @@ wa-page[view='desktop'] [data-toggle-nav] {
   .results-table tr > :nth-child(2):not(:last-child) {
     padding-bottom: 0;
   }
-  /* Marks to Clear: name over "Remove from", Clear button at the end */
-  .results-table tr.removed-row,
-  .results-table tr.removed-head {
+  /* Marks to Clear: name over "Remove from", Clear button at the end. The
+     2nd child is Type (#538): hidden in rows, a sort choice in the header. */
+  .results-table tr.removed-row {
     grid-template-columns: minmax(0, 1fr) auto;
+  }
+  .results-table tr.removed-head {
+    grid-template-columns: minmax(0, 1fr) auto auto;
   }
   .results-table tr.removed-row > :first-child,
   .results-table tr.removed-head > :first-child {
     grid-row: auto;
     padding-bottom: 0;
   }
-  .results-table tr.removed-row > :nth-child(2),
   .results-table tr.removed-head > :nth-child(2) {
-    grid-column: 1;
-    grid-row: 2;
+    grid-column: 2;
+    grid-row: 1 / span 2;
   }
   .results-table tr.removed-row > :nth-child(3),
   .results-table tr.removed-head > :nth-child(3) {
-    grid-column: 2;
+    grid-column: 1;
+    grid-row: 2;
+  }
+  .results-table tr.removed-row > :nth-child(4),
+  .results-table tr.removed-head > :nth-child(4) {
+    grid-column: -2;
     grid-row: 1 / span 2;
   }
 }

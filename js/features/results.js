@@ -12,6 +12,7 @@ import { removalOpenCopies, openRemovals } from '../modules/swap.js';
 import { planSleeveReuse } from '../modules/sleeve-reuse.js';
 import { prefetchCards, getCardAttributes } from '../modules/scryfall.js';
 import { savedCopiesByCard, savedDollars, formatUsd } from '../modules/savings.js';
+import { mainType, compareByMainType, matchesMainTypes } from '../modules/comparables.js';
 import { handleMarkToggle, handleClearRemoved, handleClearAllRemovedClick } from './deck-list.js';
 import { renderOverlapMatrix } from './analysis.js';
 import { requestTokenTypes, currentTokenRows, tokenEmptyMessage, tokenRowExtras, updateTokenTally } from './token-pack.js';
@@ -294,7 +295,7 @@ export function renderResults({ preserveRows = false } = {}) {
   // Update stats
   if (state.elements.statTotal) state.elements.statTotal.textContent = totalCardCount;
   if (state.elements.statShared) state.elements.statShared.textContent = sharedCardCount;
-  updateSavedStat(state.currentPrism, processedCards);
+  updateCardAttributes(state.currentPrism, processedCards);
   updateMarkedProgress();
 
   // Show/hide based on deck count
@@ -430,6 +431,11 @@ export function renderResults({ preserveRows = false } = {}) {
     });
   }
 
+  // Type filter (#538); the Tokens view has no main type, so it ignores it.
+  if (state.selectedTypes.size > 0 && filter !== 'tokens') {
+    displayCards = displayCards.filter(card => matchesMainTypes(typeOfRow(card), state.selectedTypes));
+  }
+
   // Persistent undone-only filter: keep cards the user hasn't marked done.
   // Card rows go through isCardDone so multi-batch cards classify consistently
   // (a partially-done card stays visible); pass rows keep key equality.
@@ -443,7 +449,7 @@ export function renderResults({ preserveRows = false } = {}) {
   }
 
   // Render deck filter menu and overlap matrix
-  renderDeckFilterMenu();
+  renderFiltersMenu();
   renderOverlapMatrix();
 
   // Multi-batch cards flatten to one entry per batch (#149): the parent row
@@ -549,9 +555,13 @@ export function renderResults({ preserveRows = false } = {}) {
     `${getColorName(m.color)}${m.isDot ? ' dot' : ''}, ${m.deckName}, ${formatSlotLabel(m.position)}`;
 
   let detailRowSeq = 0;
-  // Done / Card name / Marks. The stale-marks view uses its own row markup,
-  // so this is stable.
-  const detailColspan = 3;
+  // Done / Card name / Type / Marks; Tokens have no main type, so no Type (#538).
+  const showType = filter !== 'tokens';
+  const detailColspan = showType ? 4 : 3;
+  // Type column from 768px; below it the same text is a caption under the name.
+  const typeLabel = (card) => escapeHtml(typeOfRow(card) || '—');
+  const typeCell = (card) => (showType ? `<td class="card-type-cell">${typeLabel(card)}</td>` : '');
+  const typeCaption = (card) => (showType ? `<span class="card-type-caption">${typeLabel(card)}</span>` : '');
 
   // Returns the <td> plus, when there is anything to decode, a full-width
   // sibling <tr> holding the legend for that row. The detail deliberately does
@@ -620,7 +630,8 @@ export function renderResults({ preserveRows = false } = {}) {
         : '';
       return `
         <tr class="removed-row${band}" data-removed-key="${escapeHtml(removedKey)}">
-          <td>${escapeHtml(card.name)}</td>
+          <td>${escapeHtml(card.name)}${typeCaption(card)}</td>
+          ${typeCell(card)}
           <td>
             <div class="wa-cluster wa-gap-xs wa-align-items-center">
               <div
@@ -668,7 +679,8 @@ export function renderResults({ preserveRows = false } = {}) {
           <td style="text-align: center;">
             <label class="mark-checkbox-hit"><input type="checkbox" class="mark-checkbox" aria-label="Mark ${escapeHtml(card.name)} done" ${isMarked ? "checked" : ""}></label>
           </td>
-          <td class="${nameClass} card-name-cell" data-preview="hover" data-card-name="${escapeHtml(previewName)}">${escapeHtml(card.name)}${basicTag}${copiesTag(card.totalQuantity)}${tokenExtras}</td>
+          <td class="${nameClass} card-name-cell" data-preview="hover" data-card-name="${escapeHtml(previewName)}">${escapeHtml(card.name)}${basicTag}${copiesTag(card.totalQuantity)}${tokenExtras}${typeCaption(card)}</td>
+          ${typeCell(card)}
           ${stripes.cell}
         </tr>
         ${stripes.detailRow}
@@ -691,8 +703,9 @@ export function renderResults({ preserveRows = false } = {}) {
           <button type="button" class="batch-toggle" data-card-name="${escapeHtml(card.name)}" aria-expanded="${isExpanded}" title="${isExpanded ? 'Collapse' : 'Expand'} batches">
             <wa-icon name="${isExpanded ? 'chevron-down' : 'chevron-right'}"></wa-icon>
           </button>
-          ${escapeHtml(card.name)}${basicTag}${copiesTag(card.totalQuantity)}
+          ${escapeHtml(card.name)}${basicTag}${copiesTag(card.totalQuantity)}${typeCaption(card)}
         </td>
+        ${typeCell(card)}
         <td><span class="basic-tag">${batches.length} different markings</span></td>
       </tr>
     `;
@@ -713,6 +726,7 @@ export function renderResults({ preserveRows = false } = {}) {
             <label class="mark-checkbox-hit"><input type="checkbox" class="mark-checkbox" aria-label="Mark ${b.copyCount} ${batchLabel} ${escapeHtml(card.name)} copies (${escapeHtml(markNames)}) done" ${marked ? "checked" : ""}></label>
           </td>
           <td class="batch-subrow-label card-name-cell" data-preview="hover" data-card-name="${escapeHtml(card.name)}">${b.copyCount} ${b.copyCount === 1 ? 'copy' : 'copies'}, ${batchLabel}</td>
+          ${showType ? '<td class="card-type-cell"></td>' : ''}
           ${stripes.cell}
         </tr>
         ${stripes.detailRow}
@@ -772,7 +786,6 @@ export function renderResults({ preserveRows = false } = {}) {
     clearAllBtn.addEventListener('click', handleClearAllRemovedClick);
   }
 
-  const colspan = 3;
 
   // Handle empty states
   if (displayCards.length === 0) {
@@ -791,7 +804,7 @@ export function renderResults({ preserveRows = false } = {}) {
 
     state.elements.resultsTbody.innerHTML = `
       <tr>
-        <td colspan="${colspan}" style="text-align: center; color: var(--wa-color-neutral-text-subtle); padding: var(--wa-space-xl);">
+        <td colspan="${detailColspan}" style="text-align: center; color: var(--wa-color-neutral-text-subtle); padding: var(--wa-space-xl);">
           ${emptyMessage}
         </td>
       </tr>
@@ -816,6 +829,7 @@ export function renderResults({ preserveRows = false } = {}) {
 // ============================================================================
 
 function sortCards(cards, column, direction) {
+  if (column === 'type') return cards.sort(compareByMainType(typeOfRow, direction));
   // Pre-compute lookup for marked status
   const markedSet = column === 'marked' ? new Set(state.currentPrism?.markedCards || []) : null;
 
@@ -877,6 +891,11 @@ function renderResultsHeader() {
   const getSortedClass = (column) => {
     return state.sortState.column === column ? 'sorted' : '';
   };
+  const typeTh = resultsFilterValue() === 'tokens' ? '' : `
+        <th class="sortable card-type-head ${getSortedClass('type')}" data-sort="type">
+          Type
+          <wa-icon name="${getSortIcon('type')}" class="sort-icon"></wa-icon>
+        </th>`;
 
   // Different header for removed cards view
   if (isRemovedFilter) {
@@ -885,7 +904,7 @@ function renderResultsHeader() {
         <th class="sortable ${getSortedClass('name')}" data-sort="name">
           Card name
           <wa-icon name="${getSortIcon('name')}" class="sort-icon"></wa-icon>
-        </th>
+        </th>${typeTh}
         <th>Remove mark from</th>
         <th style="text-align: center;">
           <wa-button id="clear-all-removed-btn" appearance="outlined" variant="danger" size="s">Clear All</wa-button>
@@ -902,7 +921,7 @@ function renderResultsHeader() {
         <th class="sortable ${getSortedClass('name')}" data-sort="name">
           Card name
           <wa-icon name="${getSortIcon('name')}" class="sort-icon"></wa-icon>
-        </th>
+        </th>${typeTh}
         <th class="sortable ${getSortedClass('deckCount')}" data-sort="deckCount">
           Marks
           <wa-icon name="${getSortIcon('deckCount')}" class="sort-icon"></wa-icon>
@@ -915,7 +934,7 @@ function renderResultsHeader() {
   thead.querySelectorAll('th.sortable').forEach(th => {
     th.addEventListener('click', () => {
       const column = th.dataset.sort;
-      const defaultDirection = column === 'name' ? 'asc' : 'desc';
+      const defaultDirection = column === 'name' || column === 'type' ? 'asc' : 'desc';
 
       if (state.sortState.column === column) {
         if (state.sortState.direction === defaultDirection) {
@@ -947,7 +966,7 @@ function renderResultsHeader() {
 // out of the open menu.
 let deckFilterSignature = null;
 
-function renderDeckFilterMenu() {
+function renderFiltersMenu() {
   const dropdown = state.elements.deckFilterDropdown;
   if (!dropdown) return;
 
@@ -965,11 +984,14 @@ function renderDeckFilterMenu() {
   dropdown.querySelectorAll('.deck-filter-item').forEach(item => {
     item.checked = state.selectedDeckIds.has(item.dataset.deckId);
   });
+  dropdown.querySelectorAll('.type-filter-item').forEach(item => {
+    item.checked = state.selectedTypes.has(item.dataset.mainType);
+  });
 
-  updateDeckFilterButtonLabel();
+  updateFiltersButtonLabel();
 }
 
-function updateDeckFilterButtonLabel() {
+function updateFiltersButtonLabel() {
   const btn = state.elements.deckFilterDropdown?.querySelector('wa-button[slot="trigger"]');
   if (!btn) return;
 
@@ -977,6 +999,7 @@ function updateDeckFilterButtonLabel() {
   // selection plus the undone-only and all-slots switches.
   const facets = [];
   if (state.selectedDeckIds.size > 0) facets.push(`Decks (${state.selectedDeckIds.size})`);
+  if (state.selectedTypes.size > 0) facets.push(`Types (${state.selectedTypes.size})`);
   if (state.elements.undoneFilter?.checked) facets.push('Undone');
   if (state.elements.oneMarkFilter?.checked) facets.push('One Mark at a Time');
   if (state.elements.showAllSlots?.checked) facets.push('All slots');
@@ -989,22 +1012,44 @@ function updateDeckFilterButtonLabel() {
   btn.innerHTML = `<wa-icon slot="start" name="filter"></wa-icon>${label}`;
 }
 
-// "This PRISM saved ≈ $N": copies saved priced from the card-attribute cache.
-// A newer render wins; a Scryfall failure hides the stat rather than showing $0.
-let savedStatRun = 0;
-function updateSavedStat(prism, processedCards) {
+// Main type per card name (#538), filled from the card-attribute cache. A name
+// not in it (still loading, Scryfall failed, offline) is unknown: "—", sorts
+// last, matches no ticked type. Pass rows look up the card they belong to.
+const cardTypes = new Map();
+const typeOfRow = (card) => cardTypes.get(card.displayName || card.name) ?? null;
+
+// One getCardAttributes call feeds both the Type column and "This PRISM saved
+// ≈ $N" (copies saved priced from the same cache). A newer render wins; a
+// Scryfall failure hides the stat rather than showing $0 and leaves types unknown.
+let attributesRun = 0;
+function updateCardAttributes(prism, processedCards) {
   const { statSaved, statSavedWrap } = state.elements;
-  if (!statSaved || !statSavedWrap) return;
-  const run = ++savedStatRun;
+  const run = ++attributesRun;
   const saved = savedCopiesByCard(prism, processedCards);
-  if (saved.size === 0) { statSavedWrap.hidden = true; return; }
-  statSavedWrap.hidden = true; // never show the previous amount while this run prices
-  getCardAttributes([...saved.keys()]).then((attributes) => {
-    if (run !== savedStatRun) return;
-    const usd = savedDollars(saved, (name) => attributes.get(name)?.usd);
-    statSaved.textContent = formatUsd(usd);
-    statSavedWrap.hidden = usd < 1;
+  if (statSavedWrap) statSavedWrap.hidden = true; // never show the previous amount while this run prices
+  // Names already typed (a miss included) are not asked again, so a name
+  // Scryfall can't match is POSTed once per page load, not on every render.
+  const untyped = [...processedCards.map(c => c.name), ...openRemovals(prism).map(r => r.cardName)]
+    .filter(name => !cardTypes.has(name));
+  const names = [...new Set([...saved.keys(), ...untyped])];
+  if (names.length === 0) return;
+  getCardAttributes(names).then((attributes) => {
+    if (run !== attributesRun) return;
+    if (statSaved && statSavedWrap && saved.size > 0) {
+      const usd = savedDollars(saved, (name) => attributes.get(name)?.usd);
+      statSaved.textContent = formatUsd(usd);
+      statSavedWrap.hidden = usd < 1;
+    }
+    let changed = false;
+    for (const name of untyped) {
+      const type = mainType(attributes.get(name)?.typeLine);
+      if (type) changed = true;
+      cardTypes.set(name, type);
+    }
+    // The table never waits for types; it fills in when they land. The
+    // re-render asks only for names still untyped, so it stops.
+    if (changed) renderResults({ preserveRows: true });
   }).catch(() => {
-    if (run === savedStatRun) statSavedWrap.hidden = true;
+    if (run === attributesRun && statSavedWrap) statSavedWrap.hidden = true;
   });
 }

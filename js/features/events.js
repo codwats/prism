@@ -224,8 +224,12 @@ export function setupEventListeners() {
       e.preventDefault();
       if (item === state.elements.undoneFilter) {
         updatePreferences({ undoneOnly: !!item.checked });
-      } else if (item.id === 'deck-filter-clear') {
+      } else if (item.id === 'filters-clear') {
         state.selectedDeckIds.clear();
+        state.selectedTypes.clear();
+      } else if (item.dataset.mainType) {
+        if (item.checked) state.selectedTypes.add(item.dataset.mainType);
+        else state.selectedTypes.delete(item.dataset.mainType);
       } else if (item.dataset.deckId) {
         if (item.checked) state.selectedDeckIds.add(item.dataset.deckId);
         else state.selectedDeckIds.delete(item.dataset.deckId);

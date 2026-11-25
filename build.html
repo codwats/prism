@@ -508,9 +508,19 @@
                       <wa-dropdown-item id="one-mark-filter" type="checkbox">One Mark at a Time</wa-dropdown-item>
                       <wa-dropdown-item id="show-all-slots" type="checkbox">All slots</wa-dropdown-item>
                       <wa-divider></wa-divider>
-                      <wa-dropdown-item id="deck-filter-clear">
+                      <p class="wa-caption-s prism-menu-note">Type</p>
+                      <wa-dropdown-item class="type-filter-item" type="checkbox" data-main-type="Creature">Creature</wa-dropdown-item>
+                      <wa-dropdown-item class="type-filter-item" type="checkbox" data-main-type="Planeswalker">Planeswalker</wa-dropdown-item>
+                      <wa-dropdown-item class="type-filter-item" type="checkbox" data-main-type="Battle">Battle</wa-dropdown-item>
+                      <wa-dropdown-item class="type-filter-item" type="checkbox" data-main-type="Instant">Instant</wa-dropdown-item>
+                      <wa-dropdown-item class="type-filter-item" type="checkbox" data-main-type="Sorcery">Sorcery</wa-dropdown-item>
+                      <wa-dropdown-item class="type-filter-item" type="checkbox" data-main-type="Artifact">Artifact</wa-dropdown-item>
+                      <wa-dropdown-item class="type-filter-item" type="checkbox" data-main-type="Enchantment">Enchantment</wa-dropdown-item>
+                      <wa-dropdown-item class="type-filter-item" type="checkbox" data-main-type="Land">Land</wa-dropdown-item>
+                      <wa-divider></wa-divider>
+                      <wa-dropdown-item id="filters-clear">
                         <wa-icon slot="icon" name="xmark"></wa-icon>
-                        Clear deck filters
+                        Clear filters
                       </wa-dropdown-item>
                       <wa-divider></wa-divider>
                     </wa-dropdown>
