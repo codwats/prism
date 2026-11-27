@@ -45,7 +45,7 @@ The deck-card loop uses **continue-on-error**: a failing RPC for one deck is log
 ## Merge Conflict Resolution
 
 `mergeEntityCollection` handles three cases per entity ID:
-- **Both local and cloud present:** if `local.updatedAt > baseline.updatedAt` for that entity, local wins (user edited since last sync — guards against server-clock-ahead skew). Otherwise, `pickNewerEntity` compares timestamps.
+- **Both local and cloud present:** if `local.updatedAt > baseline.updatedAt` for that entity, local wins (user edited since last sync — guards against server-clock-ahead skew). Otherwise, `pickNewerEntity` compares timestamps. A baseline can carry another device's clock, so `savePrism` (`recordLocalPrismChanges`) stamps every local change after the version it replaces (`stampAfter`: 1 ms past it when this clock is behind): a deck or split group whose `updatedAt` the save changed, a deck/group delete tombstone, and each changed key's `markTimes` entry (#502). A device whose clock is behind still reads as edited since the last sync; concurrent edits on both devices still fall back to timestamp comparison.
 - **Local only:** kept if `local.updatedAt > baseline.updatedAt`, otherwise treated as deleted on another device.
 - **Cloud only:** kept unless locally deleted after the cloud's `updatedAt`.
 
