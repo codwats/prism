@@ -366,7 +366,7 @@ test('clock skew: an un-mark on the device whose clock is behind sticks', async 
 	assert.deepEqual(cloudRow(id).marked_cards, ['Beta Card']);
 });
 
-test('clock skew: a re-mark on the device whose clock is behind beats an earlier un-mark of that card', { skip: '#502' }, async () => {
+test('clock skew: a re-mark on the device whose clock is behind beats an earlier un-mark of that card', async () => {
 	const id = await seed({ marked: ['Sol Ring'] });
 	await on('B', T(65), () => setMarked(['Sol Ring'], false)); // real T(5)
 	await on('B', T(66), sync);
@@ -378,7 +378,7 @@ test('clock skew: a re-mark on the device whose clock is behind beats an earlier
 	assert.deepEqual(cloudRow(id).marked_cards, ['Sol Ring']);
 });
 
-test('clock skew: a deck edit on the device whose clock is behind sticks', { skip: '#502' }, async () => {
+test('clock skew: a deck edit on the device whose clock is behind sticks', async () => {
 	await seed();
 	await on('B', T(65), () => editCards('Alpha', [card('From B')])); // real T(5)
 	await on('B', T(66), sync);
@@ -387,6 +387,18 @@ test('clock skew: a deck edit on the device whose clock is behind sticks', { ski
 	await on('A', T(11), sync);
 
 	await on('A', T(12), () => assert.deepEqual(cardNames(deck(prism(), 'Alpha')), ['From A']));
+});
+
+test('clock skew: a deck delete on the device whose clock is behind sticks', async () => {
+	await seed();
+	await on('B', T(65), () => editCards('Alpha', [card('From B')])); // real T(5)
+	await on('B', T(66), sync);
+	await on('A', T(7), load);
+	await on('A', T(10), () => deleteDeck('Alpha'));
+	await on('A', T(11), sync);
+	await on('A', T(12), load);
+
+	await on('A', T(13), () => assert.equal(deck(prism(), 'Alpha'), undefined));
 });
 
 // ---------------------------------------------------------------------------

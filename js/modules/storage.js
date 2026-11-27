@@ -172,6 +172,12 @@ function getTimestampMs(value) {
   return Number.isFinite(ms) ? ms : 0;
 }
 
+// time, or 1 ms after floor when time is not later (another device's clock ahead).
+function stampAfter(time, floor) {
+  const floorMs = getTimestampMs(floor);
+  return getTimestampMs(time) > floorMs ? time : new Date(floorMs + 1).toISOString();
+}
+
 function getEntityUpdatedAt(entity, fallback = null) {
   return entity?.updatedAt || fallback || null;
 }
@@ -359,9 +365,24 @@ function recordLocalPrismChanges(storage, previousPrism, nextPrism) {
   const nextGroupIds = new Set((nextPrism.splitGroups || []).map(group => group.id));
   const deletedAt = nextPrism.updatedAt || new Date().toISOString();
 
+  // A local change is stamped after the version it replaces, whichever clock
+  // wrote that one, so a device whose clock is behind still reads as
+  // "edited since the last sync" and its change is not reverted (#502).
+  // Rewrites updatedAt on the caller's decks and groups, so its next save starts from them.
+  const previousDecks = new Map((previousPrism?.decks || []).map(deck => [deck.id, deck]));
+  const previousGroups = new Map((previousPrism?.splitGroups || []).map(group => [group.id, group]));
+  for (const [items, previousById] of [[nextPrism.decks, previousDecks], [nextPrism.splitGroups, previousGroups]]) {
+    for (const item of items || []) {
+      const before = previousById.get(item.id);
+      if (before && item.updatedAt && item.updatedAt !== before.updatedAt) {
+        item.updatedAt = stampAfter(item.updatedAt, before.updatedAt);
+      }
+    }
+  }
+
   for (const deckId of previousDeckIds) {
     if (!nextDeckIds.has(deckId)) {
-      baseline.deletedDecks[deckId] = deletedAt;
+      baseline.deletedDecks[deckId] = stampAfter(deletedAt, previousDecks.get(deckId).updatedAt);
     }
   }
 
@@ -371,7 +392,7 @@ function recordLocalPrismChanges(storage, previousPrism, nextPrism) {
 
   for (const groupId of previousGroupIds) {
     if (!nextGroupIds.has(groupId)) {
-      baseline.deletedSplitGroups[groupId] = deletedAt;
+      baseline.deletedSplitGroups[groupId] = stampAfter(deletedAt, previousGroups.get(groupId).updatedAt);
     }
   }
 
@@ -391,9 +412,10 @@ function recordLocalPrismChanges(storage, previousPrism, nextPrism) {
     ...[...previousMarks].filter(key => !nextMarks.has(key))
   ];
   const now = new Date().toISOString();
+  const mergedMarkTimes = newerTimes(nextPrism.markTimes, previousPrism?.markTimes);
   nextPrism.markTimes = {
-    ...newerTimes(nextPrism.markTimes, previousPrism?.markTimes),
-    ...Object.fromEntries(changed.map(key => [key, now]))
+    ...mergedMarkTimes,
+    ...Object.fromEntries(changed.map(key => [key, stampAfter(now, mergedMarkTimes[key])]))
   };
 
   // A removed or applied Planned swap is tombstoned at the wall clock, not
